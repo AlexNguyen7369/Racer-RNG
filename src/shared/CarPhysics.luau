@@ -100,29 +100,82 @@ function CarPhysics:Step(input, dt)
 	local lateralSpeedSum = 0
 	local loopAssist = false
 
+	-- Pass 1: suspension rays. Spring load (with a bump stop near full compression) per grounded wheel.
+	local down = -up
 	for _, w in wheels do
-		local mount = w.Cfg.Mount
-		local origin = cf:PointToWorldSpace(mount)
-		local down = -up
-		local hit = workspace:Raycast(origin, down * (rest + radius), self.RayParams)
-
+		local hit = workspace:Raycast(cf:PointToWorldSpace(w.Cfg.Mount), down * (rest + radius), self.RayParams)
+		w.Hit = hit
 		if hit then
-			grounded += 1
-			w.Grounded = true
 			if hit.Instance:GetAttribute("LoopAssist") then
 				loopAssist = true
 			end
 			local springLen = math.clamp(hit.Distance - radius, 0, rest)
-			w.SpringLen = springLen
 			local compression = rest - springLen
-
-			-- Spring + damper along the suspension axis, with a bump stop near full compression
-			local compRate = chassis:GetVelocityAtPosition(origin):Dot(down)
-			local springForce = k * compression + c * compRate
+			w.SpringLen = springLen
+			w.SpringLoad = k * compression
+			w.Stiffness = k
 			if compression > rest * 0.9 then
-				springForce += k * 8 * (compression - rest * 0.9)
+				w.SpringLoad += k * 8 * (compression - rest * 0.9)
+				w.Stiffness = k * 9
 			end
-			springForce = math.max(springForce, 0)
+		end
+	end
+
+	-- Pass 2: implicit (backward Euler) spring/damper solve over heave, pitch and roll.
+	-- An explicit per-corner damper assumes each wheel carries mass/4, but the chassis' roll inertia is
+	-- about 3x smaller than that, so the explicit roll mode sits on the edge of stability at 60 Hz and
+	-- blows up at lower frame rates (the car chatters, rolls and flips). Solving for the post-step
+	-- velocity makes the suspension stable at any dt; statics are unchanged (gravity is in the solve).
+	-- Generalised velocity q = (heave along up, pitch rate about local X, roll rate about local Z).
+	local size = chassis.Size
+	local Ix = mass * (size.Y * size.Y + size.Z * size.Z) / 12
+	local Iz = mass * (size.X * size.X + size.Y * size.Y) / 12
+	local comLocal = cf:PointToObjectSpace(com)
+	local angVel = chassis.AssemblyAngularVelocity
+	local q1, q2, q3 = vel:Dot(up), angVel:Dot(cf.XVector), angVel:Dot(cf.ZVector)
+	-- A = M + dt * sum(c' G G^T), rhs = M q + dt * sum(G F) + gravity impulse (per unit of q)
+	local a11, a12, a13, a22, a23, a33 = mass, 0, 0, Ix, 0, Iz
+	local gravityUp = loopAssist and 0 or -gravity * up.Y * dt * mass
+	local r1, r2, r3 = mass * q1 + gravityUp, Ix * q2, Iz * q3
+	for _, w in wheels do
+		if w.Hit then
+			local r = w.Cfg.Mount - comLocal
+			local g1, g2, g3 = 1, -r.Z, r.X -- mount velocity along up = G . q; up-force f gives wrench f * G
+			w.G1, w.G2, w.G3 = g1, g2, g3
+			w.DampEff = c + dt * w.Stiffness
+			local cd = dt * w.DampEff
+			a11 += cd * g1 * g1
+			a12 += cd * g1 * g2
+			a13 += cd * g1 * g3
+			a22 += cd * g2 * g2
+			a23 += cd * g2 * g3
+			a33 += cd * g3 * g3
+			r1 += dt * w.SpringLoad * g1
+			r2 += dt * w.SpringLoad * g2
+			r3 += dt * w.SpringLoad * g3
+		end
+	end
+	-- Symmetric 3x3 solve (Cramer's rule)
+	local det = a11 * (a22 * a33 - a23 * a23) - a12 * (a12 * a33 - a23 * a13) + a13 * (a12 * a23 - a22 * a13)
+	local p1, p2, p3 = q1, q2, q3
+	if math.abs(det) > 1e-9 then
+		p1 = (r1 * (a22 * a33 - a23 * a23) - a12 * (r2 * a33 - a23 * r3) + a13 * (r2 * a23 - a22 * r3)) / det
+		p2 = (a11 * (r2 * a33 - a23 * r3) - r1 * (a12 * a33 - a23 * a13) + a13 * (a12 * r3 - r2 * a13)) / det
+		p3 = (a11 * (a22 * r3 - r2 * a23) - a12 * (a12 * r3 - r2 * a13) + r1 * (a12 * a23 - a22 * a13)) / det
+	end
+
+	for _, w in wheels do
+		local mount = w.Cfg.Mount
+		local origin = cf:PointToWorldSpace(mount)
+		local hit = w.Hit
+
+		if hit then
+			grounded += 1
+			w.Grounded = true
+
+			-- Suspension force from the post-step compression rate (never pulls the car down)
+			local compRate = -(w.G1 * p1 + w.G2 * p2 + w.G3 * p3)
+			local springForce = math.max(w.SpringLoad + w.DampEff * compRate, 0)
 
 			-- Ground-plane wheel basis (front wheels are steered)
 			local normal = hit.Normal

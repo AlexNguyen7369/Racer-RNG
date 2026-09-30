@@ -21,5 +21,6 @@ return {
 		"economy",
 		"data",
 		"hud",
+		"auto_toggle",
 	},
 }

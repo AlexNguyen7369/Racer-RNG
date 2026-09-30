@@ -1,5 +1,5 @@
 --!nonstrict
--- Pure helpers for the Speed counter HUD (Client/SpeedHud), kept here so they can be tested.
+-- Pure helpers for the HUD (Client/SpeedHud, Client/AutoRaceButton), kept here so they can be tested.
 
 local RaceConfig = require(script.Parent.RaceConfig)
 
@@ -8,17 +8,35 @@ local HudFormat = {}
 local SMOOTH_RATE = 8 -- 1/s: how fast the shown number chases the real stat
 local SNAP = 0.005
 
--- "1,234" (whole number, thousands separators, never scientific). Anything that is not a real stat shows 0.
-function HudFormat.SpeedText(stat)
-	if type(stat) ~= "number" or stat ~= stat or stat < 0 then
-		return "0"
-	end
-	local text = string.format("%.0f", math.floor(math.min(stat, RaceConfig.MAX_STAT)))
+-- Whole number with thousands separators, never scientific: 1234.9 -> "1,234".
+local function commas(n)
+	local text = string.format("%.0f", math.floor(n))
 	local replaced
 	repeat
 		text, replaced = string.gsub(text, "^(%d+)(%d%d%d)", "%1,%2")
 	until replaced == 0
 	return text
+end
+
+-- "1,234" (whole number, thousands separators, never scientific). Anything that is not a real stat shows 0.
+function HudFormat.SpeedText(stat)
+	if type(stat) ~= "number" or stat ~= stat or stat < 0 then
+		return "0"
+	end
+	return commas(math.min(stat, RaceConfig.MAX_STAT))
+end
+
+-- "$1,234" for the Money row. Anything that is not a real, finite, non-negative amount shows $0.
+function HudFormat.MoneyText(money)
+	if type(money) ~= "number" or money ~= money or money < 0 or money == math.huge then
+		return "$0"
+	end
+	return "$" .. commas(money)
+end
+
+-- The toggle button's label: it names what pressing it does.
+function HudFormat.AutoButtonText(isRacing)
+	return isRacing == true and "Stop Auto" or "Auto Race"
 end
 
 -- The cruise speed the stat currently gives, e.g. "42 studs/s".

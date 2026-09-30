@@ -1,6 +1,6 @@
 --!nonstrict
--- Speed counter on the left of the screen. It shows the Speed stat (leaderstats.Speed, grown by the server
--- while the car drives) and counts up smoothly as the stat grows.
+-- Stats panel on the left of the screen. It shows the Speed stat (leaderstats.Speed, grown by the server
+-- while the car drives) with Money (leaderstats.Money) under it; both count up smoothly as they grow.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -21,7 +21,7 @@ local panel = Instance.new("Frame")
 panel.Name = "Panel"
 panel.AnchorPoint = Vector2.new(0, 0.5)
 panel.Position = UDim2.new(0, 16, 0.5, 0) -- left edge, vertically centred
-panel.Size = UDim2.fromOffset(150, 92)
+panel.Size = UDim2.fromOffset(150, 140)
 panel.BackgroundColor3 = Color3.fromRGB(20, 28, 48)
 panel.BackgroundTransparency = 0.25
 panel.Parent = gui
@@ -49,12 +49,20 @@ local value = label("Value", "0", 36, UDim2.fromOffset(12, 24), Color3.fromRGB(2
 local rate =
 	label("Rate", HudFormat.RateText(0), 14, UDim2.fromOffset(12, 68), Color3.fromRGB(200, 210, 230), Enum.Font.Gotham)
 
+label("MoneyTitle", "MONEY", 14, UDim2.fromOffset(12, 92), Color3.fromRGB(255, 214, 64), Enum.Font.GothamBold)
+local moneyValue =
+	label("MoneyValue", "$0", 26, UDim2.fromOffset(12, 108), Color3.fromRGB(255, 255, 255), Enum.Font.GothamBlack)
+
 local stats = player:WaitForChild("leaderstats")
 local speedStat = stats:WaitForChild("Speed")
+local moneyStat = stats:WaitForChild("Money")
 
 local shown = speedStat.Value
+local shownMoney = moneyStat.Value
 RunService.RenderStepped:Connect(function(dt)
 	shown = HudFormat.Approach(shown, speedStat.Value, dt)
 	value.Text = HudFormat.SpeedText(shown)
 	rate.Text = HudFormat.RateText(shown)
+	shownMoney = HudFormat.Approach(shownMoney, moneyStat.Value, dt)
+	moneyValue.Text = HudFormat.MoneyText(shownMoney)
 end)

@@ -43,6 +43,10 @@ function RaceService.SetRoute(newRoute)
 	route = newRoute
 end
 
+function RaceService.GetRoute()
+	return route
+end
+
 local function setCarGroup(car)
 	for _, part in car:GetDescendants() do
 		if part:IsA("BasePart") then
@@ -187,10 +191,12 @@ function RaceService.NewRun(car, raceRoute, player, options)
 		end
 	end)
 
+	-- Stops the run. The Speed gained since the last commit is committed first, so stopping never loses stat.
 	function run:Destroy()
 		if self.Connection then
 			self.Connection:Disconnect()
 			self.Connection = nil
+			commitStat()
 		end
 	end
 	return run

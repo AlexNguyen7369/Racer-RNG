@@ -1664,7 +1664,9 @@ function Scenarios.race()
 			"stat_api_matches_value",
 			fast.statViaApi or -1,
 			fast.finalStat or -1,
-			fast.statViaApi == fast.finalStat
+			type(fast.statViaApi) == "number"
+				and type(fast.finalStat) == "number"
+				and math.abs(fast.statViaApi - fast.finalStat) <= 1e-3
 		)
 	end
 
@@ -1873,6 +1875,653 @@ function Scenarios.flip_recovery()
 	flipTest("on_side", math.pi / 2)
 	model:Destroy()
 	return result("flip_recovery", checks, {})
+end
+
+-- Auto race toggle (the "Stop Auto" / "Auto Race" button). BRIEF (user): "Implement a button that says 'Stop Auto'
+-- on the top center of the screen. This should stop the car auto pilot and return the user back in its avatar state
+-- outside of the track, able to walk around. The button while in avatar state is replaced with 'Auto Race' button
+-- that resumes auto race. User should keep speed stat that was gained during auto racing. Confirm UI is flush with
+-- game logic and car doesn't bug when swapping in and out of auto racing. Money stat is displayed under speed stat
+-- on the left."
+-- A fake player (Folder) with a fake R6 character is attached by CarService to a real car on the LIVE chain
+-- (Workspace.Track, RaceService's route), stopped, resumed, toggled rapidly and fed bad input.
+local AUTO_BESIDE_START = 150 -- studs (horizontal) from Track 1's Start: "beside the start of Track 1"
+local AUTO_SPAWN_MAX_HEIGHT = 8 -- studs the walk spawn may be above the ground under it ("a few studs")
+local AUTO_SPAWN_MATCH = 4 -- studs (horizontal) the avatar may be from WalkSpawnCFrame after the stop
+local AUTO_BASEPLATE_TOP = 0 -- Main builds the chain TRACK_LIFT above a baseplate whose top is Y = 0
+local AUTO_START_RADIUS = 25 -- studs: a resumed car spawns at the Track 1 start
+local AUTO_WALK_SPEED = 16 -- StarterPlayer defaults
+local AUTO_JUMP_HEIGHT = 7.2
+
+local function hdist(a, b)
+	return Vector2.new(a.X - b.X, a.Z - b.Z).Magnitude
+end
+
+-- Horizontal distance from p to the polyline pts.
+local function hPolyDist(pts, p)
+	if #pts == 1 then
+		return hdist(pts[1], p)
+	end
+	local q = Vector2.new(p.X, p.Z)
+	local best = math.huge
+	for i = 1, #pts - 1 do
+		local a = Vector2.new(pts[i].X, pts[i].Z)
+		local ab = Vector2.new(pts[i + 1].X, pts[i + 1].Z) - a
+		local len2 = ab:Dot(ab)
+		local t = len2 > 1e-9 and math.clamp((q - a):Dot(ab) / len2, 0, 1) or 0
+		best = math.min(best, (q - (a + ab * t)).Magnitude)
+	end
+	return best
+end
+
+-- A minimal R6 avatar: HumanoidRootPart (invisible), Torso, Head with a face decal, two legs, Motor6D joints.
+local function newFakeCharacter(cf)
+	local model = Instance.new("Model")
+	model.Name = "CarTestAutoCharacter"
+	local function part(name, size, offset, transparency, collide)
+		local p = Instance.new("Part")
+		p.Name = name
+		p.Size = size
+		p.CFrame = cf * CFrame.new(offset)
+		p.Transparency = transparency
+		p.CanCollide = collide
+		p.TopSurface = Enum.SurfaceType.Smooth
+		p.BottomSurface = Enum.SurfaceType.Smooth
+		p.Parent = model
+		return p
+	end
+	local root = part("HumanoidRootPart", Vector3.new(2, 2, 1), Vector3.zero, 1, false)
+	local torso = part("Torso", Vector3.new(2, 2, 1), Vector3.zero, 0, true)
+	local head = part("Head", Vector3.new(2, 1, 1), Vector3.new(0, 1.5, 0), 0, true)
+	local leftLeg = part("Left Leg", Vector3.new(1, 2, 1), Vector3.new(-0.5, -2, 0), 0, false)
+	local rightLeg = part("Right Leg", Vector3.new(1, 2, 1), Vector3.new(0.5, -2, 0), 0, false)
+	local face = Instance.new("Decal")
+	face.Name = "face"
+	face.Face = Enum.NormalId.Front
+	face.Texture = "rbxasset://textures/face.png"
+	face.Parent = head
+	local function motor(name, p0, p1, c0, c1)
+		local m = Instance.new("Motor6D")
+		m.Name = name
+		m.Part0 = p0
+		m.Part1 = p1
+		m.C0 = c0
+		m.C1 = c1
+		m.Parent = p0
+	end
+	motor("RootJoint", root, torso, CFrame.new(), CFrame.new())
+	motor("Neck", torso, head, CFrame.new(0, 1, 0), CFrame.new(0, -0.5, 0))
+	motor("Left Hip", torso, leftLeg, CFrame.new(-1, -1, 0), CFrame.new(-0.5, 1, 0))
+	motor("Right Hip", torso, rightLeg, CFrame.new(1, -1, 0), CFrame.new(0.5, 1, 0))
+	local humanoid = Instance.new("Humanoid")
+	humanoid.RigType = Enum.HumanoidRigType.R6
+	humanoid.Parent = model
+	model.PrimaryPart = root
+	model.Parent = Workspace
+	return model, humanoid, root, head, face
+end
+
+function Scenarios.auto_toggle()
+	local checks = {}
+	local metrics = {}
+	local CarService = serverModule("CarService")
+	local RaceService = serverModule("RaceService")
+	local PlayerData = serverModule("PlayerData")
+	local Money = serverModule("MoneyService")
+	local RaceConfig = sharedModule("RaceConfig")
+	local R = PhysicsTargets.race
+	local L = PhysicsTargets.lap
+	local apiOk = CarService ~= nil
+		and RaceService ~= nil
+		and PlayerData ~= nil
+		and Money ~= nil
+		and RaceConfig ~= nil
+		and R ~= nil
+		and L ~= nil
+		and type(L.MinUpYStrict) == "number"
+		and type(R.MaxPathDeviation) == "number"
+		and type(CarService.Attach) == "function"
+		and type(CarService.SetAutoRace) == "function"
+		and type(CarService.IsAutoRacing) == "function"
+		and type(CarService.GetCar) == "function"
+		and type(CarService.GetRun) == "function"
+		and type(CarService.WalkSpawnCFrame) == "function"
+		and type(RaceService.NewRun) == "function"
+		and type(PlayerData.Setup) == "function"
+		and type(RaceConfig.SpeedFor) == "function"
+		and type(RaceConfig.GainPerSecond) == "function"
+	check(checks, "auto_api_exists", apiOk and 1 or 0, 1, apiOk)
+	local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+	local remote = remotes and remotes:FindFirstChild("SetAutoRace")
+	local remoteOk = remote ~= nil and remote:IsA("RemoteEvent")
+	check(checks, "auto_remote_is_remote_event", remoteOk and 1 or 0, 1, remoteOk)
+	local cooldown = CarService and CarService.TOGGLE_COOLDOWN
+	local cooldownOk = type(cooldown) == "number" and cooldown > 0 and cooldown <= 1
+	check(checks, "auto_toggle_cooldown_range", cooldownOk and cooldown or -1, 1, cooldownOk)
+	local sps = game:GetService("StarterPlayer"):FindFirstChild("StarterPlayerScripts")
+	local clientFolder = sps and sps:FindFirstChild("Client")
+	local buttonScript = clientFolder and clientFolder:FindFirstChild("AutoRaceButton")
+	local buttonOk = buttonScript ~= nil and buttonScript:IsA("LocalScript")
+	check(checks, "auto_button_script_exists", buttonOk and 1 or 0, 1, buttonOk)
+
+	-- The live chain's road centre lines, rebuilt the way Main builds it (TRACK_LIFT above the baseplate,
+	-- each track at the previous one's EndCFrame). Checked against Track 1's Start part in Workspace.Track.
+	local trackFolder = Workspace:FindFirstChild("Track")
+	local specs = type(TrackRegistry.Chain) == "function" and TrackRegistry.Chain() or {}
+	local roads = {}
+	local chainOrigin = CFrame.new(0, TrackBuilder.TRACK_LIFT or 0, 0)
+	for _, spec in specs do
+		local okLayout, layout = pcall(TrackBuilder.Layout, spec)
+		if okLayout then
+			local pts = {}
+			for i, p in layout.Waypoints do
+				pts[i] = chainOrigin:PointToWorldSpace(p)
+			end
+			table.insert(roads, { Points = pts, Width = layout.Width })
+			chainOrigin = TrackBuilder.EndCFrame(layout, chainOrigin)
+		end
+	end
+	local track1 = trackFolder and specs[1] and trackFolder:FindFirstChild(specs[1].Name)
+	local startPart = track1 and track1:FindFirstChild("Start", true)
+	local chainOk = startPart ~= nil
+		and #roads >= 1
+		and #roads == #specs
+		and hdist(startPart.Position, roads[1].Points[1]) <= 5
+	check(checks, "auto_live_chain_present", chainOk and 1 or 0, 1, chainOk)
+	if not (apiOk and chainOk) then
+		return result("auto_toggle", checks, metrics)
+	end
+	local startPos = startPart.Position
+	local strict = L.MinUpYStrict
+	local maxDev = R.MaxPathDeviation
+
+	local function call(fn, ...)
+		local ok, r = pcall(fn, ...)
+		if ok then
+			return r
+		end
+		return nil
+	end
+
+	-- Every car model (a Model with a VehicleSeat called DriverSeat). Cars present before the scenario (the real
+	-- player's) are ignored; any car that appears during it belongs to the fake player.
+	local function carModels()
+		local list = {}
+		for _, d in Workspace:GetDescendants() do
+			if d:IsA("Model") then
+				local seat = d:FindFirstChild("DriverSeat")
+				if seat and seat:IsA("VehicleSeat") then
+					table.insert(list, d)
+				end
+			end
+		end
+		return list
+	end
+	local baseline = {}
+	for _, m in carModels() do
+		baseline[m] = true
+	end
+	local function ourCars()
+		local list = {}
+		for _, m in carModels() do
+			if not baseline[m] then
+				table.insert(list, m)
+			end
+		end
+		return list
+	end
+
+	local player = Instance.new("Folder")
+	player.Name = "CarTestAutoPlayer"
+	player.Parent = Workspace
+	local okSetup = pcall(function()
+		Money.Setup(player)
+		PlayerData.Setup(player)
+		player.leaderstats.Speed.Value = 0
+	end)
+	local function speedRaw()
+		local stats = player:FindFirstChild("leaderstats")
+		local v = stats and stats:FindFirstChild("Speed")
+		return v and v.Value or -1
+	end
+
+	-- Every run RaceService starts for this player (restored in cleanup)
+	local runs = {}
+	local origNewRun = RaceService.NewRun
+	RaceService.NewRun = function(car, route, p, options)
+		local run = origNewRun(car, route, p, options)
+		if p == player and type(run) == "table" then
+			table.insert(runs, run)
+		end
+		return run
+	end
+	local function activeRuns()
+		local seen, n = {}, 0
+		local current = call(CarService.GetRun, player)
+		local all = table.clone(runs)
+		if type(current) == "table" then
+			table.insert(all, current)
+		end
+		for _, r in all do
+			if not seen[r] then
+				seen[r] = true
+				if r.Connection ~= nil then
+					n += 1
+				end
+			end
+		end
+		return n
+	end
+
+	local okWalk, walkCF = pcall(CarService.WalkSpawnCFrame)
+	local walkOk = okWalk and typeof(walkCF) == "CFrame"
+	check(checks, "walk_spawn_is_cframe", walkOk and 1 or 0, 1, walkOk)
+	if not walkOk then
+		walkCF = CFrame.new(startPos + Vector3.new(0, 3, 0))
+	end
+	local character, humanoid, root, head, face = newFakeCharacter(CFrame.new(walkCF.Position + Vector3.new(0, 3, 0)))
+	local before = {}
+	for _, d in character:GetDescendants() do
+		if d:IsA("BasePart") then
+			before[d] = { Transparency = d.Transparency, CanCollide = d.CanCollide, Massless = d.Massless }
+		end
+	end
+
+	local function isRacing()
+		return call(CarService.IsAutoRacing, player) == true
+	end
+	local function attr()
+		return player:GetAttribute("AutoRacing")
+	end
+	local function seatedIn(car)
+		local seat = car and car:FindFirstChild("DriverSeat")
+		return seat ~= nil and humanoid.SeatPart == seat
+	end
+	-- One car for this player, GetCar returns it, it is AutoRace, the character sits in it, one active run on it
+	local function checkRacingState(pre, oldCar, oldRun)
+		local cars = ourCars()
+		local car = call(CarService.GetCar, player)
+		local run = call(CarService.GetRun, player)
+		local stateOk = isRacing() and attr() == true
+		check(checks, pre .. "_is_auto_racing", stateOk and 1 or 0, 1, stateOk)
+		check(checks, pre .. "_one_car", #cars, 1, #cars == 1)
+		local carOk = car ~= nil and car == cars[1] and car.Parent ~= nil and car ~= oldCar
+		check(checks, pre .. "_get_car_matches", carOk and 1 or 0, 1, carOk)
+		local autoOk = car ~= nil and car:GetAttribute("AutoRace") == true
+		check(checks, pre .. "_car_auto_race", autoOk and 1 or 0, 1, autoOk)
+		check(checks, pre .. "_seated", seatedIn(car) and 1 or 0, 1, seatedIn(car))
+		local hiddenOk = head.Transparency == 1 and face.Transparency == 1
+		check(checks, pre .. "_avatar_hidden", hiddenOk and 1 or 0, 1, hiddenOk)
+		local runOk = type(run) == "table" and run.Connection ~= nil and run.Car == car and run ~= oldRun
+		check(checks, pre .. "_run_active", runOk and 1 or 0, 1, runOk)
+		local n = activeRuns()
+		check(checks, pre .. "_one_active_run", n, 1, n == 1)
+		return car, run
+	end
+	-- Drives `seconds` and checks the car stayed upright, never needed a flip recovery and kept driving
+	local function checkDrive(pre, car, run, seconds, statFrom)
+		local chassis = car and car.PrimaryPart
+		if not chassis or type(run) ~= "table" then
+			check(checks, pre .. "_drive_possible", 0, 1, false)
+			return
+		end
+		local minUp, peak = 1, 0
+		local idx0 = run.Driver and run.Driver.Index or 0
+		frames(seconds, function()
+			if chassis.Parent then
+				minUp = math.min(minUp, chassis.CFrame.UpVector.Y)
+				peak = math.max(peak, chassis.AssemblyLinearVelocity.Magnitude)
+			end
+		end)
+		check(checks, pre .. "_never_tilted", minUp, strict, minUp >= strict)
+		local runUp = type(run.MinUpY) == "number" and run.MinUpY or -1
+		check(checks, pre .. "_run_never_tilted", runUp, strict, runUp >= strict)
+		local rec = type(run.FlipRecoveries) == "number" and run.FlipRecoveries or -1
+		check(checks, pre .. "_no_flip_recoveries", rec, 0, rec == 0)
+		local dev = type(run.MaxPathDeviation) == "number" and run.MaxPathDeviation or math.huge
+		check(checks, pre .. "_sticks_to_path", dev == math.huge and -1 or dev, maxDev, dev <= maxDev)
+		local target = RaceConfig.SpeedFor(statFrom)
+		check(checks, pre .. "_keeps_driving", peak, 0.5 * target, peak >= 0.5 * target)
+		local progressed = (run.Driver and run.Driver.Index or 0) - idx0
+		check(checks, pre .. "_progresses", progressed, 5, progressed >= 5)
+		local statNow = speedRaw()
+		check(checks, pre .. "_stat_grew", statNow, statFrom, statNow > statFrom)
+		check(checks, pre .. "_still_seated", seatedIn(car) and 1 or 0, 1, seatedIn(car))
+	end
+
+	local function body()
+		check(checks, "auto_fake_player_setup", okSetup and 1 or 0, 1, okSetup)
+		check(checks, "initial_not_racing", isRacing() and 0 or 1, 1, not isRacing())
+
+		-- 1. Attach: a car, the character hidden and seated in it, a run driving it
+		local okAttach = pcall(CarService.Attach, player, character)
+		check(checks, "attach_no_error", okAttach and 1 or 0, 1, okAttach)
+		RunService.Heartbeat:Wait()
+		local car, run = checkRacingState("attach", nil, nil)
+
+		-- 2. Driving grows the stat
+		local stat0 = speedRaw()
+		frames(3)
+		local stat1 = speedRaw()
+		check(checks, "drive_stat_grew", stat1, stat0, stat1 > stat0)
+
+		-- 3. Stop: back on foot beside Track 1, off every road, stat kept, no car, no run
+		local statBeforeStop = speedRaw()
+		local okStop, stopRet = pcall(CarService.SetAutoRace, player, false)
+		check(checks, "stop_returns_false", okStop and stopRet == false and 1 or 0, 1, okStop and stopRet == false)
+		RunService.Heartbeat:Wait()
+		local statAfterStop = speedRaw()
+		metrics.stat_before_stop = round(statBeforeStop)
+		metrics.stat_after_stop = round(statAfterStop)
+		check(checks, "stop_stat_kept", statAfterStop, statBeforeStop, statAfterStop >= statBeforeStop)
+		local notRacing = not isRacing() and attr() == false
+		check(checks, "stop_not_racing", notRacing and 1 or 0, 1, notRacing)
+		local oldCarGone = car ~= nil and car.Parent == nil
+		check(checks, "stop_car_destroyed", oldCarGone and 1 or 0, 1, oldCarGone)
+		local noCar = call(CarService.GetCar, player) == nil and #ourCars() == 0
+		check(checks, "stop_no_car", #ourCars(), 0, noCar)
+		local runStopped = type(run) == "table" and run.Connection == nil
+		check(checks, "stop_run_stopped", runStopped and 1 or 0, 1, runStopped)
+		check(checks, "stop_no_active_run", activeRuns(), 0, activeRuns() == 0)
+
+		local visOk, collideOk, massOk = true, true, true
+		for part, b in before do
+			if part.Transparency ~= b.Transparency then
+				visOk = false
+			end
+			if part.CanCollide ~= b.CanCollide then
+				collideOk = false
+			end
+			if part.Massless ~= b.Massless then
+				massOk = false
+			end
+		end
+		check(checks, "stop_avatar_visible", visOk and 1 or 0, 1, visOk and head.Transparency == 0)
+		check(checks, "stop_root_stays_hidden", root.Transparency, 1, root.Transparency == 1)
+		check(checks, "stop_face_visible", face.Transparency, 0, face.Transparency == 0)
+		check(checks, "stop_parts_collide_restored", collideOk and 1 or 0, 1, collideOk)
+		check(checks, "stop_parts_massless_restored", massOk and 1 or 0, 1, massOk)
+		local unseated = humanoid.Sit == false and humanoid.SeatPart == nil
+		check(checks, "stop_unseated", unseated and 1 or 0, 1, unseated)
+		check(checks, "stop_walk_speed", humanoid.WalkSpeed, AUTO_WALK_SPEED, humanoid.WalkSpeed == AUTO_WALK_SPEED)
+		local jh = humanoid.JumpHeight
+		check(checks, "stop_jump_height", jh, AUTO_JUMP_HEIGHT, math.abs(jh - AUTO_JUMP_HEIGHT) <= 1e-3)
+		local viewer = humanoid.DisplayDistanceType == Enum.HumanoidDisplayDistanceType.Viewer
+		check(checks, "stop_name_display_viewer", viewer and 1 or 0, 1, viewer)
+		local atSpawn = hdist(root.Position, walkCF.Position)
+		check(checks, "stop_at_walk_spawn", atSpawn, AUTO_SPAWN_MATCH, atSpawn <= AUTO_SPAWN_MATCH)
+
+		-- The walk spawn: off every road of the live chain (and its checkpoint aprons), beside Track 1's start,
+		-- on the baseplate, a few studs above it
+		local worst, worstNeed = math.huge, 0
+		for _, road in roads do
+			local need = road.Width / 2 + TrackBuilder.CHECKPOINT_APRON
+			local d = hPolyDist(road.Points, walkCF.Position)
+			if d - need < worst - worstNeed then
+				worst, worstNeed = d, need
+			end
+		end
+		check(checks, "walk_spawn_off_road", worst, worstNeed, worst > worstNeed)
+		local beside = hdist(walkCF.Position, startPos)
+		check(checks, "walk_spawn_beside_track1_start", beside, AUTO_BESIDE_START, beside <= AUTO_BESIDE_START)
+		local exclude = { character }
+		for _, m in carModels() do
+			table.insert(exclude, m)
+		end
+		for _, p in game:GetService("Players"):GetPlayers() do
+			if p.Character then
+				table.insert(exclude, p.Character)
+			end
+		end
+		local params = RaycastParams.new()
+		params.FilterType = Enum.RaycastFilterType.Exclude
+		params.FilterDescendantsInstances = exclude
+		local hit = Workspace:Raycast(walkCF.Position + Vector3.new(0, 20, 0), Vector3.new(0, -60, 0), params)
+		local onBase = hit ~= nil
+			and not hit.Instance:IsDescendantOf(trackFolder)
+			and math.abs(hit.Position.Y - AUTO_BASEPLATE_TOP) <= 1
+		check(checks, "walk_spawn_on_baseplate", hit and hit.Position.Y or -999, AUTO_BASEPLATE_TOP, onBase)
+		local height = hit and walkCF.Position.Y - hit.Position.Y or -1
+		check(
+			checks,
+			"walk_spawn_height",
+			height,
+			AUTO_SPAWN_MAX_HEIGHT,
+			hit ~= nil and height >= 0 and height <= AUTO_SPAWN_MAX_HEIGHT
+		)
+
+		-- 4. Walking for 2 s: the stat does not move, no car comes back, the avatar stands at the spawn
+		frames(2)
+		local statWalk = speedRaw()
+		check(checks, "walk_stat_frozen", statWalk, statAfterStop, statWalk == statAfterStop)
+		local stillNoCar = #ourCars() == 0 and call(CarService.GetCar, player) == nil and activeRuns() == 0
+		check(checks, "walk_still_no_car", #ourCars(), 0, stillNoCar)
+		local stillWalking = not isRacing() and attr() == false and humanoid.SeatPart == nil
+		check(checks, "walk_still_not_racing", stillWalking and 1 or 0, 1, stillWalking)
+		local ground = hit and hit.Position.Y or AUTO_BASEPLATE_TOP
+		local standH = root.Position.Y - ground
+		check(checks, "walk_standing_height", standH, 3, standH >= 1.5 and standH <= 5)
+		local rootSpeed = root.AssemblyLinearVelocity.Magnitude
+		check(checks, "walk_at_rest", rootSpeed, 2, rootSpeed < 2)
+		check(checks, "walk_humanoid_alive", humanoid.Health, 0, humanoid.Health > 0)
+		local stay = hdist(root.Position, walkCF.Position)
+		check(checks, "walk_stays_at_spawn", stay, AUTO_SPAWN_MATCH, stay <= AUTO_SPAWN_MATCH)
+
+		-- 5. Bad input while walking changes nothing
+		local badWalkOk = true
+		for _, v in { "yes", 1, 0, "true", {} } do
+			local ok, ret = pcall(CarService.SetAutoRace, player, v)
+			if not ok or ret ~= false then
+				badWalkOk = false
+			end
+		end
+		local okNil, retNil = pcall(CarService.SetAutoRace, player, nil)
+		badWalkOk = badWalkOk and okNil and retNil == false
+		RunService.Heartbeat:Wait()
+		badWalkOk = badWalkOk and not isRacing() and attr() == false and #ourCars() == 0 and humanoid.SeatPart == nil
+		check(checks, "bad_input_ignored_walking", badWalkOk and 1 or 0, 1, badWalkOk)
+
+		-- 6. Resume: a fresh car at Track 1's start, the stat exactly as it was, then 5 s of clean driving
+		local stoppedStat = speedRaw()
+		local minSeen = stoppedStat
+		local speedObj = player.leaderstats.Speed
+		local watch = speedObj:GetPropertyChangedSignal("Value"):Connect(function()
+			minSeen = math.min(minSeen, speedObj.Value)
+		end)
+		local okRes, resRet = pcall(CarService.SetAutoRace, player, true)
+		local statAtResume = speedRaw()
+		check(checks, "resume_returns_true", okRes and resRet == true and 1 or 0, 1, okRes and resRet == true)
+		local slack = RaceConfig.GainPerSecond(stoppedStat, CarConfig.TopSpeed or 200) * 1
+		check(
+			checks,
+			"resume_stat_kept",
+			statAtResume,
+			stoppedStat,
+			statAtResume >= stoppedStat - 1e-6 and statAtResume <= stoppedStat + slack
+		)
+		RunService.Heartbeat:Wait()
+		local car2, run2 = checkRacingState("resume", car, run)
+		local chassis2 = car2 and car2.PrimaryPart
+		local fromStart = chassis2 and hdist(chassis2.Position, startPos) or math.huge
+		check(
+			checks,
+			"resume_car_at_track1_start",
+			fromStart == math.huge and -1 or fromStart,
+			AUTO_START_RADIUS,
+			fromStart <= AUTO_START_RADIUS
+		)
+		checkDrive("resume", car2, run2, 5, stoppedStat)
+		watch:Disconnect()
+		check(checks, "resume_stat_never_dropped", minSeen, stoppedStat, minSeen >= stoppedStat - 1e-6)
+
+		-- 7. Rapid toggling from concurrent requests: the last one wins, one car, one run, seated, drives cleanly
+		for _, v in { false, true, false, true, true, false, true } do
+			task.spawn(function()
+				pcall(CarService.SetAutoRace, player, v)
+			end)
+			RunService.Heartbeat:Wait()
+		end
+		frames(2)
+		local car3, run3 = checkRacingState("rapid", nil, nil)
+		checkDrive("rapid", car3, run3, 3, speedRaw())
+
+		-- 8. Bad input while racing changes nothing (same car, same run)
+		local badRaceOk = true
+		for _, v in { "yes", 1, 0, "false", {} } do
+			local ok, ret = pcall(CarService.SetAutoRace, player, v)
+			if not ok or ret ~= true then
+				badRaceOk = false
+			end
+		end
+		local okNil2, retNil2 = pcall(CarService.SetAutoRace, player, nil)
+		badRaceOk = badRaceOk and okNil2 and retNil2 == true
+		RunService.Heartbeat:Wait()
+		badRaceOk = badRaceOk
+			and isRacing()
+			and attr() == true
+			and call(CarService.GetCar, player) == car3
+			and car3 ~= nil
+			and car3.Parent ~= nil
+			and call(CarService.GetRun, player) == run3
+			and run3 ~= nil
+			and run3.Connection ~= nil
+			and #ourCars() == 1
+		check(checks, "bad_input_ignored_racing", badRaceOk and 1 or 0, 1, badRaceOk)
+
+		-- 9. Idempotent: stop twice leaves no car, start twice leaves exactly one
+		local okA, rA = pcall(CarService.SetAutoRace, player, false)
+		local okB, rB = pcall(CarService.SetAutoRace, player, false)
+		RunService.Heartbeat:Wait()
+		local stopTwice = okA and okB and rA == false and rB == false
+		check(checks, "double_stop_returns_false", stopTwice and 1 or 0, 1, stopTwice)
+		local zero = #ourCars() == 0 and activeRuns() == 0 and not isRacing() and attr() == false
+		check(checks, "double_stop_no_car", #ourCars(), 0, zero)
+		local unseated2 = humanoid.SeatPart == nil and humanoid.Sit == false
+		check(checks, "double_stop_unseated", unseated2 and 1 or 0, 1, unseated2)
+		local okC, rC = pcall(CarService.SetAutoRace, player, true)
+		local okD, rD = pcall(CarService.SetAutoRace, player, true)
+		RunService.Heartbeat:Wait()
+		local startTwice = okC and okD and rC == true and rD == true
+		check(checks, "double_start_returns_true", startTwice and 1 or 0, 1, startTwice)
+		checkRacingState("double_start", nil, nil)
+
+		-- 10. Accessories that load while the avatar is hidden are hidden too, and come back when it stops;
+		-- one added while on foot stays visible (regression: swap in/out must track late descendants)
+		local function newAccessory(name)
+			local acc = Instance.new("Accessory")
+			acc.Name = name
+			local handle = Instance.new("Part")
+			handle.Name = "Handle"
+			handle.Size = Vector3.new(1, 0.4, 1)
+			handle.Transparency = 0
+			handle.CanCollide = false
+			handle.Massless = false
+			handle.CFrame = head.CFrame * CFrame.new(0, 0.7, 0)
+			handle.Parent = acc
+			local weld = Instance.new("WeldConstraint")
+			weld.Part0 = handle
+			weld.Part1 = head
+			weld.Parent = handle
+			local decal = Instance.new("Decal")
+			decal.Name = "Logo"
+			decal.Transparency = 0
+			decal.Parent = handle
+			acc.Parent = character
+			return handle, decal
+		end
+		local hatHandle, hatDecal = newAccessory("CarTestLateHat")
+		RunService.Heartbeat:Wait()
+		RunService.Heartbeat:Wait()
+		local lateHidden = hatHandle.Transparency == 1 and hatDecal.Transparency == 1 and hatHandle.Massless == true
+		check(checks, "late_accessory_hidden_while_racing", lateHidden and 1 or 0, 1, lateHidden)
+		local okS, rS = pcall(CarService.SetAutoRace, player, false)
+		RunService.Heartbeat:Wait()
+		local lateShown = okS
+			and rS == false
+			and hatHandle.Transparency == 0
+			and hatDecal.Transparency == 0
+			and hatHandle.Massless == false
+			and hatHandle.CanCollide == false
+		check(checks, "late_accessory_restored_on_stop", lateShown and 1 or 0, 1, lateShown)
+		local footHandle, footDecal = newAccessory("CarTestFootHat")
+		RunService.Heartbeat:Wait()
+		RunService.Heartbeat:Wait()
+		local footVisible = footHandle.Transparency == 0 and footDecal.Transparency == 0 and head.Transparency == 0
+		check(checks, "foot_accessory_stays_visible", footVisible and 1 or 0, 1, footVisible)
+
+		-- 11. A player with no avatar attached can not start a car
+		local ghost = Instance.new("Folder")
+		ghost.Name = "CarTestAutoGhost"
+		ghost.Parent = Workspace
+		local okG, rG = pcall(CarService.SetAutoRace, ghost, true)
+		RunService.Heartbeat:Wait()
+		local ghostCar = call(CarService.GetCar, ghost)
+		local ghostOk = okG
+			and rG == false
+			and ghostCar == nil
+			and call(CarService.GetRun, ghost) == nil
+			and call(CarService.IsAutoRacing, ghost) ~= true
+		check(checks, "unattached_enable_refused", ghostOk and 1 or 0, 1, ghostOk)
+		if ghostCar then
+			pcall(function()
+				ghostCar:Destroy()
+			end)
+		end
+		ghost:Destroy()
+
+		-- 12. Death: the car and its run go away with the avatar, the stat stops, and a dead avatar can not be
+		-- given a new car by toggling off and on (CarService's own contract: "no avatar to seat (dead ...)")
+		local okR, rR = pcall(CarService.SetAutoRace, player, true)
+		RunService.Heartbeat:Wait()
+		local preDeathCar = call(CarService.GetCar, player)
+		local raceAgain = okR and rR == true and preDeathCar ~= nil and seatedIn(preDeathCar)
+		check(checks, "pre_death_racing", raceAgain and 1 or 0, 1, raceAgain)
+		humanoid.Health = 0
+		frames(0.5)
+		local deadGone = call(CarService.GetCar, player) == nil
+			and call(CarService.GetRun, player) == nil
+			and #ourCars() == 0
+			and activeRuns() == 0
+			and (preDeathCar == nil or preDeathCar.Parent == nil)
+		check(checks, "died_car_removed", deadGone and 1 or 0, 1, deadGone)
+		local statDead0 = speedRaw()
+		frames(1)
+		local statDead1 = speedRaw()
+		check(checks, "died_stat_frozen", statDead1, statDead0, statDead1 == statDead0)
+		pcall(CarService.SetAutoRace, player, false)
+		RunService.Heartbeat:Wait()
+		local okDR, rDR = pcall(CarService.SetAutoRace, player, true)
+		frames(0.5)
+		local deadRefused = okDR
+			and rDR == false
+			and not isRacing()
+			and call(CarService.GetCar, player) == nil
+			and #ourCars() == 0
+			and activeRuns() == 0
+		check(checks, "dead_resume_refused", deadRefused and 1 or 0, 1, deadRefused)
+		local statDead2 = speedRaw()
+		check(checks, "dead_stat_frozen", statDead2, statDead1, statDead2 == statDead1)
+	end
+
+	local ok, err = pcall(body)
+	check(checks, "auto_toggle_no_error", ok and 1 or 0, 1, ok)
+	if not ok then
+		metrics.error = tostring(err)
+	end
+
+	RaceService.NewRun = origNewRun
+	pcall(CarService.SetAutoRace, player, false)
+	for _, r in runs do
+		pcall(function()
+			r:Destroy()
+		end)
+	end
+	for _, m in ourCars() do
+		m:Destroy()
+	end
+	character:Destroy()
+	player:Destroy()
+	return result("auto_toggle", checks, metrics)
 end
 
 -- Economy: RaceConfig contract (pure functions).
@@ -2488,6 +3137,44 @@ function Scenarios.hud()
 	end
 	check(checks, "approach_monotone_no_overshoot", monotone and not over and 1 or 0, 1, monotone and not over)
 	check(checks, "approach_converges", shown, target, near(shown, target))
+
+	-- Auto race toggle button text and the MONEY row (brief: "Stop Auto" / "Auto Race" button; "Money stat is
+	-- displayed under speed stat on the left").
+	local toggleApiOk = type(HudFormat.AutoButtonText) == "function" and type(HudFormat.MoneyText) == "function"
+	check(checks, "hud_toggle_api_exists", toggleApiOk and 1 or 0, 1, toggleApiOk)
+	if not toggleApiOk then
+		return result("hud", checks, {})
+	end
+	local B = HudFormat.AutoButtonText
+	check(checks, "auto_button_text_racing", call(B, true) == "Stop Auto" and 1 or 0, 1, call(B, true) == "Stop Auto")
+	local walkingOk = call(B, false) == "Auto Race" and call(B, nil) == "Auto Race"
+	check(checks, "auto_button_text_walking", walkingOk and 1 or 0, 1, walkingOk)
+	local moneyCases = {
+		{ 0, "$0" },
+		{ 5, "$5" },
+		{ 999, "$999" },
+		{ 1000, "$1,000" },
+		{ 1234, "$1,234" },
+		{ 99.9, "$99" },
+		{ 1234.99, "$1,234" },
+		{ 1e6, "$1,000,000" },
+		{ 123456789, "$123,456,789" },
+		{ 1e12, "$1,000,000,000,000" },
+	}
+	local moneyOk = true
+	for _, c in moneyCases do
+		if call(HudFormat.MoneyText, c[1]) ~= c[2] then
+			moneyOk = false
+		end
+	end
+	check(checks, "money_text_format", moneyOk and 1 or 0, 1, moneyOk)
+	local moneyBadOk = call(HudFormat.MoneyText, nil) == "$0"
+	for _, b in { -1, -5000, 0 / 0, "12", true, {}, -math.huge } do
+		if call(HudFormat.MoneyText, b) ~= "$0" then
+			moneyBadOk = false
+		end
+	end
+	check(checks, "money_text_bad_input_is_zero", moneyBadOk and 1 or 0, 1, moneyBadOk)
 	return result("hud", checks, {})
 end
 
@@ -2514,7 +3201,7 @@ function Scenarios.car_size()
 	return result("car_size", checks, { lengthRatio = round(ratio), length = round(size.Z) })
 end
 
--- name: "static_settle" | "accel" | "brake" | "skidpad" | "car_size" | "economy" | "hud" | "lap:<Track>" | "track:<Track>"
+-- name: "static_settle" | "accel" | "brake" | "skidpad" | "car_size" | "economy" | "hud" | "auto_toggle" | "lap:<Track>" | "track:<Track>"
 function Scenarios.Run(name)
 	local track = string.match(name, "^lap:(.+)$")
 	if track then

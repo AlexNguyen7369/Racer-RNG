@@ -21,6 +21,8 @@ local AUTOSAVE_SECONDS = 60
 
 local store = nil
 
+local leaveHooks = {}
+
 function PlayerData.SetStore(newStore)
 	store = newStore
 end
@@ -163,6 +165,11 @@ function PlayerData.WaitLoaded(player, timeout)
 	return false
 end
 
+-- Runs `fn(player)` when a player leaves, just before their stats are saved.
+function PlayerData.OnLeaving(fn)
+	table.insert(leaveHooks, fn)
+end
+
 function PlayerData.Start()
 	local loading = {}
 	local function onPlayer(player)
@@ -177,6 +184,9 @@ function PlayerData.Start()
 		onPlayer(player)
 	end
 	Players.PlayerRemoving:Connect(function(player)
+		for _, hook in leaveHooks do
+			pcall(hook, player) -- e.g. CarService stops the run, committing its last Speed gain
+		end
 		PlayerData.Save(player)
 	end)
 	game:BindToClose(function()
