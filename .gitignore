@@ -1,0 +1,9 @@
+*.rbxl
+*.rbxlx
+*.rbxl.lock
+sourcemap.json
+roblox.yml
+*.blend1
+.DS_Store
+__pycache__/
+*.pyc

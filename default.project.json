@@ -1,0 +1,72 @@
+{
+  "name": "IdleVehicleSimulator",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {
+      "Shared": {
+        "$path": "src/shared"
+      }
+    },
+    "ServerScriptService": {
+      "Server": {
+        "$path": "src/server"
+      },
+      "ProjectContext": {
+        "$path": "context/ProjectContext.luau"
+      }
+    },
+    "StarterPlayer": {
+      "StarterPlayerScripts": {
+        "Client": {
+          "$path": "src/client"
+        }
+      }
+    },
+    "Workspace": {
+      "$className": "Workspace",
+      "$properties": {
+        "Gravity": 196.2
+      },
+      "Baseplate": {
+        "$className": "Part",
+        "$properties": {
+          "Anchored": true,
+          "Locked": true,
+          "Size": [
+            2048,
+            16,
+            2048
+          ],
+          "Material": "Plastic",
+          "Color": [
+            76,
+            160,
+            80
+          ],
+          "TopSurface": "Smooth",
+          "BottomSurface": "Smooth",
+          "Position": [
+            0,
+            -8,
+            0
+          ]
+        },
+        "Texture": {
+          "$className": "Texture",
+          "$properties": {
+            "Face": "Top",
+            "Texture": "rbxassetid://6372755229",
+            "StudsPerTileU": 8,
+            "StudsPerTileV": 8,
+            "Color3": [
+              20,
+              80,
+              28
+            ],
+            "Transparency": 0.5
+          }
+        }
+      }
+    }
+  }
+}
