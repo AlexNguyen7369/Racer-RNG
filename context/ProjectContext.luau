@@ -3,7 +3,7 @@
 PROJECT CONTEXT - Idle Vehicle Simulator (read me first)
 Shown in Studio at: ServerScriptService > ProjectContext   (source file: context/ProjectContext.luau)
 Do NOT edit this in Studio: edit the file on disk, Rojo syncs it. Claude updates it at the end of every loop.
-Last updated: 2026-09-30 (Stop Auto / Auto Race toggle + suspension fix: implemented, round-1 run lost when Studio closed)
+Last updated: 2026-09-30 (lane/stability + toggle + implicit suspension all IMPLEMENTED; NO full run has passed since: re-run the suite)
 
 WHAT IT IS
 A baby-blue mini car auto-races a chain of tracks (Oval -> Hill -> ...). No steering: the car drives itself,
@@ -44,9 +44,12 @@ CHANGE LOG (newest last)
 6. Passive Speed stat (NumberValue), diminishing gain, HUD on the left, car halved (CarConfig scale 1.5,
    DampingRatio 1.0), camera zoom 10-40, pad no longer on the path (CHECKPOINT_LENGTH 60; Oval last straight 80, Hill 100).
 7. Wall at the Hill checkpoint now stops 0.5 stud short of the apron (a rounding tie made walls_open_at_checkpoint flaky).
-8. IN PROGRESS: car drives in a right-hand lane (LANE_OFFSET 10), stability rules (never tilt below up-Y 0.9, flip
-   recovery, path deviation <= 5 studs, flip_recovery scenario), $ text distance 40 -> 60. Tests are written (red); code not yet written.
-9. IN PROGRESS: fixing the half-size car's instability (physics-tuner), see results below.
+8. Car drives in a right-hand lane (TrackBuilder.LANE_OFFSET 10; RacePath shifted right with adjusted curvature; CarService spawns in the
+   lane), $ text distance 40 -> 60, stability in RaceService (FLIP_UP_Y 0.5 / FLIP_SECONDS 0.4 flip recovery via physics:Reset,
+   run.MinUpY, run.MaxPathDeviation after a 3 s grace, run.FlipRecoveries). CODE APPLIED (red run first: track:Oval 10, flip_recovery 14,
+   race 11 failing checks, all the new ones). stylua + selene clean. Not yet run green.
+9. Half-size car stability: CarConfig STATIC_COMPRESSION 0.45 + DampingRatio 0.6; targeted quick check passed (static_settle, accel, brake,
+   skidpad, car_size, lap:Oval 14.1 s, lap:Hill 20.6 s). Item 11 (implicit solver) came from a parallel session and changes CarPhysics again.
 10. IN PROGRESS (2026-09-30): Stop Auto / Auto Race toggle. Tests first: Scenarios.auto_toggle (attach, stop, walk, resume,
     rapid toggles, bad input, idempotence, death while racing, late accessories) and hud checks for AutoButtonText / MoneyText.
     Red run confirmed. Implemented: CarService (SetAutoRace, IsAutoRacing, GetCar, GetRun, WalkSpawnCFrame, TOGGLE_COOLDOWN 0.75,
@@ -56,8 +59,16 @@ CHANGE LOG (newest last)
 11. IN PROGRESS (2026-09-30): CarPhysics suspension solved implicitly (heave/pitch/roll 3x3 solve using the chassis' real inertia).
     Cause of the flips: the explicit spring/damper was only just stable at 60 Hz and unstable below ~52 Hz for the half-size car.
     No CarConfig, test or PhysicsTargets change. Verified offline only (Python model); NOT yet run in Studio.
+12. test-writer audit fixed Scenarios stat_api_matches_value (exact == on a value rounded to 3 decimals; now tolerance 1e-3). Nothing else loosened.
+13. Git: the project is a git repo, origin = https://github.com/AlexNguyen7369/Racer-RNG.git, branch `initial-import` (first push: 65 files).
+    Later commits are LOCAL ONLY. Push only when the full suite ends `[CARTEST] END fail=0`. Never push to main.
+14. Tooling: Herdr 0.9.3 (brew) + Claude integration hook (~/.claude/hooks/herdr-agent-state.sh) for several repos in one terminal.
+    Slack app "Racer RNG Claude" exists (workspace Racer RNG, channel #racer-dev C0C5LM8Q8F7, team T0C5AK11CNB). The `slack` MCP entry in the user
+    config was added with the wrong token type (xoxp) and a bad team id: remove and re-add with an xoxb- bot token.
 
 TEST RESULTS (latest first; update after every full run)
+- 2026-09-30 (lane round): targeted RED run confirmed the new checks fail (track:Oval 10, flip_recovery 14, race 11). The code was then applied.
+  The FULL run afterwards was stopped by the user before it finished: NO RESULT.
 - 2026-09-30 (toggle, round 1): run started but lost: the tester stalled and the place was no longer open in Studio. NO RESULT.
 - 2026-09-30 (toggle, red run, before implementation): END pass=9 fail=6. auto_toggle and hud failed on the missing API (expected).
   race, flip_recovery, track:Oval (flips at progress 0.14), track:Hill (up-Y 0.839) failed from the car instability (item 11).
@@ -69,10 +80,20 @@ TEST RESULTS (latest first; update after every full run)
   0 flips. Live: car moving on its own, pads 24 studs left, Money rose to 700.
 - 2026-09-30 (money / $ round): cold starts gave pass=7 fail=1 (static_settle settle_speed 0.598 > 0.5) and pass=8 fail=0.
 
+TODO (in order)
+1. Reopen the place, connect Rojo, run the FULL suite; loop (physics-tuner / PathDriver / track-designer) until `[CARTEST] END fail=0`.
+   Watch: path deviation <= 5 and up-Y >= 0.9 at MAX_STAT speed, flip_recovery, the lane checks, auto_toggle, the static_settle cold-start flake.
+2. When green: update this file, commit, push branch `initial-import`, make it GitHub's default branch (or open a PR).
+3. Slack: revoke the exposed xoxp token, install the app with bot scopes chat:write, channels:read, channels:history, groups:read,
+   groups:history, users:read, reactions:write; `claude mcp remove slack --scope user`, re-add with the xoxb- token and SLACK_TEAM_ID=T0C5AK11CNB;
+   /invite the bot to #racer-dev; then post results and TODOs there after each green run. Claude in Slack also needs the GitHub repo linked.
+4. Test real DataStore saving (Studio: Game Settings > Security > Enable Studio Access to API Services). Save the place (Ctrl+S).
+5. Bring Circuit and Serpentine up to the track rules; an upgrade shop (nothing raises Speed except driving).
+
 KNOWN ISSUES / NOT VERIFIED
-- NEXT: reopen the place, connect Rojo, run the full suite; loop until fail=0; then check the button and MONEY row on screen.
+- Two sessions edited the project in parallel (lane work and the toggle / implicit solver). Only one session should run the physics tests at a time.
 - Toggle cases the server harness cannot test (real CharacterAdded / PlayerRemoving / remote cooldown) are handled in code, untested.
-- The half-size car flips at speed (see results): top priority. Tests for the lane offset, stability and flip recovery already exist and are red.
+- Whether the half-size car still flips at speed is unknown until the full run (two fixes exist: CarConfig damping and the implicit solver).
 - static_settle failed intermittently on cold starts (0.58-0.78 vs limit 0.5) in 4 of ~8 runs; DampingRatio raised to 1.0, not yet re-verified.
 - Real DataStore saving untested (Studio blocks it by default). Only a stubbed store is tested.
 - Nothing raises the Speed stat except driving; no upgrade shop yet. Circuit and Serpentine do not follow the track rules.
