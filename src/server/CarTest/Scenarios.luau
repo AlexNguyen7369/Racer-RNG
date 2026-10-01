@@ -729,6 +729,53 @@ end
 
 -- Track acceptance test: the spec written first by test-writer in CarTest/TrackTests/<Name>.luau.
 -- Red until the track exists and meets every expectation; then also drives a lap.
+-- Decor never blocks a car (StartLine, FinishLine, Start marker, WinPad are CanCollide == false); the drivable
+-- road and the CheckpointArea stay solid. Built on its own, away from everything else.
+local DECOR_NO_COLLIDE = {
+	{ "StartLine", "start_line_no_collide" },
+	{ "FinishLine", "finish_line_no_collide" },
+	{ "Start", "start_marker_no_collide" },
+	{ "WinPad", "win_pad_decor_no_collide" },
+}
+local function checkTrackCollision(checks, spec)
+	local okBuild, model = pcall(TrackBuilder.Build, spec, CFrame.new(LAP_ORIGIN + Vector3.new(-9000, 0, 0)))
+	if not okBuild or typeof(model) ~= "Instance" then
+		check(checks, "decor_track_builds", 0, 1, false)
+		return
+	end
+	model.Name = "CarTestDecorTrack"
+	model.Parent = Workspace
+	for _, pair in DECOR_NO_COLLIDE do
+		local found, colliding = 0, 0
+		for _, d in model:GetDescendants() do
+			if d.Name == pair[1] and d:IsA("BasePart") then
+				found += 1
+				if d.CanCollide then
+					colliding += 1
+				end
+			end
+		end
+		check(checks, pair[2], found == 0 and -1 or colliding, 0, found >= 1 and colliding == 0)
+	end
+	local road = model:FindFirstChild("Road")
+	local roadParts, roadSolid = 0, 0
+	if road then
+		for _, d in road:GetDescendants() do
+			if d:IsA("BasePart") then
+				roadParts += 1
+				if d.CanCollide then
+					roadSolid += 1
+				end
+			end
+		end
+	end
+	check(checks, "road_collides", roadSolid, roadParts, roadParts >= 1 and roadSolid == roadParts)
+	local area = model:FindFirstChild("CheckpointArea", true)
+	local areaOk = area ~= nil and area:IsA("BasePart") and area.CanCollide == true
+	check(checks, "checkpoint_area_still_collides", areaOk and 1 or 0, 1, areaOk)
+	model:Destroy()
+end
+
 function Scenarios.track(trackName)
 	local label = "track:" .. trackName
 	local testModule = script.Parent.TrackTests:FindFirstChild(trackName)
@@ -801,6 +848,7 @@ function Scenarios.track(trackName)
 	if expect.Checkpoint then
 		checkCheckpoint(checks, spec, layout, expect)
 	end
+	checkTrackCollision(checks, spec)
 
 	local lap = Scenarios.lap(trackName, expect, label)
 	for _, c in lap.checks do
@@ -1914,7 +1962,56 @@ local function hPolyDist(pts, p)
 	return best
 end
 
--- A minimal R6 avatar: HumanoidRootPart (invisible), Torso, Head with a face decal, two legs, Motor6D joints.
+-- Hidden-avatar collision: a part of an auto-racing (hidden) character must never collide with other players'
+-- cars nor with the world: it is CanCollide == false, or in a collision group that collides with neither "Cars"
+-- nor "Default" (a seated Humanoid keeps re-enabling torso CanCollide, so the group is what has to hold).
+local AVATAR_REENABLE_PARTS = { "Torso", "UpperTorso", "LowerTorso", "Head", "HumanoidRootPart" }
+local function groupCollidesWithCarsOrWorld(group)
+	local PhysicsService = game:GetService("PhysicsService")
+	for _, other in { "Cars", "Default" } do
+		local ok, collides = pcall(function()
+			return PhysicsService:CollisionGroupsAreCollidable(group, other)
+		end)
+		if not ok or collides ~= false then
+			return true
+		end
+	end
+	return false
+end
+local function avatarCarCollidingParts(character)
+	local n, names = 0, {}
+	if character then
+		for _, d in character:GetDescendants() do
+			if d:IsA("BasePart") and d.CanCollide and groupCollidesWithCarsOrWorld(d.CollisionGroup) then
+				n += 1
+				table.insert(names, d.Name)
+			end
+		end
+	end
+	return n, table.concat(names, ",")
+end
+-- What a seated Humanoid does over time: switches the torso parts' collision back on.
+local function reenableAvatarCollision(character)
+	for _, name in AVATAR_REENABLE_PARTS do
+		local part = character and character:FindFirstChild(name)
+		if part and part:IsA("BasePart") then
+			part.CanCollide = true
+		end
+	end
+end
+-- Every real player who is auto-racing right now: parts of their characters that would hit other cars.
+local function realRacersCollidingParts()
+	local n = 0
+	for _, plr in game:GetService("Players"):GetPlayers() do
+		if plr:GetAttribute("AutoRacing") == true and plr.Character then
+			n += avatarCarCollidingParts(plr.Character)
+		end
+	end
+	return n
+end
+
+-- A minimal R6 avatar: HumanoidRootPart (invisible), Torso, Head with a face decal, two legs, Motor6D joints,
+-- plus R15-style UpperTorso/LowerTorso so the hidden-avatar collision checks cover R15 parts too.
 local function newFakeCharacter(cf)
 	local model = Instance.new("Model")
 	model.Name = "CarTestAutoCharacter"
@@ -1935,6 +2032,8 @@ local function newFakeCharacter(cf)
 	local head = part("Head", Vector3.new(2, 1, 1), Vector3.new(0, 1.5, 0), 0, true)
 	local leftLeg = part("Left Leg", Vector3.new(1, 2, 1), Vector3.new(-0.5, -2, 0), 0, false)
 	local rightLeg = part("Right Leg", Vector3.new(1, 2, 1), Vector3.new(0.5, -2, 0), 0, false)
+	local upperTorso = part("UpperTorso", Vector3.new(2, 1, 1), Vector3.new(0, 0.5, 0), 0, true)
+	local lowerTorso = part("LowerTorso", Vector3.new(2, 0.4, 1), Vector3.new(0, -0.8, 0), 0, true)
 	local face = Instance.new("Decal")
 	face.Name = "face"
 	face.Face = Enum.NormalId.Front
@@ -1953,6 +2052,8 @@ local function newFakeCharacter(cf)
 	motor("Neck", torso, head, CFrame.new(0, 1, 0), CFrame.new(0, -0.5, 0))
 	motor("Left Hip", torso, leftLeg, CFrame.new(-1, -1, 0), CFrame.new(-0.5, 1, 0))
 	motor("Right Hip", torso, rightLeg, CFrame.new(1, -1, 0), CFrame.new(0.5, 1, 0))
+	motor("Waist", torso, upperTorso, CFrame.new(0, 0.5, 0), CFrame.new())
+	motor("Root", torso, lowerTorso, CFrame.new(0, -0.8, 0), CFrame.new())
 	local humanoid = Instance.new("Humanoid")
 	humanoid.RigType = Enum.HumanoidRigType.R6
 	humanoid.Parent = model
@@ -2123,7 +2224,12 @@ function Scenarios.auto_toggle()
 	local before = {}
 	for _, d in character:GetDescendants() do
 		if d:IsA("BasePart") then
-			before[d] = { Transparency = d.Transparency, CanCollide = d.CanCollide, Massless = d.Massless }
+			before[d] = {
+				Transparency = d.Transparency,
+				CanCollide = d.CanCollide,
+				Massless = d.Massless,
+				CollisionGroup = d.CollisionGroup,
+			}
 		end
 	end
 
@@ -2152,8 +2258,17 @@ function Scenarios.auto_toggle()
 		check(checks, pre .. "_seated", seatedIn(car) and 1 or 0, 1, seatedIn(car))
 		local hiddenOk = head.Transparency == 1 and face.Transparency == 1
 		check(checks, pre .. "_avatar_hidden", hiddenOk and 1 or 0, 1, hiddenOk)
+		local bad, badNames = avatarCarCollidingParts(character)
+		check(checks, pre .. "_avatar_no_collide_with_cars", bad, 0, bad == 0)
+		if bad > 0 then
+			metrics[pre .. "_avatar_colliding_parts"] = badNames
+		end
 		local runOk = type(run) == "table" and run.Connection ~= nil and run.Car == car and run ~= oldRun
 		check(checks, pre .. "_run_active", runOk and 1 or 0, 1, runOk)
+		-- NPC spec: a real player's run races Track 1's NPC from the start (RaceService.Attach passes Npc = true)
+		local raceTrack = type(run) == "table" and run.RaceTrack or nil
+		local npcOn = raceTrack == 1 and type(run.Results) == "table"
+		check(checks, pre .. "_npc_race_on", type(raceTrack) == "number" and raceTrack or -1, 1, npcOn)
 		local n = activeRuns()
 		check(checks, pre .. "_one_active_run", n, 1, n == 1)
 		return car, run
@@ -2167,6 +2282,7 @@ function Scenarios.auto_toggle()
 		end
 		local minUp, peak = 1, 0
 		local idx0 = run.Driver and run.Driver.Index or 0
+		reenableAvatarCollision(character)
 		frames(seconds, function()
 			if chassis.Parent then
 				minUp = math.min(minUp, chassis.CFrame.UpVector.Y)
@@ -2187,6 +2303,13 @@ function Scenarios.auto_toggle()
 		local statNow = speedRaw()
 		check(checks, pre .. "_stat_grew", statNow, statFrom, statNow > statFrom)
 		check(checks, pre .. "_still_seated", seatedIn(car) and 1 or 0, 1, seatedIn(car))
+		local bad, badNames = avatarCarCollidingParts(character)
+		check(checks, pre .. "_avatar_no_collide_after_drive", bad, 0, bad == 0)
+		if bad > 0 then
+			metrics[pre .. "_avatar_colliding_after_drive"] = badNames
+		end
+		local realBad = realRacersCollidingParts()
+		check(checks, pre .. "_real_racers_no_collide_with_cars", realBad, 0, realBad == 0)
 	end
 
 	local function body()
@@ -2201,9 +2324,17 @@ function Scenarios.auto_toggle()
 
 		-- 2. Driving grows the stat
 		local stat0 = speedRaw()
+		reenableAvatarCollision(character)
 		frames(3)
 		local stat1 = speedRaw()
 		check(checks, "drive_stat_grew", stat1, stat0, stat1 > stat0)
+		local driveBad, driveBadNames = avatarCarCollidingParts(character)
+		check(checks, "drive_avatar_no_collide_with_cars", driveBad, 0, driveBad == 0)
+		if driveBad > 0 then
+			metrics.drive_avatar_colliding_parts = driveBadNames
+		end
+		local realBad = realRacersCollidingParts()
+		check(checks, "drive_real_racers_no_collide_with_cars", realBad, 0, realBad == 0)
 
 		-- 3. Stop: back on foot beside Track 1, off every road, stat kept, no car, no run
 		local statBeforeStop = speedRaw()
@@ -2224,8 +2355,11 @@ function Scenarios.auto_toggle()
 		check(checks, "stop_run_stopped", runStopped and 1 or 0, 1, runStopped)
 		check(checks, "stop_no_active_run", activeRuns(), 0, activeRuns() == 0)
 
-		local visOk, collideOk, massOk = true, true, true
+		local visOk, collideOk, massOk, groupOk = true, true, true, true
 		for part, b in before do
+			if part.CollisionGroup ~= b.CollisionGroup then
+				groupOk = false
+			end
 			if part.Transparency ~= b.Transparency then
 				visOk = false
 			end
@@ -2241,6 +2375,7 @@ function Scenarios.auto_toggle()
 		check(checks, "stop_face_visible", face.Transparency, 0, face.Transparency == 0)
 		check(checks, "stop_parts_collide_restored", collideOk and 1 or 0, 1, collideOk)
 		check(checks, "stop_parts_massless_restored", massOk and 1 or 0, 1, massOk)
+		check(checks, "stop_parts_group_restored", groupOk and 1 or 0, 1, groupOk)
 		local unseated = humanoid.Sit == false and humanoid.SeatPart == nil
 		check(checks, "stop_unseated", unseated and 1 or 0, 1, unseated)
 		check(checks, "stop_walk_speed", humanoid.WalkSpeed, AUTO_WALK_SPEED, humanoid.WalkSpeed == AUTO_WALK_SPEED)
@@ -2662,6 +2797,43 @@ function Scenarios.economy()
 	return result("economy", checks, {})
 end
 
+-- Discovering a car = owning it (no duplicate counts): an owned car is a StringValue <id> (Value = id) in GachaData.
+local function owns(player, id)
+	local data = player:FindFirstChild("GachaData")
+	local v = data and type(id) == "string" and data:FindFirstChild(id)
+	return v ~= nil and v:IsA("StringValue") and v.Value == id
+end
+
+local function entriesNamed(player, id)
+	local data = player:FindFirstChild("GachaData")
+	local n = 0
+	if data then
+		for _, v in data:GetChildren() do
+			if v.Name == id then
+				n += 1
+			end
+		end
+	end
+	return n
+end
+
+local function ownedUnique(player)
+	local data = player:FindFirstChild("GachaData")
+	return data and #data:GetChildren() or 0
+end
+
+local function anyCountAttribute(player)
+	local data = player:FindFirstChild("GachaData")
+	if data then
+		for _, v in data:GetChildren() do
+			if v:GetAttribute("Count") ~= nil then
+				return true
+			end
+		end
+	end
+	return false
+end
+
 -- Data: PlayerData saves/loads Money and the float Speed stat through an injected store (no real DataStore is touched).
 function Scenarios.data()
 	local checks = {}
@@ -2783,7 +2955,7 @@ function Scenarios.data()
 	if type(rec) == "table" then
 		check(checks, "saved_money", rec.Money or -1, 1234, rec.Money == 1234)
 		check(checks, "saved_speed", rec.Speed or -1, 12.345, near(rec.Speed, 12.345))
-		check(checks, "saved_version", rec.Version or -1, 2, rec.Version == 2)
+		check(checks, "saved_version", rec.Version or -1, 3, rec.Version == 3)
 	else
 		for _, name in { "saved_money", "saved_speed", "saved_version" } do
 			check(checks, name, 0, 1, false)
@@ -2819,7 +2991,7 @@ function Scenarios.data()
 			and r.Money == c.wantMoney
 			and near(r.Speed, c.wantSpeed)
 			and r.Money == math.floor(r.Money)
-			and r.Version == 2
+			and r.Version == 3
 		check(checks, "save_sanitised_" .. c.name, type(r) == "table" and r.Speed or -1, c.wantSpeed, good)
 	end
 
@@ -2849,7 +3021,7 @@ function Scenarios.data()
 	end
 
 	-- records written by older versions (Version 1 or no Version at all) still load: money kept, Speed a
-	-- valid non-negative stat, and the next save upgrades the record to Version 2
+	-- valid non-negative stat, and the next save upgrades the record to Version 3
 	local legacy = {
 		{ name = "v1", value = { Money = 250, Speed = 3, Version = 1 }, wantMoney = 250, wantSpeed = 3 },
 		{ name = "no_version", value = { Money = 250 }, wantMoney = 250, wantSpeed = 0 },
@@ -2869,8 +3041,8 @@ function Scenarios.data()
 			checks,
 			"legacy_" .. c.name .. "_upgraded_on_save",
 			type(legacyRec) == "table" and legacyRec.Version or -1,
-			2,
-			oksv and type(legacyRec) == "table" and legacyRec.Version == 2 and legacyRec.Money == c.wantMoney
+			3,
+			oksv and type(legacyRec) == "table" and legacyRec.Version == 3 and legacyRec.Money == c.wantMoney
 		)
 	end
 
@@ -3007,6 +3179,330 @@ function Scenarios.data()
 			}
 		do
 			check(checks, name, 0, 1, false)
+		end
+	end
+
+	-- Version 3: the car gacha state (Cars, Equipped, Rolls, StatAlloc) is saved and loaded through GachaService.
+	local GachaService = serverModule("GachaService")
+	local gachaApiOk = GachaService ~= nil
+		and type(GachaService.Setup) == "function"
+		and type(GachaService.Grant) == "function"
+		and type(GachaService.Equip) == "function"
+		and type(GachaService.Allocate) == "function"
+		and type(GachaService.Roll) == "function"
+		and type(GachaService.Snapshot) == "function"
+		and type(GachaService.Apply) == "function"
+		and type(GachaService.UniqueCount) == "function"
+		and type(GachaService.FreePoints) == "function"
+	check(checks, "data_gacha_api_exists", gachaApiOk and 1 or 0, 1, gachaApiOk)
+	if gachaApiOk then
+		local okG, errG = pcall(function()
+			local function sameMap(a, b)
+				if type(a) ~= "table" or type(b) ~= "table" then
+					return false
+				end
+				for k, v in a do
+					if b[k] ~= v then
+						return false
+					end
+				end
+				for k, v in b do
+					if a[k] ~= v then
+						return false
+					end
+				end
+				return true
+			end
+			local zeroAlloc = { Speed = 0, Money = 0, Luck = 0, Workshop = 0 }
+			-- Snapshot().Cars / saved Cars: an array of owned ids, sorted ascending, no duplicates
+			local function isIdArray(t)
+				if type(t) ~= "table" then
+					return false
+				end
+				local n = 0
+				for _ in t do
+					n += 1
+				end
+				if n ~= #t then
+					return false
+				end
+				for i, id in t do
+					if type(id) ~= "string" or (i > 1 and not (t[i - 1] < id)) then
+						return false
+					end
+				end
+				return true
+			end
+			local function hasId(t, id)
+				return type(t) == "table" and table.find(t, id) ~= nil
+			end
+
+			-- round trip
+			local gStore = makeStore()
+			PlayerData.SetStore(gStore)
+			local g1 = newPlayer("CarTestDataGacha1")
+			PlayerData.Load(g1, 9501)
+			GachaService.Grant(g1, "wooden_car")
+			GachaService.Grant(g1, "go_kart")
+			GachaService.Grant(g1, "go_kart")
+			GachaService.Grant(g1, "street_racer")
+			GachaService.Roll(g1, Random.new(5))
+			GachaService.Roll(g1, Random.new(6))
+			GachaService.Equip(g1, "go_kart")
+			GachaService.Allocate(g1, "Speed")
+			local snap1 = GachaService.Snapshot(g1)
+			local snapOk = type(snap1) == "table"
+				and type(snap1.Cars) == "table"
+				and snap1.Equipped == "go_kart"
+				and snap1.Rolls == 2
+				and type(snap1.StatAlloc) == "table"
+				and sameMap(snap1.StatAlloc, { Speed = 1, Money = 0, Luck = 0, Workshop = 0 })
+				and isIdArray(snap1.Cars)
+				and hasId(snap1.Cars, "go_kart")
+				and hasId(snap1.Cars, "wooden_car")
+				and hasId(snap1.Cars, "street_racer")
+				and not hasId(snap1.Cars, "starter")
+			check(checks, "gacha_snapshot_shape", snapOk and 1 or 0, 1, snapOk)
+			local savedG = PlayerData.Save(g1, 9501)
+			local recG = gStore.data["Player_9501"]
+			local recOk = savedG == true
+				and type(recG) == "table"
+				and recG.Version == 3
+				and type(snap1) == "table"
+				and isIdArray(recG.Cars)
+				and sameMap(recG.Cars, snap1.Cars)
+				and recG.Equipped == "go_kart"
+				and recG.Rolls == 2
+				and sameMap(recG.StatAlloc, snap1.StatAlloc)
+			check(checks, "v3_save_has_gacha_fields", type(recG) == "table" and recG.Version or -1, 3, recOk)
+			local g2 = newPlayer("CarTestDataGacha2")
+			PlayerData.Load(g2, 9501)
+			local snap2 = GachaService.Snapshot(g2)
+			local rtOk = type(snap1) == "table"
+				and type(snap2) == "table"
+				and sameMap(snap2.Cars, snap1.Cars)
+				and snap2.Equipped == "go_kart"
+				and snap2.Rolls == 2
+				and sameMap(snap2.StatAlloc, snap1.StatAlloc)
+			check(checks, "v3_roundtrip_snapshot", rtOk and 1 or 0, 1, rtOk)
+			local attrOk = g2:GetAttribute("EquippedCar") == "go_kart"
+				and g2:GetAttribute("Rolls") == 2
+				and g2:GetAttribute("Alloc_Speed") == 1
+				and g2:GetAttribute("StatPoints") == GachaService.FreePoints(g2)
+				and g2:FindFirstChild("GachaData") ~= nil
+				and g2.GachaData:FindFirstChild("go_kart") ~= nil
+				and g2.GachaData.go_kart:IsA("StringValue")
+				and g2.GachaData.go_kart.Value == "go_kart"
+				and g2.GachaData.go_kart:GetAttribute("Count") == nil
+				and #g2.GachaData:GetChildren() == #snap1.Cars
+			check(checks, "v3_roundtrip_attributes", attrOk and 1 or 0, 1, attrOk)
+
+			-- a v2 save (no gacha fields) loads with the starter car, no cars, zero allocation; money and speed kept
+			PlayerData.SetStore(makeStore({ ["Player_9502"] = { Money = 50, Speed = 3, Version = 2 } }))
+			local g3 = newPlayer("CarTestDataGachaV2")
+			local okV2 = PlayerData.Load(g3, 9502)
+			local s3 = GachaService.Snapshot(g3)
+			local v2Ok = okV2 == true
+				and val(g3, "Money") == 50
+				and near(val(g3, "Speed"), 3)
+				and type(s3) == "table"
+				and s3.Equipped == "starter"
+				and sameMap(s3.Cars, {})
+				and s3.Rolls == 0
+				and sameMap(s3.StatAlloc, zeroAlloc)
+				and g3:GetAttribute("EquippedCar") == "starter"
+				and g3:GetAttribute("StatPoints") == 0
+			check(checks, "v2_save_loads_gacha_defaults", v2Ok and 1 or 0, 1, v2Ok)
+
+			-- cleaning on load (via PlayerData) and via Apply directly
+			local function loadV3(id, name, record)
+				record.Version = 3
+				PlayerData.SetStore(makeStore({ ["Player_" .. id] = record }))
+				local pv3 = newPlayer(name)
+				local okl = PlayerData.Load(pv3, id)
+				return pv3, okl, GachaService.Snapshot(pv3)
+			end
+			-- 3 unique = 1 earned point, 4 allocated: trimmed Workshop first, then Money, Luck -> Speed 1 left
+			local pa, okA, sa = loadV3(9503, "CarTestDataGachaOver1", {
+				Cars = { "go_kart", "rusty_hatchback", "wooden_car" },
+				Equipped = "wooden_car",
+				Rolls = 4,
+				StatAlloc = { Speed = 1, Money = 1, Luck = 1, Workshop = 1 },
+			})
+			local overOk = okA == true
+				and type(sa) == "table"
+				and sameMap(sa.StatAlloc, { Speed = 1, Money = 0, Luck = 0, Workshop = 0 })
+				and GachaService.FreePoints(pa) == 0
+				and pa:GetAttribute("StatPoints") == 0
+				and pa:GetAttribute("Alloc_Workshop") == 0
+			check(checks, "over_allocation_trimmed", overOk and 1 or 0, 1, overOk)
+			-- 6 unique = 2 earned, 3 allocated: only Workshop goes
+			local pb, okB, sb = loadV3(9504, "CarTestDataGachaOver2", {
+				Cars = { "go_kart", "hover_car", "rocket_car", "rusty_hatchback", "street_racer", "wooden_car" },
+				Equipped = "starter",
+				Rolls = 6,
+				StatAlloc = { Speed = 0, Money = 1, Luck = 1, Workshop = 1 },
+			})
+			local over2Ok = okB == true
+				and type(sb) == "table"
+				and sameMap(sb.StatAlloc, { Speed = 0, Money = 1, Luck = 1, Workshop = 0 })
+				and GachaService.FreePoints(pb) == 0
+			check(checks, "over_allocation_trim_order", over2Ok and 1 or 0, 1, over2Ok)
+			-- Equipped not owned -> starter; owned kept
+			local _, _, sc = loadV3(9505, "CarTestDataGachaEq1", {
+				Cars = { "wooden_car" },
+				Equipped = "rocket_car",
+				Rolls = 1,
+				StatAlloc = zeroAlloc,
+			})
+			local _, _, sd = loadV3(9506, "CarTestDataGachaEq2", {
+				Cars = { "wooden_car" },
+				Equipped = "not_a_real_car",
+				Rolls = 1,
+				StatAlloc = zeroAlloc,
+			})
+			local pe, _, se = loadV3(9507, "CarTestDataGachaEq3", {
+				Cars = { "wooden_car" },
+				Equipped = "wooden_car",
+				Rolls = 1,
+				StatAlloc = zeroAlloc,
+			})
+			local eqOk = type(sc) == "table"
+				and sc.Equipped == "starter"
+				and type(sd) == "table"
+				and sd.Equipped == "starter"
+			check(checks, "unowned_equipped_reset_to_starter", eqOk and 1 or 0, 1, eqOk)
+			check(
+				checks,
+				"owned_equipped_kept",
+				type(se) == "table" and se.Equipped == "wooden_car" and 1 or 0,
+				1,
+				type(se) == "table" and se.Equipped == "wooden_car" and pe:GetAttribute("EquippedCar") == "wooden_car"
+			)
+			-- unknown ids are kept (a removed car is not wiped) but do not count
+			local pu, _, su = loadV3(9508, "CarTestDataGachaUnknown", {
+				Cars = { "retired_car", "wooden_car" },
+				Equipped = "starter",
+				Rolls = 5,
+				StatAlloc = zeroAlloc,
+			})
+			local unkOk = type(su) == "table"
+				and type(su.Cars) == "table"
+				and sameMap(su.Cars, { "retired_car", "wooden_car" })
+				and GachaService.UniqueCount(pu) == 1
+			check(checks, "unknown_ids_preserved", unkOk and 1 or 0, 1, unkOk)
+			local okUs = PlayerData.Save(pu, 9508)
+			local sus = GachaService.Snapshot(pu)
+			check(
+				checks,
+				"unknown_ids_survive_save",
+				okUs == true and type(sus) == "table" and hasId(sus.Cars, "retired_car") and 1 or 0,
+				1,
+				okUs == true and type(sus) == "table" and hasId(sus.Cars, "retired_car")
+			)
+			-- legacy map form from earlier v3 saves: number > 0 or true = owned; 0, negative or false = not owned
+			local pl3, okL, sl = loadV3(9509, "CarTestDataGachaLegacyMap", {
+				Cars = { go_kart = 3, wooden_car = 0, rocket_car = true, hover_car = -1, street_racer = false },
+				Equipped = "starter",
+				Rolls = 3,
+				StatAlloc = zeroAlloc,
+			})
+			local legacyOk = okL == true
+				and type(sl) == "table"
+				and isIdArray(sl.Cars)
+				and sameMap(sl.Cars, { "go_kart", "rocket_car" })
+				and GachaService.UniqueCount(pl3) == 2
+				and owns(pl3, "go_kart")
+				and owns(pl3, "rocket_car")
+				and not owns(pl3, "wooden_car")
+				and not owns(pl3, "hover_car")
+				and not anyCountAttribute(pl3)
+			check(checks, "legacy_map_cars_load", legacyOk and 1 or 0, 1, legacyOk)
+			-- array form is cleaned: duplicates, non-strings, ids over 64 chars and "starter" dropped
+			local pc, okC, sk = loadV3(9511, "CarTestDataGachaArray", {
+				Cars = { "wooden_car", "go_kart", "wooden_car", 5, true, "starter", string.rep("x", 65), "go_kart" },
+				Equipped = "starter",
+				Rolls = 3,
+				StatAlloc = zeroAlloc,
+			})
+			local arrayOk = okC == true
+				and type(sk) == "table"
+				and isIdArray(sk.Cars)
+				and sameMap(sk.Cars, { "go_kart", "wooden_car" })
+				and GachaService.UniqueCount(pc) == 2
+				and entriesNamed(pc, "wooden_car") == 1
+				and entriesNamed(pc, "starter") == 0
+				and ownedUnique(pc) == 2
+			check(checks, "array_cars_cleaned", arrayOk and 1 or 0, 1, arrayOk)
+			-- Apply directly: junk input gives defaults, never an error
+			local applyOk = true
+			for i, junk in { "garbage", 12345, true } do
+				local pj = newPlayer("CarTestDataGachaJunk" .. i)
+				GachaService.Setup(pj)
+				local okj = pcall(GachaService.Apply, pj, junk)
+				local sj = GachaService.Snapshot(pj)
+				if
+					not okj
+					or type(sj) ~= "table"
+					or sj.Equipped ~= "starter"
+					or not sameMap(sj.Cars, {})
+					or sj.Rolls ~= 0
+					or not sameMap(sj.StatAlloc, zeroAlloc)
+				then
+					applyOk = false
+				end
+			end
+			local pn = newPlayer("CarTestDataGachaNil")
+			GachaService.Setup(pn)
+			local okn = pcall(GachaService.Apply, pn, nil)
+			local sn = GachaService.Snapshot(pn)
+			applyOk = applyOk and okn and type(sn) == "table" and sn.Equipped == "starter"
+			check(checks, "apply_junk_is_defaults", applyOk and 1 or 0, 1, applyOk)
+			-- Apply -> Snapshot keeps unknown ids
+			local pk = newPlayer("CarTestDataGachaApply")
+			GachaService.Setup(pk)
+			GachaService.Apply(pk, {
+				Cars = { "old_car_v1", "go_kart" },
+				Equipped = "go_kart",
+				Rolls = 9,
+				StatAlloc = zeroAlloc,
+			})
+			local sp = GachaService.Snapshot(pk)
+			local applyKeepOk = type(sp) == "table"
+				and isIdArray(sp.Cars)
+				and sameMap(sp.Cars, { "go_kart", "old_car_v1" })
+				and sp.Equipped == "go_kart"
+				and sp.Rolls == 9
+			check(checks, "apply_snapshot_keeps_unknown_ids", applyKeepOk and 1 or 0, 1, applyKeepOk)
+
+			-- still never writes before the load finished: a v3 record is left alone
+			local v3Rec = {
+				Money = 10,
+				Speed = 1,
+				Version = 3,
+				Cars = { "hover_car" },
+				Equipped = "hover_car",
+				Rolls = 99,
+				StatAlloc = zeroAlloc,
+			}
+			local guard3 = makeStore({ ["Player_9510"] = v3Rec })
+			PlayerData.SetStore(guard3)
+			local pEarly3 = newPlayer("CarTestDataGachaEarly")
+			GachaService.Setup(pEarly3)
+			local okE3, savedE3 = pcall(PlayerData.Save, pEarly3, 9510)
+			local r3 = guard3.data["Player_9510"]
+			local keptOk = okE3
+				and savedE3 == false
+				and guard3.sets == 0
+				and type(r3) == "table"
+				and r3.Rolls == 99
+				and r3.Equipped == "hover_car"
+				and type(r3.Cars) == "table"
+				and r3.Cars[1] == "hover_car"
+			check(checks, "v3_save_before_load_keeps_record", keptOk and 1 or 0, 1, keptOk)
+		end)
+		if not okG then
+			check(checks, "data_gacha_no_error", 0, tostring(errG), false)
 		end
 	end
 
@@ -3175,7 +3671,905 @@ function Scenarios.hud()
 		end
 	end
 	check(checks, "money_text_bad_input_is_zero", moneyBadOk and 1 or 0, 1, moneyBadOk)
+
+	-- Gacha odds text for the index ("1 in N" with thousands separators)
+	local oddsApiOk = type(HudFormat.Odds) == "function"
+	check(checks, "hud_odds_api_exists", oddsApiOk and 1 or 0, 1, oddsApiOk)
+	if oddsApiOk then
+		local oddsCases = {
+			{ 10, "1 in 10" },
+			{ 50, "1 in 50" },
+			{ 250, "1 in 250" },
+			{ 1000, "1 in 1,000" },
+			{ 10000, "1 in 10,000" },
+			{ 100000, "1 in 100,000" },
+		}
+		local oddsOk = true
+		for _, c in oddsCases do
+			if call(HudFormat.Odds, c[1]) ~= c[2] then
+				oddsOk = false
+			end
+		end
+		check(checks, "odds_text_format", oddsOk and 1 or 0, 1, oddsOk)
+	end
 	return result("hud", checks, {})
+end
+
+-- Car gacha + index + stat allocation (plan: car gacha, index and stat allocation). The expected catalog is the
+-- design doc's 7 placeholder cars; every number below comes from the brief / API contract, not from an implementation.
+local GACHA_SEED = {
+	{ Id = "rusty_hatchback", Rarity = "Common", Chance = nil, SpeedMulti = 1.1 },
+	{ Id = "wooden_car", Rarity = "Uncommon", Chance = 10, SpeedMulti = 1.25 },
+	{ Id = "go_kart", Rarity = "Rare", Chance = 50, SpeedMulti = 2 },
+	{ Id = "street_racer", Rarity = "Epic", Chance = 250, SpeedMulti = 6 },
+	{ Id = "rocket_car", Rarity = "Legendary", Chance = 1000, SpeedMulti = 25 },
+	{ Id = "hover_car", Rarity = "Mythic", Chance = 10000, SpeedMulti = 150 },
+	{ Id = "void_racer", Rarity = "Secret", Chance = 100000, SpeedMulti = 1000 },
+}
+local GACHA_RARITY_ORDER = { "Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic", "Secret" }
+local GACHA_STATS = { "Speed", "Money", "Luck", "Workshop" }
+local GACHA_PER_POINT = { Speed = 0.1, Money = 0.1, Luck = 0.05, Workshop = 0.2 }
+local GACHA_ROLLS = 100000
+local GACHA_SEED_LUCK1 = 20261001
+local GACHA_SEED_LUCK10 = 777
+local GACHA_SIGMAS = 4 -- per-car frequency tolerance: 4 binomial sigma + a small floor (deterministic seeds)
+local GACHA_FLOOR = 3
+local AUTO_ROLL_WAIT = 10 -- seconds of auto-rolling; at ROLL_INTERVAL = 3 that is 3 (or 4) rolls, +-1 allowed
+local INDEX_ORIGIN = Vector3.new(-20000, 0, -20000)
+local INDEX_RACE_SECONDS = 6
+local INDEX_SETTLE_MIN = 1 -- seconds to wait after building the index tracks before the gain runs start...
+local INDEX_SETTLE_FRAMES = 60 -- ...and this many frames in a row shorter than INDEX_SETTLE_MAX_DT
+local INDEX_SETTLE_MAX_DT = 0.03
+local INDEX_SETTLE_CAP = 10
+
+-- Expected "1 in N" result per car at a given luck: rarest first, a car hits with min(1, luck/N), the first hit
+-- wins and the catch-all gets whatever is left.
+local function gachaExpected(luck)
+	local rollable = {}
+	local catchAll
+	for _, c in GACHA_SEED do
+		if c.Chance then
+			table.insert(rollable, c)
+		else
+			catchAll = c
+		end
+	end
+	table.sort(rollable, function(a, b)
+		return a.Chance > b.Chance
+	end)
+	local expected, remaining = {}, 1
+	for _, c in rollable do
+		local p = math.min(1, luck / c.Chance)
+		expected[c.Id] = remaining * p
+		remaining *= 1 - p
+	end
+	expected[catchAll.Id] = remaining
+	return expected
+end
+
+local function gachaModules()
+	local CarCatalog = sharedModule("CarCatalog")
+	local GachaConfig = sharedModule("GachaConfig")
+	local GachaService = serverModule("GachaService")
+	return CarCatalog, GachaConfig, GachaService
+end
+
+local function newTestPlayer(cleanup, name)
+	local p = Instance.new("Folder")
+	p.Name = name
+	p.Parent = Workspace
+	table.insert(cleanup, p)
+	return p
+end
+
+local function nearly(a, b)
+	return type(a) == "number" and type(b) == "number" and math.abs(a - b) <= 1e-9 * math.max(1, math.abs(b))
+end
+
+-- Gacha: catalog, config, seeded roll odds, grant/duplicates, the auto-roll timer.
+function Scenarios.gacha()
+	local checks = {}
+	local CarCatalog, GachaConfig, GachaService = gachaModules()
+	local catalogOk = CarCatalog ~= nil
+		and type(CarCatalog.Get) == "function"
+		and type(CarCatalog.All) == "function"
+		and type(CarCatalog.Rollable) == "function"
+	local configOk = GachaConfig ~= nil
+		and type(GachaConfig.Roll) == "function"
+		and type(GachaConfig.EarnedPoints) == "function"
+		and type(GachaConfig.Multis) == "function"
+	local serviceOk = GachaService ~= nil
+		and type(GachaService.Setup) == "function"
+		and type(GachaService.Grant) == "function"
+		and type(GachaService.Roll) == "function"
+		and type(GachaService.Equip) == "function"
+		and type(GachaService.Allocate) == "function"
+		and type(GachaService.UniqueCount) == "function"
+		and type(GachaService.StartAutoRoll) == "function"
+		and type(GachaService.Snapshot) == "function"
+		and type(GachaService.Apply) == "function"
+		and type(GachaService.Start) == "function"
+	check(checks, "car_catalog_api_exists", catalogOk and 1 or 0, 1, catalogOk)
+	check(checks, "gacha_config_api_exists", configOk and 1 or 0, 1, configOk)
+	check(checks, "gacha_service_api_exists", serviceOk and 1 or 0, 1, serviceOk)
+	if not (catalogOk and configOk and serviceOk) then
+		return result("gacha", checks, {})
+	end
+	local metrics = {}
+
+	-- Config constants
+	check(checks, "roll_interval", GachaConfig.ROLL_INTERVAL or -1, 3, GachaConfig.ROLL_INTERVAL == 3)
+	check(
+		checks,
+		"discoveries_per_point",
+		GachaConfig.DISCOVERIES_PER_POINT or -1,
+		3,
+		GachaConfig.DISCOVERIES_PER_POINT == 3
+	)
+	local statsOk = type(GachaConfig.STATS) == "table" and #GachaConfig.STATS == #GACHA_STATS
+	if statsOk then
+		for i, s in GACHA_STATS do
+			if GachaConfig.STATS[i] ~= s then
+				statsOk = false
+			end
+		end
+	end
+	check(checks, "stats_list", statsOk and 1 or 0, 1, statsOk)
+	local perOk = type(GachaConfig.PER_POINT) == "table"
+	if perOk then
+		for s, v in GACHA_PER_POINT do
+			if not nearly(GachaConfig.PER_POINT[s], v) then
+				perOk = false
+			end
+		end
+	end
+	check(checks, "per_point_values", perOk and 1 or 0, 1, perOk)
+	local rarityOk = type(GachaConfig.RARITY_ORDER) == "table" and #GachaConfig.RARITY_ORDER == #GACHA_RARITY_ORDER
+	local colorsOk = type(GachaConfig.RARITY_COLORS) == "table"
+	if rarityOk then
+		for i, r in GACHA_RARITY_ORDER do
+			if GachaConfig.RARITY_ORDER[i] ~= r then
+				rarityOk = false
+			end
+		end
+	end
+	for _, r in GACHA_RARITY_ORDER do
+		if not (colorsOk and typeof(GachaConfig.RARITY_COLORS[r]) == "Color3") then
+			colorsOk = false
+		end
+	end
+	check(checks, "rarity_order", rarityOk and 1 or 0, 1, rarityOk)
+	check(checks, "rarity_colors", colorsOk and 1 or 0, 1, colorsOk)
+
+	-- Catalog
+	check(checks, "starter_id", CarCatalog.STARTER_ID == "starter" and 1 or 0, 1, CarCatalog.STARTER_ID == "starter")
+	local starter = CarCatalog.Get("starter")
+	local starterOk = type(starter) == "table"
+		and starter.SpeedMulti == 1
+		and starter.Chance == nil
+		and starter.Rollable == false
+	check(checks, "starter_spec", starterOk and 1 or 0, 1, starterOk)
+	check(
+		checks,
+		"get_unknown_nil",
+		CarCatalog.Get("no_such_car") == nil and 1 or 0,
+		1,
+		CarCatalog.Get("no_such_car") == nil
+	)
+	local okAll, all = pcall(CarCatalog.All)
+	local okRoll, rollable = pcall(CarCatalog.Rollable)
+	all = okAll and type(all) == "table" and all or {}
+	rollable = okRoll and type(rollable) == "table" and rollable or {}
+	check(checks, "catalog_seven_cars", #all, #GACHA_SEED, #all == #GACHA_SEED)
+	check(checks, "rollable_seven_cars", #rollable, #GACHA_SEED, #rollable == #GACHA_SEED)
+	local seen, idsOk, snakeOk, catchAlls, starterInAll = {}, true, true, 0, false
+	local rarityValid, multiOk, chanceOk = true, true, true
+	local validRarity = {}
+	for _, r in GACHA_RARITY_ORDER do
+		validRarity[r] = true
+	end
+	for _, c in all do
+		local id = type(c) == "table" and c.Id or nil
+		if type(id) ~= "string" or seen[id] then
+			idsOk = false
+		else
+			seen[id] = true
+			-- lowercase letter first, then [a-z0-9_], no "__", no trailing "_" (Lua patterns cannot repeat a group)
+			if
+				not string.match(id, "^[a-z][a-z0-9_]*$")
+				or string.find(id, "__", 1, true)
+				or string.match(id, "_$")
+			then
+				snakeOk = false
+			end
+		end
+		if id == "starter" then
+			starterInAll = true
+		end
+		if type(c) == "table" then
+			if c.Chance == nil then
+				catchAlls += 1
+			elseif type(c.Chance) ~= "number" or c.Chance ~= math.floor(c.Chance) or c.Chance < 2 then
+				chanceOk = false
+			end
+			if not validRarity[c.Rarity] then
+				rarityValid = false
+			end
+			if type(c.SpeedMulti) ~= "number" or c.SpeedMulti < 1 then
+				multiOk = false
+			end
+		end
+	end
+	check(checks, "catalog_ids_unique", idsOk and 1 or 0, 1, idsOk and #all > 0)
+	check(checks, "catalog_ids_snake_case", snakeOk and 1 or 0, 1, snakeOk and #all > 0)
+	check(checks, "catalog_starter_excluded", starterInAll and 1 or 0, 0, not starterInAll)
+	check(checks, "catalog_one_catch_all", catchAlls, 1, catchAlls == 1)
+	check(checks, "catalog_chance_integers", chanceOk and 1 or 0, 1, chanceOk)
+	check(checks, "catalog_rarity_valid", rarityValid and 1 or 0, 1, rarityValid and #all > 0)
+	check(checks, "catalog_speed_multi_at_least_1", multiOk and 1 or 0, 1, multiOk and #all > 0)
+	local seedOk = true
+	for _, want in GACHA_SEED do
+		local got = CarCatalog.Get(want.Id)
+		if
+			type(got) ~= "table"
+			or got.Id ~= want.Id
+			or got.Rarity ~= want.Rarity
+			or got.Chance ~= want.Chance
+			or not nearly(got.SpeedMulti, want.SpeedMulti)
+			or type(got.Name) ~= "string"
+			or got.Model ~= nil
+		then
+			seedOk = false
+		end
+	end
+	check(checks, "catalog_matches_design_doc", seedOk and 1 or 0, 1, seedOk)
+	local orderOk, orders = #all > 0, {}
+	for i, c in all do
+		local o = type(c) == "table" and c.Order or nil
+		if type(o) ~= "number" or orders[o] or (i > 1 and o <= all[i - 1].Order) then
+			orderOk = false
+			break
+		end
+		orders[o] = true
+	end
+	check(checks, "all_sorted_by_order", orderOk and 1 or 0, 1, orderOk)
+	local rarestOk = #rollable > 0
+	for i, c in rollable do
+		local last = i == #rollable
+		if type(c) ~= "table" then
+			rarestOk = false
+			break
+		end
+		if last then
+			if c.Chance ~= nil then
+				rarestOk = false
+			end
+		elseif c.Chance == nil or (i > 1 and c.Chance >= rollable[i - 1].Chance) then
+			rarestOk = false
+		end
+	end
+	check(checks, "rollable_rarest_first", rarestOk and 1 or 0, 1, rarestOk)
+
+	-- Seeded roll odds at luck 1 and luck 10
+	local validIds = {}
+	for _, c in GACHA_SEED do
+		validIds[c.Id] = true
+	end
+	local function rollMany(seed, luck)
+		local counts, invalid = {}, 0
+		local ok = pcall(function()
+			local rng = Random.new(seed)
+			for _ = 1, GACHA_ROLLS do
+				local id = GachaConfig.Roll(rng, luck)
+				if validIds[id] then
+					counts[id] = (counts[id] or 0) + 1
+				else
+					invalid += 1
+				end
+			end
+		end)
+		return ok, counts, invalid
+	end
+	for _, case in
+		{
+			{ luck = 1, seed = GACHA_SEED_LUCK1, tag = "luck1" },
+			{ luck = 10, seed = GACHA_SEED_LUCK10, tag = "luck10" },
+		}
+	do
+		local ok, counts, invalid = rollMany(case.seed, case.luck)
+		check(checks, "roll_no_error_" .. case.tag, ok and 1 or 0, 1, ok)
+		check(checks, "roll_always_valid_id_" .. case.tag, invalid, 0, ok and invalid == 0)
+		local expected = gachaExpected(case.luck)
+		for _, c in GACHA_SEED do
+			local mean = GACHA_ROLLS * expected[c.Id]
+			local sigma = math.sqrt(GACHA_ROLLS * expected[c.Id] * (1 - expected[c.Id]))
+			local tol = GACHA_SIGMAS * sigma + GACHA_FLOOR
+			local got = counts[c.Id] or 0
+			metrics[case.tag .. "_" .. c.Id] = got
+			check(
+				checks,
+				"roll_odds_" .. case.tag .. "_" .. c.Id,
+				got,
+				string.format("%.1f +- %.1f", mean, tol),
+				ok and math.abs(got - mean) <= tol
+			)
+		end
+		if case.luck == 10 then
+			-- 10/10: the Uncommon always hits, so the catch-all is never reached
+			local common = counts.rusty_hatchback or 0
+			check(checks, "luck10_catch_all_never", common, 0, ok and common == 0)
+		end
+	end
+	-- Bad luck (nil, NaN, below 1) is treated as luck 1: the same seed gives the same sequence
+	local badLuckOk = true
+	local badLucks = { "nil", 0 / 0, 0, 0.5, -5, "10", true }
+	for _, badKey in badLucks do
+		local bad = badKey
+		if badKey == "nil" then
+			bad = nil
+		end
+		local okb = pcall(function()
+			local a, b = Random.new(4242), Random.new(4242)
+			for _ = 1, 3000 do
+				if GachaConfig.Roll(a, bad) ~= GachaConfig.Roll(b, 1) then
+					badLuckOk = false
+					break
+				end
+			end
+		end)
+		if not okb then
+			badLuckOk = false
+		end
+	end
+	check(checks, "roll_bad_luck_is_luck_1", badLuckOk and 1 or 0, 1, badLuckOk)
+
+	-- GachaService on fake players
+	local cleanup = {}
+	local autoHandle
+	local okBody, err = pcall(function()
+		-- start the auto-roll first so its wall-clock wait overlaps the rest of the scenario
+		local pa = newTestPlayer(cleanup, "CarTestGachaAuto")
+		GachaService.Setup(pa)
+		local autoStart = os.clock()
+		autoHandle = GachaService.StartAutoRoll(pa)
+		check(
+			checks,
+			"auto_roll_handle",
+			type(autoHandle) == "table" and type(autoHandle.Stop) == "function" and 1 or 0,
+			1,
+			type(autoHandle) == "table" and type(autoHandle.Stop) == "function"
+		)
+
+		local p = newTestPlayer(cleanup, "CarTestGachaP1")
+		GachaService.Setup(p)
+		GachaService.Setup(p) -- idempotent
+		local folders = 0
+		for _, c in p:GetChildren() do
+			if c.Name == "GachaData" then
+				folders += 1
+			end
+		end
+		check(checks, "setup_single_gacha_data", folders, 1, folders == 1 and p.GachaData:IsA("Folder"))
+		local defaultsOk = p:GetAttribute("EquippedCar") == "starter"
+			and p:GetAttribute("Rolls") == 0
+			and p:GetAttribute("StatPoints") == 0
+		for _, s in GACHA_STATS do
+			if p:GetAttribute("Alloc_" .. s) ~= 0 then
+				defaultsOk = false
+			end
+		end
+		check(checks, "setup_default_attributes", defaultsOk and 1 or 0, 1, defaultsOk)
+		check(checks, "setup_no_cars_owned", #p.GachaData:GetChildren(), 0, #p.GachaData:GetChildren() == 0)
+
+		-- Grant: new, duplicate, unknown
+		local g1 = GachaService.Grant(p, "wooden_car")
+		local v = p.GachaData:FindFirstChild("wooden_car")
+		check(checks, "grant_new_returns_true", g1 == true and 1 or 0, 1, g1 == true)
+		check(
+			checks,
+			"grant_new_adds_stringvalue",
+			owns(p, "wooden_car") and 1 or 0,
+			1,
+			v ~= nil and owns(p, "wooden_car") and v:GetAttribute("Count") == nil
+		)
+		local g2 = GachaService.Grant(p, "wooden_car")
+		check(checks, "grant_duplicate_returns_false", g2 == false and 1 or 0, 1, g2 == false)
+		local dupSame = owns(p, "wooden_car") and entriesNamed(p, "wooden_car") == 1 and not anyCountAttribute(p)
+		check(checks, "grant_duplicate_no_change", entriesNamed(p, "wooden_car"), 1, dupSame)
+		local dupNoExtra = #p.GachaData:GetChildren() == 1
+		check(checks, "grant_duplicate_no_new_entry", #p.GachaData:GetChildren(), 1, dupNoExtra)
+		local rejectOk = true
+		for _, bad in { "no_such_car", "starter", "", 5, true, {} } do
+			local okg, r = pcall(GachaService.Grant, p, bad)
+			if not okg or r ~= nil then
+				rejectOk = false
+			end
+		end
+		local okNil, rNil = pcall(GachaService.Grant, p, nil)
+		rejectOk = rejectOk and okNil and rNil == nil
+		check(checks, "grant_unknown_returns_nil", rejectOk and 1 or 0, 1, rejectOk)
+		check(
+			checks,
+			"grant_unknown_no_change",
+			#p.GachaData:GetChildren(),
+			1,
+			#p.GachaData:GetChildren() == 1 and owns(p, "wooden_car")
+		)
+
+		-- Roll through the service: counts Rolls, grants the rolled car
+		local q = newTestPlayer(cleanup, "CarTestGachaP2")
+		GachaService.Setup(q)
+		local id1, new1 = GachaService.Roll(q, Random.new(99))
+		check(checks, "service_roll_valid_id", validIds[id1] and 1 or 0, 1, validIds[id1] == true)
+		check(checks, "service_roll_first_is_new", new1 == true and 1 or 0, 1, new1 == true)
+		check(checks, "service_roll_grants_car", owns(q, id1) and 1 or 0, 1, owns(q, id1))
+		check(checks, "service_roll_increments_rolls", q:GetAttribute("Rolls") or -1, 1, q:GetAttribute("Rolls") == 1)
+		local rng = Random.new(100)
+		local rolledOwned, newMatches = owns(q, id1), true
+		for _ = 1, 20 do
+			local ownedBefore = {}
+			for _, c in GACHA_SEED do
+				ownedBefore[c.Id] = owns(q, c.Id)
+			end
+			local id, isNew = GachaService.Roll(q, rng)
+			if not owns(q, id) then
+				rolledOwned = false
+			end
+			-- a duplicate roll returns (id, false); a first discovery (id, true)
+			if validIds[id] and isNew ~= not ownedBefore[id] then
+				newMatches = false
+			end
+		end
+		check(checks, "service_rolls_counted", q:GetAttribute("Rolls") or -1, 21, q:GetAttribute("Rolls") == 21)
+		local uq = ownedUnique(q)
+		check(
+			checks,
+			"service_rolls_all_granted",
+			uq,
+			"1..min(Rolls, 7)",
+			rolledOwned and uq >= 1 and uq <= math.min(21, #GACHA_SEED) and GachaService.UniqueCount(q) == uq
+		)
+		check(checks, "service_roll_is_new_matches_ownership", newMatches and 1 or 0, 1, newMatches)
+		check(checks, "service_roll_no_count_attribute", anyCountAttribute(q) and 1 or 0, 0, not anyCountAttribute(q))
+		local okDefault, idD = pcall(GachaService.Roll, q)
+		check(
+			checks,
+			"service_roll_default_rng",
+			okDefault and validIds[idD] and 1 or 0,
+			1,
+			okDefault and validIds[idD] == true
+		)
+
+		-- Remotes exist (GachaService.Start is called by Main at boot)
+		local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+		local equipR = remotes and remotes:FindFirstChild("EquipCar")
+		local allocR = remotes and remotes:FindFirstChild("AllocateStat")
+		local remotesOk = equipR ~= nil and equipR:IsA("RemoteEvent") and allocR ~= nil and allocR:IsA("RemoteEvent")
+		check(checks, "remotes_exist", remotesOk and 1 or 0, 1, remotesOk)
+
+		-- Auto-roll: about one roll every ROLL_INTERVAL seconds, then Stop stops it
+		while os.clock() - autoStart < AUTO_ROLL_WAIT do
+			task.wait(0.1)
+		end
+		local autoRolls = pa:GetAttribute("Rolls") or -1
+		metrics.autoRolls = autoRolls
+		check(checks, "auto_roll_rate", autoRolls, "3..4 (+-1)", autoRolls >= 2 and autoRolls <= 5)
+		local ua = ownedUnique(pa)
+		check(
+			checks,
+			"auto_roll_grants_cars",
+			ua,
+			"1..min(Rolls, 7)",
+			ua >= 1 and ua <= math.min(autoRolls, #GACHA_SEED)
+		)
+		local okStop = type(autoHandle) == "table" and pcall(autoHandle.Stop, autoHandle)
+		autoHandle = nil
+		local atStop = pa:GetAttribute("Rolls")
+		task.wait((GachaConfig.ROLL_INTERVAL or 3) + 1.5)
+		local after = pa:GetAttribute("Rolls")
+		check(checks, "auto_roll_stop", (after or 0) - (atStop or 0), 0, okStop and after == atStop)
+	end)
+	if autoHandle then
+		pcall(autoHandle.Stop, autoHandle)
+	end
+	if not okBody then
+		check(checks, "gacha_service_no_error", 0, tostring(err), false)
+	end
+	for _, inst in cleanup do
+		inst:Destroy()
+	end
+	return result("gacha", checks, metrics)
+end
+
+-- Index: discoveries -> stat points, allocation, equip, multipliers, and their effect on race gain and pad pay.
+function Scenarios.index()
+	local checks = {}
+	local CarCatalog, GachaConfig, GachaService = gachaModules()
+	local RaceService = serverModule("RaceService")
+	local RaceConfig = sharedModule("RaceConfig")
+	local Money = serverModule("MoneyService")
+	local PlayerData = serverModule("PlayerData")
+	local apiOk = CarCatalog ~= nil
+		and GachaConfig ~= nil
+		and GachaService ~= nil
+		and RaceService ~= nil
+		and RaceConfig ~= nil
+		and Money ~= nil
+		and PlayerData ~= nil
+		and type(GachaConfig.EarnedPoints) == "function"
+		and type(GachaConfig.Multis) == "function"
+		and type(GachaService.Setup) == "function"
+		and type(GachaService.Grant) == "function"
+		and type(GachaService.Equip) == "function"
+		and type(GachaService.Allocate) == "function"
+		and type(GachaService.UniqueCount) == "function"
+		and type(GachaService.EarnedPoints) == "function"
+		and type(GachaService.FreePoints) == "function"
+		and type(GachaService.SpeedMulti) == "function"
+		and type(GachaService.MoneyMulti) == "function"
+		and type(GachaService.Luck) == "function"
+		and type(RaceService.BuildRoute) == "function"
+		and type(RaceService.NewRun) == "function"
+	check(checks, "index_api_exists", apiOk and 1 or 0, 1, apiOk)
+	if not apiOk then
+		return result("index", checks, {})
+	end
+	local metrics = {}
+	local function call(fn, ...)
+		local ok, r = pcall(fn, ...)
+		if ok then
+			return r
+		end
+		return nil
+	end
+
+	-- Pure rules
+	local earnedOk = true
+	for _, pair in { { 0, 0 }, { 1, 0 }, { 2, 0 }, { 3, 1 }, { 5, 1 }, { 6, 2 }, { 7, 2 }, { 9, 3 }, { 30, 10 } } do
+		if call(GachaConfig.EarnedPoints, pair[1]) ~= pair[2] then
+			earnedOk = false
+		end
+	end
+	check(checks, "earned_points_every_3_unique", earnedOk and 1 or 0, 1, earnedOk)
+	local earnedBadOk = call(GachaConfig.EarnedPoints, nil) == 0
+	for _, bad in { 0 / 0, -3, "9", true, {}, -math.huge } do
+		if call(GachaConfig.EarnedPoints, bad) ~= 0 then
+			earnedBadOk = false
+		end
+	end
+	check(checks, "earned_points_bad_input_zero", earnedBadOk and 1 or 0, 1, earnedBadOk)
+	local function multisMatch(m, speed, money, luck, workshop)
+		return type(m) == "table"
+			and nearly(m.Speed, speed)
+			and nearly(m.Money, money)
+			and nearly(m.Luck, luck)
+			and nearly(m.Workshop, workshop)
+	end
+	local mm = call(GachaConfig.Multis, { Speed = 2, Money = 3, Luck = 4, Workshop = 5 })
+	check(
+		checks,
+		"multis_formula",
+		mm and mm.Speed or -1,
+		1.2,
+		multisMatch(mm, 1 + 0.1 * 2, 1 + 0.1 * 3, 1 + 0.05 * 4, 1 + 0.2 * 5)
+	)
+	check(checks, "multis_empty_all_one", 1, 1, multisMatch(call(GachaConfig.Multis, {}), 1, 1, 1, 1))
+	local mb = call(GachaConfig.Multis, { Speed = "x", Money = 0 / 0, Luck = true, Workshop = nil })
+	check(checks, "multis_bad_entries_zero", 1, 1, multisMatch(mb, 1, 1, 1, 1))
+
+	local cleanup = {}
+	local models = {}
+	local runs = {}
+	local connections = {}
+	local okBody, err = pcall(function()
+		-- Points from discoveries
+		local p = newTestPlayer(cleanup, "CarTestIndexP1")
+		GachaService.Setup(p)
+		local function pts(pl)
+			return GachaService.UniqueCount(pl), GachaService.EarnedPoints(pl), GachaService.FreePoints(pl)
+		end
+		local u, e, f = pts(p)
+		check(checks, "fresh_zero_points", e, 0, u == 0 and e == 0 and f == 0 and p:GetAttribute("StatPoints") == 0)
+		check(checks, "allocate_fails_at_zero_free", 0, 0, GachaService.Allocate(p, "Speed") == false)
+		check(
+			checks,
+			"allocate_zero_free_no_change",
+			p:GetAttribute("Alloc_Speed") or -1,
+			0,
+			p:GetAttribute("Alloc_Speed") == 0
+		)
+		GachaService.Grant(p, "rusty_hatchback")
+		GachaService.Grant(p, "wooden_car")
+		u, e = pts(p)
+		check(checks, "two_unique_zero_points", e, 0, u == 2 and e == 0)
+		for _ = 1, 5 do
+			GachaService.Grant(p, "wooden_car")
+			GachaService.Grant(p, "rusty_hatchback")
+		end
+		u, e = pts(p)
+		check(checks, "duplicates_never_count", u, 2, u == 2 and e == 0 and p:GetAttribute("StatPoints") == 0)
+		GachaService.Grant(p, "go_kart")
+		u, e, f = pts(p)
+		check(checks, "three_unique_one_point", e, 1, u == 3 and e == 1 and f == 1)
+		check(
+			checks,
+			"stat_points_attribute_after_grant",
+			p:GetAttribute("StatPoints") or -1,
+			1,
+			p:GetAttribute("StatPoints") == 1
+		)
+
+		-- Allocation validation
+		local rejectOk = true
+		for _, bad in { "Bogus", "speed", "SPEED", "", "Alloc_Speed", 5, true, {} } do
+			local oka, r = pcall(GachaService.Allocate, p, bad)
+			if not oka or r == true then
+				rejectOk = false
+			end
+		end
+		local okn, rn = pcall(GachaService.Allocate, p, nil)
+		rejectOk = rejectOk and okn and rn ~= true
+		check(checks, "allocate_rejects_bad_names", rejectOk and 1 or 0, 1, rejectOk)
+		check(
+			checks,
+			"allocate_rejected_keeps_point",
+			p:GetAttribute("StatPoints") or -1,
+			1,
+			p:GetAttribute("StatPoints") == 1
+		)
+		local a1 = GachaService.Allocate(p, "Speed")
+		check(checks, "allocate_speed_succeeds", a1 == true and 1 or 0, 1, a1 == true)
+		check(
+			checks,
+			"allocate_increments_alloc",
+			p:GetAttribute("Alloc_Speed") or -1,
+			1,
+			p:GetAttribute("Alloc_Speed") == 1
+		)
+		check(
+			checks,
+			"allocate_decrements_stat_points",
+			p:GetAttribute("StatPoints") or -1,
+			0,
+			p:GetAttribute("StatPoints") == 0 and GachaService.FreePoints(p) == 0
+		)
+		local a2 = GachaService.Allocate(p, "Speed")
+		check(
+			checks,
+			"allocate_beyond_earned_fails",
+			a2 == false and 1 or 0,
+			1,
+			a2 == false and p:GetAttribute("Alloc_Speed") == 1
+		)
+		check(
+			checks,
+			"speed_multi_with_1_point",
+			GachaService.SpeedMulti(p),
+			1.1,
+			nearly(GachaService.SpeedMulti(p), 1 * 1.1)
+		)
+		check(checks, "money_multi_unchanged", GachaService.MoneyMulti(p), 1, nearly(GachaService.MoneyMulti(p), 1))
+		check(checks, "luck_unchanged", GachaService.Luck(p), 1, nearly(GachaService.Luck(p), 1))
+		for _, c in GACHA_SEED do
+			GachaService.Grant(p, c.Id)
+		end
+		u, e, f = pts(p)
+		check(
+			checks,
+			"seven_unique_two_points",
+			e,
+			2,
+			u == 7 and e == 2 and f == 1 and p:GetAttribute("StatPoints") == 1
+		)
+		local aL = GachaService.Allocate(p, "Luck")
+		check(
+			checks,
+			"allocate_luck",
+			GachaService.Luck(p),
+			1.05,
+			aL == true and nearly(GachaService.Luck(p), 1 + 0.05)
+		)
+		check(checks, "allocate_luck_no_more_points", 0, 0, GachaService.Allocate(p, "Money") == false)
+
+		-- Fresh player: every multiplier exactly 1 (also with no GachaService.Setup at all)
+		local fresh = newTestPlayer(cleanup, "CarTestIndexFresh")
+		GachaService.Setup(fresh)
+		local freshOk = GachaService.SpeedMulti(fresh) == 1
+			and GachaService.MoneyMulti(fresh) == 1
+			and GachaService.Luck(fresh) == 1
+		check(checks, "fresh_multis_one", freshOk and 1 or 0, 1, freshOk)
+		local bare = newTestPlayer(cleanup, "CarTestIndexBare")
+		local bareOk = call(GachaService.SpeedMulti, bare) == 1
+			and call(GachaService.MoneyMulti, bare) == 1
+			and call(GachaService.Luck, bare) == 1
+		check(checks, "no_setup_multis_one", bareOk and 1 or 0, 1, bareOk)
+
+		-- Equip
+		local eq = newTestPlayer(cleanup, "CarTestIndexEquip")
+		GachaService.Setup(eq)
+		local eqBadOk = GachaService.Equip(eq, "go_kart") == false
+			and GachaService.Equip(eq, "no_such_car") == false
+			and call(GachaService.Equip, eq, 5) ~= true
+			and call(GachaService.Equip, eq, nil) ~= true
+		check(
+			checks,
+			"equip_not_owned_rejected",
+			eqBadOk and 1 or 0,
+			1,
+			eqBadOk and eq:GetAttribute("EquippedCar") == "starter"
+		)
+		GachaService.Grant(eq, "go_kart")
+		local eqOk = GachaService.Equip(eq, "go_kart")
+		check(
+			checks,
+			"equip_owned_accepted",
+			eqOk == true and 1 or 0,
+			1,
+			eqOk == true and eq:GetAttribute("EquippedCar") == "go_kart"
+		)
+		check(
+			checks,
+			"speed_multi_is_car_multi",
+			GachaService.SpeedMulti(eq),
+			2,
+			nearly(GachaService.SpeedMulti(eq), 2)
+		)
+		-- car multi x stat multi: p owns go_kart and has 1 Speed point
+		GachaService.Equip(p, "go_kart")
+		check(
+			checks,
+			"speed_multi_car_times_stat",
+			GachaService.SpeedMulti(p),
+			2.2,
+			nearly(GachaService.SpeedMulti(p), 2 * 1.1)
+		)
+		GachaService.Equip(p, "street_racer")
+		check(
+			checks,
+			"speed_multi_after_reequip",
+			GachaService.SpeedMulti(p),
+			6.6,
+			nearly(GachaService.SpeedMulti(p), 6 * 1.1)
+		)
+		local backOk = GachaService.Equip(p, "starter")
+		check(
+			checks,
+			"equip_starter_always_allowed",
+			GachaService.SpeedMulti(p),
+			1.1,
+			backOk == true and p:GetAttribute("EquippedCar") == "starter" and nearly(GachaService.SpeedMulti(p), 1.1)
+		)
+
+		-- Money: the pad pays floor(Cash * MoneyMulti)
+		local spec = TrackRegistry.Chain()[1]
+		local entries = {}
+		for k = 1, 2 do
+			local origin = CFrame.new(INDEX_ORIGIN + Vector3.new((k - 1) * 3000, TrackBuilder.TRACK_LIFT or 0, 0))
+			local model, layout = TrackBuilder.Build(spec, origin)
+			model.Name = "CarTestIndexTrack" .. k
+			model.Parent = Workspace
+			table.insert(models, model)
+			entries[k] = { Layout = layout, Origin = origin, Model = model, Number = spec.Number }
+		end
+		local pad = models[1]:FindFirstChild("WinPad", true)
+		local cash = TrackBuilder.CashFor(spec.Number)
+		local pm = newTestPlayer(cleanup, "CarTestIndexMoney")
+		Money.Setup(pm)
+		GachaService.Setup(pm)
+		for _, c in GACHA_SEED do
+			GachaService.Grant(pm, c.Id)
+		end
+		GachaService.Allocate(pm, "Money")
+		GachaService.Allocate(pm, "Money")
+		local mMulti = GachaService.MoneyMulti(pm)
+		check(checks, "money_multi_two_points", mMulti, 1.2, nearly(mMulti, 1 + 0.1 * 2))
+		local paid = Money.Collect(pm, pad, 5000)
+		local want = math.floor(cash * mMulti)
+		check(
+			checks,
+			"collect_pays_cash_times_money_multi",
+			paid or -1,
+			want,
+			pad ~= nil and paid == want and want > cash
+		)
+		check(checks, "collect_multi_balance", pm.leaderstats.Money.Value, want, pm.leaderstats.Money.Value == want)
+		local pf = newTestPlayer(cleanup, "CarTestIndexMoneyFresh")
+		Money.Setup(pf)
+		GachaService.Setup(pf)
+		local paidF = Money.Collect(pf, pad, 5000)
+		check(checks, "collect_fresh_player_pays_cash", paidF or -1, cash, paidF == cash)
+
+		-- Race gain scales with the equipped car: two identical drives, 1x vs a 2x go_kart.
+		-- Measurement fix (not a loosening, every limit unchanged): building the tracks causes long frames, so wait
+		-- for the world to settle before the runs start, and integrate on PreSimulation with the same dt the run uses.
+		local settleStart, streak = os.clock(), 0
+		while os.clock() - settleStart < INDEX_SETTLE_CAP do
+			local sdt = RunService.Heartbeat:Wait()
+			streak = sdt < INDEX_SETTLE_MAX_DT and streak + 1 or 0
+			if os.clock() - settleStart >= INDEX_SETTLE_MIN and streak >= INDEX_SETTLE_FRAMES then
+				break
+			end
+		end
+		metrics.settleSeconds = round(os.clock() - settleStart)
+		local results = {}
+		for k = 1, 2 do
+			local route = RaceService.BuildRoute({ entries[k] })
+			local car = CarFactory.build(CarConfig)
+			car.Name = "CarTestIndexCar" .. k
+			car:PivotTo(models[k].Start.CFrame + Vector3.new(0, CarConfig.RestHeight, 0))
+			car.Parent = Workspace
+			table.insert(models, car)
+			local player = newTestPlayer(cleanup, "CarTestIndexRacer" .. k)
+			Money.Setup(player)
+			PlayerData.Setup(player)
+			GachaService.Setup(player)
+			if k == 2 then
+				GachaService.Grant(player, "go_kart")
+				GachaService.Equip(player, "go_kart")
+			end
+			local run = RaceService.NewRun(car, route, player, nil)
+			table.insert(runs, run)
+			results[k] = {
+				player = player,
+				chassis = car.PrimaryPart,
+				speedValue = player.leaderstats.Speed,
+				integral = 0,
+				target = run.TargetSpeed,
+			}
+		end
+		local raceMaxDt = 0
+		local integrate = RunService.PreSimulation:Connect(function(dt)
+			raceMaxDt = math.max(raceMaxDt, dt)
+			for _, r in results do
+				local g = RaceConfig.GainPerSecond(r.speedValue.Value, r.chassis.AssemblyLinearVelocity.Magnitude)
+				if type(g) == "number" and g == g then
+					r.integral += g * dt
+				end
+			end
+		end)
+		table.insert(connections, integrate)
+		frames(INDEX_RACE_SECONDS)
+		integrate:Disconnect()
+		for _, run in runs do
+			run:Destroy()
+		end
+		metrics.raceMaxDt = round(raceMaxDt)
+		runs = {}
+		local ratios = {}
+		for k, r in results do
+			ratios[k] = r.integral > 0 and r.speedValue.Value / r.integral or 0
+		end
+		metrics.gain1 = round(results[1].speedValue.Value)
+		metrics.gain2 = round(results[2].speedValue.Value)
+		metrics.ratio1 = round(ratios[1])
+		metrics.ratio2 = round(ratios[2])
+		check(checks, "race_gain_baseline_unchanged", ratios[1], "1 +- 15%", ratios[1] >= 0.85 and ratios[1] <= 1.15)
+		local scale = ratios[1] > 0 and ratios[2] / ratios[1] or 0
+		check(checks, "race_gain_scales_with_car_multi", scale, "2 +- 15%", scale >= 1.7 and scale <= 2.3)
+		check(
+			checks,
+			"race_cruise_unaffected_by_car",
+			results[2].target or -1,
+			results[1].target or -1,
+			type(results[1].target) == "number" and results[1].target == results[2].target
+		)
+	end)
+	for _, conn in connections do
+		conn:Disconnect()
+	end
+	for _, run in runs do
+		pcall(run.Destroy, run)
+	end
+	if not okBody then
+		check(checks, "index_no_error", 0, tostring(err), false)
+	end
+	for _, m in models do
+		m:Destroy()
+	end
+	for _, inst in cleanup do
+		inst:Destroy()
+	end
+	return result("index", checks, metrics)
 end
 
 -- Car size: the car is about half of its original 13.2 stud length.
@@ -3201,7 +4595,2180 @@ function Scenarios.car_size()
 	return result("car_size", checks, { lengthRatio = round(ratio), length = round(size.Z) })
 end
 
--- name: "static_settle" | "accel" | "brake" | "skidpad" | "car_size" | "economy" | "hud" | "auto_toggle" | "lap:<Track>" | "track:<Track>"
+-- NPC racer + multiplayer pass-through (contract: docs/NPC_RACER_SPEC.md).
+-- BRIEF (user, 2026-10-01): "One NPC racer per track. For now it is the starter car in a different colour per
+-- track: red on Track 1, a different colour on every other track. The model must be swappable per track later.
+-- The NPC drives in the LEFT lane; the player keeps the right-hand lane. The NPC race starts automatically every
+-- time the player starts a track. The NPC is per player: other players never see it (never in the server
+-- Workspace). NPC speeds rise per track: very easy on Track 1, increasing on every later track. If the NPC reaches
+-- the finish of the track before the player, the player LOSES. The race still plays out, then the player sees a
+-- loser screen and is sent back to the start of Track 1 where the Track 1 race starts again. A track's checkpoint
+-- money is paid only when the player WINS that track; money from checkpoints already won is kept. Floating text
+-- above each NPC, proximity based, editable, default track01_NPC, track02_NPC, ... Players pass through each other."
+local NPC_ORIGIN = Vector3.new(40000, 0, 0)
+local MULTI_ORIGIN = Vector3.new(-40000, 0, 0)
+local NPC_LOSE_SCREEN = 1 -- s: LoseScreenSeconds used by the test runs
+local NPC_SLOW = 15 -- studs/s: an NPC every player beats
+local NPC_FAST = 60 -- studs/s: an NPC a stat-0 player (RaceConfig.BASE_SPEED) can not beat
+local NPC_RESET_RADIUS = 15 -- studs (horizontal) from Track 1's race start after a reset
+local NPC_FINISH_RADIUS = 25 -- studs (horizontal) from the track's finish pose when its Result arrives
+local NPC_TIME_SLACK = 1 -- s between the run's own times and the test's clock
+local NPC_POSE_TOLERANCE = 2 -- studs (horizontal) PoseAt may be from the lane waypoint
+local NPC_SCAN_INTERVAL = 1 -- s between scans of the server Workspace for NPC models
+
+local function colorClose(a, b)
+	return typeof(a) == "Color3"
+		and typeof(b) == "Color3"
+		and math.abs(a.R - b.R) <= 1.5 / 255
+		and math.abs(a.G - b.G) <= 1.5 / 255
+		and math.abs(a.B - b.B) <= 1.5 / 255
+end
+
+local function isFiniteNumber(x)
+	return type(x) == "number" and x == x and x > -math.huge and x < math.huge
+end
+
+local function num(x)
+	return isFiniteNumber(x) and x or -1
+end
+
+local function npcModelInWorkspace()
+	for _, d in Workspace:GetDescendants() do
+		if d:IsA("Model") and d:GetAttribute("IsNpc") ~= nil then
+			return true
+		end
+	end
+	return false
+end
+
+-- Builds the first two chain tracks at `base` the way Main chains them. Returns entries and the models.
+local function buildNpcChain(base, prefix, specs)
+	local models, entries = {}, {}
+	local origin = CFrame.new(base + Vector3.new(0, TrackBuilder.TRACK_LIFT or 0, 0))
+	for i = 1, 2 do
+		local model, layout = TrackBuilder.Build(specs[i], origin)
+		model.Name = prefix .. i
+		model.Parent = Workspace
+		table.insert(models, model)
+		entries[i] = { Layout = layout, Origin = origin, Model = model, Number = specs[i].Number }
+		origin = TrackBuilder.EndCFrame(layout, origin)
+	end
+	return entries, models
+end
+
+-- Recorded events of racer r of a type (and track), optionally only those that arrived after time `after`.
+local function npcFind(r, typ, track, after)
+	for _, rec in r.Events do
+		local ev = rec.Event
+		if ev.Type == typ and (track == nil or ev.Track == track) and (after == nil or rec.T >= after) then
+			return rec
+		end
+	end
+	return nil
+end
+
+local function npcAll(r, typ)
+	local out = {}
+	for _, rec in r.Events do
+		if rec.Event.Type == typ then
+			table.insert(out, rec)
+		end
+	end
+	return out
+end
+
+-- One player's NPC-mode run: a real car, a fake player (Folder) at stat `stat`, every race event recorded with the
+-- test's clock, the car's position, up-vector and balance at arrival.
+local function newNpcRacer(api, route, startCF, tag, stat, speeds, carGroup)
+	local car = CarFactory.build(CarConfig)
+	car.Name = "CarTestNpcCar_" .. tag
+	car:PivotTo(startCF)
+	if carGroup then
+		for _, part in car:GetDescendants() do
+			if part:IsA("BasePart") then
+				part.CollisionGroup = carGroup -- what RaceService.Attach does for a real player's car
+			end
+		end
+	end
+	car.Parent = Workspace
+	local player = Instance.new("Folder")
+	player.Name = "CarTestNpcPlayer_" .. tag
+	player.Parent = Workspace
+	local r = {
+		Tag = tag,
+		Car = car,
+		Player = player,
+		Chassis = car.PrimaryPart,
+		Events = {},
+		ok = false,
+		stopped = false,
+		minUpOwn = 1,
+		flips = 0,
+		flippedFor = 0,
+		wasFlipped = false,
+		dev = 0,
+		devActive = true,
+		idx = 1,
+		clock0 = os.clock(),
+	}
+	local okSetup = pcall(function()
+		api.Money.Setup(player)
+		api.PlayerData.Setup(player)
+		player.leaderstats.Speed.Value = stat
+	end)
+	if not okSetup then
+		r.err = "PlayerData.Setup failed"
+		return r
+	end
+	r.Money = player.leaderstats:FindFirstChild("Money")
+	local options = {
+		Loop = true,
+		Npc = true,
+		NpcSpeeds = speeds,
+		LoseScreenSeconds = NPC_LOSE_SCREEN,
+		OnRaceEvent = function(ev)
+			if type(ev) ~= "table" then
+				return
+			end
+			local chassis = car.PrimaryPart
+			table.insert(r.Events, {
+				Event = ev,
+				T = os.clock() - r.clock0,
+				Pos = chassis and chassis.Position or Vector3.zero,
+				UpY = chassis and chassis.CFrame.UpVector.Y or -1,
+				Money = r.Money and r.Money.Value or -1,
+			})
+		end,
+	}
+	local okRun, run = pcall(api.RaceService.NewRun, car, route, player, options)
+	if not okRun or type(run) ~= "table" then
+		r.err = tostring(run)
+		return r
+	end
+	r.Run = run
+	r.ok = true
+	return r
+end
+
+-- Per-frame measurements for racer r: tilt, flips, route deviation (after the 3 s grace, until the first Result),
+-- and the car's pose 0.2 s after the first Reset.
+local function stepNpcRacer(r, dt, wps)
+	if not r.ok then
+		return
+	end
+	local chassis = r.Chassis
+	local run = r.Run
+	local now = os.clock() - r.clock0
+	local up = chassis.CFrame.UpVector.Y
+	if not (run.Physics and run.Physics.LoopAssist) then
+		r.minUpOwn = math.min(r.minUpOwn, up)
+	end
+	if up < PhysicsTargets.lap.MinUpY then
+		r.flippedFor += dt
+		if not r.wasFlipped and r.flippedFor > 1 then
+			r.flips += 1
+			r.wasFlipped = true
+		end
+	else
+		r.flippedFor, r.wasFlipped = 0, false
+	end
+	if r.devActive and npcFind(r, "Result") then
+		r.devActive = false
+	end
+	if r.devActive then
+		local pos = chassis.Position
+		local n = #wps
+		local bestD = math.huge
+		for i = r.idx, math.min(r.idx + 25, n) do
+			local d = (wps[i] - pos).Magnitude
+			if d < bestD then
+				bestD, r.idx = d, i
+			end
+		end
+		if now > 3 then
+			local dist = nearestOnPolyline(wps, pos, math.max(r.idx - 3, 1), math.min(r.idx + 3, n - 1))
+			r.dev = math.max(r.dev, dist)
+		end
+	end
+	local reset = npcFind(r, "Reset")
+	if reset and not r.resetPose and now - reset.T >= 0.2 then
+		r.resetPose = chassis.CFrame
+	end
+end
+
+local function endNpcRacer(r)
+	local run = r.Run
+	if run then
+		r.snap = {
+			MinUpY = run.MinUpY,
+			PaidTotal = run.PaidTotal,
+			Payouts = run.Payouts,
+			Wins = run.Wins,
+			Losses = run.Losses,
+			Resets = run.Resets,
+			RaceTrack = run.RaceTrack,
+			Results = type(run.Results) == "table" and #run.Results or -1,
+			FlipRecoveries = run.FlipRecoveries,
+		}
+		pcall(function()
+			run:Destroy()
+		end)
+	else
+		r.snap = {}
+	end
+	r.balance = r.Money and r.Money.Value or -1
+	r.Car:Destroy()
+	r.Player:Destroy()
+end
+
+-- Tilt / flip checks for one NPC-mode run.
+local function checkNpcStability(checks, pre, r)
+	local strict = PhysicsTargets.lap.MinUpYStrict
+	local rm = isFiniteNumber(r.snap.MinUpY) and r.snap.MinUpY or -1
+	local worst = math.min(rm, r.minUpOwn)
+	check(checks, pre .. "_never_tilted", worst, strict, type(strict) == "number" and worst >= strict)
+	local rec = type(r.snap.FlipRecoveries) == "number" and r.snap.FlipRecoveries or -1
+	check(checks, pre .. "_no_flips", r.flips, 0, r.flips == 0 and rec == 0)
+end
+
+-- Lost track `lost` (by racer r): nothing paid for it, a Reset to Track 1 after the lose screen, the car back at
+-- Track 1's start upright and facing along the path, and a new Track 1 Start.
+local function checkNpcLoseReset(checks, pre, r, lost, wps)
+	local res = npcFind(r, "Result", lost)
+	local reset = res and npcFind(r, "Reset", nil, res.T)
+	check(checks, pre .. "_reset_event", reset and 1 or 0, 1, reset ~= nil and reset.Event.Track == 1)
+	local delay = (reset and res) and reset.T - res.T or -1
+	check(
+		checks,
+		pre .. "_reset_after_lose_screen",
+		delay,
+		NPC_LOSE_SCREEN,
+		reset ~= nil and delay >= NPC_LOSE_SCREEN - 0.1 and delay <= NPC_LOSE_SCREEN + 1.5
+	)
+	local pose = r.resetPose
+	local d = pose and hdist(pose.Position, wps[1]) or -1
+	check(checks, pre .. "_reset_to_track1_start", d, NPC_RESET_RADIUS, pose ~= nil and d <= NPC_RESET_RADIUS)
+	local up = pose and pose.UpVector.Y or -1
+	check(checks, pre .. "_reset_upright", up, 0.9, up >= 0.9)
+	local dir = flatV(wps[2] - wps[1])
+	local facing = (pose and dir.Magnitude > 1e-6) and flatV(pose.LookVector):Dot(dir.Unit) or -1
+	check(checks, pre .. "_reset_faces_path", facing, 0.9, facing >= 0.9)
+	local restart = reset and npcFind(r, "Start", 1, reset.T - 0.05)
+	check(checks, pre .. "_restarts_track1", restart and 1 or 0, 1, restart ~= nil)
+	local rt = r.snap.RaceTrack
+	check(checks, pre .. "_race_track_back_to_1", type(rt) == "number" and rt or -1, 1, rt == 1)
+	local resets = r.snap.Resets
+	check(checks, pre .. "_resets_counted", type(resets) == "number" and resets or -1, 1, resets == 1)
+end
+
+function Scenarios.npc()
+	local checks = {}
+	local metrics = {}
+	local NpcConfig = sharedModule("NpcConfig")
+	local NpcRacer = sharedModule("NpcRacer")
+	local RaceConfig = sharedModule("RaceConfig")
+	local PathDriver = sharedModule("PathDriver")
+	local api = {
+		RaceService = serverModule("RaceService"),
+		Money = serverModule("MoneyService"),
+		PlayerData = serverModule("PlayerData"),
+	}
+	local apiOk = NpcConfig ~= nil
+		and NpcRacer ~= nil
+		and RaceConfig ~= nil
+		and PathDriver ~= nil
+		and api.RaceService ~= nil
+		and api.Money ~= nil
+		and api.PlayerData ~= nil
+		and type(NpcConfig.For) == "function"
+		and type(NpcConfig.Tracks) == "table"
+		and type(NpcRacer.LanePath) == "function"
+		and type(NpcRacer.Profile) == "function"
+		and type(NpcRacer.PoseAt) == "function"
+		and type(NpcRacer.ChainEntries) == "function"
+		and type(NpcRacer.BuildModel) == "function"
+		and type(api.RaceService.BuildRoute) == "function"
+		and type(api.RaceService.NewRun) == "function"
+		and type(api.PlayerData.Setup) == "function"
+		and type(PathDriver.Chain) == "function"
+		and type(TrackBuilder.RacePath) == "function"
+		and type(TrackBuilder.CashFor) == "function"
+		and type(RaceConfig.BASE_SPEED) == "number"
+	check(checks, "npc_api_exists", apiOk and 1 or 0, 1, apiOk)
+	local specs = type(TrackRegistry.Chain) == "function" and TrackRegistry.Chain() or {}
+	check(checks, "npc_chain_has_two_tracks", #specs, 2, #specs >= 2)
+	if not apiOk or #specs < 2 then
+		return result("npc", checks, metrics)
+	end
+
+	local models = {}
+	local okBody, err = pcall(function()
+		-- NpcConfig: red on Track 1, a different colour per track, speeds rising, labels, per-track overrides
+		local infos, allInfo = {}, true
+		for n = 1, 5 do
+			local ok, info = pcall(NpcConfig.For, n)
+			infos[n] = ok and type(info) == "table" and info or nil
+			allInfo = allInfo and infos[n] ~= nil
+		end
+		check(checks, "npc_config_for_returns_info", allInfo and 1 or 0, 1, allInfo)
+		if allInfo then
+			local c1 = infos[1].Color
+			local isColor = typeof(c1) == "Color3"
+			local red = isColor and c1.R * 255 >= 200 and c1.G * 255 <= 80 and c1.B * 255 <= 80
+			check(checks, "npc_track1_red", isColor and c1.R * 255 or -1, 200, red)
+			local same, notColor = 0, 0
+			for i = 1, 5 do
+				if typeof(infos[i].Color) ~= "Color3" then
+					notColor += 1
+				end
+				for j = i + 1, 5 do
+					if colorClose(infos[i].Color, infos[j].Color) then
+						same += 1
+					end
+				end
+			end
+			check(checks, "npc_colours_distinct_1_to_5", same + notColor, 0, same == 0 and notColor == 0)
+			local asPlayer = 0
+			for i = 1, 5 do
+				if colorClose(infos[i].Color, CarConfig.Colors.Body) then
+					asPlayer += 1
+				end
+			end
+			check(checks, "npc_colours_not_player_body", asPlayer, 0, asPlayer == 0)
+			local increasing = true
+			for i = 1, 5 do
+				local s = infos[i].Speed
+				if not isFiniteNumber(s) or s <= 0 or (i > 1 and not (s > infos[i - 1].Speed)) then
+					increasing = false
+				end
+			end
+			check(checks, "npc_speed_increasing_1_to_5", increasing and 1 or 0, 1, increasing)
+			local s1 = isFiniteNumber(infos[1].Speed) and infos[1].Speed or math.huge
+			check(checks, "npc_track1_very_easy", s1, RaceConfig.BASE_SPEED, s1 < RaceConfig.BASE_SPEED)
+			check(
+				checks,
+				"npc_label_track1",
+				infos[1].Label == "track01_NPC" and 1 or 0,
+				1,
+				infos[1].Label == "track01_NPC"
+			)
+			check(
+				checks,
+				"npc_label_track2",
+				infos[2].Label == "track02_NPC" and 1 or 0,
+				1,
+				infos[2].Label == "track02_NPC"
+			)
+			local numbersOk = true
+			for i = 1, 5 do
+				numbersOk = numbersOk and infos[i].Number == i
+			end
+			check(checks, "npc_info_number", numbersOk and 1 or 0, 1, numbersOk)
+		end
+		local ld = NpcConfig.LABEL_DISTANCE
+		check(checks, "npc_label_distance_finite", isFiniteNumber(ld) and ld or -1, 0, isFiniteNumber(ld) and ld > 0)
+
+		-- model / label / speed / colour are changeable per track (NpcConfig.Tracks is read live by For)
+		local saved = NpcConfig.Tracks[7]
+		local okBefore, before = pcall(NpcConfig.For, 7)
+		local overrideColor = Color3.fromRGB(10, 200, 30)
+		NpcConfig.Tracks[7] = { Label = "X", Speed = 99, Model = "Y", Color = overrideColor }
+		local okAfter, after = pcall(NpcConfig.For, 7)
+		NpcConfig.Tracks[7] = saved
+		local okRestored, restored = pcall(NpcConfig.For, 7)
+		local overrideOk = okAfter
+			and type(after) == "table"
+			and after.Label == "X"
+			and after.Speed == 99
+			and after.Model == "Y"
+			and colorClose(after.Color, overrideColor)
+		check(checks, "npc_override_per_track", overrideOk and 1 or 0, 1, overrideOk)
+		local defaultOk = okBefore
+			and okRestored
+			and type(before) == "table"
+			and type(restored) == "table"
+			and (saved ~= nil or before.Label == "track07_NPC")
+			and restored.Label == before.Label
+			and restored.Speed == before.Speed
+		check(checks, "npc_override_restores_default", defaultOk and 1 or 0, 1, defaultOk)
+
+		-- The test chain (Track 1 and 2) far from every other test origin
+		local entries
+		entries, models = buildNpcChain(NPC_ORIGIN, "CarTestNpcTrack", specs)
+		local layout = entries[1].Layout
+		local cw, ccurv = layout.Waypoints, layout.Curvature
+
+		-- TrackBuilder.RacePath(layout, -LANE_OFFSET) is the LEFT lane; the default stays the right lane
+		local LANE = TrackBuilder.LANE_OFFSET
+		local function laneMean(path)
+			if type(path) ~= "table" or type(path.Waypoints) ~= "table" or #path.Waypoints ~= #cw then
+				return nil, 0
+			end
+			local sum, cnt = 0, 0
+			for i = 2, #cw - 1 do
+				if ccurv[i - 1] == 0 and ccurv[i] == 0 and ccurv[i + 1] == 0 then
+					local f = flatV(cw[i + 1] - cw[i - 1])
+					if f.Magnitude > 1e-6 then
+						sum += flatV(path.Waypoints[i] - cw[i]):Dot(f.Unit:Cross(Vector3.yAxis))
+						cnt += 1
+					end
+				end
+			end
+			return cnt >= 10 and sum / cnt or nil, cnt
+		end
+		local okL, left = pcall(TrackBuilder.RacePath, layout, -LANE)
+		local okR, right = pcall(TrackBuilder.RacePath, layout)
+		local okR2, right2 = pcall(TrackBuilder.RacePath, layout, LANE)
+		local lm = okL and laneMean(left) or nil
+		local rm = okR and laneMean(right) or nil
+		check(checks, "npc_race_path_left_lane", lm and -lm or -99, LANE, lm ~= nil and -lm >= 7 and -lm <= 13)
+		check(checks, "player_race_path_still_right", rm or -99, LANE, rm ~= nil and rm >= 7 and rm <= 13)
+		local sameDefault = okR and okR2 and type(right2) == "table" and type(right2.Waypoints) == "table"
+		local maxDiff = -1
+		if sameDefault then
+			maxDiff = 0
+			for i, p in right.Waypoints do
+				maxDiff = math.max(maxDiff, (p - (right2.Waypoints[i] or Vector3.new(1e9, 0, 0))).Magnitude)
+			end
+		end
+		check(checks, "race_path_default_offset_is_lane_offset", maxDiff, 0.001, sameDefault and maxDiff <= 0.001)
+
+		-- NpcRacer.LanePath: world-space left lane of a chain entry
+		local entry1 = { Layout = layout, Origin = entries[1].Origin, Number = entries[1].Number }
+		local okLane, lane = pcall(NpcRacer.LanePath, entry1)
+		local laneOk = okLane
+			and type(lane) == "table"
+			and type(lane.Waypoints) == "table"
+			and type(lane.Curvature) == "table"
+			and isFiniteNumber(lane.Length)
+			and #lane.Waypoints == #cw
+		check(checks, "npc_lane_path_built", laneOk and 1 or 0, 1, laneOk)
+		if laneOk then
+			local worst = -1
+			if okL and type(left) == "table" and type(left.Waypoints) == "table" then
+				worst = 0
+				for i, p in lane.Waypoints do
+					local want = entries[1].Origin:PointToWorldSpace(left.Waypoints[i])
+					worst = math.max(worst, (p - want).Magnitude)
+				end
+			end
+			check(checks, "npc_lane_path_is_world_left_lane", worst, 0.05, worst >= 0 and worst <= 0.05)
+			local wl = lane.Waypoints
+			local cum = { 0 }
+			for i = 2, #wl do
+				cum[i] = cum[i - 1] + (wl[i] - wl[i - 1]).Magnitude
+			end
+			local len = cum[#wl]
+			check(checks, "npc_lane_length", lane.Length, len, math.abs(lane.Length - len) <= 0.01 * len)
+
+			-- NpcRacer.Profile: holds the speed, slows only for grip, faster NPC = shorter time
+			local trySpeeds = { NPC_SLOW, 20, 30, 45, NPC_FAST }
+			local totals, profiles, profOk = {}, {}, true
+			for k, s in trySpeeds do
+				local okP, prof = pcall(NpcRacer.Profile, lane, s)
+				if okP and type(prof) == "table" and isFiniteNumber(prof.TotalTime) and type(prof.Times) == "table" then
+					totals[k], profiles[s] = prof.TotalTime, prof
+				else
+					profOk = false
+				end
+			end
+			check(checks, "npc_profile_built", profOk and 1 or 0, 1, profOk)
+			if profOk then
+				local decreasing, neverFaster = true, true
+				for k, s in trySpeeds do
+					if k > 1 and not (totals[k] < totals[k - 1]) then
+						decreasing = false
+					end
+					if totals[k] < len / s * 0.999 then
+						neverFaster = false
+					end
+				end
+				check(checks, "npc_profile_time_decreasing_in_speed", decreasing and 1 or 0, 1, decreasing)
+				check(checks, "npc_profile_never_faster_than_speed", neverFaster and 1 or 0, 1, neverFaster)
+				metrics.npcTimeSlow = round(totals[1])
+				metrics.npcTimeFast = round(totals[#totals])
+
+				-- on the first (flat) straight, 40..200 studs in, time per stud = 1 / speed
+				local i0, i1 = nil, nil
+				for i = 1, #wl do
+					if not i0 and cum[i] >= 40 then
+						i0 = i
+					end
+					if cum[i] <= 200 then
+						i1 = i
+					end
+				end
+				local flatStraight = i0 ~= nil and i1 ~= nil and i1 > i0
+				if flatStraight then
+					for i = i0, i1 do
+						if lane.Curvature[i] ~= 0 or math.abs(wl[i].Y - wl[i0].Y) > 0.01 then
+							flatStraight = false
+						end
+					end
+				end
+				for _, s in { 30, NPC_FAST } do
+					local prof = profiles[s]
+					local rate = -1
+					if flatStraight and #prof.Times == #wl then
+						rate = (prof.Times[i1] - prof.Times[i0]) / (cum[i1] - cum[i0])
+					end
+					check(
+						checks,
+						"npc_profile_flat_rate_" .. s,
+						rate * s,
+						1,
+						rate > 0 and math.abs(rate * s - 1) <= 0.05
+					)
+				end
+
+				-- NpcRacer.PoseAt: lane start at 0, lane end at TotalTime, RestHeight above the road, along the path
+				local prof = profiles[30]
+				local function pose(t)
+					local okPose, cf = pcall(NpcRacer.PoseAt, lane, prof, t)
+					return okPose and typeof(cf) == "CFrame" and cf or nil
+				end
+				local p0, pEnd = pose(0), pose(prof.TotalTime)
+				local first, last = wl[1], wl[#wl]
+				local d0 = p0 and hdist(p0.Position, first) or -1
+				local dEnd = pEnd and hdist(pEnd.Position, last) or -1
+				check(checks, "npc_pose_at_lane_start", d0, NPC_POSE_TOLERANCE, p0 ~= nil and d0 <= NPC_POSE_TOLERANCE)
+				check(
+					checks,
+					"npc_pose_at_lane_end",
+					dEnd,
+					NPC_POSE_TOLERANCE,
+					pEnd ~= nil and dEnd <= NPC_POSE_TOLERANCE
+				)
+				local h0 = p0 and p0.Position.Y - first.Y or -99
+				local hEnd = pEnd and pEnd.Position.Y - last.Y or -99
+				local herr = math.max(math.abs(h0 - CarConfig.RestHeight), math.abs(hEnd - CarConfig.RestHeight))
+				check(checks, "npc_pose_rest_height", herr, 1, herr <= 1)
+				local pBefore, pAfter = pose(-5), pose(prof.TotalTime + 100)
+				local clamped = pBefore ~= nil
+					and pAfter ~= nil
+					and p0 ~= nil
+					and pEnd ~= nil
+					and (pBefore.Position - p0.Position).Magnitude <= 0.1
+					and (pAfter.Position - pEnd.Position).Magnitude <= 0.1
+				check(checks, "npc_pose_clamped", clamped and 1 or 0, 1, clamped)
+				if flatStraight then
+					local mid = math.floor((i0 + i1) / 2)
+					local pm = #prof.Times == #wl and pose(prof.Times[mid]) or nil
+					local dm = pm and hdist(pm.Position, wl[mid]) or -1
+					check(
+						checks,
+						"npc_pose_on_lane_mid",
+						dm,
+						NPC_POSE_TOLERANCE,
+						pm ~= nil and dm <= NPC_POSE_TOLERANCE
+					)
+					local dir = flatV(wl[mid + 1] - wl[mid - 1]).Unit
+					local facing = pm and flatV(pm.LookVector):Dot(dir) or -1
+					check(checks, "npc_pose_faces_path", facing, 0.99, facing >= 0.99)
+				else
+					check(checks, "npc_pose_on_lane_mid", -1, NPC_POSE_TOLERANCE, false)
+				end
+			end
+		end
+
+		-- NpcRacer.ChainEntries: the same origins Main builds (TRACK_LIFT, then EndCFrame of each track)
+		local live = TrackRegistry.Chain()
+		local okCE, ce = pcall(NpcRacer.ChainEntries)
+		local ceOk = okCE and type(ce) == "table" and #ce == #live
+		check(checks, "npc_chain_entries_count", okCE and type(ce) == "table" and #ce or -1, #live, ceOk)
+		if ceOk then
+			local origin = CFrame.new(0, TrackBuilder.TRACK_LIFT, 0)
+			local worstPos, worstRot, numbersOk = 0, 0, true
+			for i, spec in live do
+				local e = ce[i]
+				if type(e) ~= "table" or typeof(e.Origin) ~= "CFrame" or type(e.Layout) ~= "table" then
+					worstPos = math.huge
+				else
+					worstPos = math.max(worstPos, (e.Origin.Position - origin.Position).Magnitude)
+					worstRot = math.max(worstRot, (e.Origin.LookVector - origin.LookVector).Magnitude)
+					numbersOk = numbersOk and e.Number == spec.Number
+				end
+				origin = TrackBuilder.EndCFrame(TrackBuilder.Layout(spec), origin)
+			end
+			check(
+				checks,
+				"npc_chain_entries_origins",
+				worstPos == math.huge and -1 or worstPos,
+				0.01,
+				worstPos <= 0.01 and worstRot <= 0.001
+			)
+			check(checks, "npc_chain_entries_numbers", numbersOk and 1 or 0, 1, numbersOk)
+			local y1 = type(ce[1]) == "table" and typeof(ce[1].Origin) == "CFrame" and ce[1].Origin.Position.Y or -99
+			check(
+				checks,
+				"npc_chain_first_origin_lift",
+				y1,
+				TrackBuilder.TRACK_LIFT,
+				math.abs(y1 - TrackBuilder.TRACK_LIFT) <= 0.01
+			)
+		end
+
+		-- NpcRacer.BuildModel: ghost starter car in the track's colour with a proximity label, never parented
+		if allInfo then
+			local okM1, m1 = pcall(NpcRacer.BuildModel, infos[1])
+			local okM2, m2 = pcall(NpcRacer.BuildModel, infos[2])
+			local builtOk = okM1 and okM2 and typeof(m1) == "Instance" and m1:IsA("Model") and typeof(m2) == "Instance"
+			check(checks, "npc_model_built", builtOk and 1 or 0, 1, builtOk)
+			if builtOk then
+				check(
+					checks,
+					"npc_model_is_npc",
+					m1:GetAttribute("IsNpc") == true and 1 or 0,
+					1,
+					m1:GetAttribute("IsNpc") == true
+				)
+				local tn = m1:GetAttribute("TrackNumber")
+				check(checks, "npc_model_track_number", type(tn) == "number" and tn or -1, 1, tn == 1)
+				check(
+					checks,
+					"npc_model_name",
+					m1.Name == "NPC_track01_NPC" and 1 or 0,
+					1,
+					m1.Name == "NPC_track01_NPC"
+				)
+				check(checks, "npc_model_not_parented", m1.Parent == nil and 1 or 0, 1, m1.Parent == nil)
+				local function body(m)
+					return m.PrimaryPart or m:FindFirstChild("Chassis", true)
+				end
+				local b1, b2 = body(m1), body(m2)
+				local c1ok = b1 ~= nil and b1:IsA("BasePart") and colorClose(b1.Color, infos[1].Color)
+				check(checks, "npc_model_colour", c1ok and 1 or 0, 1, c1ok)
+				local c2ok = b2 ~= nil
+					and b2:IsA("BasePart")
+					and colorClose(b2.Color, infos[2].Color)
+					and not colorClose(b2.Color, b1 and b1.Color or Color3.new())
+				check(checks, "npc_model_colour_per_track", c2ok and 1 or 0, 1, c2ok)
+				local parts, bad = 0, 0
+				for _, p in m1:GetDescendants() do
+					if p:IsA("BasePart") then
+						parts += 1
+						if not p.Anchored or p.CanCollide or p.CanTouch or p.CanQuery then
+							bad += 1
+						end
+					end
+				end
+				check(checks, "npc_model_parts_ghost", bad, 0, parts > 0 and bad == 0)
+				local bb = m1:FindFirstChild("NpcLabel", true)
+				local bbOk = bb ~= nil and bb:IsA("BillboardGui")
+				local md = bbOk and bb.MaxDistance or -1
+				check(
+					checks,
+					"npc_label_max_distance",
+					md,
+					isFiniteNumber(ld) and ld or -1,
+					bbOk and isFiniteNumber(ld) and md == ld
+				)
+				local tl = bbOk and bb:FindFirstChildWhichIsA("TextLabel", true)
+				local textOk = tl ~= nil and tl ~= false and tl.Text == "track01_NPC"
+				check(checks, "npc_label_text", textOk and 1 or 0, 1, textOk)
+			end
+			if okM1 and typeof(m1) == "Instance" then
+				m1:Destroy()
+			end
+			if okM2 and typeof(m2) == "Instance" then
+				m2:Destroy()
+			end
+		end
+
+		-- RaceService route with per-track NPC data, PathDriver.Chain start / finish indices
+		local okRoute, route = pcall(api.RaceService.BuildRoute, entries)
+		local routeOk = okRoute
+			and type(route) == "table"
+			and type(route.Path) == "table"
+			and type(route.Path.WorldWaypoints) == "table"
+			and type(route.Tracks) == "table"
+			and #route.Tracks == 2
+		check(checks, "npc_route_built", routeOk and 1 or 0, 1, routeOk)
+		if not routeOk then
+			return
+		end
+		local wps = route.Path.WorldWaypoints
+		local tracksOk = true
+		for i = 1, 2 do
+			local t = route.Tracks[i]
+			tracksOk = tracksOk
+				and type(t) == "table"
+				and t.Number == specs[i].Number
+				and type(t.StartIndex) == "number"
+				and type(t.FinishIndex) == "number"
+				and type(t.PadIndex) == "number"
+				and t.StartIndex < t.PadIndex
+				and t.PadIndex <= t.FinishIndex
+				and type(t.Npc) == "table"
+				and type(t.Npc.Config) == "table"
+				and type(t.Npc.Path) == "table"
+				and type(t.Npc.Profile) == "table"
+				and isFiniteNumber(t.Npc.Profile.TotalTime)
+		end
+		check(checks, "npc_route_tracks", tracksOk and 1 or 0, 1, tracksOk)
+		if not tracksOk then
+			return
+		end
+		local joint = TrackBuilder.EndCFrame(entries[1].Layout, entries[1].Origin).Position
+		local f1 = route.Tracks[1].FinishIndex
+		local dj = hdist(wps[f1], joint)
+		check(checks, "npc_route_finish_index_at_joint", dj, LANE + 2, dj <= LANE + 2)
+		check(
+			checks,
+			"npc_route_last_finish_is_end",
+			route.Tracks[2].FinishIndex,
+			#wps,
+			route.Tracks[2].FinishIndex == #wps
+		)
+		local okChain, chain = pcall(PathDriver.Chain, entries)
+		local chainOk = okChain
+			and type(chain) == "table"
+			and type(chain.StartIndices) == "table"
+			and type(chain.FinishIndices) == "table"
+			and chain.StartIndices[1] == 1
+			and chain.FinishIndices[1] == f1
+			and chain.FinishIndices[2] == #wps
+			and type(chain.StartIndices[2]) == "number"
+			and chain.StartIndices[2] >= f1
+			and chain.StartIndices[2] <= f1 + 1
+		check(checks, "pathdriver_chain_track_indices", chainOk and 1 or 0, 1, chainOk)
+
+		-- Our own NPC times for the race checks (the run's NpcTime must equal the profile's TotalTime)
+		local lane2 = select(2, pcall(NpcRacer.LanePath, { Layout = entries[2].Layout, Origin = entries[2].Origin }))
+		local function npcTime(laneN, s)
+			local okP, prof = pcall(NpcRacer.Profile, laneN, s)
+			return okP and type(prof) == "table" and prof.TotalTime or nil
+		end
+		local tSlow1 = laneOk and npcTime(lane, NPC_SLOW) or nil
+		local tFast1 = laneOk and npcTime(lane, NPC_FAST) or nil
+		local tFast2 = npcTime(lane2, NPC_FAST)
+		local C1, C2 = TrackBuilder.CashFor(1), TrackBuilder.CashFor(2)
+		local startCF = entries[1].Model.Start.CFrame + Vector3.new(0, CarConfig.RestHeight, 0)
+		local track1Len, totalLen = 0, 0
+		for i = 2, #wps do
+			local seg = (wps[i] - wps[i - 1]).Magnitude
+			totalLen += seg
+			if i <= f1 then
+				track1Len += seg
+			end
+		end
+
+		local function race(tag, stat, speeds, cap, stopWhen)
+			local r = newNpcRacer(api, route, startCF, tag, stat, speeds, nil)
+			local npcSeen, scanT = npcModelInWorkspace(), 0
+			if r.ok then
+				r.elapsed = frames(cap, function(_, dt)
+					stepNpcRacer(r, dt, wps)
+					scanT += dt
+					if scanT >= NPC_SCAN_INTERVAL then
+						scanT = 0
+						npcSeen = npcSeen or npcModelInWorkspace()
+					end
+					if stopWhen(r, os.clock() - r.clock0) then
+						r.stopped = true
+						return "stop"
+					end
+				end)
+				npcSeen = npcSeen or npcModelInWorkspace()
+			end
+			r.npcSeen = npcSeen
+			endNpcRacer(r)
+			return r
+		end
+		local function untilRestarted(r, now)
+			local reset = npcFind(r, "Reset")
+			return reset ~= nil
+				and r.resetPose ~= nil
+				and npcFind(r, "Start", 1, reset.T - 0.05) ~= nil
+				and now - reset.T >= 0.5
+		end
+		local function timeMatches(res, start)
+			return res ~= nil
+				and start ~= nil
+				and isFiniteNumber(res.Event.PlayerTime)
+				and math.abs(res.Event.PlayerTime - (res.T - start.T)) <= NPC_TIME_SLACK
+		end
+		local function npcTimeMatches(res, want)
+			return res ~= nil
+				and want ~= nil
+				and isFiniteNumber(res.Event.NpcTime)
+				and math.abs(res.Event.NpcTime - want) <= 0.01 * want
+		end
+
+		-- (a) WIN: fast player (HALF_STAT), slow NPC on both tracks
+		local fastSpeed = RaceConfig.SpeedFor(RaceConfig.HALF_STAT)
+		local a = race(
+			"Win",
+			RaceConfig.HALF_STAT,
+			{ [1] = NPC_SLOW, [2] = NPC_SLOW },
+			totalLen / (0.5 * fastSpeed) + 30,
+			function(r, now)
+				local res2 = npcFind(r, "Result", 2)
+				return res2 ~= nil and (npcFind(r, "Start", 1, res2.T) ~= nil or now - res2.T > 3)
+			end
+		)
+		check(checks, "npc_win_run_started", a.ok and 1 or 0, 1, a.ok)
+		if a.ok then
+			check(checks, "npc_win_completed_in_time", a.elapsed or -1, 0, a.stopped)
+			local starts = npcAll(a, "Start")
+			local seqOk = #starts >= 2 and starts[1].Event.Track == 1 and starts[2].Event.Track == 2
+			check(checks, "npc_win_start_events_1_then_2", #starts, 2, seqOk)
+			local s1 = starts[1] and starts[1].Event or {}
+			local fieldsOk = s1.Speed == NPC_SLOW
+				and s1.Label == "track01_NPC"
+				and typeof(s1.Color) == "Color3"
+				and isFiniteNumber(s1.ServerStart)
+			check(checks, "npc_start_event_fields", fieldsOk and 1 or 0, 1, fieldsOk)
+			local r1, r2 = npcFind(a, "Result", 1), npcFind(a, "Result", 2)
+			local win1 = r1 ~= nil
+				and r1.Event.Result == "Win"
+				and isFiniteNumber(r1.Event.PlayerTime)
+				and isFiniteNumber(r1.Event.NpcTime)
+				and r1.Event.PlayerTime < r1.Event.NpcTime
+			local win2 = r2 ~= nil
+				and r2.Event.Result == "Win"
+				and isFiniteNumber(r2.Event.PlayerTime)
+				and isFiniteNumber(r2.Event.NpcTime)
+				and r2.Event.PlayerTime < r2.Event.NpcTime
+			check(checks, "npc_win_track1", win1 and 1 or 0, 1, win1)
+			check(checks, "npc_win_track2", win2 and 1 or 0, 1, win2)
+			check(
+				checks,
+				"npc_win_npc_time_is_profile",
+				num(r1 and r1.Event.NpcTime),
+				tSlow1 or -1,
+				npcTimeMatches(r1, tSlow1)
+			)
+			check(
+				checks,
+				"npc_win_player_time_measured",
+				num(r1 and r1.Event.PlayerTime),
+				r1 and starts[1] and r1.T - starts[1].T or -1,
+				timeMatches(r1, starts[1])
+			)
+			local paidEach = r1 ~= nil and r2 ~= nil and r1.Event.Paid == C1 and r2.Event.Paid == C2
+			check(checks, "npc_win_paid_each_track_once", paidEach and 1 or 0, 1, paidEach)
+			local pt = a.snap.PaidTotal
+			local totalOk = pt == C1 + C2 and a.balance == C1 + C2 and a.snap.Payouts == 2
+			check(checks, "npc_win_paid_total", type(pt) == "number" and pt or -1, C1 + C2, totalOk)
+			local noLoss = a.snap.Losses == 0 and a.snap.Resets == 0 and #npcAll(a, "Reset") == 0
+			check(checks, "npc_win_no_losses_no_resets", noLoss and 1 or 0, 1, noLoss)
+			check(checks, "npc_win_wins_counted", num(a.snap.Wins), 2, a.snap.Wins == 2)
+			check(checks, "npc_win_results_recorded", num(a.snap.Results), 2, a.snap.Results == 2)
+			local looped = r2 ~= nil and npcFind(a, "Start", 1, r2.T) ~= nil
+			check(checks, "npc_win_loops_to_track1", looped and 1 or 0, 1, looped)
+			checkNpcStability(checks, "npc_win", a)
+			check(checks, "npc_win_not_in_server_workspace", a.npcSeen and 1 or 0, 0, not a.npcSeen)
+		end
+
+		-- (b) LOSE: stat 0 player against a fast NPC on Track 1: race plays out, nothing paid, back to Track 1
+		local b = race(
+			"Lose",
+			0,
+			{ [1] = NPC_FAST, [2] = NPC_FAST },
+			track1Len / (0.5 * RaceConfig.BASE_SPEED) + 20,
+			untilRestarted
+		)
+		check(checks, "npc_lose_run_started", b.ok and 1 or 0, 1, b.ok)
+		if b.ok then
+			check(checks, "npc_lose_completed_in_time", b.elapsed or -1, 0, b.stopped)
+			local s1, r1 = npcFind(b, "Start", 1), npcFind(b, "Result", 1)
+			local lose = r1 ~= nil and r1.Event.Result == "Lose"
+			check(checks, "npc_lose_result_lose", lose and 1 or 0, 1, lose)
+			local pT = r1 and r1.Event.PlayerTime
+			local nT = r1 and r1.Event.NpcTime
+			local slower = isFiniteNumber(pT) and isFiniteNumber(nT) and pT > nT
+			check(
+				checks,
+				"npc_lose_player_slower",
+				isFiniteNumber(pT) and pT or -1,
+				isFiniteNumber(nT) and nT or -1,
+				slower
+			)
+			check(
+				checks,
+				"npc_lose_npc_time_is_profile",
+				isFiniteNumber(nT) and nT or -1,
+				tFast1 or -1,
+				npcTimeMatches(r1, tFast1)
+			)
+			check(
+				checks,
+				"npc_lose_speed_override_used",
+				num(s1 and s1.Event.Speed),
+				NPC_FAST,
+				s1 ~= nil and s1.Event.Speed == NPC_FAST
+			)
+			-- the race plays out: the Result only arrives when the player's car reaches Track 1's finish
+			local arrival = (r1 and s1) and r1.T - s1.T or -1
+			check(
+				checks,
+				"npc_lose_result_after_npc_finish",
+				arrival,
+				isFiniteNumber(nT) and nT or -1,
+				r1 ~= nil and s1 ~= nil and isFiniteNumber(nT) and arrival >= nT - 0.25
+			)
+			local dFinish = r1 and hdist(r1.Pos, joint) or -1
+			check(
+				checks,
+				"npc_lose_result_at_finish",
+				dFinish,
+				NPC_FINISH_RADIUS,
+				r1 ~= nil and dFinish <= NPC_FINISH_RADIUS
+			)
+			check(checks, "npc_lose_player_time_measured", num(pT), arrival, timeMatches(r1, s1))
+			local paidNothing = r1 ~= nil
+				and r1.Event.Paid == 0
+				and b.snap.PaidTotal == 0
+				and b.balance == 0
+				and b.snap.Payouts == 0
+			check(checks, "npc_lose_paid_nothing", b.balance, 0, paidNothing)
+			local counts = b.snap.Losses == 1 and b.snap.Wins == 0
+			check(checks, "npc_lose_counted", type(b.snap.Losses) == "number" and b.snap.Losses or -1, 1, counts)
+			local noTrack2 = npcFind(b, "Start", 2) == nil and npcFind(b, "Result", 2) == nil
+			check(checks, "npc_lose_never_starts_track2", noTrack2 and 1 or 0, 1, noTrack2)
+			checkNpcLoseReset(checks, "npc_lose", b, 1, wps)
+			checkNpcStability(checks, "npc_lose", b)
+			check(checks, "npc_lose_not_in_server_workspace", b.npcSeen and 1 or 0, 0, not b.npcSeen)
+		end
+
+		-- (c) WIN THEN LOSE: stat 0 player, slow NPC on Track 1, fast NPC on Track 2: Track 1's money is kept
+		local c = race(
+			"WinLose",
+			0,
+			{ [1] = NPC_SLOW, [2] = NPC_FAST },
+			totalLen / (0.5 * RaceConfig.BASE_SPEED) + 20,
+			untilRestarted
+		)
+		check(checks, "npc_win_lose_run_started", c.ok and 1 or 0, 1, c.ok)
+		if c.ok then
+			check(checks, "npc_win_lose_completed_in_time", c.elapsed or -1, 0, c.stopped)
+			local r1, r2 = npcFind(c, "Result", 1), npcFind(c, "Result", 2)
+			local order = r1 ~= nil and r2 ~= nil and r1.T <= r2.T
+			local wl = order and r1.Event.Result == "Win" and r2.Event.Result == "Lose"
+			check(checks, "npc_win_lose_results", wl and 1 or 0, 1, wl)
+			local s2 = npcFind(c, "Start", 2)
+			check(
+				checks,
+				"npc_win_lose_track2_npc_speed",
+				num(s2 and s2.Event.Speed),
+				NPC_FAST,
+				s2 ~= nil and s2.Event.Speed == NPC_FAST
+			)
+			check(
+				checks,
+				"npc_win_lose_npc_time_is_profile",
+				num(r2 and r2.Event.NpcTime),
+				tFast2 or -1,
+				npcTimeMatches(r2, tFast2)
+			)
+			local pT = r2 and r2.Event.PlayerTime
+			local nT = r2 and r2.Event.NpcTime
+			local slower = isFiniteNumber(pT) and isFiniteNumber(nT) and pT > nT
+			check(
+				checks,
+				"npc_win_lose_player_slower_track2",
+				isFiniteNumber(pT) and pT or -1,
+				isFiniteNumber(nT) and nT or -1,
+				slower
+			)
+			local kept = r1 ~= nil
+				and r2 ~= nil
+				and r1.Event.Paid == C1
+				and r2.Event.Paid == 0
+				and c.snap.PaidTotal == C1
+				and c.balance == C1
+			check(checks, "npc_win_lose_keeps_track1_money", c.balance, C1, kept)
+			local counts = c.snap.Wins == 1 and c.snap.Losses == 1
+			check(checks, "npc_win_lose_counted", type(c.snap.Wins) == "number" and c.snap.Wins or -1, 1, counts)
+			checkNpcLoseReset(checks, "npc_win_lose", c, 2, wps)
+			checkNpcStability(checks, "npc_win_lose", c)
+			check(checks, "npc_win_lose_not_in_server_workspace", c.npcSeen and 1 or 0, 0, not c.npcSeen)
+		end
+	end)
+	for _, m in models do
+		m:Destroy()
+	end
+	check(checks, "npc_no_error", okBody and 1 or 0, 1, okBody)
+	if not okBody then
+		metrics.error = tostring(err)
+	end
+	return result("npc", checks, metrics)
+end
+
+-- Multiplayer: two players race at the same time from the SAME spot (cars overlapping). They pass through each
+-- other (collision group "Cars" does not collide with itself), both stay on their path upright, and each player's
+-- NPC race is their own (one wins Track 1, the other loses and is reset without touching the winner).
+function Scenarios.multiplayer()
+	local PhysicsService = game:GetService("PhysicsService")
+	local checks = {}
+	local metrics = {}
+	local NpcConfig = sharedModule("NpcConfig")
+	local NpcRacer = sharedModule("NpcRacer")
+	local RaceConfig = sharedModule("RaceConfig")
+	local api = {
+		RaceService = serverModule("RaceService"),
+		Money = serverModule("MoneyService"),
+		PlayerData = serverModule("PlayerData"),
+	}
+	local apiOk = NpcConfig ~= nil
+		and NpcRacer ~= nil
+		and RaceConfig ~= nil
+		and api.RaceService ~= nil
+		and api.Money ~= nil
+		and api.PlayerData ~= nil
+		and type(NpcConfig.For) == "function"
+		and type(api.RaceService.BuildRoute) == "function"
+		and type(api.RaceService.NewRun) == "function"
+		and type(api.PlayerData.Setup) == "function"
+		and type(TrackBuilder.CashFor) == "function"
+	check(checks, "mp_api_exists", apiOk and 1 or 0, 1, apiOk)
+	local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+	local remote = remotes and remotes:FindFirstChild("NpcRace")
+	local remoteOk = remote ~= nil and remote:IsA("RemoteEvent")
+	check(checks, "mp_npc_race_remote_exists", remoteOk and 1 or 0, 1, remoteOk)
+	local okGroup, collidable = pcall(function()
+		return PhysicsService:CollisionGroupsAreCollidable("Cars", "Cars")
+	end)
+	check(
+		checks,
+		"mp_cars_group_not_self_collidable",
+		okGroup and (collidable and 1 or 0) or -1,
+		0,
+		okGroup and collidable == false
+	)
+	local specs = type(TrackRegistry.Chain) == "function" and TrackRegistry.Chain() or {}
+	check(checks, "mp_chain_has_two_tracks", #specs, 2, #specs >= 2)
+	if not apiOk or #specs < 2 then
+		return result("multiplayer", checks, metrics)
+	end
+
+	local models = {}
+	local okBody, err = pcall(function()
+		local entries
+		entries, models = buildNpcChain(MULTI_ORIGIN, "CarTestMultiTrack", specs)
+		local okRoute, route = pcall(api.RaceService.BuildRoute, entries)
+		local routeOk = okRoute
+			and type(route) == "table"
+			and type(route.Path) == "table"
+			and type(route.Path.WorldWaypoints) == "table"
+			and type(route.Tracks) == "table"
+			and #route.Tracks == 2
+			and type(route.Tracks[1]) == "table"
+			and type(route.Tracks[1].FinishIndex) == "number"
+		check(checks, "mp_route_built", routeOk and 1 or 0, 1, routeOk)
+		if not routeOk then
+			return
+		end
+		local wps = route.Path.WorldWaypoints
+		local track1Len = 0
+		for i = 2, route.Tracks[1].FinishIndex do
+			track1Len += (wps[i] - wps[i - 1]).Magnitude
+		end
+		local startCF = entries[1].Model.Start.CFrame + Vector3.new(0, CarConfig.RestHeight, 0)
+		local C1 = TrackBuilder.CashFor(1)
+
+		-- Same start, same stat: A races a slow NPC (wins Track 1), B a fast one (loses Track 1)
+		local A = newNpcRacer(api, route, startCF, "A", 0, { [1] = NPC_SLOW, [2] = NPC_SLOW }, "Cars")
+		local B = newNpcRacer(api, route, startCF, "B", 0, { [1] = NPC_FAST, [2] = NPC_FAST }, "Cars")
+		check(checks, "mp_runs_started", (A.ok and 1 or 0) + (B.ok and 1 or 0), 2, A.ok and B.ok)
+		local startGap = (A.Chassis.Position - B.Chassis.Position).Magnitude
+		check(checks, "mp_cars_overlap_at_start", startGap, 1, startGap <= 1)
+		local npcSeen, scanT = npcModelInWorkspace(), 0
+		local notInGroup = -1
+		local lastA, beforeA, afterA = nil, nil, nil
+		local stopped, elapsed = false, 0
+		if A.ok and B.ok then
+			elapsed = frames(track1Len / (0.5 * RaceConfig.BASE_SPEED) + 25, function(t, dt)
+				stepNpcRacer(A, dt, wps)
+				stepNpcRacer(B, dt, wps)
+				if notInGroup < 0 and t >= 1 then
+					notInGroup = 0
+					for _, car in { A.Car, B.Car } do
+						for _, p in car:GetDescendants() do
+							if p:IsA("BasePart") and p.CollisionGroup ~= "Cars" then
+								notInGroup += 1
+							end
+						end
+					end
+				end
+				scanT += dt
+				if scanT >= NPC_SCAN_INTERVAL then
+					scanT = 0
+					npcSeen = npcSeen or npcModelInWorkspace()
+				end
+				-- the winner's state just before and 1 s after the loser's reset
+				local resetB = npcFind(B, "Reset")
+				local now = os.clock() - B.clock0
+				if resetB and not beforeA then
+					beforeA = lastA or {}
+				end
+				if resetB and beforeA and not afterA and now - resetB.T >= 1 then
+					afterA = {
+						RaceTrack = A.Run.RaceTrack,
+						Results = type(A.Run.Results) == "table" and #A.Run.Results or -1,
+					}
+				end
+				lastA = {
+					RaceTrack = A.Run.RaceTrack,
+					Results = type(A.Run.Results) == "table" and #A.Run.Results or -1,
+				}
+				if afterA and npcFind(A, "Result", 1) and B.resetPose and npcFind(B, "Start", 1, resetB.T - 0.05) then
+					stopped = true
+					return "stop"
+				end
+			end)
+			npcSeen = npcSeen or npcModelInWorkspace()
+		end
+		if A.ok then
+			endNpcRacer(A)
+		else
+			A.snap = {}
+			A.Car:Destroy()
+			A.Player:Destroy()
+		end
+		if B.ok then
+			endNpcRacer(B)
+		else
+			B.snap = {}
+			B.Car:Destroy()
+			B.Player:Destroy()
+		end
+		if not (A.ok and B.ok) then
+			return
+		end
+		metrics.elapsed = round(elapsed)
+		check(checks, "mp_completed_in_time", elapsed, 0, stopped)
+		check(checks, "mp_cars_in_cars_group", notInGroup, 0, notInGroup == 0)
+
+		local maxDev = PhysicsTargets.race.MaxPathDeviation
+		check(checks, "mp_a_sticks_to_path", A.dev, maxDev, A.dev <= maxDev)
+		check(checks, "mp_b_sticks_to_path", B.dev, maxDev, B.dev <= maxDev)
+		checkNpcStability(checks, "mp_a", A)
+		checkNpcStability(checks, "mp_b", B)
+
+		local rA, rB = npcFind(A, "Result", 1), npcFind(B, "Result", 1)
+		check(checks, "mp_both_reach_track1_finish", (rA and 1 or 0) + (rB and 1 or 0), 2, rA ~= nil and rB ~= nil)
+		check(
+			checks,
+			"mp_a_wins_track1",
+			rA and rA.Event.Result == "Win" and 1 or 0,
+			1,
+			rA ~= nil and rA.Event.Result == "Win"
+		)
+		check(
+			checks,
+			"mp_b_loses_track1",
+			rB and rB.Event.Result == "Lose" and 1 or 0,
+			1,
+			rB ~= nil and rB.Event.Result == "Lose"
+		)
+
+		-- each recorder only got its own run's events
+		local aOwn = #npcAll(A, "Reset") == 0 and #npcAll(A, "Start") > 0
+		for _, rec in A.Events do
+			if rec.Event.Result == "Lose" or (rec.Event.Type == "Start" and rec.Event.Speed ~= NPC_SLOW) then
+				aOwn = false
+			end
+		end
+		local bOwn = #npcAll(B, "Reset") >= 1 and #npcAll(B, "Start") > 0
+		for _, rec in B.Events do
+			if rec.Event.Result == "Win" or (rec.Event.Type == "Start" and rec.Event.Speed ~= NPC_FAST) then
+				bOwn = false
+			end
+		end
+		check(checks, "mp_events_separate_per_player", (aOwn and 1 or 0) + (bOwn and 1 or 0), 2, aOwn and bOwn)
+
+		-- the loser's reset does not touch the winner (on Track 2 with one Win)
+		local unaffected = beforeA ~= nil
+			and afterA ~= nil
+			and beforeA.RaceTrack == 2
+			and afterA.RaceTrack == 2
+			and beforeA.Results == 1
+			and afterA.Results == 1
+		check(checks, "mp_loser_reset_leaves_winner", num(afterA and afterA.RaceTrack), 2, unaffected)
+		local resetPose = B.resetPose
+		local dB = resetPose and hdist(resetPose.Position, wps[1]) or -1
+		check(
+			checks,
+			"mp_loser_reset_to_track1_start",
+			dB,
+			NPC_RESET_RADIUS,
+			resetPose ~= nil and dB <= NPC_RESET_RADIUS
+		)
+		local money = A.balance == C1 and A.snap.PaidTotal == C1 and B.balance == 0 and B.snap.PaidTotal == 0
+		check(checks, "mp_money_per_player", A.balance, C1, money)
+		check(checks, "mp_no_npc_in_server_workspace", npcSeen and 1 or 0, 0, not npcSeen)
+	end)
+	for _, m in models do
+		m:Destroy()
+	end
+	check(checks, "mp_no_error", okBody and 1 or 0, 1, okBody)
+	if not okBody then
+		metrics.error = tostring(err)
+	end
+	return result("multiplayer", checks, metrics)
+end
+
+-- Chat admin commands (contract: docs/ADMIN_COMMANDS_SPEC.md).
+-- BRIEF (user, 2026-10-01): "chat admin commands so the owner can set stats while testing instead of using the
+-- Studio command bar. Server-only; non-admins can never change anything."
+-- Every stand-in is a Folder with a UserId attribute. AllowStudio is forced to false for the admin / non-admin
+-- checks (admins are made by listing their UserId in AdminConfig.UserIds) and always restored, as are UserIds and
+-- AdminService.RunOf. The "all" target is never used here: it would touch the real players of the play session.
+local ADMIN_ORIGIN = Vector3.new(0, 0, -40000)
+local ADMIN_UID = 914200001 -- listed in AdminConfig.UserIds for the duration of the test
+local ADMIN_STRANGER_UID = 914200002 -- never listed: not an admin
+local ADMIN_COMMANDS = { "help", "money", "addmoney", "speed", "addspeed", "give", "equip", "roll", "wipe", "tp" }
+local ADMIN_MAX_MONEY = 1e15
+local ADMIN_TP_SETTLE = 1 -- s driven on Track 1 before the jump (a race is in progress in NPC mode)
+local ADMIN_TP_DRIVE = 4 -- s driven after the jump
+local ADMIN_TP_SLACK = 3 -- studs beyond RaceService.START_AHEAD the car may be from the track's start waypoint
+local ADMIN_LANE_TOLERANCE = 2 -- studs sideways from the lane path at the jump
+local ADMIN_EVENT_WAIT = 1 -- s for the NPC Start event after the jump
+
+local function adminSnap(p)
+	local s = {}
+	local ls = p:FindFirstChild("leaderstats")
+	local money = ls and ls:FindFirstChild("Money")
+	local speed = ls and ls:FindFirstChild("Speed")
+	s.Money = money and money.Value or "none"
+	s.Speed = speed and speed.Value or "none"
+	local names = {}
+	local data = p:FindFirstChild("GachaData")
+	if data then
+		for _, c in data:GetChildren() do
+			table.insert(names, c.Name)
+		end
+	end
+	table.sort(names)
+	s.Cars = (data and "" or "nofolder:") .. table.concat(names, ",")
+	for _, a in { "EquippedCar", "Rolls", "StatPoints" } do
+		s[a] = tostring(p:GetAttribute(a))
+	end
+	for name, v in p:GetAttributes() do
+		if string.sub(name, 1, 6) == "Alloc_" then
+			s[name] = tostring(v)
+		end
+	end
+	return s
+end
+
+-- true if both snapshots are identical, else false and the first differing key
+local function adminSame(a, b)
+	for k, v in a do
+		if b[k] ~= v then
+			return false, k
+		end
+	end
+	for k, v in b do
+		if a[k] ~= v then
+			return false, k
+		end
+	end
+	return true, nil
+end
+
+function Scenarios.admin()
+	local checks = {}
+	local metrics = {}
+	local AdminService = serverModule("AdminService")
+	local AdminConfig = serverModule("AdminConfig")
+	local RaceService = serverModule("RaceService")
+	local Money = serverModule("MoneyService")
+	local PlayerData = serverModule("PlayerData")
+	local RaceConfig = sharedModule("RaceConfig")
+	local CarCatalog, GachaConfig, GachaService = gachaModules()
+	local apiOk = AdminService ~= nil
+		and AdminConfig ~= nil
+		and type(AdminService.IsAdmin) == "function"
+		and type(AdminService.Run) == "function"
+		and type(AdminService.Parse) == "function"
+		and type(AdminService.ParseNumber) == "function"
+		and type(AdminService.Commands) == "table"
+		and type(AdminService.Start) == "function"
+		and type(AdminService.AllowStudio) == "boolean"
+		and type(AdminService.RunOf) == "function"
+		and type(AdminConfig.UserIds) == "table"
+		and type(AdminConfig.MAX_ROLLS) == "number"
+	check(checks, "admin_api_exists", apiOk and 1 or 0, 1, apiOk)
+	local depsOk = RaceService ~= nil
+		and Money ~= nil
+		and PlayerData ~= nil
+		and RaceConfig ~= nil
+		and CarCatalog ~= nil
+		and GachaConfig ~= nil
+		and GachaService ~= nil
+		and type(RaceService.BuildRoute) == "function"
+		and type(RaceService.NewRun) == "function"
+		and type(GachaService.Setup) == "function"
+		and type(GachaService.Allocate) == "function"
+		and type(GachaConfig.EarnedPoints) == "function"
+		and type(CarCatalog.Rollable) == "function"
+		and type(RaceConfig.MAX_STAT) == "number"
+	check(checks, "admin_dependencies_exist", depsOk and 1 or 0, 1, depsOk)
+	if not (apiOk and depsOk) then
+		return result("admin", checks, metrics)
+	end
+
+	-- AdminConfig values from the spec
+	check(checks, "admin_max_rolls", AdminConfig.MAX_ROLLS, 100, AdminConfig.MAX_ROLLS == 100)
+	local gmr = AdminConfig.GROUP_MIN_RANK
+	check(checks, "admin_group_min_rank", type(gmr) == "number" and gmr or -1, 255, gmr == 255)
+	local ais = AdminConfig.ALLOW_IN_STUDIO
+	check(
+		checks,
+		"admin_allow_studio_default",
+		AdminService.AllowStudio == ais and 1 or 0,
+		1,
+		type(ais) == "boolean" and AdminService.AllowStudio == ais
+	)
+	local cmdsOk, missingCmd = true, nil
+	for _, name in ADMIN_COMMANDS do
+		local c = AdminService.Commands[name]
+		if type(c) ~= "table" or type(c.Usage) ~= "string" or c.Usage == "" or type(c.Help) ~= "string" then
+			cmdsOk, missingCmd = false, name
+		end
+	end
+	check(checks, "admin_commands_table", cmdsOk and 1 or 0, 1, cmdsOk)
+	if missingCmd then
+		metrics.missingCommand = missingCmd
+	end
+
+	-- Start() wiring (Main calls it in the play session the harness runs in)
+	local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+	local msgRemote = remotes and remotes:WaitForChild("AdminMessage", 5)
+	local remoteOk = msgRemote ~= nil and msgRemote:IsA("RemoteEvent")
+	check(checks, "admin_message_remote", remoteOk and 1 or 0, 1, remoteOk)
+	local TextChatService = game:GetService("TextChatService")
+	if TextChatService.ChatVersion == Enum.ChatVersion.TextChatService then
+		local folder = TextChatService:FindFirstChild("AdminCommands")
+		local chatOk = folder ~= nil
+		if chatOk then
+			for _, name in ADMIN_COMMANDS do
+				local found = false
+				for _, c in folder:GetChildren() do
+					if
+						c:IsA("TextChatCommand")
+						and c.PrimaryAlias == "/" .. name
+						and c.AutocompleteVisible == false
+					then
+						found = true
+					end
+				end
+				chatOk = chatOk and found
+			end
+		end
+		check(checks, "admin_text_chat_commands", chatOk and 1 or 0, 1, chatOk)
+	end
+
+	-- ParseNumber
+	local numCases = {
+		{ "1500", 1500 },
+		{ "1,500", 1500 },
+		{ "1.5k", 1500 },
+		{ "1.5K", 1500 },
+		{ "2m", 2e6 },
+		{ "2M", 2e6 },
+		{ "3b", 3e9 },
+		{ "3B", 3e9 },
+		{ "1t", 1e12 },
+		{ "1T", 1e12 },
+		{ "1e6", 1e6 },
+		{ "0", 0 },
+		{ "12.5", 12.5 },
+		{ "-5", -5 },
+	}
+	local numBad = 0
+	for _, c in numCases do
+		local ok, v = pcall(AdminService.ParseNumber, c[1])
+		if not ok or not nearly(v, c[2]) then
+			numBad += 1
+			metrics["parseNumber_" .. c[1]] = ok and tostring(v) or "error"
+		end
+	end
+	check(checks, "admin_parse_number_formats", numBad, 0, numBad == 0)
+	local junk = { "", " ", "abc", "nan", "NaN", "inf", "-inf", "1e999", "k", "1kk", "1.2.3", "1x", "$5", "--5" }
+	local junkBad = 0
+	for _, s in junk do
+		local ok, v = pcall(AdminService.ParseNumber, s)
+		if not ok or v ~= nil then
+			junkBad += 1
+			metrics["parseNumberJunk_" .. s] = ok and tostring(v) or "error"
+		end
+	end
+	local okNil, vNil = pcall(AdminService.ParseNumber, nil)
+	if not okNil or vNil ~= nil then
+		junkBad += 1
+	end
+	check(checks, "admin_parse_number_junk_nil", junkBad, 0, junkBad == 0)
+
+	-- Parse
+	local okP, pName, pArgs = pcall(AdminService.Parse, "/Money 5 me")
+	local parseOk = okP
+		and pName == "money"
+		and type(pArgs) == "table"
+		and #pArgs == 2
+		and pArgs[1] == "5"
+		and pArgs[2] == "me"
+	check(checks, "admin_parse_command", parseOk and 1 or 0, 1, parseOk)
+	local okS, sName, sArgs = pcall(AdminService.Parse, "/money   5   me")
+	local spacesOk = okS and sName == "money" and type(sArgs) == "table" and #sArgs == 2 and sArgs[2] == "me"
+	check(checks, "admin_parse_extra_spaces", spacesOk and 1 or 0, 1, spacesOk)
+	local okH, hName, hArgs = pcall(AdminService.Parse, "/help")
+	local helpOk = okH and hName == "help" and type(hArgs) == "table" and #hArgs == 0
+	check(checks, "admin_parse_no_args", helpOk and 1 or 0, 1, helpOk)
+	local notCmd = 0
+	for _, text in { "hello", "money 5", "", 5 } do
+		local ok, n = pcall(AdminService.Parse, text)
+		if not ok or n ~= nil then
+			notCmd += 1
+		end
+	end
+	local okPn, nPn = pcall(AdminService.Parse, nil)
+	if not okPn or nPn ~= nil then
+		notCmd += 1
+	end
+	check(checks, "admin_parse_non_command_nil", notCmd, 0, notCmd == 0)
+
+	local cleanup = {}
+	local runs = {}
+	local models = {}
+	local savedAllow = AdminService.AllowStudio
+	local savedRunOf = AdminService.RunOf
+	local addedUid = false
+	local errors, badReturns = 0, 0
+
+	-- Calls AdminService.Run; never lets it error out of the test. Returns ok (true only for a boolean true), message.
+	local function admin(sender, text)
+		local okCall, ok, msg = pcall(AdminService.Run, sender, text)
+		if not okCall then
+			errors += 1
+			metrics["error_" .. tostring(text):sub(1, 40)] = tostring(ok)
+			return false, nil
+		end
+		if type(ok) ~= "boolean" or type(msg) ~= "string" then
+			badReturns += 1
+		end
+		return ok == true, msg
+	end
+
+	local okBody, err = pcall(function()
+		AdminService.AllowStudio = false
+		if table.find(AdminConfig.UserIds, ADMIN_UID) == nil then
+			table.insert(AdminConfig.UserIds, ADMIN_UID)
+			addedUid = true
+		end
+
+		local function standIn(name, uid)
+			local p = newTestPlayer(cleanup, name)
+			if uid then
+				p:SetAttribute("UserId", uid)
+			end
+			Money.Setup(p)
+			PlayerData.Setup(p)
+			GachaService.Setup(p)
+			return p
+		end
+
+		-- IsAdmin
+		local function isAdmin(p)
+			local ok, v = pcall(AdminService.IsAdmin, p)
+			return ok and v == true, ok and type(v) == "boolean"
+		end
+		local stranger = standIn("CarTestAdminStranger", ADMIN_STRANGER_UID)
+		local listed = standIn("CarTestAdminSender", ADMIN_UID)
+		local noUid = standIn("CarTestAdminNoUid", nil)
+		local sA, sBool = isAdmin(stranger)
+		check(checks, "admin_unknown_user_not_admin", sA and 1 or 0, 0, sBool and not sA)
+		local nA = isAdmin(noUid)
+		check(checks, "admin_no_userid_not_admin_outside_studio_rule", nA and 1 or 0, 0, not nA)
+		local lA = isAdmin(listed)
+		check(checks, "admin_listed_user_is_admin", lA and 1 or 0, 1, lA)
+		local okNilA, nilA = pcall(AdminService.IsAdmin, nil)
+		check(checks, "admin_nil_not_admin", (okNilA and nilA == false) and 1 or 0, 1, okNilA and nilA == false)
+		local gone = Instance.new("Folder")
+		gone.Name = "CarTestAdminGone"
+		gone:SetAttribute("UserId", ADMIN_UID)
+		gone.Parent = Workspace
+		gone:Destroy()
+		local gA = isAdmin(gone)
+		check(checks, "admin_destroyed_not_admin", gA and 1 or 0, 0, not gA)
+		AdminService.AllowStudio = true
+		local studioA = isAdmin(stranger)
+		local wantStudio = RunService:IsStudio()
+		check(checks, "admin_allow_studio_rule", studioA and 1 or 0, wantStudio and 1 or 0, studioA == wantStudio)
+		AdminService.AllowStudio = false
+		-- removing the UserId removes the rights
+		local uidAt = table.find(AdminConfig.UserIds, ADMIN_UID)
+		if uidAt and addedUid then
+			table.remove(AdminConfig.UserIds, uidAt)
+			local unlisted = isAdmin(listed)
+			check(checks, "admin_unlisted_user_not_admin", unlisted and 1 or 0, 0, not unlisted)
+			table.insert(AdminConfig.UserIds, ADMIN_UID)
+		end
+		local okDef, defRun = pcall(AdminService.RunOf, listed)
+		check(checks, "admin_run_of_stand_in_nil", (okDef and defRun == nil) and 1 or 0, 1, okDef and defRun == nil)
+
+		-- Non-admin: every command fails and nothing changes
+		local rollable = CarCatalog.Rollable()
+		local ids = {}
+		for _, c in rollable do
+			table.insert(ids, c.Id)
+		end
+		table.sort(ids)
+		local idA, idB = ids[1], ids[2]
+		GachaService.Grant(stranger, idA)
+		stranger.leaderstats.Money.Value = 777
+		stranger.leaderstats.Speed.Value = 12.5
+		local nonAdminCmds = {
+			"/help",
+			"/money 5",
+			"/money 5 me",
+			"/addmoney 5",
+			"/addmoney -100",
+			"/speed 5",
+			"/addspeed 5",
+			"/give " .. tostring(idB),
+			"/give all",
+			"/equip " .. tostring(idA),
+			"/roll 1",
+			"/roll 5",
+			"/wipe",
+			"/wipe me",
+			"/tp 2",
+		}
+		local before = adminSnap(stranger)
+		local acceptedN, changedKey = 0, nil
+		for _, text in nonAdminCmds do
+			local ok = admin(stranger, text)
+			if ok then
+				acceptedN += 1
+				metrics["nonAdminAccepted_" .. text] = true
+			end
+			local same, key = adminSame(before, adminSnap(stranger))
+			if not same and changedKey == nil then
+				changedKey = text .. " -> " .. tostring(key)
+			end
+		end
+		check(checks, "admin_non_admin_all_false", acceptedN, 0, acceptedN == 0)
+		check(checks, "admin_non_admin_changes_nothing", changedKey and 1 or 0, 0, changedKey == nil)
+		if changedKey then
+			metrics.nonAdminChanged = changedKey
+		end
+
+		-- Admin: every command
+		local p = listed
+		local ls = p.leaderstats
+		local function rejected(name, text)
+			local b = adminSnap(p)
+			local ok = admin(p, text)
+			local same, key = adminSame(b, adminSnap(p))
+			check(checks, name, ok and 1 or 0, 0, not ok and same)
+			if not same then
+				metrics[name .. "_changed"] = key
+			end
+		end
+		local function accepted(name, text, value, limit, cond)
+			local ok = admin(p, text)
+			check(checks, name, value(), limit, ok and cond())
+		end
+
+		accepted(
+			"admin_money_set",
+			"/money 1500",
+			function()
+				return ls.Money.Value
+			end,
+			1500,
+			function()
+				return ls.Money.Value == 1500
+			end
+		)
+		accepted(
+			"admin_money_suffix",
+			"/money 2.5k",
+			function()
+				return ls.Money.Value
+			end,
+			2500,
+			function()
+				return ls.Money.Value == 2500
+			end
+		)
+		accepted(
+			"admin_money_commas_me",
+			"/money 1,234 me",
+			function()
+				return ls.Money.Value
+			end,
+			1234,
+			function()
+				return ls.Money.Value == 1234
+			end
+		)
+		accepted(
+			"admin_money_floor",
+			"/money 12.9",
+			function()
+				return ls.Money.Value
+			end,
+			12,
+			function()
+				return ls.Money.Value == 12
+			end
+		)
+		accepted(
+			"admin_money_case_insensitive",
+			"/MONEY 42",
+			function()
+				return ls.Money.Value
+			end,
+			42,
+			function()
+				return ls.Money.Value == 42
+			end
+		)
+		accepted(
+			"admin_money_zero",
+			"/money 0",
+			function()
+				return ls.Money.Value
+			end,
+			0,
+			function()
+				return ls.Money.Value == 0
+			end
+		)
+		ls.Money.Value = 321
+		rejected("admin_money_negative_false", "/money -5")
+		rejected("admin_money_junk_false", "/money abc")
+		rejected("admin_money_nan_false", "/money nan")
+		rejected("admin_money_missing_false", "/money")
+		rejected("admin_money_unknown_target_false", "/money 5 zzqx_nobody_here")
+		do
+			local ok = admin(p, "/money 1e16")
+			local v = ls.Money.Value
+			local fine = v <= ADMIN_MAX_MONEY and ((ok and v == ADMIN_MAX_MONEY) or (not ok and v == 321))
+			check(checks, "admin_money_cap", v, ADMIN_MAX_MONEY, fine)
+		end
+
+		ls.Money.Value = 100
+		accepted(
+			"admin_addmoney",
+			"/addmoney 50",
+			function()
+				return ls.Money.Value
+			end,
+			150,
+			function()
+				return ls.Money.Value == 150
+			end
+		)
+		accepted(
+			"admin_addmoney_suffix",
+			"/addmoney 1k me",
+			function()
+				return ls.Money.Value
+			end,
+			1150,
+			function()
+				return ls.Money.Value == 1150
+			end
+		)
+		accepted(
+			"admin_addmoney_negative_clamped",
+			"/addmoney -100000",
+			function()
+				return ls.Money.Value
+			end,
+			0,
+			function()
+				return ls.Money.Value == 0
+			end
+		)
+		ls.Money.Value = 55
+		rejected("admin_addmoney_junk_false", "/addmoney 1kk")
+		rejected("admin_addmoney_inf_false", "/addmoney inf")
+
+		local MAX_STAT = RaceConfig.MAX_STAT
+		accepted(
+			"admin_speed_set_3_decimals",
+			"/speed 12.3454",
+			function()
+				return ls.Speed.Value
+			end,
+			12.345,
+			function()
+				return math.abs(ls.Speed.Value - 12.345) <= 1e-6
+			end
+		)
+		accepted(
+			"admin_speed_clamp_max",
+			"/speed 1e12",
+			function()
+				return ls.Speed.Value
+			end,
+			MAX_STAT,
+			function()
+				return ls.Speed.Value == MAX_STAT
+			end
+		)
+		accepted(
+			"admin_speed_clamp_zero",
+			"/speed -3",
+			function()
+				return ls.Speed.Value
+			end,
+			0,
+			function()
+				return ls.Speed.Value == 0
+			end
+		)
+		accepted(
+			"admin_speed_set",
+			"/speed 10 me",
+			function()
+				return ls.Speed.Value
+			end,
+			10,
+			function()
+				return ls.Speed.Value == 10
+			end
+		)
+		accepted(
+			"admin_addspeed",
+			"/addspeed 2.5",
+			function()
+				return ls.Speed.Value
+			end,
+			12.5,
+			function()
+				return math.abs(ls.Speed.Value - 12.5) <= 1e-6
+			end
+		)
+		accepted(
+			"admin_addspeed_3_decimals",
+			"/addspeed 0.0014",
+			function()
+				return ls.Speed.Value
+			end,
+			12.501,
+			function()
+				local v = ls.Speed.Value
+				return math.abs(v * 1000 - math.round(v * 1000)) <= 1e-6 and math.abs(v - 12.501) <= 1e-6
+			end
+		)
+		accepted(
+			"admin_addspeed_clamp_max",
+			"/addspeed 2e9",
+			function()
+				return ls.Speed.Value
+			end,
+			MAX_STAT,
+			function()
+				return ls.Speed.Value == MAX_STAT
+			end
+		)
+		accepted(
+			"admin_addspeed_clamp_zero",
+			"/addspeed -5e9",
+			function()
+				return ls.Speed.Value
+			end,
+			0,
+			function()
+				return ls.Speed.Value == 0
+			end
+		)
+		ls.Speed.Value = 7
+		rejected("admin_speed_junk_false", "/speed fast")
+		rejected("admin_speed_inf_false", "/speed inf")
+		rejected("admin_addspeed_missing_false", "/addspeed")
+		rejected("admin_speed_unknown_target_false", "/speed 5 zzqx_nobody_here")
+
+		-- give / equip
+		local function allocSum()
+			local s = 0
+			for _, stat in GachaConfig.STATS or {} do
+				local v = p:GetAttribute("Alloc_" .. stat)
+				s += type(v) == "number" and v or 0
+			end
+			return s
+		end
+		local function ownsId(id)
+			local data = p:FindFirstChild("GachaData")
+			return data ~= nil and data:FindFirstChild(id) ~= nil
+		end
+		local function ownedCount()
+			local data = p:FindFirstChild("GachaData")
+			return data and #data:GetChildren() or 0
+		end
+		local function pointsOk()
+			return p:GetAttribute("StatPoints") == GachaConfig.EarnedPoints(ownedCount()) - allocSum()
+		end
+		rejected("admin_equip_unowned_false", "/equip " .. tostring(idB))
+		rejected("admin_equip_unknown_false", "/equip bogus_car_zzqx")
+		accepted(
+			"admin_give_car",
+			"/give " .. tostring(idA),
+			function()
+				return ownedCount()
+			end,
+			1,
+			function()
+				return ownsId(idA) and ownedCount() == 1 and pointsOk()
+			end
+		)
+		rejected("admin_give_starter_false", "/give starter")
+		rejected("admin_give_unknown_false", "/give bogus_car_zzqx")
+		rejected("admin_give_missing_false", "/give")
+		rejected("admin_give_unknown_target_false", "/give " .. tostring(idB) .. " zzqx_nobody_here")
+		accepted(
+			"admin_equip_owned",
+			"/equip " .. tostring(idA),
+			function()
+				return p:GetAttribute("EquippedCar") == idA and 1 or 0
+			end,
+			1,
+			function()
+				return p:GetAttribute("EquippedCar") == idA
+			end
+		)
+
+		-- roll
+		local function rolls()
+			local v = p:GetAttribute("Rolls")
+			return type(v) == "number" and v or -1
+		end
+		local r0 = rolls()
+		accepted("admin_roll_5", "/roll 5", rolls, r0 + 5, function()
+			return rolls() == r0 + 5
+		end)
+		accepted("admin_roll_default_1", "/roll", rolls, r0 + 6, function()
+			return rolls() == r0 + 6
+		end)
+		rejected("admin_roll_0_false", "/roll 0")
+		rejected("admin_roll_above_max_false", "/roll " .. tostring(AdminConfig.MAX_ROLLS + 1))
+		rejected("admin_roll_negative_false", "/roll -2")
+		rejected("admin_roll_junk_false", "/roll lots")
+
+		-- give all
+		accepted("admin_give_all", "/give all", ownedCount, #ids, function()
+			for _, id in ids do
+				if not ownsId(id) then
+					return false
+				end
+			end
+			return ownedCount() == #ids and pointsOk()
+		end)
+		local allocated = GachaService.Allocate(p, (GachaConfig.STATS or {})[1])
+		check(checks, "admin_give_all_points_spendable", allocated and 1 or 0, 1, allocated == true and pointsOk())
+
+		-- wipe
+		ls.Money.Value = 999
+		ls.Speed.Value = 50
+		accepted(
+			"admin_wipe",
+			"/wipe",
+			function()
+				return ls.Money.Value + ls.Speed.Value + ownedCount() + allocSum() + math.max(rolls(), 0)
+			end,
+			0,
+			function()
+				return ls.Money.Value == 0
+					and ls.Speed.Value == 0
+					and ownedCount() == 0
+					and allocSum() == 0
+					and rolls() == 0
+					and p:GetAttribute("EquippedCar") == CarCatalog.STARTER_ID
+					and p:GetAttribute("StatPoints") == 0
+			end
+		)
+		ls.Money.Value = 5
+		rejected("admin_wipe_unknown_target_false", "/wipe zzqx_nobody_here")
+
+		-- help / unknown / not a command
+		local okHelp, helpMsg = admin(p, "/help")
+		local listsAll = type(helpMsg) == "string"
+		if listsAll then
+			for _, name in ADMIN_COMMANDS do
+				if not string.find(string.lower(helpMsg), "/" .. name, 1, true) then
+					listsAll = false
+				end
+			end
+		end
+		check(checks, "admin_help_true", okHelp and 1 or 0, 1, okHelp)
+		check(checks, "admin_help_lists_commands", listsAll and 1 or 0, 1, listsAll)
+		rejected("admin_unknown_command_false", "/fly 100")
+		rejected("admin_not_a_command_false", "money 5")
+
+		-- Run never errors and refuses garbage
+		local garbage = {
+			{ p, nil },
+			{ p, 42 },
+			{ p, "" },
+			{ p, "/" },
+			{ p, "/money" },
+			{ p, string.rep("a", 10000) },
+			{ p, "/" .. string.rep("a", 10000) },
+			{ p, "/money 5 " .. string.rep("x", 5000) },
+			{ nil, "/money 5" },
+			{ gone, "/money 5" },
+		}
+		local garbageAccepted = 0
+		local b = adminSnap(p)
+		for _, g in garbage do
+			if admin(g[1], g[2]) then
+				garbageAccepted += 1
+			end
+		end
+		local sameG = adminSame(b, adminSnap(p))
+		check(checks, "admin_garbage_false", garbageAccepted, 0, garbageAccepted == 0 and sameG)
+
+		-- /tp and run:JumpToTrack on a real run of the chain (with and without NPC)
+		local specs = type(TrackRegistry.Chain) == "function" and TrackRegistry.Chain() or {}
+		check(checks, "admin_chain_has_two_tracks", #specs, 2, #specs >= 2)
+		if #specs < 2 then
+			return
+		end
+		local entries
+		entries, models = buildNpcChain(ADMIN_ORIGIN, "CarTestAdminTrack", specs)
+		local okRoute, route = pcall(RaceService.BuildRoute, entries)
+		local routeOk = okRoute
+			and type(route) == "table"
+			and type(route.Path) == "table"
+			and type(route.Path.WorldWaypoints) == "table"
+			and type(route.Tracks) == "table"
+			and #route.Tracks == 2
+			and type(route.Tracks[2].StartIndex) == "number"
+		check(checks, "admin_route_built", routeOk and 1 or 0, 1, routeOk)
+		if not routeOk then
+			return
+		end
+		local wps = route.Path.WorldWaypoints
+		local n = #wps
+		local t2 = route.Tracks[2]
+		local s2, n1, n2 = t2.StartIndex, route.Tracks[1].Number, t2.Number
+		local C2 = TrackBuilder.CashFor(n2)
+		local startCF = entries[1].Model.Start.CFrame + Vector3.new(0, CarConfig.RestHeight, 0)
+		local strict = PhysicsTargets.lap.MinUpYStrict
+		local maxDev = (PhysicsTargets.race or {}).MaxPathDeviation
+
+		local function tpRun(npcMode)
+			local pre = npcMode and "admin_tp_npc_" or "admin_tp_"
+			local car = CarFactory.build(CarConfig)
+			car.Name = "CarTestAdminCar"
+			car:PivotTo(startCF)
+			car.Parent = Workspace
+			table.insert(cleanup, car)
+			local racer = standIn("CarTestAdminRacer", ADMIN_UID)
+			local outsider = standIn("CarTestAdminOutsider", ADMIN_STRANGER_UID)
+			local money = racer.leaderstats.Money
+			local events, clock0 = {}, os.clock()
+			local options = {
+				Npc = npcMode,
+				NpcSpeeds = { [n1] = NPC_SLOW, [n2] = NPC_SLOW },
+				LoseScreenSeconds = NPC_LOSE_SCREEN,
+				OnRaceEvent = function(ev)
+					if type(ev) == "table" then
+						table.insert(events, { Event = ev, T = os.clock() - clock0 })
+					end
+				end,
+			}
+			local okRun, run = pcall(RaceService.NewRun, car, route, racer, options)
+			local started = okRun and type(run) == "table"
+			check(checks, pre .. "run_started", started and 1 or 0, 1, started)
+			if not started then
+				metrics[pre .. "error"] = tostring(run)
+				return
+			end
+			table.insert(runs, run)
+			local hasJump = type(run.JumpToTrack) == "function"
+			check(checks, pre .. "run_has_jump_to_track", hasJump and 1 or 0, 1, hasJump)
+			AdminService.RunOf = function(who)
+				if who == racer or who == outsider then
+					return run
+				end
+				return nil
+			end
+			local chassis = car.PrimaryPart
+			local driver = run.Driver
+			frames(ADMIN_TP_SETTLE)
+			if npcMode then
+				local s1 = false
+				for _, rec in events do
+					s1 = s1 or (rec.Event.Type == "Start" and rec.Event.Track == n1)
+				end
+				check(checks, pre .. "track1_race_in_progress", s1 and 1 or 0, 1, s1)
+			end
+
+			-- Bad jumps and refused /tp: all in one frame (no yield), so the car can not have moved
+			local pos0, idx0, paid0, ev0, money0 = chassis.Position, driver.Index, run.PaidTotal, #events, money.Value
+			local badJumps = 0
+			if hasJump then
+				for _, bad in { 0, -1, 99, n2 + 0.5, 0 / 0, math.huge, "x" } do
+					local okC, res = pcall(run.JumpToTrack, run, bad)
+					if not okC or res ~= false then
+						badJumps += 1
+					end
+				end
+				local okC, res = pcall(run.JumpToTrack, run, nil)
+				if not okC or res ~= false then
+					badJumps += 1
+				end
+			end
+			check(checks, pre .. "jump_bad_number_false", badJumps, 0, hasJump and badJumps == 0)
+			local tpAccepted = 0
+			for _, text in { "/tp 99", "/tp 0", "/tp abc", "/tp", "/tp " .. n2 .. " zzqx_nobody_here" } do
+				if admin(racer, text) then
+					tpAccepted += 1
+				end
+			end
+			check(checks, pre .. "tp_bad_args_false", tpAccepted, 0, tpAccepted == 0)
+			local outsiderOk = admin(outsider, "/tp " .. n2)
+			check(checks, pre .. "tp_non_admin_false", outsiderOk and 1 or 0, 0, not outsiderOk)
+			local moved = (chassis.Position - pos0).Magnitude
+			local unchanged = moved <= 0.01
+				and driver.Index == idx0
+				and run.PaidTotal == paid0
+				and #events == ev0
+				and money.Value == money0
+			check(checks, pre .. "refused_jumps_move_nothing", moved, 0.01, unchanged)
+
+			-- The jump
+			local off0, flips0 = run.OffTrackSeconds or 0, run.FlipRecoveries or 0
+			local results0 = type(run.Results) == "table" and #run.Results or 0
+			local tJump = os.clock() - clock0
+			local okTp = admin(racer, "/tp " .. n2)
+			local idxNow = driver.Index
+			check(checks, pre .. "command_true", okTp and 1 or 0, 1, okTp)
+			check(checks, pre .. "driver_index_at_start", idxNow, s2, idxNow >= s2 and idxNow <= s2 + 3)
+			RunService.Heartbeat:Wait()
+			local cf = chassis.CFrame
+			local d = hdist(cf.Position, wps[s2])
+			local near = RaceService.START_AHEAD + ADMIN_TP_SLACK
+			check(checks, pre .. "car_at_track_start", d, near, d <= near)
+			local dir = flatV(wps[s2 + 1] - wps[s2])
+			local lat = dir.Magnitude > 1e-6 and flatV(cf.Position - wps[s2]):Dot(dir.Unit:Cross(Vector3.yAxis)) or 99
+			check(
+				checks,
+				pre .. "car_in_lane",
+				math.abs(lat),
+				ADMIN_LANE_TOLERANCE,
+				math.abs(lat) <= ADMIN_LANE_TOLERANCE
+			)
+			check(checks, pre .. "car_upright", cf.UpVector.Y, 0.98, cf.UpVector.Y >= 0.98)
+			local facing = dir.Magnitude > 1e-6 and flatV(cf.LookVector):Dot(dir.Unit) or -1
+			check(checks, pre .. "car_faces_path", facing, 0.9, facing >= 0.9)
+			check(checks, pre .. "not_finished", run.Finished == true and 1 or 0, 0, run.Finished ~= true)
+			local paidNow = run.PaidTotal == paid0 and money.Value == money0
+			check(checks, pre .. "jump_pays_nothing", run.PaidTotal - paid0, 0, paidNow)
+
+			-- Drive on from Track 2's start
+			local idx, minUp, dev = s2, 1, 0
+			frames(ADMIN_TP_DRIVE, function()
+				local pos = chassis.Position
+				local bestD = math.huge
+				for i = idx, math.min(idx + 25, n) do
+					local dd = (wps[i] - pos).Magnitude
+					if dd < bestD then
+						bestD, idx = dd, i
+					end
+				end
+				if not (run.Physics and run.Physics.LoopAssist) then
+					minUp = math.min(minUp, chassis.CFrame.UpVector.Y)
+				end
+				dev = math.max(dev, (nearestOnPolyline(wps, pos, math.max(idx - 3, 1), math.min(idx + 3, n - 1))))
+			end)
+			local runMin = type(run.MinUpY) == "number" and run.MinUpY or -1
+			local worst = math.min(minUp, runMin)
+			check(checks, pre .. "never_tilted", worst, strict, type(strict) == "number" and worst >= strict)
+			check(checks, pre .. "sticks_to_path", dev, maxDev or -1, type(maxDev) == "number" and dev <= maxDev)
+			local offDelta = (run.OffTrackSeconds or 0) - off0
+			check(checks, pre .. "not_off_track", offDelta, 0, offDelta == 0)
+			local flipDelta = (run.FlipRecoveries or 0) - flips0
+			check(checks, pre .. "no_flip_recoveries", flipDelta, 0, flipDelta == 0)
+			local progressed = driver.Index - s2
+			check(checks, pre .. "drives_on", progressed, 3, progressed >= 3)
+			local passedPad2 = driver.Index >= (t2.PadIndex or math.huge)
+			local delta = run.PaidTotal - paid0
+			local moneyOk = (delta == 0 or (delta == C2 and passedPad2)) and money.Value - money0 == delta
+			check(checks, pre .. "earlier_pads_never_paid", delta, 0, moneyOk)
+			if npcMode then
+				local resultTrack1, resultAfter, start2 = false, false, false
+				for _, rec in events do
+					local ev = rec.Event
+					if ev.Type == "Result" and ev.Track == n1 then
+						resultTrack1 = true
+					end
+					if ev.Type == "Result" and rec.T >= tJump then
+						resultAfter = true
+					end
+					if
+						ev.Type == "Start"
+						and ev.Track == n2
+						and rec.T >= tJump
+						and rec.T <= tJump + ADMIN_EVENT_WAIT
+					then
+						start2 = true
+					end
+				end
+				local results1 = type(run.Results) == "table" and #run.Results or -1
+				check(
+					checks,
+					pre .. "race_dropped_no_result",
+					resultTrack1 and 1 or 0,
+					0,
+					not resultTrack1 and not resultAfter and results1 == results0
+				)
+				check(checks, pre .. "start_event_for_target", start2 and 1 or 0, 1, start2)
+				check(checks, pre .. "race_track_is_target", num(run.RaceTrack), n2, run.RaceTrack == n2)
+			end
+
+			-- /tp with no run
+			AdminService.RunOf = function()
+				return nil
+			end
+			local noRun = admin(racer, "/tp " .. n2)
+			check(checks, pre .. "no_run_false", noRun and 1 or 0, 0, not noRun)
+			AdminService.RunOf = savedRunOf
+		end
+		tpRun(false)
+		tpRun(true)
+	end)
+
+	-- restore everything
+	AdminService.AllowStudio = savedAllow
+	AdminService.RunOf = savedRunOf
+	if addedUid then
+		local i = table.find(AdminConfig.UserIds, ADMIN_UID)
+		if i then
+			table.remove(AdminConfig.UserIds, i)
+		end
+	end
+	for _, run in runs do
+		pcall(function()
+			run:Destroy()
+		end)
+	end
+	for _, inst in cleanup do
+		inst:Destroy()
+	end
+	for _, m in models do
+		m:Destroy()
+	end
+
+	check(checks, "admin_run_never_errors", errors, 0, errors == 0)
+	check(checks, "admin_run_returns_bool_and_message", badReturns, 0, badReturns == 0)
+	check(checks, "admin_no_error", okBody and 1 or 0, 1, okBody)
+	if not okBody then
+		metrics.error = tostring(err)
+	end
+	return result("admin", checks, metrics)
+end
+
+-- name: "static_settle" | "accel" | "brake" | "skidpad" | "car_size" | "economy" | "hud" | "auto_toggle" | "gacha" | "index" | "npc" | "multiplayer" | "admin" | "lap:<Track>" | "track:<Track>"
 function Scenarios.Run(name)
 	local track = string.match(name, "^lap:(.+)$")
 	if track then

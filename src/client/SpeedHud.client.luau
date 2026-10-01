@@ -59,7 +59,8 @@ local moneyStat = stats:WaitForChild("Money")
 
 local shown = speedStat.Value
 local shownMoney = moneyStat.Value
-RunService.RenderStepped:Connect(function(dt)
+-- Heartbeat, not RenderStepped: the numbers stay current even on frames that do not render
+RunService.Heartbeat:Connect(function(dt)
 	shown = HudFormat.Approach(shown, speedStat.Value, dt)
 	value.Text = HudFormat.SpeedText(shown)
 	rate.Text = HudFormat.RateText(shown)

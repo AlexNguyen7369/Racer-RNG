@@ -4,6 +4,12 @@
 -- diminishing returns, see RaceConfig) and the cruise speed follows the stat. When the car passes a
 -- winnings pad the pad pays the player (MoneyService.Collect); the car never has to touch the pad. After
 -- the last finish the car is put back at the start of Track 1 and keeps racing.
+--
+-- NPC races (options.Npc, on for players): every track is a race against that track's NPC (Shared/NpcConfig,
+-- Shared/NpcRacer). The NPC's time for the track is known when the player starts it; if the player's car reaches
+-- the finish later than that, the player lost: the race plays out, the client shows the loser screen, and after
+-- LOSE_SCREEN_SECONDS the car goes back to the start of Track 1. A track's pad pays only when that track is won.
+-- Race events go to the owning player only (Remotes.NpcRace:FireClient), whose client draws the NPC.
 
 local PhysicsService = game:GetService("PhysicsService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -14,29 +20,44 @@ local CarConfig = require(Shared.CarConfig)
 local CarPhysics = require(Shared.CarPhysics)
 local PathDriver = require(Shared.PathDriver)
 local RaceConfig = require(Shared.RaceConfig)
+local NpcConfig = require(Shared.NpcConfig)
+local NpcRacer = require(Shared.NpcRacer)
 local MoneyService = require(script.Parent.MoneyService)
 local PlayerData = require(script.Parent.PlayerData)
+local GachaService = require(script.Parent.GachaService)
 
 local RaceService = {}
 
 RaceService.COMMIT_INTERVAL = 0.25 -- seconds between writes of the gained Speed stat (replication is not per frame)
 RaceService.FLIP_UP_Y = 0.5 -- body up-vector Y below this counts as flipped...
 RaceService.FLIP_SECONDS = 0.4 -- ...after this long, and the car is put back upright on the path
+RaceService.START_AHEAD = 5 -- studs along the path from the road's first edge: all four wheels start on the road
 local DEVIATION_GRACE = 3 -- seconds after the start before path deviation is measured (the car starts on the centre line)
 
 local CAR_GROUP = "Cars"
 
 local route = nil
+local npcRemote = nil -- Remotes.NpcRace, created by Start
 
 -- entries = { { Layout, Origin, Model, Number }, ... } in Number order (the chain Main builds).
 function RaceService.BuildRoute(entries)
 	local path = PathDriver.Chain(entries)
-	local pads = {}
+	local pads, tracks = {}, {}
 	for i, entry in entries do
 		local pad = entry.Model and entry.Model:FindFirstChild("WinPad", true)
 		table.insert(pads, { Pad = pad, Index = path.PadIndices[i] })
+		local config = NpcConfig.For(entry.Number or i)
+		local lane = NpcRacer.LanePath(entry)
+		table.insert(tracks, {
+			Number = entry.Number or i,
+			StartIndex = path.StartIndices[i],
+			FinishIndex = path.FinishIndices[i],
+			PadIndex = path.PadIndices[i],
+			Pad = pad,
+			Npc = { Config = config, Path = lane, Profile = NpcRacer.Profile(lane, config.Speed) },
+		})
 	end
-	return { Path = path, Pads = pads }
+	return { Path = path, Pads = pads, Tracks = tracks }
 end
 
 function RaceService.SetRoute(newRoute)
@@ -45,6 +66,10 @@ end
 
 function RaceService.GetRoute()
 	return route
+end
+
+local function isPlayer(player)
+	return typeof(player) == "Instance" and player:IsA("Player")
 end
 
 local function setCarGroup(car)
@@ -57,6 +82,8 @@ end
 
 -- Starts driving `car` along `raceRoute` for `player`. Returns a run object; call run:Destroy() to stop.
 -- options: { Loop = true } puts the car back at the start of the route after the last finish.
+--          { Npc = true } races every track against its NPC. Test hooks: NpcSpeeds = { [number] = speed },
+--          LoseScreenSeconds, OnRaceEvent(event).
 function RaceService.NewRun(car, raceRoute, player, options)
 	options = options or {}
 	local chassis = car.PrimaryPart
@@ -86,15 +113,122 @@ function RaceService.NewRun(car, raceRoute, player, options)
 		Laps = 0,
 		Driver = driver,
 		Physics = physics,
+		RaceTrack = nil, -- number of the track being raced against its NPC
+		Results = {}, -- every Result event
+		Wins = 0,
+		Losses = 0,
+		Resets = 0,
 	}
+	local npcMode = options.Npc == true and type(raceRoute.Tracks) == "table" and #raceRoute.Tracks > 0
+	local loseSeconds = options.LoseScreenSeconds or NpcConfig.LOSE_SCREEN_SECONDS
+	local race = nil -- { Index, Number, Started, NpcTime }
+	local held = false -- the car waits at the finish while the loser screen shows
+	local lossGen = 0 -- bumped by JumpToTrack so a pending lose-screen reset never fires after a jump
+	local alive = true
 	local paid = {} -- pad entry -> already paid this pass
 	local pending, sinceCommit = 0, 0
 	local flippedFor, runTime = 0, 0
 
-	-- Where the car goes after the last finish: the start of Track 1, facing down the first stretch
+	-- Where every run starts and where the car goes after the last finish or a lost race: the start of Track 1,
+	-- in the lane, START_AHEAD studs onto the road (the first waypoint is the road's very edge), facing down it
 	local wps = raceRoute.Path.WorldWaypoints
-	local startPos = wps[1] + Vector3.new(0, CarConfig.RestHeight + 0.5, 0)
-	local startCF = CFrame.lookAt(startPos, Vector3.new(wps[2].X, startPos.Y, wps[2].Z))
+	local firstDir = (wps[2] - wps[1]).Unit
+	local startPos = wps[1] + firstDir * RaceService.START_AHEAD + Vector3.new(0, CarConfig.RestHeight + 0.5, 0)
+	local startCF = CFrame.lookAt(startPos, startPos + Vector3.new(firstDir.X, 0, firstDir.Z))
+	physics:Reset(startCF)
+
+	local function emit(event)
+		if options.OnRaceEvent then
+			local ok, err = pcall(options.OnRaceEvent, event)
+			if not ok then
+				warn("OnRaceEvent: " .. tostring(err))
+			end
+		end
+		if npcRemote and isPlayer(player) then
+			npcRemote:FireClient(player, event) -- the owner only: nobody else sees this NPC
+		end
+	end
+
+	local function startRace(i)
+		local track = raceRoute.Tracks[i]
+		local cfg = track.Npc.Config
+		local speed = options.NpcSpeeds and options.NpcSpeeds[track.Number] or cfg.Speed
+		local profile = track.Npc.Profile
+		if speed ~= profile.Speed then
+			profile = NpcRacer.Profile(track.Npc.Path, speed)
+		end
+		race = { Index = i, Number = track.Number, Started = runTime, NpcTime = profile.TotalTime }
+		run.RaceTrack = track.Number
+		emit({
+			Type = "Start",
+			Track = track.Number,
+			ServerStart = workspace:GetServerTimeNow(),
+			Speed = speed,
+			Color = cfg.Color,
+			Label = cfg.Label,
+			Model = cfg.Model,
+		})
+	end
+
+	local function backToStart()
+		driver.Index, driver.Done = 1, false
+		paid = {}
+		physics:Reset(startCF)
+	end
+
+	-- The player's car reached the finish of the track it is racing on: decide, pay a win, move on.
+	local function finishRace()
+		local track = raceRoute.Tracks[race.Index]
+		local playerTime = runTime - race.Started
+		local win = playerTime < race.NpcTime
+		local amount = 0
+		if win and track.Pad then
+			amount = MoneyService.Collect(player, track.Pad)
+			if amount > 0 then
+				run.Payouts += 1
+				run.PaidTotal += amount
+			end
+		end
+		local event = {
+			Type = "Result",
+			Track = track.Number,
+			Result = win and "Win" or "Lose",
+			PlayerTime = playerTime,
+			NpcTime = race.NpcTime,
+			Paid = amount,
+		}
+		table.insert(run.Results, event)
+		emit(event)
+		local index = race.Index
+		race = nil
+		if win then
+			run.Wins += 1
+			if index < #raceRoute.Tracks then
+				startRace(index + 1)
+			elseif options.Loop then
+				run.Laps += 1
+				backToStart()
+				startRace(1)
+			else
+				run.Laps += 1
+				run.Finished = true
+			end
+		else
+			run.Losses += 1
+			held = true
+			local gen = lossGen
+			task.delay(loseSeconds, function()
+				if not alive or not car.Parent or gen ~= lossGen then
+					return
+				end
+				backToStart()
+				held = false
+				run.Resets += 1
+				emit({ Type = "Reset", Track = raceRoute.Tracks[1].Number })
+				startRace(1)
+			end)
+		end
+	end
 
 	local function payPads()
 		for _, entry in raceRoute.Pads do
@@ -125,7 +259,8 @@ function RaceService.NewRun(car, raceRoute, player, options)
 	-- A flipped car is put back upright on the path, facing along it
 	local function recoverIfFlipped(dt)
 		local up = chassis.CFrame.UpVector.Y
-		if not physics.LoopAssist then
+		-- Stability is measured from the start to the last checkpoint: not while the car rolls out past the end
+		if not physics.LoopAssist and not run.Finished then
 			run.MinUpY = math.min(run.MinUpY, up)
 		end
 		if up < RaceService.FLIP_UP_Y and not physics.LoopAssist then
@@ -157,29 +292,89 @@ function RaceService.NewRun(car, raceRoute, player, options)
 		driver.TargetSpeed = run.TargetSpeed
 	end
 
+	if npcMode then
+		startRace(1)
+	end
+
+	-- Admin /tp: puts the car at the start of track `number` (START_AHEAD in, in the lane, upright, facing along the
+	-- path). Pads of earlier tracks count as paid for this pass, so a jump never pays; in NPC mode the race in
+	-- progress is dropped (no Result) and that track's race starts. Returns false (nothing changes) for a bad number.
+	function run:JumpToTrack(number)
+		if not alive or type(number) ~= "number" or type(raceRoute.Tracks) ~= "table" then
+			return false
+		end
+		local index = nil
+		for i, track in raceRoute.Tracks do
+			if track.Number == number then
+				index = i
+				break
+			end
+		end
+		if not index then
+			return false
+		end
+		local s = math.clamp(raceRoute.Tracks[index].StartIndex, 1, #wps - 1)
+		local dir = (wps[s + 1] - wps[s]).Unit
+		local pos = wps[s] + dir * RaceService.START_AHEAD + Vector3.new(0, CarConfig.RestHeight + 0.5, 0)
+		physics:Reset(CFrame.lookAt(pos, pos + Vector3.new(dir.X, 0, dir.Z)))
+		driver.Index, driver.Done = s, false
+		paid = {}
+		for _, entry in raceRoute.Pads do
+			if entry.Index < s then
+				paid[entry] = true
+			end
+		end
+		lossGen += 1
+		held = false
+		flippedFor = 0
+		run.Finished = false
+		if npcMode then
+			race = nil
+			startRace(index)
+		end
+		return true
+	end
+
 	run.Connection = RunService.PreSimulation:Connect(function(dt)
 		if not car.Parent then
 			run:Destroy()
 			return
 		end
-		physics:Step(driver:Control(chassis, dt), dt)
+		local control = driver:Control(chassis, dt)
+		if held then
+			control = { Throttle = 0, Steer = control.Steer, Brake = 1, Handbrake = false }
+		end
+		physics:Step(control, dt)
 		run.OffTrackSeconds = driver.OffTrackSeconds
-		payPads()
-		recoverIfFlipped(dt)
 		runTime += dt
-		if runTime > DEVIATION_GRACE then
+		if npcMode then
+			if race then
+				local track = raceRoute.Tracks[race.Index]
+				local last = race.Index == #raceRoute.Tracks
+				if driver.Index >= track.FinishIndex or (last and driver.Done) then
+					finishRace()
+				end
+			end
+		else
+			payPads()
+		end
+		recoverIfFlipped(dt)
+		if runTime > DEVIATION_GRACE and not run.Finished then -- past the last finish there is no path to follow
 			run.MaxPathDeviation = math.max(run.MaxPathDeviation, pathDeviation())
 		end
 
-		-- Passive gain: proportional to the ACTUAL speed, smaller the higher the stat
-		pending += RaceConfig.GainPerSecond(stat, chassis.AssemblyLinearVelocity.Magnitude) * dt
+		-- Passive gain: proportional to the ACTUAL speed, smaller the higher the stat, times the equipped
+		-- car's and the stat points' Speed multi (GachaService). The cruise speed does not use the multi.
+		pending += RaceConfig.GainPerSecond(stat, chassis.AssemblyLinearVelocity.Magnitude) * GachaService.SpeedMulti(
+			player
+		) * dt
 		sinceCommit += dt
 		if sinceCommit >= RaceService.COMMIT_INTERVAL then
 			sinceCommit = 0
 			commitStat()
 		end
 
-		if driver.Done and not run.Finished then
+		if not npcMode and driver.Done and not run.Finished then
 			run.Finished = true
 			run.Laps += 1
 			if options.Loop then
@@ -193,6 +388,12 @@ function RaceService.NewRun(car, raceRoute, player, options)
 
 	-- Stops the run. The Speed gained since the last commit is committed first, so stopping never loses stat.
 	function run:Destroy()
+		if alive then
+			alive = false
+			if npcMode then
+				emit({ Type = "Stop" })
+			end
+		end
 		if self.Connection then
 			self.Connection:Disconnect()
 			self.Connection = nil
@@ -202,6 +403,8 @@ function RaceService.NewRun(car, raceRoute, player, options)
 	return run
 end
 
+RaceService.SetCarGroup = setCarGroup
+
 -- Called by CarService once the player's car exists. Returns the run, or nil if there is no route
 -- (then the car is driven manually).
 function RaceService.Attach(player, car)
@@ -209,11 +412,23 @@ function RaceService.Attach(player, car)
 		return nil
 	end
 	setCarGroup(car)
-	return RaceService.NewRun(car, route, player, { Loop = true })
+	return RaceService.NewRun(car, route, player, { Loop = true, Npc = true })
 end
 
 function RaceService.Start(newRoute)
 	route = newRoute
+	local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+	if not remotes then
+		remotes = Instance.new("Folder")
+		remotes.Name = "Remotes"
+		remotes.Parent = ReplicatedStorage
+	end
+	npcRemote = remotes:FindFirstChild("NpcRace")
+	if not npcRemote then
+		npcRemote = Instance.new("RemoteEvent")
+		npcRemote.Name = "NpcRace"
+		npcRemote.Parent = remotes
+	end
 	pcall(function()
 		PhysicsService:RegisterCollisionGroup(CAR_GROUP)
 	end)

@@ -1,5 +1,5 @@
 --!nonstrict
--- Saved player stats: Money and Speed (a continuous stat that grows while the car drives and sets the
+-- Saved player stats: Money, Speed and the car gacha (inventory, equipped car, rolls, stat allocation) (a continuous stat that grows while the car drives and sets the
 -- auto-race cruise speed, see RaceConfig). The server owns them: leaderstats replicate down to clients, nothing a client sends ever changes a value. Data is
 -- kept in a DataStore; if the store cannot be read (Studio without API access, outage) the player is
 -- flagged DataFailed and their stats are never written, so a failed load can not wipe a save.
@@ -10,11 +10,12 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local RaceConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("RaceConfig"))
 local MoneyService = require(script.Parent.MoneyService)
+local GachaService = require(script.Parent.GachaService)
 
 local PlayerData = {}
 
 local STORE_NAME = "PlayerStats_v1"
-local VERSION = 2
+local VERSION = 3 -- 3: car inventory, equipped car, roll count and stat allocation (GachaService)
 local MAX_MONEY = 1e12
 local MAX_ADD = 1e6 -- most a single AddSpeed call may add
 local AUTOSAVE_SECONDS = 60
@@ -103,6 +104,7 @@ function PlayerData.Load(player, userId)
 	end
 	money.Value = cleanInt(data.Money, 0, MAX_MONEY, 0)
 	speed.Value = cleanStat(data.Speed)
+	GachaService.Apply(player, data) -- older saves have no gacha fields: starter car, nothing allocated
 	player:SetAttribute("DataLoaded", true)
 	return true
 end
@@ -121,9 +123,14 @@ function PlayerData.Save(player, userId)
 	end
 	local money = MoneyService.Setup(player)
 	local speed = speedValue(player)
+	local gacha = GachaService.Snapshot(player)
 	local payload = {
 		Money = cleanInt(money.Value, 0, MAX_MONEY, 0),
 		Speed = cleanStat(speed.Value),
+		Cars = gacha.Cars,
+		Equipped = gacha.Equipped,
+		Rolls = gacha.Rolls,
+		StatAlloc = gacha.StatAlloc,
 		Version = VERSION,
 	}
 	local ok = pcall(function()

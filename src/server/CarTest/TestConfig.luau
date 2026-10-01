@@ -22,5 +22,10 @@ return {
 		"data",
 		"hud",
 		"auto_toggle",
+		"gacha",
+		"index",
+		"npc",
+		"multiplayer",
+		"admin",
 	},
 }

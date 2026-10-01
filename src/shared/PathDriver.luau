@@ -138,17 +138,21 @@ end
 -- Joins the tracks of the chain into one path. entries = { { Layout, Origin, Model?, Number? }, ... } in
 -- Number order. Each track contributes its RacePath (centre line plus the swing over the winnings pad).
 -- The first point of every later track is the previous track's finish, so it is dropped.
--- path.PadIndices[i] is the waypoint index of entry i's pad.
+-- path.PadIndices[i] is the waypoint index of entry i's pad; StartIndices[i] / FinishIndices[i] are the first and
+-- last waypoint of entry i (a later track starts on the previous finish, so its StartIndex is that FinishIndex).
 function PathDriver.Chain(entries)
 	local waypoints, curvature, padIndices = {}, {}, {}
+	local startIndices, finishIndices = {}, {}
 	for i, entry in entries do
 		local race = TrackBuilder.RacePath(entry.Layout)
 		local first = i == 1 and 1 or 2
+		startIndices[i] = math.max(#waypoints, 1)
 		for k = first, #race.Waypoints do
 			table.insert(waypoints, entry.Origin:PointToWorldSpace(race.Waypoints[k]))
 			table.insert(curvature, race.Curvature[k])
 		end
 		padIndices[i] = #waypoints - (#race.Waypoints - race.PadIndex)
+		finishIndices[i] = #waypoints
 	end
 	return {
 		WorldWaypoints = waypoints,
@@ -156,6 +160,8 @@ function PathDriver.Chain(entries)
 		Closed = false,
 		Width = entries[1] and entries[1].Layout.Width or 40,
 		PadIndices = padIndices,
+		StartIndices = startIndices,
+		FinishIndices = finishIndices,
 	}
 end
 

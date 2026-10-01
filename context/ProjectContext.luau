@@ -62,11 +62,52 @@ CHANGE LOG (newest last)
 12. test-writer audit fixed Scenarios stat_api_matches_value (exact == on a value rounded to 3 decimals; now tolerance 1e-3). Nothing else loosened.
 13. Git: the project is a git repo, origin = https://github.com/AlexNguyen7369/Racer-RNG.git, branch `initial-import` (first push: 65 files).
     Later commits are LOCAL ONLY. Push only when the full suite ends `[CARTEST] END fail=0`. Never push to main.
+15. IN PROGRESS (2026-10-01): NPC racers (spec docs/NPC_RACER_SPEC.md). One NPC per track (Shared/NpcConfig: Track 1 red, 20 studs/s,
+    +12 per track, label track01_NPC..., 60-stud label distance, per-track Model override via ReplicatedStorage.NpcModels). Pure-maths
+    NPC in the LEFT lane (Shared/NpcRacer; TrackBuilder.RacePath(layout, offset)); RaceService NPC mode (Attach passes Npc = true):
+    race per track, loss plays out then loser screen + back to Track 1 start after 3 s, pad pays only on a WIN; events only to the owner
+    (Remotes.NpcRace), NPC drawn client-side only (Client/NpcRacerView, LoserScreen). PathDriver.Chain Start/FinishIndices.
+    Also: every run now starts START_AHEAD (5) studs onto the road (the old start on the road's back edge left the car stuck: race and
+    flip_recovery failures); Stop Auto removes the SeatWeld before the car (auto_toggle stop_unseated). Tests: npc, multiplayer (red run
+    confirmed), test-writer added <pre>_npc_race_on to auto_toggle. New agent multiplayer-tester.
+16. Compatibility gate (2026-10-01): /compat-check (.claude/commands/compat-check.md) runs harness (physics-tester) + ui-tester +
+    multiplayer-tester + world-tester; tools/compat.py records a green stamp (.compat/green.json, local) for a fingerprint of src/ +
+    default.project.json. Pushes to main are blocked unless that stamp matches: .claude/hooks/compat-gate.py (Claude's push / PR merge;
+    its Stop hook asks for the run when src changed) and .githooks/pre-push (enabled by core.hooksPath = .githooks).
 14. Tooling: Herdr 0.9.3 (brew) + Claude integration hook (~/.claude/hooks/herdr-agent-state.sh) for several repos in one terminal.
     Slack app "Racer RNG Claude" exists (workspace Racer RNG, channel #racer-dev C0C5LM8Q8F7, team T0C5AK11CNB). The `slack` MCP entry in the user
     config was added with the wrong token type (xoxp) and a bad team id: remove and re-add with an xoxb- bot token.
+17. DONE (2026-10-01): Car gacha, index and stat points. Shared/CarCatalog + Shared/Cars/* (7 placeholder cars from the design doc, Model = nil
+   shows a "?"), Shared/GachaConfig (roll every 3 s, rarest-first min(1, luck/N), 1 stat point per 3 unique cars, +0.1/+0.1/+0.05/+0.2 per
+   point), Server/GachaService (GachaData folder + attributes, remotes EquipCar/AllocateStat/RollResult), Client IndexUi/StatsUi/RollToast.
+   PlayerData VERSION 3 saves Cars (sorted array of owned ids; no duplicate counts), Equipped, Rolls, StatAlloc (earned points derived, never saved). Speed gain x SpeedMulti
+   (RaceService), pad cash x MoneyMulti (MoneyService). Cruise speed/physics untouched. Workshop points stored, no effect yet.
+18. DONE (2026-10-01): UI compatibility tests (src/client/UiTest, written by the new ui-test-writer agent; run by ui-tester in
+   /compat-check; server setups via the Studio-only CarTest/UiTestSetup script), admin chat commands (Server/AdminService, AdminConfig,
+   Client/AdminChat, RaceService run:JumpToTrack; spec docs/ADMIN_COMMANDS_SPEC.md), Client/PanelSwitch.
 
 TEST RESULTS (latest first; update after every full run)
+- 2026-10-01 (/compat-check round 3, fingerprint 076fe6662e79): ALL GREEN, stamp recorded.
+  harness `[CARTEST] END pass=20 fail=0` (incl. gacha, index, npc, multiplayer, admin, track:Hill/Oval); ui GREEN (`[UITEST] END pass=12
+  fail=0`, 16/16 clicks); multiplayer GREEN; world GREEN. Fixed on the way: race metrics stop after the finish (path dev spike past the
+  route end), standUp waits until SeatPart clears (order-dependent stop_unseated), hidden avatar in collision group HiddenAvatar
+  (collides with nothing; seated Humanoid re-enables torso CanCollide), StartLine CanCollide=false, Index/Stats panels exclusive and below
+  the Auto Race button, LoserScreen DisplayOrder 10, toast hidden while a panel is open, SpeedHud on Heartbeat, admin commands from the
+  NPC session's drafts. Unverified: real DataStore saving (Studio has no API access), a real two-client test (fake players only), NPC
+  motion live while the Studio window is in the background (it stops rendering).
+- 2026-10-01 (gacha / index / stat points): red run as expected (gacha, index, data, hud failed on the missing API / Version 3).
+  After implementing, FULL run END pass=16 fail=3: gacha failed only catalog_ids_snake_case (a broken Lua pattern in the test, fixed by
+  test-writer; gacha rerun alone 66/66 PASS). index 40/40, data 74/74, hud, money, economy, npc 110/110, multiplayer, track:* PASS.
+  Still failing, NOT from the gacha change (already failing in NPC round 1): race (up-Y 0.883 < 0.9, path dev 14 > 11 at normal and max
+  stat speed) and auto_toggle (stop_unseated, walk_still_not_racing, bad_input_ignored_walking, double_stop_unseated). No compat stamp:
+  NOT cleared for main.
+- 2026-10-01 (NPC round 1, full run INTERRUPTED by another session restarting play at ~13 min): static_settle, accel, brake, skidpad,
+  car_size, chain, money, economy, data, hud PASS; race and flip_recovery FAIL (car stuck behind the road start: fixed after, unverified);
+  auto_toggle FAIL stop_unseated / double_stop_unseated (fixed after, unverified); npc / multiplayer / track:* NO RESULT. No compat stamp.
+- 2026-10-01 (ad-hoc, Speed stat 5000 = target 67.5 studs/s, live server, NOT the full suite): real RaceService.NewRun on the 2-track
+  chain. Single pass: finished in 38.3 s, 0 flip recoveries, min up-Y 0.946 (limit 0.9), max path deviation 2.31 (limit 5), 0 s off
+  track, never stuck, max speed 70.9, both pads paid once ($300). Looped 2 laps (77.2 s): loop-back OK, 0 flips, min up-Y 0.943, dev 2.32,
+  4 payouts ($600), stat grew 5000 -> 5069.6.
 - 2026-09-30 (lane round): targeted RED run confirmed the new checks fail (track:Oval 10, flip_recovery 14, race 11). The code was then applied.
   The FULL run afterwards was stopped by the user before it finished: NO RESULT.
 - 2026-09-30 (toggle, round 1): run started but lost: the tester stalled and the place was no longer open in Studio. NO RESULT.
@@ -91,6 +132,9 @@ TODO (in order)
 5. Bring Circuit and Serpentine up to the track rules; an upgrade shop (nothing raises Speed except driving).
 
 KNOWN ISSUES / NOT VERIFIED
+- 2026-10-01: another session is building gacha/index (scenarios gacha, index in TestConfig, red) and shares the same Studio; runs
+  collide. Nothing can be ALL GREEN (so nothing can go to main) until gacha/index are implemented and one run has Studio to itself.
+- NPC client view and LoserScreen are untested live (ui-tester / multiplayer-tester not run yet).
 - Two sessions edited the project in parallel (lane work and the toggle / implicit solver). Only one session should run the physics tests at a time.
 - Toggle cases the server harness cannot test (real CharacterAdded / PlayerRemoving / remote cooldown) are handled in code, untested.
 - Whether the half-size car still flips at speed is unknown until the full run (two fixes exist: CarConfig damping and the implicit solver).
@@ -105,6 +149,6 @@ Read "[CARTEST] ..." lines and "[CARTEST] END pass=N fail=N". A full run takes 1
 ]=]
 
 return {
-	Updated = "2026-09-30",
+	Updated = "2026-10-01",
 	Read = "Open this script and read the comment block above.",
 }

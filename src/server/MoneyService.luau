@@ -6,6 +6,8 @@
 local CollectionService = game:GetService("CollectionService")
 local Players = game:GetService("Players")
 
+local GachaService = require(script.Parent.GachaService)
+
 local MoneyService = {}
 
 MoneyService.COOLDOWN = 5 -- seconds before the same player can collect from the same pad again
@@ -54,6 +56,7 @@ function MoneyService.Collect(player, pad, now)
 	if type(cash) ~= "number" or cash <= 0 then
 		return 0
 	end
+	cash = math.floor(cash * GachaService.MoneyMulti(player)) -- Base Money Multi from stat points
 	now = now or os.clock()
 	local perPlayer = lastCollect[player]
 	if not perPlayer then

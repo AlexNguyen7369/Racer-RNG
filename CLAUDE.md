@@ -47,6 +47,14 @@ One file per track in `src/shared/Tracks/`, auto-loaded by `TrackRegistry`. See 
 7. **Placement:** the chain is built 1 stud above the baseplate (`TRACK_LIFT`) so road never z-fights with it.
 8. **The pad pays the driver:** when the auto-racing car passes the pad (its path index reaches `PadIndex`, checked server-side in `RaceService`) `MoneyService.Collect` adds the pad's `Cash` to `leaderstats.Money` (server decides the amount, once per pass, per-player cooldown `MoneyService.COOLDOWN`). The car never has to touch the pad.
 
+### NPC racers (spec: `docs/NPC_RACER_SPEC.md`)
+- Every track has an NPC (`Shared/NpcConfig`: speed, colour, label, model per track number; Track 1 red and very easy, faster on every later track). For now it is the starter car in the track's colour; set `Tracks[n].Model` to a Model under `ReplicatedStorage.NpcModels` to swap it.
+- The NPC drives the LEFT lane (`TrackBuilder.RacePath(layout, -LANE_OFFSET)`) and is pure maths (`Shared/NpcRacer`: `LanePath`, `Profile`, `PoseAt`), so its track time is known when the race starts.
+- A race starts every time the player starts a track (spawn on Track 1, or crossing the previous finish). `RaceService` (NPC mode, `options.Npc`) decides it: the player wins if their car reaches the finish before the NPC's time. A loss plays out to the finish, then the loser screen shows and after `NpcConfig.LOSE_SCREEN_SECONDS` the car goes back to the start of Track 1.
+- **Money in NPC mode:** a track's pad pays (once) only when that track is WON, at its finish; a lost track pays nothing, earlier wins are kept. (Rule 8 above still describes runs without NPC, e.g. the `race` test.)
+- Per player: race events go only to the owner (`Remotes.NpcRace:FireClient`), and the NPC car exists only in that client's Workspace (`Client/NpcRacerView`), never on the server. Its `NpcLabel` text (`track01_NPC`, ...) has `MaxDistance = NpcConfig.LABEL_DISTANCE`. Player cars are in the `Cars` collision group and pass through each other; NPC parts never collide.
+- Tests: `npc` and `multiplayer` scenarios; the `multiplayer-tester` subagent also checks the live client/server perspective.
+
 ### Auto race, Speed stat and HUD
 - The player does not steer. `Server/RaceService` drives each player's car with the real `CarPhysics` on the server, steered by `Shared/PathDriver` along the whole chain (Track 1, then 2, ...) on each track's `RacePath`, and loops back to Track 1 after the last finish. The client `CarController` does nothing for an `AutoRace` car.
 - **Speed stat (`leaderstats.Speed`, a `NumberValue`, starts at 0):** while the car drives, the server adds `RaceConfig.GainPerSecond(stat, actualSpeed) * dt` to it. The gain is proportional to the ACTUAL speed and shrinks as the stat grows (diminishing returns). It is committed every `RaceService.COMMIT_INTERVAL` seconds.
@@ -57,9 +65,21 @@ One file per track in `src/shared/Tracks/`, auto-loaded by `TrackRegistry`. See 
 - **Stability rules (tests enforce them):** the car must never flip or noticeably tilt, by any means: on every race and every bot lap the body's up-vector Y never drops below `PhysicsTargets.lap.MinUpYStrict` (0.9) outside loops, at normal AND at maximum stat speed (`MAX_STAT`). `RaceService` also watches for a flipped car (up-vector Y below `FLIP_UP_Y` for `FLIP_SECONDS`) and puts it upright back on the path. The car must also stick to its route from the start to the last checkpoint: distance to the path never exceeds `PhysicsTargets.race.MaxPathDeviation` studs.
 - Any track change must keep: the chain drivable at the stat speed with 0 flips / 0 off-track, the pad paid exactly once per pass, and the join between tracks smooth.
 
+### Car gacha, index and stat points
+- Catalog: one file per car in `src/shared/Cars/`, auto-loaded by `Shared/CarCatalog` (`STARTER_ID = "starter"` is built in, not rollable, not in the index). A car's `Id` is a permanent save key: never rename or reuse one. `Model = nil` shows the "?" placeholder.
+- Rules and numbers live in `Shared/GachaConfig`: free auto-roll every `ROLL_INTERVAL` (3 s); a roll checks cars rarest first, each hits with `min(1, luck / Chance)`, else the catch-all common. Every `DISCOVERIES_PER_POINT` (3) unique cars give 1 stat point; points add `PER_POINT` to Speed / Money / Luck / Workshop multis.
+- `Server/GachaService` owns it: `player.GachaData` (StringValue per owned car; discovering a car = owning it, no duplicate counts) and player attributes `EquippedCar`, `Rolls`, `StatPoints` (free), `Alloc_<Stat>`. Earned points are derived from the index, never saved; only allocations are. Remotes `EquipCar`, `AllocateStat` (validated, rate-limited), `RollResult` (server -> owner).
+- Effects: Speed-stat gain x `GachaService.SpeedMulti` (equipped car x Speed points) in `RaceService`; pad payouts x `MoneyMulti` in `MoneyService.Collect`; roll luck = `Luck`. Cruise speed and car physics never use the multis (stability tests unaffected). Workshop points are stored but do nothing until the workshop exists.
+- Save (`PlayerData` VERSION 3): `Cars = { id, ... }` (sorted owned ids; an early `{ [id] = count }` map still loads), `Equipped`, `Rolls`, `StatAlloc`. Unknown ids are kept; over-allocation is trimmed on load.
+
 ## Test harness
-`src/server/CarTest/`: scenarios `static_settle`, `accel`, `brake`, `skidpad`, `car_size`, `chain`, `money`, `race`, `economy`, `data`, `hud`, `flip_recovery`, `lap:<Track>`, `track:<Track>`. Limits live in `Shared/PhysicsTargets`.
+`src/server/CarTest/`: scenarios `static_settle`, `accel`, `brake`, `skidpad`, `car_size`, `chain`, `money`, `race`, `economy`, `data`, `hud`, `flip_recovery`, `auto_toggle`, `npc`, `multiplayer`, `gacha`, `index`, `admin`, `lap:<Track>`, `track:<Track>`. Limits live in `Shared/PhysicsTargets`.
 Output is `[CARTEST] {json}` lines and `[CARTEST] END pass=N fail=N` in the Studio console. Trigger with `ReplicatedStorage:SetAttribute("CarTestRun", true)` during play, or set `Enabled = true` in `CarTest/TestConfig.luau`.
+
+UI tests: `src/client/UiTest/` (written only by `ui-test-writer`; `UiSpec` lists every ScreenGui, button, allowed overlay and the clicks). Set `ReplicatedStorage` attribute `UiTestRun` false then true on the server during play; output is `[UITEST] {json}` and `[UITEST] END pass=N fail=N` (also LocalPlayer attribute `UiTestResult`). Clicks a script can not fire are done by `ui-tester` with mouse input (`UiTestClick` protocol in `UiSpec`). Rules they enforce: no two reachable buttons/panels overlap at any tested viewport (incl. phone landscape), hitboxes stay inside their parent and near their visuals, buttons do exactly what they show. The Index and Stats panels are mutually exclusive (`Client/PanelSwitch`) and open below the Auto Race button; the roll toast hides while a panel is open.
+
+### Admin chat commands (spec: `docs/ADMIN_COMMANDS_SPEC.md`)
+`Server/AdminService` (+ `Server/AdminConfig`: `UserIds`, `GROUP_MIN_RANK`, `ALLOW_IN_STUDIO`, `MAX_ROLLS`) runs `/help /money /addmoney /speed /addspeed /give /equip /roll /wipe /tp` from chat (TextChatCommands in `TextChatService.AdminCommands`). Server-only: non-admins change nothing; replies go to the sender only (`Remotes.AdminMessage`, shown by `Client/AdminChat`). `/tp n` uses `run:JumpToTrack(n)` in `RaceService` (earlier pads count as paid; NPC race restarts on that track).
 
 ## Subagent loop (test-first, mandatory for every track)
 `/build-track <name> <brief>` runs the loop in `.claude/commands/build-track.md`. Any track created or changed MUST go through it:

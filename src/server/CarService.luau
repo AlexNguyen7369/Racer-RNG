@@ -7,8 +7,10 @@
 -- start. The player attribute AutoRacing is the state the button shows. The Speed stat lives in leaderstats,
 -- so it is kept across both.
 
+local PhysicsService = game:GetService("PhysicsService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 local StarterPlayer = game:GetService("StarterPlayer")
 local Workspace = game:GetService("Workspace")
 
@@ -24,6 +26,8 @@ local CarService = {}
 CarService.TOGGLE_COOLDOWN = 0.75 -- seconds between toggle requests from one player (remote only)
 
 local WALK_CLEARANCE = 75 -- studs (horizontal) the walk spawn keeps from every race path waypoint
+local HIDDEN_GROUP = "HiddenAvatar" -- the hidden avatar while it rides: collides with nothing
+local UNSEAT_TIMEOUT = 1 -- most seconds Stop waits for the Humanoid to leave the seat
 local WALK_ROOT_HEIGHT = 3 -- HumanoidRootPart height above the baseplate top when standing
 
 local cars = {} -- player -> car model
@@ -46,11 +50,19 @@ end
 local function hidePart(state, d)
 	if d:IsA("BasePart") then
 		if not state.Parts[d] then
-			state.Parts[d] = { Transparency = d.Transparency, CanCollide = d.CanCollide, Massless = d.Massless }
+			state.Parts[d] = {
+				Transparency = d.Transparency,
+				CanCollide = d.CanCollide,
+				Massless = d.Massless,
+				CollisionGroup = d.CollisionGroup,
+			}
 		end
 		d.Transparency = 1
 		d.CanCollide = false
 		d.Massless = true
+		-- A seated Humanoid turns its torso collision back on: its own group, collidable with nothing, keeps the
+		-- hidden avatar from ever touching a car or the track
+		d.CollisionGroup = HIDDEN_GROUP
 	elseif d:IsA("Decal") then
 		if not state.Parts[d] then
 			state.Parts[d] = { Transparency = d.Transparency }
@@ -59,7 +71,24 @@ local function hidePart(state, d)
 	end
 end
 
+local hiddenGroupReady = false
+local function ensureHiddenGroup()
+	if hiddenGroupReady then
+		return
+	end
+	hiddenGroupReady = true
+	pcall(function()
+		PhysicsService:RegisterCollisionGroup(HIDDEN_GROUP)
+	end)
+	for _, other in PhysicsService:GetRegisteredCollisionGroups() do
+		pcall(function()
+			PhysicsService:CollisionGroupSetCollidable(HIDDEN_GROUP, other.name, false)
+		end)
+	end
+end
+
 local function hideCharacter(character)
+	ensureHiddenGroup()
 	local state = hidden[character]
 	if not state then
 		state = { Parts = {} }
@@ -218,8 +247,19 @@ local function spawnCar(player, character, gen)
 end
 
 -- Puts the avatar back on its feet at the walk spawn, visible and able to walk.
-local function standUp(player)
+local function standUp(player, gen)
 	local character = characters[player]
+	-- Unseat before the car goes: removing the SeatWeld clears SeatPart now, not a physics step later
+	local car = cars[player]
+	local seat = car and car:FindFirstChild("DriverSeat")
+	local weld = seat and seat:FindFirstChild("SeatWeld")
+	if weld then
+		weld:Destroy()
+	end
+	local humanoid0 = character and character:FindFirstChildOfClass("Humanoid")
+	if humanoid0 then
+		humanoid0.Sit = false
+	end
 	removeCar(player)
 	if not character or not character.Parent then
 		return
@@ -234,6 +274,14 @@ local function standUp(player)
 		if d:IsA("BasePart") then
 			d.AssemblyLinearVelocity = Vector3.zero
 			d.AssemblyAngularVelocity = Vector3.zero
+		end
+	end
+	-- The Humanoid clears SeatPart on its own step, which can lag a few frames under load: Stop returns only once
+	-- the avatar is really on foot (unless a newer request arrived meanwhile)
+	if humanoid then
+		local deadline = os.clock() + UNSEAT_TIMEOUT
+		while humanoid.SeatPart and os.clock() < deadline and generation[player] == gen do
+			RunService.Heartbeat:Wait()
 		end
 	end
 end
@@ -303,7 +351,7 @@ function CarService.SetAutoRace(player, enabled)
 	if enabled then
 		spawnCar(player, character, gen)
 	else
-		standUp(player)
+		standUp(player, gen)
 	end
 	return CarService.IsAutoRacing(player)
 end

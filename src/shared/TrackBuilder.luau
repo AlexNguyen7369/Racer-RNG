@@ -93,9 +93,11 @@ end
 -- The line the auto-racing car follows: the road centre line shifted LANE_OFFSET studs to the RIGHT, so the car
 -- drives in a right-hand lane, not dead centre. The winnings pad sits beside the road on the left apron, so the
 -- path never goes near it; PadIndex is the waypoint abeam of the pad and the car collects when it passes it.
--- Curvature is adjusted for the shifted radius (left turn: outside of the bend, right turn: inside).
+-- Curvature is adjusted for the shifted radius (right lane: outside of a left bend, inside of a right bend).
+-- offset (optional, signed, default LANE_OFFSET): studs to the right; the NPC racer passes -LANE_OFFSET (left lane).
 -- Returns local-space { Waypoints, Curvature, PadIndex }.
-function TrackBuilder.RacePath(layout)
+function TrackBuilder.RacePath(layout, offset)
+	offset = offset or TrackBuilder.LANE_OFFSET
 	local wps, curv = layout.Waypoints, layout.Curvature
 	local n = #wps
 	local waypoints, curvature = table.create(n), table.create(n)
@@ -109,7 +111,7 @@ function TrackBuilder.RacePath(layout)
 			right = Vector3.new(-flat.Z, 0, flat.X)
 			lastRight = right
 		end
-		waypoints[i] = wps[i] + right * TrackBuilder.LANE_OFFSET
+		waypoints[i] = wps[i] + right * offset
 
 		local kappa = curv[i]
 		if kappa > 1e-6 and i > 1 and i < n then
@@ -118,9 +120,9 @@ function TrackBuilder.RacePath(layout)
 			local turn = before:Cross(after).Y -- > 0: left turn
 			local radius = 1 / kappa
 			if turn > 1e-6 then
-				radius += TrackBuilder.LANE_OFFSET
+				radius = math.max(radius + offset, 1)
 			elseif turn < -1e-6 then
-				radius = math.max(radius - TrackBuilder.LANE_OFFSET, 1)
+				radius = math.max(radius - offset, 1)
 			end
 			kappa = 1 / radius
 		end
@@ -369,7 +371,8 @@ function TrackBuilder.Build(spec, origin)
 		origin * CFrame.new(0, 0.1, -6),
 		COLORS.Line,
 		Enum.Material.Neon
-	)
+	).CanCollide =
+		false -- decor: the car drives over it
 
 	-- Checkpoint area at the finish: it connects to the next track's start
 	local checkpoint = Instance.new("Model")

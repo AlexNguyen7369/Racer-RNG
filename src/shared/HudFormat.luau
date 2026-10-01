@@ -34,6 +34,14 @@ function HudFormat.MoneyText(money)
 	return "$" .. commas(money)
 end
 
+-- Gacha odds, "1 in 1,000". Anything that is not a real chance shows "1 in ?".
+function HudFormat.Odds(chance)
+	if type(chance) ~= "number" or chance ~= chance or chance < 1 or chance == math.huge then
+		return "1 in ?"
+	end
+	return "1 in " .. commas(chance)
+end
+
 -- The toggle button's label: it names what pressing it does.
 function HudFormat.AutoButtonText(isRacing)
 	return isRacing == true and "Stop Auto" or "Auto Race"
