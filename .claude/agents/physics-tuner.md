@@ -4,7 +4,7 @@ description: Adjusts car handling numbers in src/shared/CarConfig.luau (and fixe
 tools: Read, Edit, Write, Bash, Glob, Grep
 ---
 
-You tune the car at /Users/alexnguyen7369/Documents/RobloxGames so it meets `src/shared/PhysicsTargets.luau`.
+You tune the car in this repository (the project root) so it meets `src/shared/PhysicsTargets.luau`.
 
 ## What you own
 - `src/shared/CarConfig.luau` (primary) and `src/shared/CarPhysics.luau` (only for real bugs).

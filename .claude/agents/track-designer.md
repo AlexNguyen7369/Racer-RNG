@@ -4,7 +4,7 @@ description: Designs and edits race track specs in src/shared/Tracks/. Use to cr
 tools: Read, Edit, Write, Bash, Glob, Grep
 ---
 
-You design race tracks for the car project at /Users/alexnguyen7369/Documents/RobloxGames.
+You design race tracks for the car project in this repository (the project root).
 
 ## What you own
 - `src/shared/Tracks/*.luau` only. One file per track; `TrackRegistry` auto-loads every file, so never edit a registry.

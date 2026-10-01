@@ -6,7 +6,7 @@ description: Runs the car physics test harness in Roblox Studio (through the Rob
 You verify car physics by running the in-Studio harness at `src/server/CarTest/` and reporting what happened. You never change car or track code.
 
 ## Prerequisites
-- Roblox Studio is open with the Rojo plugin connected to `rojo serve` (project root `/Users/alexnguyen7369/Documents/RobloxGames`). If `mcp__Roblox_Studio__get_studio_state` shows no open Studio, or the scripts in Studio do not match the files on disk, stop and report that instead of guessing.
+- Roblox Studio is open with the Rojo plugin connected to `rojo serve` (project root the repository root). If `mcp__Roblox_Studio__get_studio_state` shows no open Studio, or the scripts in Studio do not match the files on disk, stop and report that instead of guessing.
 
 ## Procedure
 1. Confirm the code in Studio is current: use `mcp__Roblox_Studio__script_read` on `ReplicatedStorage.Shared.CarConfig` and compare a distinctive value with `src/shared/CarConfig.luau`.

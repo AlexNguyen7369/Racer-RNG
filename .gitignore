@@ -7,3 +7,6 @@ roblox.yml
 .DS_Store
 __pycache__/
 *.pyc
+.compat/
+.claude/scheduled_tasks.lock
+.claude/settings.local.json

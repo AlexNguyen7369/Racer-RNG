@@ -21,6 +21,12 @@ stylua src            # format
 selene src            # lint
 ```
 
+## Collaborator setup (once per clone)
+- Shared Claude Code tooling is in the repo: agents in `.claude/agents/`, slash commands in `.claude/commands/` (`/build-track`, `/car-loop`, `/compat-check`, `/progress-tracker`, `/system-design-brainstorm`), hooks in `.claude/hooks/` wired by `.claude/settings.json`. Personal overrides go in `.claude/settings.local.json` (git-ignored).
+- Needs: Roblox Studio with the Roblox Studio MCP and the Rojo plugin (`rojo serve`), `stylua`, `selene`, `python3`; the Blender MCP for art work.
+- The main-branch gate: Claude Code runs `git config core.hooksPath .githooks` at session start; without Claude Code run it once by hand. Then `.githooks/pre-push` refuses any push to `main` unless `/compat-check` was ALL GREEN for exactly that code (`tools/compat.py`, stamp in the git-ignored `.compat/`, so every collaborator runs the check on their own machine).
+- One Studio, one test run: never run the harness while someone else's session uses the same Studio.
+
 ## Car system
 - `Shared/CarConfig` is the one place to change handling, size and colour.
 - `Shared/CarFactory` builds the blocky baby-blue car procedurally (forward is -Z, wheels are `Wheel_FL/FR/RL/RR`).
@@ -72,3 +78,11 @@ Only `test-writer` edits tests. Never change `PhysicsTargets.luau` to make a tes
 ## Conventions
 - `.luau` files, tabs, `--!nonstrict` header. Server decides every number that matters; the client only displays (see the design doc's technical section).
 - Studio work goes through the Roblox Studio MCP; Blender work through the Blender MCP.
+
+## Progress tracking (required after every commit or push)
+After making a commit or push in this repo, invoke the global
+`progress-tracker` skill (also in this repo as `/progress-tracker`) before touching `current_progress.md` — it is
+the authoritative, strict spec for how that file is created (if
+missing) and updated (Completed appends, What's Next replacement,
+formatting, attribution). Do not improvise the update from memory or
+from this summary; invoke the skill every time this rule fires.
