@@ -24,7 +24,8 @@ Only the `/compat-check` caller starts or stops play and runs the harness. You u
 3. Server truth vs client display: read `leaderstats` and `AutoRacing` on the Server datamodel and compare them with what the HUD and button show on the Client.
 4. Billboards: on the Client, find the NPC model (`IsNpc`) and its `NpcLabel`; on the Server, find the `WinText` of every pad. Check the text and `MaxDistance` against the config modules.
 5. Loser screen: on the Server, find the player's run (`require(ServerScriptService.Server.CarService).GetRun(player)`) and read `RaceTrack`, `Losses`. If a loss can be observed within ~60 s at the current stat, watch `LoserScreen.Enabled` go true, then false. Otherwise report it as not observed; never force game state.
-6. `mcp__Roblox_Studio__screen_capture` once and describe what is visible.
+6. UI test harness (written by `ui-test-writer`, in `src/client/UiTest/`), if it exists: the caller sets `ReplicatedStorage` attribute `UiTestRun = true` on the Server (you never set it). Read the `[UITEST]` lines and `[UITEST] END pass=N fail=N` from the console (or the LocalPlayer attribute `UiTestResult`). Then perform every click listed in `UiSpec.Clicks` with `mcp__Roblox_Studio__user_mouse_input` at the button's centre and check its `Expect`. Any `[UITEST]` failure or failed click is a FAIL.
+7. `mcp__Roblox_Studio__screen_capture` once and describe what is visible.
 
 ## Report
 A table: UI, check, PASS/FAIL, observed vs expected. End with `UI SUITE: GREEN` only if every check passed and nothing was skipped, otherwise `UI SUITE: RED`, listing what failed or could not be checked. Never claim a pass you did not observe.
