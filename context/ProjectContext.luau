@@ -157,6 +157,9 @@ TODO (in order)
 5. Bring Circuit and Serpentine up to the track rules; an upgrade shop (nothing raises Speed except driving).
 6. QUEUED (owner, 2026-10-02): money upgrade tree (Luck %, roll speed, Speed %, turbo luck x10/x50/x100/x1000 with more rolls per
    turbo each tier, walkspeed, Money %). Spec + open questions: docs/UPGRADE_TREE_SPEC.md; references in references/upgrade_tree/.
+7. QUEUED (owner, 2026-10-02): roll animation + roll UI (compact card under Auto Race, enlarged reveal, spin reel, rarity
+   effects, emphasized rolls = undiscovered and rarer than the 5th-rarest owned car, global chat announce, discovery cutscene).
+   Decisions and UI conflicts: docs/ROLL_ANIMATION_SPEC.md; look: the design doc's "Roll animation" section.
 
 KNOWN ISSUES / NOT VERIFIED
 - 2026-10-01: another session is building gacha/index (scenarios gacha, index in TestConfig, red) and shares the same Studio; runs
