@@ -155,6 +155,8 @@ TODO (in order)
    /invite the bot to #racer-dev; then post results and TODOs there after each green run. Claude in Slack also needs the GitHub repo linked.
 4. Test real DataStore saving (Studio: Game Settings > Security > Enable Studio Access to API Services). Save the place (Ctrl+S).
 5. Bring Circuit and Serpentine up to the track rules; an upgrade shop (nothing raises Speed except driving).
+6. QUEUED (owner, 2026-10-02): money upgrade tree (Luck %, roll speed, Speed %, turbo luck x10/x50/x100/x1000 with more rolls per
+   turbo each tier, walkspeed, Money %). Spec + open questions: docs/UPGRADE_TREE_SPEC.md; references in references/upgrade_tree/.
 
 KNOWN ISSUES / NOT VERIFIED
 - 2026-10-01: another session is building gacha/index (scenarios gacha, index in TestConfig, red) and shares the same Studio; runs
