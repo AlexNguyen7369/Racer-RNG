@@ -160,6 +160,11 @@ TODO (in order)
 7. QUEUED (owner, 2026-10-02): roll animation + roll UI (compact card under Auto Race, enlarged reveal, spin reel, rarity
    effects, emphasized rolls = undiscovered and rarer than the 5th-rarest owned car, global chat announce, discovery cutscene).
    Decisions and UI conflicts: docs/ROLL_ANIMATION_SPEC.md; look: the design doc's "Roll animation" section.
+8. QUEUED (owner, 2026-10-02): vehicle skins: a ride's look is any model (a car now, maybe a dragon later) welded on a shared
+   invisible physics body; physics and tests never depend on the model. docs/VEHICLE_SKINS_SPEC.md. Car model drafts follow it
+   Rusty Hatchback Blender draft DONE 2026-10-02 (drafts/cars/rusty-hatchback, CC0 "Car Hatchback" by Kay Lousberg, rusty
+   restyle, Wheel_FL/FR/RL/RR). Next for it: bake the procedural rust, export FBX, import to Studio as CarModels.RustyHatchback,
+   set Model in Cars/rusty_hatchback.luau (needs Studio free). Blender MCP add-on updated to protocol 13; Poly Pizza on.
 
 KNOWN ISSUES / NOT VERIFIED
 - 2026-10-01: another session is building gacha/index (scenarios gacha, index in TestConfig, red) and shares the same Studio; runs

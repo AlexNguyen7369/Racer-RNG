@@ -9,6 +9,7 @@
 6. 2026-10-02 — Alex Nguyen — Merged `feature/spawn-area-rolls` into `initial-import` and `main` (fast-forward to d591441 through the compat gate, stamp 736c261dea05).
 7. 2026-10-02 — Alex Nguyen — Queued the money upgrade tree (Luck %, roll speed to 2 s, Speed %, turbo x10-x1000, walkspeed, Money %) with a confirmed design spec in docs/UPGRADE_TREE_SPEC.md and RNG Heroes references.
 8. 2026-10-02 — Alex Nguyen — Queued the roll animation and roll UI with the owner's decisions (emphasized rolls, global chat announce, compact card under Auto Race, click-anywhere to close) in docs/ROLL_ANIMATION_SPEC.md, and aligned the design doc's turbo rules with the game.
+9. 2026-10-02 — Alex Nguyen — Drafted the Rusty Hatchback car model in Blender from a CC0 Poly Pizza asset (rusty restyle, game wheel naming) and set the vehicle-skins rule that any model can sit on a shared physics body (docs/VEHICLE_SKINS_SPEC.md).
 
 ## What's next
 **Build the roll animation and roll UI from docs/ROLL_ANIMATION_SPEC.md (in progress in a parallel session): compact card under Auto Race, enlarged reveal with click-anywhere to close, emphasized rolls with the global chat announce.**

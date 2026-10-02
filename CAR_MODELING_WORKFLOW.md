@@ -1,5 +1,7 @@
 # Car Modeling Workflow
 
+> Every model is a **skin** on a shared invisible physics body, not a physics object: any shape works (a car, or later a dragon). Rules: `docs/VEHICLE_SKINS_SPEC.md`.
+
 Reference-driven pipeline: external generators and real-world sources provide **references**; Claude builds the final car in Roblox Studio and checks it against them.
 
 ## Tools
