@@ -3,7 +3,7 @@
 PROJECT CONTEXT - Idle Vehicle Simulator (read me first)
 Shown in Studio at: ServerScriptService > ProjectContext   (source file: context/ProjectContext.luau)
 Do NOT edit this in Studio: edit the file on disk, Rojo syncs it. Claude updates it at the end of every loop.
-Last updated: 2026-09-30 (lane/stability + toggle + implicit suspension all IMPLEMENTED; NO full run has passed since: re-run the suite)
+Last updated: 2026-10-02 (spawn area, banked winnings, turbo luck, roll showcase, race start event: /compat-check ALL GREEN, fingerprint 736c261dea05)
 
 WHAT IT IS
 A baby-blue mini car auto-races a chain of tracks (Oval -> Hill -> ...). No steering: the car drives itself,
@@ -26,8 +26,11 @@ RULES (details: CLAUDE.md "Track rules" and "Auto race, Speed stat and HUD")
 - Car drives the path; pad pays when the path index passes it. Server decides every number.
 - Speed stat: grows with ACTUAL speed at diminishing rates; cruise speed = RaceConfig.SpeedFor(stat) (30 -> 75 studs/s).
 - Stop Auto / Auto Race: the server decides (CarService.SetAutoRace); the button only shows the player attribute AutoRacing.
-  Stopping removes the car and puts the visible avatar on foot beside Track 1 (CarService.WalkSpawnCFrame, clear of every road);
-  resuming spawns a fresh car at the start. The Speed stat is kept (a run commits its pending gain when it stops).
+  Players join/respawn ON FOOT in the purple spawn area (Workspace.SpawnArea, Shared/SpawnArea, right of Track 1's start straight);
+  walking onto its green StartPad (or the button) starts racing; Stop cashes out the bank and sends the avatar back to the area.
+  The Speed stat is kept (a run commits its pending gain when it stops).
+- NPC-mode money is BANKED: a won track adds its pad value to Unbanked (HUD "UNBANKED"); a loss empties it; Stop/death/leave pays it.
+- Turbo luck: every 10th roll uses luck x5 (GachaConfig.TURBO_*); bottom-centre ROLLS button + TURBO LUCK bar (Client/RollUi) opens a live card feed.
 - Stats saved by PlayerData (DataStore). In Studio turn on Game Settings > Security > "Enable Studio Access to API Services".
 - Workflow: test-first subagent loop (/build-track, /car-loop). test-writer -> red run -> implement -> audit -> full green run.
   Only test-writer edits tests. Never loosen PhysicsTargets.
@@ -85,8 +88,30 @@ CHANGE LOG (newest last)
 18. DONE (2026-10-01): UI compatibility tests (src/client/UiTest, written by the new ui-test-writer agent; run by ui-tester in
    /compat-check; server setups via the Studio-only CarTest/UiTestSetup script), admin chat commands (Server/AdminService, AdminConfig,
    Client/AdminChat, RaceService run:JumpToTrack; spec docs/ADMIN_COMMANDS_SPEC.md), Client/PanelSwitch.
+19. DONE (2026-10-02): Spawn area, banked winnings, turbo luck, roll feed (spec docs/SPAWN_AND_ROLLS_SPEC.md). New Shared/SpawnArea
+   (floor x 24..184, z -100..44 of Track 1's Start; pad x -20..24, z 2..38; only SpawnLocation), CarService.OnCharacter / PadTouched,
+   MoneyService.Quote, RaceService run.Unbanked / BankedTotal / CashOut (Destroy cashes out), Result events Banked/Unbanked,
+   GachaConfig TURBO_EVERY 10 / TURBO_LUCK 5 / IsTurbo / TurboProgress, RollResult (id, isNew, turboMulti), Client/RollUi (RollsButton,
+   TurboBar, Feed cards), SpeedHud UNBANKED row, toast moved above the turbo bar, Index panel ends above the strip.
+   Tests first: test-writer (spawn_area, bank, npc/multiplayer/admin/gacha/auto_toggle updates, UiTestSetup roll_burst/turbo_next),
+   ui-test-writer (RollUi, Unbanked HUD, ui_rolls). Red run confirmed (spawn_area, bank, gacha, npc failed on the missing features).
+   Owner revisions: the roll feed / ROLLS button was removed; the roll toast is now a button that opens Client/RollToast's
+   RollShowcase overlay (big card per roll, live; "?" until car models exist; Backdrop click off the card closes; blur).
+   Bugs found live and fixed: Stop left a real player's avatar where the car was (client-owned physics undid the teleport:
+   placeAtWalkSpawn now holds it for 2 s); a fast Stop -> Auto Race made the car path from the spawn area (race start is now
+   an event: anchored car at the start line, avatar teleported then seated - checked via Occupant + SeatWeld - then the run
+   starts; RaceEvent attribute Teleporting/Racing/Off; Sit only when SeatPart is nil and the seat is enabled, since repeated
+   Sit calls can leave SeatPart stuck); a click on the showcase card also closed it (Active frames don't block the button
+   under them: the backdrop ignores presses inside the card).
 
 TEST RESULTS (latest first; update after every full run)
+- 2026-10-02 (/compat-check round 3, fingerprint 736c261dea05): ALL GREEN, stamp recorded. harness `[CARTEST] END pass=22 fail=0`
+  (auto_toggle 173, spawn_area 134, bank 40, npc 114, gacha 79 checks); ui `[UITEST] END pass=14 fail=0`, 21/21 real clicks;
+  multiplayer GREEN; world GREEN. Rounds 1-2 RED on auto_toggle event_cancel_* / event_seat_fail_* (stale Humanoid.SeatPart, fixed).
+  Unverified: real two-client play, a 3rd/4th player's start (row 1 spawns on the StartPad, 2-stud gap to the road), real DataStore.
+  Test-setup bug (not shipped code): UiTestSetup 'restore' resets Money before SetAutoRace(false), whose cash-out then adds the run's
+  bank on top (Studio session only) - restore should stop racing first. Intermittent: static_settle settle_speed and spawn_area
+  respawn_on_foot_standing_height (passed in round 3; 4.409 in band).
 - 2026-10-01 (/compat-check round 3, fingerprint 076fe6662e79): ALL GREEN, stamp recorded.
   harness `[CARTEST] END pass=20 fail=0` (incl. gacha, index, npc, multiplayer, admin, track:Hill/Oval); ui GREEN (`[UITEST] END pass=12
   fail=0`, 16/16 clicks); multiplayer GREEN; world GREEN. Fixed on the way: race metrics stop after the finish (path dev spike past the

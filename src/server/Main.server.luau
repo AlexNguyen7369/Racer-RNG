@@ -5,6 +5,7 @@ local Workspace = game:GetService("Workspace")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local TrackBuilder = require(Shared.TrackBuilder)
 local TrackRegistry = require(Shared.TrackRegistry)
+local SpawnArea = require(Shared.SpawnArea)
 local AdminService = require(script.Parent.AdminService)
 local CarService = require(script.Parent.CarService)
 local GachaService = require(script.Parent.GachaService)
@@ -29,6 +30,10 @@ for _, spec in chain do
 	table.insert(entries, { Layout = layout, Origin = origin, Model = model, Number = spec.Number })
 	origin = TrackBuilder.EndCFrame(layout, origin)
 end
+
+-- The spawn area beside Track 1's start: players join, respawn and stop here, and walk onto its StartPad to race
+local spawnArea = SpawnArea.Build(entries[1].Model:FindFirstChild("Start", true).CFrame)
+spawnArea.Parent = Workspace
 
 -- The player's car auto-races the whole chain at the speed from their saved stats
 RaceService.Start(RaceService.BuildRoute(entries))

@@ -47,6 +47,19 @@ function MoneyService.Award(player, amount)
 	return money.Value
 end
 
+-- What the pad is worth to the player (its Cash times the Money multi), without paying it: NPC races bank this.
+-- 0 for anything that is not a winnings pad with a positive Cash.
+function MoneyService.Quote(player, pad)
+	if typeof(pad) ~= "Instance" or not CollectionService:HasTag(pad, "WinPad") then
+		return 0
+	end
+	local cash = pad:GetAttribute("Cash")
+	if type(cash) ~= "number" or cash ~= cash or cash <= 0 or cash == math.huge then
+		return 0
+	end
+	return math.floor(cash * GachaService.MoneyMulti(player))
+end
+
 -- Pays the pad's Cash to the player unless it is cooling down. Returns the amount paid (0 if none).
 function MoneyService.Collect(player, pad, now)
 	if not CollectionService:HasTag(pad, "WinPad") then

@@ -8,7 +8,10 @@
 -- NPC races (options.Npc, on for players): every track is a race against that track's NPC (Shared/NpcConfig,
 -- Shared/NpcRacer). The NPC's time for the track is known when the player starts it; if the player's car reaches
 -- the finish later than that, the player lost: the race plays out, the client shows the loser screen, and after
--- LOSE_SCREEN_SECONDS the car goes back to the start of Track 1. A track's pad pays only when that track is won.
+-- LOSE_SCREEN_SECONDS the car goes back to the start of Track 1.
+-- Banked winnings (docs/SPAWN_AND_ROLLS_SPEC.md): winning a track adds its pad's value (MoneyService.Quote) to the
+-- run's bank (run.Unbanked, mirrored in the player attribute Unbanked) instead of paying; a loss empties the bank;
+-- run:CashOut() (also done by run:Destroy, so Stop, death and leaving) pays it into leaderstats.Money.
 -- Race events go to the owning player only (Remotes.NpcRace:FireClient), whose client draws the NPC.
 
 local PhysicsService = game:GetService("PhysicsService")
@@ -105,6 +108,8 @@ function RaceService.NewRun(car, raceRoute, player, options)
 		Finished = false,
 		Payouts = 0,
 		PaidTotal = 0,
+		Unbanked = 0, -- NPC mode: won, not yet paid (paid by CashOut)
+		BankedTotal = 0, -- NPC mode: everything wins added to the bank
 		Gained = 0,
 		MinUpY = 1,
 		MaxPathDeviation = 0,
@@ -136,6 +141,16 @@ function RaceService.NewRun(car, raceRoute, player, options)
 	local startPos = wps[1] + firstDir * RaceService.START_AHEAD + Vector3.new(0, CarConfig.RestHeight + 0.5, 0)
 	local startCF = CFrame.lookAt(startPos, startPos + Vector3.new(firstDir.X, 0, firstDir.Z))
 	physics:Reset(startCF)
+
+	local function setUnbanked(amount)
+		run.Unbanked = amount
+		if typeof(player) == "Instance" then
+			player:SetAttribute("Unbanked", amount)
+		end
+	end
+	if npcMode then
+		setUnbanked(0)
+	end
 
 	local function emit(event)
 		if options.OnRaceEvent then
@@ -182,12 +197,12 @@ function RaceService.NewRun(car, raceRoute, player, options)
 		local playerTime = runTime - race.Started
 		local win = playerTime < race.NpcTime
 		local amount = 0
-		if win and track.Pad then
-			amount = MoneyService.Collect(player, track.Pad)
-			if amount > 0 then
-				run.Payouts += 1
-				run.PaidTotal += amount
-			end
+		if win then
+			amount = track.Pad and MoneyService.Quote(player, track.Pad) or 0
+			run.BankedTotal += amount
+			setUnbanked(run.Unbanked + amount)
+		else
+			setUnbanked(0) -- a lost race loses what was not banked yet
 		end
 		local event = {
 			Type = "Result",
@@ -195,7 +210,8 @@ function RaceService.NewRun(car, raceRoute, player, options)
 			Result = win and "Win" or "Lose",
 			PlayerTime = playerTime,
 			NpcTime = race.NpcTime,
-			Paid = amount,
+			Banked = amount,
+			Unbanked = run.Unbanked,
 		}
 		table.insert(run.Results, event)
 		emit(event)
@@ -386,10 +402,27 @@ function RaceService.NewRun(car, raceRoute, player, options)
 		end
 	end)
 
-	-- Stops the run. The Speed gained since the last commit is committed first, so stopping never loses stat.
+	-- Pays the bank into leaderstats.Money and empties it. Returns the amount paid (0 if none).
+	function run:CashOut()
+		local amount = run.Unbanked
+		if amount <= 0 then
+			return 0
+		end
+		setUnbanked(0)
+		if MoneyService.Award(player, amount) == nil then
+			return 0
+		end
+		run.Payouts += 1
+		run.PaidTotal += amount
+		return amount
+	end
+
+	-- Stops the run. The Speed gained since the last commit is committed first, so stopping never loses stat, and
+	-- the bank is paid out, so stopping (or dying, or leaving) never loses won money.
 	function run:Destroy()
 		if alive then
 			alive = false
+			self:CashOut()
 			if npcMode then
 				emit({ Type = "Stop" })
 			end

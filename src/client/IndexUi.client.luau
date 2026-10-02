@@ -20,6 +20,7 @@ local data = player:WaitForChild("GachaData")
 
 local PANEL_BG = Color3.fromRGB(20, 28, 48)
 local TOP_CLEAR = 68 -- the panel starts below the Auto Race button (top centre, 12 + 48 px)
+local BOTTOM_CLEAR = 74 -- and ends above the bottom strip (Client/RollUi TURBO LUCK bar and its pop text)
 local TILE_BG = Color3.fromRGB(34, 44, 70)
 local LOCKED_BG = Color3.fromRGB(12, 14, 22)
 local WHITE = Color3.fromRGB(255, 255, 255)
@@ -66,7 +67,7 @@ local panel = Instance.new("Frame")
 panel.Name = "Panel"
 panel.AnchorPoint = Vector2.new(0.5, 0)
 panel.Position = UDim2.new(0.5, 0, 0, TOP_CLEAR)
-panel.Size = UDim2.new(0.6, 0, 1, -TOP_CLEAR - 12)
+panel.Size = UDim2.new(0.6, 0, 1, -TOP_CLEAR - BOTTOM_CLEAR)
 panel.BackgroundColor3 = PANEL_BG
 panel.BackgroundTransparency = 0.05
 panel.Visible = false

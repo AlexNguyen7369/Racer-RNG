@@ -139,16 +139,19 @@ function GachaService.Grant(player, id)
 	return true
 end
 
--- One roll at the player's luck. Returns the car Id and whether it was new.
+-- One roll at the player's luck, times GachaConfig.TURBO_LUCK on every TURBO_EVERY-th roll. Returns the car Id,
+-- whether it was new and the turbo multi (1 on a normal roll).
 function GachaService.Roll(player, roller)
 	GachaService.Setup(player)
-	local id = GachaConfig.Roll(roller or rng, GachaService.Luck(player))
-	player:SetAttribute("Rolls", math.min(cleanCount(player:GetAttribute("Rolls")) + 1, MAX_COUNT))
+	local rollNumber = math.min(cleanCount(player:GetAttribute("Rolls")) + 1, MAX_COUNT)
+	local turboMulti = GachaConfig.IsTurbo(rollNumber) and GachaConfig.TURBO_LUCK or 1
+	local id = GachaConfig.Roll(roller or rng, GachaService.Luck(player) * turboMulti)
+	player:SetAttribute("Rolls", rollNumber)
 	local isNew = GachaService.Grant(player, id)
 	if rollRemote and player:IsA("Player") then
-		rollRemote:FireClient(player, id, isNew)
+		rollRemote:FireClient(player, id, isNew, turboMulti)
 	end
-	return id, isNew
+	return id, isNew, turboMulti
 end
 
 -- Equips the starter or an owned car. Returns true if it is now equipped.

@@ -9,6 +9,11 @@ local GachaConfig = {}
 GachaConfig.ROLL_INTERVAL = 3 -- seconds between free auto-rolls
 GachaConfig.DISCOVERIES_PER_POINT = 3 -- every 3 unique cars in the index grant 1 stat point
 
+-- Turbo luck: every TURBO_EVERY-th roll (Rolls = 10, 20, ...) rolls with TURBO_LUCK times the player's luck.
+-- Derived from the saved roll count, so nothing extra is saved.
+GachaConfig.TURBO_EVERY = 10
+GachaConfig.TURBO_LUCK = 5
+
 GachaConfig.STATS = { "Speed", "Money", "Luck", "Workshop" }
 GachaConfig.PER_POINT = { -- each point adds this to its multi (additive, easier to tune)
 	Speed = 0.1, -- all Speed gain
@@ -49,6 +54,16 @@ function GachaConfig.Roll(rng, luck)
 		end
 	end
 	return catchAll.Id
+end
+
+-- True if roll number `rollNumber` (1 = the first roll ever) is a turbo roll.
+function GachaConfig.IsTurbo(rollNumber)
+	return count(rollNumber) > 0 and count(rollNumber) % GachaConfig.TURBO_EVERY == 0
+end
+
+-- Rolls done towards the next turbo roll, 0 .. TURBO_EVERY - 1 (the bar's fill).
+function GachaConfig.TurboProgress(rolls)
+	return count(rolls) % GachaConfig.TURBO_EVERY
 end
 
 -- Stat points earned from the index: floor(unique / DISCOVERIES_PER_POINT).

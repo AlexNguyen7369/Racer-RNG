@@ -6,7 +6,7 @@
 -- Player, then ReplicatedStorage UiTestSetupDone = the same string. On error UiTestSetupError =
 -- "<id>:<nonce>:<message>" is set first, and Done is still set.
 --
--- Ids: snapshot, restore, spy, index_states, stat_points, no_stat_points, auto_racing, lose_event.
+-- Ids: snapshot, restore, spy, index_states, stat_points, no_stat_points, auto_racing, lose_event, turbo_next.
 -- (Ported from the ServerSetup snippets in Client/UiTest/UiSpec.luau.)
 
 local HttpService = game:GetService("HttpService")
@@ -157,7 +157,8 @@ function setups.lose_event(player)
 		Result = "Lose",
 		PlayerTime = 31.5,
 		NpcTime = 30,
-		Paid = 0,
+		Banked = 0, -- SPAWN_AND_ROLLS_SPEC section 3: a loss banks nothing...
+		Unbanked = 0, -- ...and clears the bank
 	})
 	task.delay(NpcConfig.LOSE_SCREEN_SECONDS, function()
 		if player.Parent ~= Players then
@@ -175,6 +176,19 @@ function setups.lose_event(player)
 			Model = cfg.Model,
 		})
 	end)
+end
+
+-- Turbo luck (section 4): Rolls jumps to the next value with Rolls % TURBO_EVERY == TURBO_EVERY - 1, so the next
+-- auto roll is a turbo roll (unchanged if it already is one).
+function setups.turbo_next(player)
+	local GachaConfig = require(Shared.GachaConfig)
+	local every = GachaConfig.TURBO_EVERY
+	if type(every) ~= "number" or every < 1 then
+		error("GachaConfig.TURBO_EVERY missing")
+	end
+	local rolls = player:GetAttribute("Rolls")
+	rolls = type(rolls) == "number" and math.max(0, math.floor(rolls)) or 0
+	player:SetAttribute("Rolls", rolls + (every - 1 - rolls % every) % every)
 end
 
 local function runSetup(request)

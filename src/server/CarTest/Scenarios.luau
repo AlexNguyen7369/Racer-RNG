@@ -1620,9 +1620,12 @@ function Scenarios.race()
 		st.statViaApi = PlayerData.SpeedStat(player)
 		local money = player:FindFirstChild("leaderstats") and player.leaderstats:FindFirstChild("Money")
 		st.balance = money and money.Value or -1
+		st.unbanked = run.Unbanked
+		st.unbankedAttr = player:GetAttribute("Unbanked")
 		pcall(function()
 			run:Destroy()
 		end)
+		st.balanceAfterDestroy = money and money.Value or -1
 		car:Destroy()
 		player:Destroy()
 		return st
@@ -1664,6 +1667,18 @@ function Scenarios.race()
 			fast.payouts or -1,
 			2,
 			fast.payouts == 2 and fast.balance == want1 + want2 and fast.paidTotal == want1 + want2
+		)
+		-- SPAWN_AND_ROLLS_SPEC section 3: banking is NPC mode only; a run without NPC pays pads directly, so it
+		-- never banks and its Destroy has nothing left to pay
+		local noBank = (fast.unbanked == nil or fast.unbanked == 0)
+			and (fast.unbankedAttr == nil or fast.unbankedAttr == 0)
+		check(checks, "race_no_bank_without_npc", type(fast.unbanked) == "number" and fast.unbanked or 0, 0, noBank)
+		check(
+			checks,
+			"race_destroy_pays_nothing_more",
+			fast.balanceAfterDestroy - fast.balance,
+			0,
+			fast.balanceAfterDestroy == fast.balance
 		)
 		local jm = fast.jointMin == math.huge and -1 or fast.jointMin
 		check(
@@ -1936,9 +1951,17 @@ end
 local AUTO_BESIDE_START = 150 -- studs (horizontal) from Track 1's Start: "beside the start of Track 1"
 local AUTO_SPAWN_MAX_HEIGHT = 8 -- studs the walk spawn may be above the ground under it ("a few studs")
 local AUTO_SPAWN_MATCH = 4 -- studs (horizontal) the avatar may be from WalkSpawnCFrame after the stop
-local AUTO_BASEPLATE_TOP = 0 -- Main builds the chain TRACK_LIFT above a baseplate whose top is Y = 0
+local AUTO_FLOOR_TOP = 1 -- SPAWN_AND_ROLLS_SPEC: the walk spawn stands on Workspace.SpawnArea, floor top SpawnArea.TOP_Y
 local AUTO_START_RADIUS = 25 -- studs: a resumed car spawns at the Track 1 start
 local AUTO_WALK_SPEED = 16 -- StarterPlayer defaults
+-- SPAWN_AND_ROLLS_SPEC section 2, "Start is an event" (owner, 2026-10-01: a fast Stop then Auto Race made the car
+-- path from the spawn area instead of starting at the start line)
+local AUTO_SEAT_TIMEOUT = 3 -- spec SEAT_TIMEOUT: not seated within this -> no race, back on foot
+local AUTO_SPAWN_KEEP_OUT = 60 -- studs (horizontal): a fresh run's car never comes this close to the walk spawn
+local AUTO_EVENT_WATCH = 1 -- seconds of a fresh run watched for drifting towards the spawn area
+local AUTO_RAPID_CYCLES = 4 -- Stop -> Auto Race cycles with no wait between them
+local AUTO_AREA_MIN = Vector2.new(24, -100) -- spec section 1: spawn floor, local (x, z) of Track 1's flattened Start
+local AUTO_AREA_MAX = Vector2.new(184, 44)
 local AUTO_JUMP_HEIGHT = 7.2
 
 local function hdist(a, b)
@@ -2188,11 +2211,15 @@ function Scenarios.auto_toggle()
 
 	-- Every run RaceService starts for this player (restored in cleanup)
 	local runs = {}
+	local seatlessPlayer = nil -- the second fake player of the seat-failure test (section 11b)
+	local seatlessRuns = {}
 	local origNewRun = RaceService.NewRun
 	RaceService.NewRun = function(car, route, p, options)
 		local run = origNewRun(car, route, p, options)
 		if p == player and type(run) == "table" then
 			table.insert(runs, run)
+		elseif p ~= nil and p == seatlessPlayer and type(run) == "table" then
+			table.insert(seatlessRuns, run)
 		end
 		return run
 	end
@@ -2265,6 +2292,10 @@ function Scenarios.auto_toggle()
 		end
 		local runOk = type(run) == "table" and run.Connection ~= nil and run.Car == car and run ~= oldRun
 		check(checks, pre .. "_run_active", runOk and 1 or 0, 1, runOk)
+		local ev = player:GetAttribute("RaceEvent")
+		check(checks, pre .. "_race_event_racing", ev == "Racing" and 1 or 0, 1, ev == "Racing")
+		local released = car ~= nil and car.PrimaryPart ~= nil and car.PrimaryPart.Anchored == false
+		check(checks, pre .. "_chassis_released", released and 1 or 0, 1, released)
 		-- NPC spec: a real player's run races Track 1's NPC from the start (RaceService.Attach passes Npc = true)
 		local raceTrack = type(run) == "table" and run.RaceTrack or nil
 		local npcOn = raceTrack == 1 and type(run.Results) == "table"
@@ -2354,6 +2385,8 @@ function Scenarios.auto_toggle()
 		local runStopped = type(run) == "table" and run.Connection == nil
 		check(checks, "stop_run_stopped", runStopped and 1 or 0, 1, runStopped)
 		check(checks, "stop_no_active_run", activeRuns(), 0, activeRuns() == 0)
+		local evStop = player:GetAttribute("RaceEvent")
+		check(checks, "stop_race_event_off", evStop == "Off" and 1 or 0, 1, evStop == "Off")
 
 		local visOk, collideOk, massOk, groupOk = true, true, true, true
 		for part, b in before do
@@ -2385,6 +2418,8 @@ function Scenarios.auto_toggle()
 		check(checks, "stop_name_display_viewer", viewer and 1 or 0, 1, viewer)
 		local atSpawn = hdist(root.Position, walkCF.Position)
 		check(checks, "stop_at_walk_spawn", atSpawn, AUTO_SPAWN_MATCH, atSpawn <= AUTO_SPAWN_MATCH)
+		local ub = player:GetAttribute("Unbanked")
+		check(checks, "stop_unbanked_zero", type(ub) == "number" and ub or -1, 0, ub == 0)
 
 		-- The walk spawn: off every road of the live chain (and its checkpoint aprons), beside Track 1's start,
 		-- on the baseplate, a few studs above it
@@ -2412,10 +2447,13 @@ function Scenarios.auto_toggle()
 		params.FilterType = Enum.RaycastFilterType.Exclude
 		params.FilterDescendantsInstances = exclude
 		local hit = Workspace:Raycast(walkCF.Position + Vector3.new(0, 20, 0), Vector3.new(0, -60, 0), params)
-		local onBase = hit ~= nil
-			and not hit.Instance:IsDescendantOf(trackFolder)
-			and math.abs(hit.Position.Y - AUTO_BASEPLATE_TOP) <= 1
-		check(checks, "walk_spawn_on_baseplate", hit and hit.Position.Y or -999, AUTO_BASEPLATE_TOP, onBase)
+		-- SPAWN_AND_ROLLS_SPEC section 1: the walk spawn is in the purple spawn area now, not on the baseplate
+		local spawnArea = Workspace:FindFirstChild("SpawnArea")
+		local onFloor = hit ~= nil
+			and spawnArea ~= nil
+			and hit.Instance:IsDescendantOf(spawnArea)
+			and math.abs(hit.Position.Y - AUTO_FLOOR_TOP) <= 0.25
+		check(checks, "walk_spawn_on_spawn_area_floor", hit and hit.Position.Y or -999, AUTO_FLOOR_TOP, onFloor)
 		local height = hit and walkCF.Position.Y - hit.Position.Y or -1
 		check(
 			checks,
@@ -2433,7 +2471,7 @@ function Scenarios.auto_toggle()
 		check(checks, "walk_still_no_car", #ourCars(), 0, stillNoCar)
 		local stillWalking = not isRacing() and attr() == false and humanoid.SeatPart == nil
 		check(checks, "walk_still_not_racing", stillWalking and 1 or 0, 1, stillWalking)
-		local ground = hit and hit.Position.Y or AUTO_BASEPLATE_TOP
+		local ground = hit and hit.Position.Y or AUTO_FLOOR_TOP
 		local standH = root.Position.Y - ground
 		check(checks, "walk_standing_height", standH, 3, standH >= 1.5 and standH <= 5)
 		local rootSpeed = root.AssemblyLinearVelocity.Magnitude
@@ -2533,6 +2571,8 @@ function Scenarios.auto_toggle()
 		check(checks, "double_stop_no_car", #ourCars(), 0, zero)
 		local unseated2 = humanoid.SeatPart == nil and humanoid.Sit == false
 		check(checks, "double_stop_unseated", unseated2 and 1 or 0, 1, unseated2)
+		local evStop2 = player:GetAttribute("RaceEvent")
+		check(checks, "double_stop_race_event_off", evStop2 == "Off" and 1 or 0, 1, evStop2 == "Off")
 		local okC, rC = pcall(CarService.SetAutoRace, player, true)
 		local okD, rD = pcall(CarService.SetAutoRace, player, true)
 		RunService.Heartbeat:Wait()
@@ -2603,6 +2643,383 @@ function Scenarios.auto_toggle()
 			end)
 		end
 		ghost:Destroy()
+
+		-- 11b. Start is an event (SPAWN_AND_ROLLS_SPEC section 2; owner's bug 2026-10-01: Stop then Auto Race
+		-- quickly made the car path from the spawn area instead of first being put at the start line).
+		-- The car waits at the start line with its chassis anchored, the avatar is teleported in until the server
+		-- sees it seated, only then the chassis is released and the run starts. RaceEvent: Teleporting/Racing/Off.
+		local function raceEvent()
+			return player:GetAttribute("RaceEvent")
+		end
+		local look = startPart.CFrame.LookVector
+		local flat = Vector3.new(look.X, 0, look.Z)
+		flat = flat.Magnitude > 1e-3 and flat.Unit or Vector3.new(0, 0, -1)
+		local flatStart = Vector3.new(startPos.X, 0, startPos.Z)
+		local areaBase = CFrame.lookAt(flatStart, flatStart + flat)
+		local function overSpawnFloor(pos)
+			local l = areaBase:PointToObjectSpace(Vector3.new(pos.X, 0, pos.Z))
+			return l.X >= AUTO_AREA_MIN.X
+				and l.X <= AUTO_AREA_MAX.X
+				and l.Z >= AUTO_AREA_MIN.Y
+				and l.Z <= AUTO_AREA_MAX.Y
+		end
+		local function atWalkSpawnNow()
+			character:PivotTo(walkCF)
+			for _, d in character:GetDescendants() do
+				if d:IsA("BasePart") then
+					d.AssemblyLinearVelocity = Vector3.zero
+				end
+			end
+		end
+		-- Watches a fresh run's car for AUTO_EVENT_WATCH seconds: closest horizontal distance to the walk spawn and
+		-- frames spent over the spawn floor
+		local function watchFreshRun(freshCar)
+			local chassis = freshCar and freshCar.PrimaryPart
+			local closest, over = math.huge, 0
+			local function sample()
+				if chassis and chassis.Parent then
+					closest = math.min(closest, hdist(chassis.Position, walkCF.Position))
+					if overSpawnFloor(chassis.Position) then
+						over += 1
+					end
+				end
+			end
+			sample()
+			frames(AUTO_EVENT_WATCH, sample)
+			return closest, over
+		end
+
+		-- On foot (after the stop in step 10): RaceEvent "Off"
+		local evFoot = raceEvent()
+		check(checks, "event_on_foot_race_event_off", evFoot == "Off" and 1 or 0, 1, evFoot == "Off")
+
+		-- The teleport phase, observed every frame from a parallel connection and right after the call yielded
+		atWalkSpawnNow()
+		local tele = { Frames = 0, RunSeen = 0, Unanchored = 0, NoCar = 0, AwayFromStart = 0, Racing = 0, Bad = 0 }
+		local observer = RunService.Heartbeat:Connect(function()
+			local ev = raceEvent()
+			if ev == "Teleporting" then
+				tele.Frames += 1
+				if call(CarService.GetRun, player) ~= nil then
+					tele.RunSeen += 1
+				end
+				local c = call(CarService.GetCar, player)
+				local ch = c and c.PrimaryPart
+				if not ch then
+					tele.NoCar += 1
+				else
+					if not ch.Anchored then
+						tele.Unanchored += 1
+					end
+					if hdist(ch.Position, startPos) > AUTO_START_RADIUS then
+						tele.AwayFromStart += 1
+					end
+				end
+			elseif ev == "Racing" then
+				tele.Racing += 1
+				if type(call(CarService.GetRun, player)) ~= "table" then
+					tele.Bad += 1
+				end
+			end
+		end)
+		local evDone, evRet = false, nil
+		task.spawn(function()
+			local okE, rE = pcall(CarService.SetAutoRace, player, true)
+			evRet = okE and rE
+			evDone = true
+		end)
+		-- Right after the call yielded: still teleporting, no run, the car held at the start line
+		local snapEv = raceEvent()
+		local snapRun = call(CarService.GetRun, player)
+		local snapCar = call(CarService.GetCar, player)
+		local snapChassis = snapCar and snapCar.PrimaryPart
+		check(checks, "event_teleport_phase_observed", snapEv == "Teleporting" and 1 or 0, 1, snapEv == "Teleporting")
+		check(checks, "event_teleport_no_run_yet", snapRun == nil and 1 or 0, 1, snapRun == nil)
+		local snapHeld = snapChassis ~= nil and snapChassis.Anchored == true
+		check(checks, "event_teleport_chassis_anchored", snapHeld and 1 or 0, 1, snapHeld)
+		local snapFrom = snapChassis and hdist(snapChassis.Position, startPos) or math.huge
+		check(
+			checks,
+			"event_teleport_car_at_start",
+			snapFrom == math.huge and -1 or snapFrom,
+			AUTO_START_RADIUS,
+			snapFrom <= AUTO_START_RADIUS
+		)
+		local deadline = os.clock() + AUTO_SEAT_TIMEOUT + 1
+		while not evDone and os.clock() < deadline do
+			RunService.Heartbeat:Wait()
+		end
+		-- After SetAutoRace(true) returned: racing, seated, a run, the chassis released, the car at the start line
+		local evCar = call(CarService.GetCar, player)
+		local evChassis = evCar and evCar.PrimaryPart
+		local evRun = call(CarService.GetRun, player)
+		check(checks, "event_start_returned", evDone and 1 or 0, 1, evDone)
+		check(checks, "event_start_returns_true", evRet == true and 1 or 0, 1, evRet == true)
+		local evNow = raceEvent()
+		check(checks, "event_start_race_event_racing", evNow == "Racing" and 1 or 0, 1, evNow == "Racing")
+		check(checks, "event_start_seated", seatedIn(evCar) and 1 or 0, 1, seatedIn(evCar))
+		local evRunOk = type(evRun) == "table" and evRun.Connection ~= nil and evRun.Car == evCar
+		check(checks, "event_start_run_exists", evRunOk and 1 or 0, 1, evRunOk)
+		local evReleased = evChassis ~= nil and evChassis.Anchored == false
+		check(checks, "event_start_chassis_released", evReleased and 1 or 0, 1, evReleased)
+		local evFrom = evChassis and hdist(evChassis.Position, startPos) or math.huge
+		check(
+			checks,
+			"event_start_car_at_track1_start",
+			evFrom == math.huge and -1 or evFrom,
+			AUTO_START_RADIUS,
+			evFrom <= AUTO_START_RADIUS
+		)
+		local evClosest, evOver = watchFreshRun(evCar)
+		observer:Disconnect()
+		metrics.event_teleport_frames = tele.Frames
+		metrics.event_teleport_frames_without_car = tele.NoCar
+		check(checks, "event_teleport_never_has_run", tele.RunSeen, 0, tele.RunSeen == 0)
+		check(checks, "event_teleport_chassis_always_anchored", tele.Unanchored, 0, tele.Unanchored == 0)
+		check(checks, "event_teleport_car_always_at_start", tele.AwayFromStart, 0, tele.AwayFromStart == 0)
+		check(checks, "event_racing_always_has_run", tele.Bad, 0, tele.Racing > 0 and tele.Bad == 0)
+		check(
+			checks,
+			"event_start_keeps_away_from_walk_spawn",
+			evClosest == math.huge and -1 or evClosest,
+			AUTO_SPAWN_KEEP_OUT,
+			evClosest > AUTO_SPAWN_KEEP_OUT and evClosest ~= math.huge
+		)
+		check(checks, "event_start_never_over_spawn_floor", evOver, 0, evOver == 0)
+
+		-- Rapid Stop -> Auto Race, with the avatar standing at the walk spawn right before each start: every run
+		-- starts at the start line and never heads for the spawn area
+		local rapidFar, rapidClosest, rapidOver, rapidBad = 0, math.huge, 0, 0
+		for cycle = 1, AUTO_RAPID_CYCLES do
+			local okCycleStop = pcall(CarService.SetAutoRace, player, false)
+			local evOff = raceEvent()
+			if not okCycleStop or evOff ~= "Off" then
+				rapidBad += 1
+			end
+			if cycle % 2 == 0 then
+				atWalkSpawnNow() -- standing at the walk spawn (Stop already put it there; again, explicitly)
+			end
+			if cycle == 3 then
+				RunService.Heartbeat:Wait() -- one frame between Stop and Auto Race
+			end
+			local okGo, rGo = pcall(CarService.SetAutoRace, player, true)
+			local c = call(CarService.GetCar, player)
+			local ch = c and c.PrimaryPart
+			local r = call(CarService.GetRun, player)
+			local fresh = okGo
+				and rGo == true
+				and raceEvent() == "Racing"
+				and ch ~= nil
+				and ch.Anchored == false
+				and type(r) == "table"
+				and r.Car == c
+				and seatedIn(c)
+			if not fresh then
+				rapidBad += 1
+			end
+			local from = ch and hdist(ch.Position, startPos) or math.huge
+			rapidFar = math.max(rapidFar, from)
+			local closest, over = watchFreshRun(c)
+			rapidClosest = math.min(rapidClosest, closest)
+			rapidOver += over
+		end
+		check(checks, "event_rapid_each_start_racing", rapidBad, 0, rapidBad == 0)
+		check(
+			checks,
+			"event_rapid_car_at_track1_start",
+			rapidFar == math.huge and -1 or rapidFar,
+			AUTO_START_RADIUS,
+			rapidFar <= AUTO_START_RADIUS
+		)
+		check(
+			checks,
+			"event_rapid_keeps_away_from_walk_spawn",
+			rapidClosest == math.huge and -1 or rapidClosest,
+			AUTO_SPAWN_KEEP_OUT,
+			rapidClosest > AUTO_SPAWN_KEEP_OUT and rapidClosest ~= math.huge
+		)
+		check(checks, "event_rapid_never_over_spawn_floor", rapidOver, 0, rapidOver == 0)
+		check(checks, "event_rapid_one_car", #ourCars(), 1, #ourCars() == 1)
+		check(checks, "event_rapid_one_active_run", activeRuns(), 1, activeRuns() == 1)
+
+		-- Stop while teleporting cancels the start: on foot, no car, no run, and none created later
+		pcall(CarService.SetAutoRace, player, false)
+		local runsBeforeCancel = #runs
+		local cancelDone, cancelRet = false, nil
+		task.spawn(function()
+			local okC2, rC2 = pcall(CarService.SetAutoRace, player, true)
+			cancelRet = okC2 and rC2
+			cancelDone = true
+		end)
+		local cancelEv = raceEvent()
+		check(
+			checks,
+			"event_cancel_was_teleporting",
+			cancelEv == "Teleporting" and 1 or 0,
+			1,
+			cancelEv == "Teleporting"
+		)
+		local okCancel, rCancel = pcall(CarService.SetAutoRace, player, false)
+		check(
+			checks,
+			"event_cancel_stop_returns_false",
+			okCancel and rCancel == false and 1 or 0,
+			1,
+			okCancel and rCancel == false
+		)
+		RunService.Heartbeat:Wait()
+		-- DIAGNOSTIC ONLY (no pass condition): records each part of the on-foot conjunction into metrics
+		local function recordOnFootParts(prefix, who, hum, hd, rootPart, runCount, activeCount)
+			local seatPart = hum.SeatPart
+			metrics[prefix .. "_seatpart"] = seatPart and seatPart.Name or "nil"
+			metrics[prefix .. "_seatpart_parent"] = seatPart
+					and (seatPart.Parent and seatPart.Parent:GetFullName() or "nil")
+				or "no_seatpart"
+			metrics[prefix .. "_head_transparency"] = hd.Transparency
+			metrics[prefix .. "_car_count"] = #ourCars()
+			metrics[prefix .. "_run_count"] = runCount
+			metrics[prefix .. "_active_run_count"] = activeCount
+			local rootDist = rootPart and rootPart.Parent and (rootPart.Position - walkCF.Position).Magnitude or -1
+			metrics[prefix .. "_root_pos_to_walk_spawn"] = rootDist
+			metrics[prefix .. "_humanoid_state"] = hum:GetState().Name
+			metrics[prefix .. "_humanoid_sit"] = hum.Sit
+			metrics[prefix .. "_is_racing"] = call(CarService.IsAutoRacing, who) == true
+			metrics[prefix .. "_auto_racing_attr"] = tostring(who:GetAttribute("AutoRacing"))
+			metrics[prefix .. "_race_event"] = tostring(who:GetAttribute("RaceEvent"))
+			metrics[prefix .. "_getcar_nil"] = call(CarService.GetCar, who) == nil
+			metrics[prefix .. "_getrun_nil"] = call(CarService.GetRun, who) == nil
+		end
+		local function cancelledOnFoot()
+			return not isRacing()
+				and attr() == false
+				and raceEvent() == "Off"
+				and call(CarService.GetCar, player) == nil
+				and call(CarService.GetRun, player) == nil
+				and #ourCars() == 0
+				and activeRuns() == 0
+				and humanoid.SeatPart == nil
+				and head.Transparency == 0
+		end
+		recordOnFootParts("event_cancel", player, humanoid, head, root, #runs, activeRuns())
+		check(checks, "event_cancel_on_foot", cancelledOnFoot() and 1 or 0, 1, cancelledOnFoot())
+		local evCancel = raceEvent()
+		check(checks, "event_cancel_race_event_off", evCancel == "Off" and 1 or 0, 1, evCancel == "Off")
+		frames(1)
+		recordOnFootParts("event_cancel_after_1s", player, humanoid, head, root, #runs, activeRuns())
+		check(checks, "event_cancel_still_on_foot_after_1s", cancelledOnFoot() and 1 or 0, 1, cancelledOnFoot())
+		local newRuns = #runs - runsBeforeCancel
+		check(checks, "event_cancel_no_run_ever", newRuns, 0, newRuns == 0)
+		check(
+			checks,
+			"event_cancel_start_returned_false",
+			cancelRet == false and 1 or 0,
+			1,
+			cancelDone and cancelRet == false
+		)
+
+		-- Seat failure: a second fake player whose avatar can never be seated (the seat is disabled the moment the
+		-- car appears and any SeatWeld is removed every frame). After SEAT_TIMEOUT: no race, on foot, no car, no run.
+		local p2 = Instance.new("Folder")
+		p2.Name = "CarTestAutoSeatless"
+		p2.Parent = Workspace
+		seatlessPlayer = p2
+		local okSetup2 = pcall(function()
+			Money.Setup(p2)
+			PlayerData.Setup(p2)
+		end)
+		check(checks, "event_seatless_setup", okSetup2 and 1 or 0, 1, okSetup2)
+		local char2, hum2, _, head2 = newFakeCharacter(CFrame.new(walkCF.Position + Vector3.new(6, 3, 0)))
+		local char2b = nil
+		local okJoin2 = pcall(CarService.OnCharacter, p2, char2)
+		RunService.Heartbeat:Wait()
+		local evJoin = p2:GetAttribute("RaceEvent")
+		check(checks, "event_join_race_event_off", evJoin == "Off" and 1 or 0, 1, okJoin2 and evJoin == "Off")
+		pcall(function()
+			hum2:SetStateEnabled(Enum.HumanoidStateType.Seated, false)
+		end)
+		local function blockSeat(seatCar)
+			local seat = seatCar and seatCar:FindFirstChild("DriverSeat")
+			if seat then
+				seat.Disabled = true
+				local weld = seat:FindFirstChild("SeatWeld")
+				if weld then
+					weld:Destroy()
+				end
+			end
+			hum2.Sit = false
+		end
+		local blockAdded = Workspace.ChildAdded:Connect(function(m)
+			if m:IsA("Model") and m:FindFirstChild("DriverSeat") and not baseline[m] then
+				blockSeat(m)
+			end
+		end)
+		local seatlessTeleporting = false
+		local blockBeat = RunService.Heartbeat:Connect(function()
+			if p2:GetAttribute("RaceEvent") == "Teleporting" then
+				seatlessTeleporting = true
+			end
+			blockSeat(call(CarService.GetCar, p2))
+		end)
+		local seatDone, seatRet = false, nil
+		local seatElapsed = -1 -- DIAGNOSTIC: seconds from the SetAutoRace(true) call to its return
+		local t0 = os.clock()
+		task.spawn(function()
+			local tCall = os.clock()
+			local okF, rF = pcall(CarService.SetAutoRace, p2, true)
+			seatElapsed = os.clock() - tCall
+			seatRet = okF and rF
+			seatDone = true
+		end)
+		while os.clock() < t0 + AUTO_SEAT_TIMEOUT + 0.5 do
+			RunService.Heartbeat:Wait()
+		end
+		blockAdded:Disconnect()
+		blockBeat:Disconnect()
+		metrics.event_seatless_was_teleporting = seatlessTeleporting
+		check(checks, "event_seat_fail_returned", seatDone and 1 or 0, 1, seatDone)
+		check(checks, "event_seat_fail_returns_false", seatRet == false and 1 or 0, 1, seatRet == false)
+		local p2Racing = call(CarService.IsAutoRacing, p2) == true or p2:GetAttribute("AutoRacing") ~= false
+		check(checks, "event_seat_fail_not_racing", p2Racing and 0 or 1, 1, not p2Racing)
+		local evFail = p2:GetAttribute("RaceEvent")
+		check(checks, "event_seat_fail_race_event_off", evFail == "Off" and 1 or 0, 1, evFail == "Off")
+		local p2NoCar = call(CarService.GetCar, p2) == nil and #ourCars() == 0
+		check(checks, "event_seat_fail_no_car", #ourCars(), 0, p2NoCar)
+		local p2NoRun = call(CarService.GetRun, p2) == nil and #seatlessRuns == 0
+		check(checks, "event_seat_fail_no_run", #seatlessRuns, 0, p2NoRun)
+		metrics.event_seat_fail_setautorace_elapsed = seatElapsed
+		local p2Active = 0
+		for _, r in seatlessRuns do
+			if r.Connection ~= nil then
+				p2Active += 1
+			end
+		end
+		recordOnFootParts(
+			"event_seat_fail",
+			p2,
+			hum2,
+			head2,
+			char2:FindFirstChild("HumanoidRootPart"),
+			#seatlessRuns,
+			p2Active
+		)
+		local p2Foot = hum2.SeatPart == nil and head2.Transparency == 0
+		check(checks, "event_seat_fail_on_foot", p2Foot and 1 or 0, 1, p2Foot)
+
+		-- Respawn: the new avatar is on foot, RaceEvent "Off"
+		char2b = newFakeCharacter(CFrame.new(walkCF.Position + Vector3.new(-6, 3, 0)))
+		local okResp = pcall(CarService.OnCharacter, p2, char2b)
+		RunService.Heartbeat:Wait()
+		local evResp = p2:GetAttribute("RaceEvent")
+		check(checks, "event_respawn_race_event_off", evResp == "Off" and 1 or 0, 1, okResp and evResp == "Off")
+		pcall(CarService.SetAutoRace, p2, false)
+		for _, r in seatlessRuns do
+			pcall(function()
+				r:Destroy()
+			end)
+		end
+		char2:Destroy()
+		char2b:Destroy()
+		p2:Destroy()
 
 		-- 12. Death: the car and its run go away with the avatar, the stat stops, and a dead avatar can not be
 		-- given a new car by toggling off and on (CarService's own contract: "no avatar to seat (dead ...)")
@@ -4140,6 +4557,91 @@ function Scenarios.gacha()
 			okDefault and validIds[idD] == true
 		)
 
+		-- Turbo luck (docs/SPAWN_AND_ROLLS_SPEC.md section 4). BRIEF (owner, 2026-10-01): "A turbo luck bar: every X
+		-- auto rolls one roll gets multiplied luck." Every TURBO_EVERY-th roll (Rolls = 10, 20, ...) rolls at
+		-- Luck * TURBO_LUCK; Roll returns (id, isNew, turboMulti).
+		check(checks, "turbo_every", GachaConfig.TURBO_EVERY or -1, 10, GachaConfig.TURBO_EVERY == 10)
+		check(checks, "turbo_luck", GachaConfig.TURBO_LUCK or -1, 5, GachaConfig.TURBO_LUCK == 5)
+		local turboApi = type(GachaConfig.IsTurbo) == "function" and type(GachaConfig.TurboProgress) == "function"
+		check(checks, "turbo_api_exists", turboApi and 1 or 0, 1, turboApi)
+		if turboApi then
+			local isTurboBad = 0
+			for n, want in
+				{
+					[0] = false,
+					[1] = false,
+					[5] = false,
+					[9] = false,
+					[10] = true,
+					[11] = false,
+					[19] = false,
+					[20] = true,
+					[30] = true,
+					[100] = true,
+					[-10] = false,
+				}
+			do
+				local okT, got = pcall(GachaConfig.IsTurbo, n)
+				if not okT or got ~= want then
+					isTurboBad += 1
+				end
+			end
+			check(checks, "turbo_is_turbo_values", isTurboBad, 0, isTurboBad == 0)
+			local progressBad = 0
+			for n, want in { [0] = 0, [1] = 1, [9] = 9, [10] = 0, [13] = 3, [20] = 0, [25] = 5, [99] = 9 } do
+				local okT, got = pcall(GachaConfig.TurboProgress, n)
+				if not okT or got ~= want then
+					progressBad += 1
+				end
+			end
+			check(checks, "turbo_progress_values", progressBad, 0, progressBad == 0)
+		end
+		-- 25 service rolls from 0: turboMulti is TURBO_LUCK on rolls 10 and 20 only, 1 on every other
+		local tp = newTestPlayer(cleanup, "CarTestGachaTurbo")
+		GachaService.Setup(tp)
+		local multiBad, turboRolls = 0, 0
+		for k = 1, 25 do
+			local okT, _, _, multi = pcall(GachaService.Roll, tp, Random.new(7000 + k))
+			local want = k % 10 == 0 and 5 or 1
+			if not okT or multi ~= want then
+				multiBad += 1
+			end
+			if okT and multi == 5 then
+				turboRolls += 1
+			end
+		end
+		check(checks, "turbo_multi_every_10th_roll", multiBad, 0, multiBad == 0 and turboRolls == 2)
+		check(checks, "turbo_rolls_counted", tp:GetAttribute("Rolls") or -1, 25, tp:GetAttribute("Rolls") == 25)
+		-- The turbo roll really uses Luck * 5: with a seed where luck and luck * 5 pick different cars, the service's
+		-- 10th roll matches GachaConfig.Roll at luck * 5 and its 11th roll matches it at plain luck
+		local tq = newTestPlayer(cleanup, "CarTestGachaTurboLuck")
+		GachaService.Setup(tq)
+		local luck = GachaService.Luck(tq)
+		local seed, idTurbo, idPlain = nil, nil, nil
+		for sd = 1, 5000 do
+			local a = GachaConfig.Roll(Random.new(sd), luck * 5)
+			local b = GachaConfig.Roll(Random.new(sd), luck)
+			if a ~= b then
+				seed, idTurbo, idPlain = sd, a, b
+				break
+			end
+		end
+		check(checks, "turbo_seed_found", seed or -1, 1, seed ~= nil)
+		if seed then
+			metrics.turboSeed = seed
+			tq:SetAttribute("Rolls", 9)
+			local okA, idA, _, mA = pcall(GachaService.Roll, tq, Random.new(seed))
+			local turboOk = okA and idA == idTurbo and mA == 5 and tq:GetAttribute("Rolls") == 10
+			check(checks, "turbo_roll_uses_luck_x5", turboOk and 1 or 0, 1, turboOk)
+			local okB, idB, _, mB = pcall(GachaService.Roll, tq, Random.new(seed))
+			local plainOk = okB and idB == idPlain and mB == 1 and tq:GetAttribute("Rolls") == 11
+			check(checks, "turbo_next_roll_plain_luck", plainOk and 1 or 0, 1, plainOk)
+			tq:SetAttribute("Rolls", 19)
+			local okC, idC, _, mC = pcall(GachaService.Roll, tq, Random.new(seed))
+			local turbo20 = okC and idC == idTurbo and mC == 5 and tq:GetAttribute("Rolls") == 20
+			check(checks, "turbo_roll_20th_uses_luck_x5", turbo20 and 1 or 0, 1, turbo20)
+		end
+
 		-- Remotes exist (GachaService.Start is called by Main at boot)
 		local remotes = ReplicatedStorage:FindFirstChild("Remotes")
 		local equipR = remotes and remotes:FindFirstChild("EquipCar")
@@ -4737,6 +5239,7 @@ local function newNpcRacer(api, route, startCF, tag, stat, speeds, carGroup)
 				Pos = chassis and chassis.Position or Vector3.zero,
 				UpY = chassis and chassis.CFrame.UpVector.Y or -1,
 				Money = r.Money and r.Money.Value or -1,
+				RunUnbanked = r.Run and r.Run.Unbanked or nil, -- the run's bank as the event is emitted
 			})
 		end,
 	}
@@ -4809,10 +5312,18 @@ local function endNpcRacer(r)
 			RaceTrack = run.RaceTrack,
 			Results = type(run.Results) == "table" and #run.Results or -1,
 			FlipRecoveries = run.FlipRecoveries,
+			-- banked winnings (SPAWN_AND_ROLLS_SPEC section 3), read before Destroy cashes the bank out
+			Unbanked = run.Unbanked,
+			BankedTotal = run.BankedTotal,
+			UnbankedAttr = r.Player:GetAttribute("Unbanked"),
+			BalanceBeforeDestroy = r.Money and r.Money.Value or -1,
 		}
 		pcall(function()
 			run:Destroy()
 		end)
+		r.snap.PaidTotalAfter = run.PaidTotal
+		r.snap.PayoutsAfter = run.Payouts
+		r.snap.UnbankedAttrAfter = r.Player:GetAttribute("Unbanked")
 	else
 		r.snap = {}
 	end
@@ -5446,10 +5957,31 @@ function Scenarios.npc()
 				r1 and starts[1] and r1.T - starts[1].T or -1,
 				timeMatches(r1, starts[1])
 			)
-			local paidEach = r1 ~= nil and r2 ~= nil and r1.Event.Paid == C1 and r2.Event.Paid == C2
-			check(checks, "npc_win_paid_each_track_once", paidEach and 1 or 0, 1, paidEach)
-			local pt = a.snap.PaidTotal
-			local totalOk = pt == C1 + C2 and a.balance == C1 + C2 and a.snap.Payouts == 2
+			-- SPAWN_AND_ROLLS_SPEC section 3: a win banks the pad's cash (no payout at the finish); Destroy cashes out
+			local bankedEach = r1 ~= nil
+				and r2 ~= nil
+				and r1.Event.Banked == C1
+				and r2.Event.Banked == C2
+				and r1.Event.Unbanked == C1
+				and r2.Event.Unbanked == C1 + C2
+			check(checks, "npc_win_banked_each_track_once", bankedEach and 1 or 0, 1, bankedEach)
+			local notPaid = r1 ~= nil
+				and r2 ~= nil
+				and r1.Money == 0
+				and r2.Money == 0
+				and a.snap.BalanceBeforeDestroy == 0
+				and a.snap.PaidTotal == 0
+				and a.snap.Payouts == 0
+			check(checks, "npc_win_not_paid_at_finish", num(a.snap.BalanceBeforeDestroy), 0, notPaid)
+			local bankOk = a.snap.Unbanked == C1 + C2
+				and a.snap.BankedTotal == C1 + C2
+				and a.snap.UnbankedAttr == C1 + C2
+			check(checks, "npc_win_bank_before_stop", num(a.snap.Unbanked), C1 + C2, bankOk)
+			local pt = a.snap.PaidTotalAfter
+			local totalOk = pt == C1 + C2
+				and a.balance == C1 + C2
+				and a.snap.PayoutsAfter == 1
+				and a.snap.UnbankedAttrAfter == 0
 			check(checks, "npc_win_paid_total", type(pt) == "number" and pt or -1, C1 + C2, totalOk)
 			local noLoss = a.snap.Losses == 0 and a.snap.Resets == 0 and #npcAll(a, "Reset") == 0
 			check(checks, "npc_win_no_losses_no_resets", noLoss and 1 or 0, 1, noLoss)
@@ -5518,10 +6050,13 @@ function Scenarios.npc()
 			)
 			check(checks, "npc_lose_player_time_measured", num(pT), arrival, timeMatches(r1, s1))
 			local paidNothing = r1 ~= nil
-				and r1.Event.Paid == 0
-				and b.snap.PaidTotal == 0
+				and r1.Event.Banked == 0
+				and r1.Event.Unbanked == 0
+				and b.snap.BankedTotal == 0
+				and b.snap.Unbanked == 0
+				and b.snap.PaidTotalAfter == 0
 				and b.balance == 0
-				and b.snap.Payouts == 0
+				and b.snap.PayoutsAfter == 0
 			check(checks, "npc_lose_paid_nothing", b.balance, 0, paidNothing)
 			local counts = b.snap.Losses == 1 and b.snap.Wins == 0
 			check(checks, "npc_lose_counted", type(b.snap.Losses) == "number" and b.snap.Losses or -1, 1, counts)
@@ -5532,7 +6067,8 @@ function Scenarios.npc()
 			check(checks, "npc_lose_not_in_server_workspace", b.npcSeen and 1 or 0, 0, not b.npcSeen)
 		end
 
-		-- (c) WIN THEN LOSE: stat 0 player, slow NPC on Track 1, fast NPC on Track 2: Track 1's money is kept
+		-- (c) WIN THEN LOSE: stat 0 player, slow NPC on Track 1, fast NPC on Track 2: Track 1's win is banked, and
+		-- the loss on Track 2 clears the bank (SPAWN_AND_ROLLS_SPEC section 3; replaces "Track 1's money is kept")
 		local c = race(
 			"WinLose",
 			0,
@@ -5572,13 +6108,18 @@ function Scenarios.npc()
 				isFiniteNumber(nT) and nT or -1,
 				slower
 			)
-			local kept = r1 ~= nil
-				and r2 ~= nil
-				and r1.Event.Paid == C1
-				and r2.Event.Paid == 0
-				and c.snap.PaidTotal == C1
-				and c.balance == C1
-			check(checks, "npc_win_lose_keeps_track1_money", c.balance, C1, kept)
+			local bankedWin = r1 ~= nil and r1.Event.Banked == C1 and r1.Event.Unbanked == C1 and r1.Money == 0
+			check(checks, "npc_win_lose_track1_banked", num(r1 and r1.Event.Unbanked), C1, bankedWin)
+			local cleared = r2 ~= nil
+				and r2.Event.Banked == 0
+				and r2.Event.Unbanked == 0
+				and r2.RunUnbanked == 0
+				and r2.Money == 0
+				and c.snap.Unbanked == 0
+				and c.snap.UnbankedAttr == 0
+			check(checks, "npc_win_lose_loss_clears_bank", num(r2 and r2.Event.Unbanked), 0, cleared)
+			local nothing = c.balance == 0 and c.snap.PaidTotalAfter == 0 and c.snap.BankedTotal == C1
+			check(checks, "npc_win_lose_pays_nothing_on_stop", c.balance, 0, nothing)
 			local counts = c.snap.Wins == 1 and c.snap.Losses == 1
 			check(checks, "npc_win_lose_counted", type(c.snap.Wins) == "number" and c.snap.Wins or -1, 1, counts)
 			checkNpcLoseReset(checks, "npc_win_lose", c, 2, wps)
@@ -5796,7 +6337,14 @@ function Scenarios.multiplayer()
 			NPC_RESET_RADIUS,
 			resetPose ~= nil and dB <= NPC_RESET_RADIUS
 		)
-		local money = A.balance == C1 and A.snap.PaidTotal == C1 and B.balance == 0 and B.snap.PaidTotal == 0
+		-- banked (SPAWN_AND_ROLLS_SPEC section 3): A's Track 1 win is in A's bank only, paid when A's run ends
+		local money = A.balance == C1
+			and A.snap.BankedTotal == C1
+			and A.snap.PaidTotal == 0
+			and A.snap.PaidTotalAfter == C1
+			and B.balance == 0
+			and B.snap.BankedTotal == 0
+			and B.snap.PaidTotalAfter == 0
 		check(checks, "mp_money_per_player", A.balance, C1, money)
 		check(checks, "mp_no_npc_in_server_workspace", npcSeen and 1 or 0, 0, not npcSeen)
 	end)
@@ -5808,6 +6356,976 @@ function Scenarios.multiplayer()
 		metrics.error = tostring(err)
 	end
 	return result("multiplayer", checks, metrics)
+end
+
+-- Spawn area (contract: docs/SPAWN_AND_ROLLS_SPEC.md, sections 1 and 2).
+-- BRIEF (owner, 2026-10-01): "Create a spawn area, relatively large and purple for now, close to Track 1 and
+-- connected to its start, so players can walk onto the start platform to start auto racing. It is the spawn point
+-- (join and respawn) and where Stop always sends the player, out of the race." Owner's answer: join/respawn = on
+-- foot in the spawn area.
+-- The geometry is read from the LIVE Workspace (Main builds Workspace.SpawnArea after the chain), in the local
+-- space of Track 1's Start part. The player flow uses a fake player (Folder) with fake R6 characters, driven
+-- through the two server entry points: CarService.OnCharacter(player, character) (what CharacterAdded runs on join
+-- and on every respawn) and CarService.PadTouched(player, hitPart) (what StartPad.Touched runs once it has
+-- resolved the player).
+local SPAWN_COLOR = Color3.fromRGB(140, 70, 220)
+local SPAWN_AREA_MIN = Vector2.new(24, -100) -- local (x, z)
+local SPAWN_AREA_MAX = Vector2.new(184, 44)
+local SPAWN_PAD_MIN = Vector2.new(-20, 2)
+local SPAWN_PAD_MAX = Vector2.new(24, 38)
+local SPAWN_TOP_Y = 1
+local SPAWN_PAD_TOP = 1.2 -- TOP_Y + 0.2
+local SPAWN_START_COOLDOWN = 2
+local SPAWN_WALK_ROOT_HEIGHT = 3
+local SPAWN_WALK_CLEARANCE = 75 -- CarService WALK_CLEARANCE
+local SPAWN_EDGE_HEIGHT = 2
+local SPAWN_LOCATION_SIZE = Vector3.new(12, 1, 12)
+local SPAWN_GEOM_TOL = 0.5 -- studs: footprints match the spec within this
+local SPAWN_TOP_TOL = 0.1 -- studs: tops match the spec within this
+local SPAWN_TOUCH_GAP = 1 -- studs: "touches" = horizontal gap at most this
+local SPAWN_OVERLAP_TOL = 0.05 -- studs of footprint overlap ignored (edges that only touch)
+local SPAWN_SIDE_REACH = 3 -- studs: an Edge part lies along a side when its centre is this close to the side line
+local SPAWN_SIDE_COVER = 0.9 -- share of each of the three outer sides the Edge parts must cover
+local SPAWN_MIDDLE = 8 -- studs (horizontal) the SpawnLocation may be from the area centre
+local SPAWN_AT_SPAWN = 4 -- studs (horizontal) the avatar may be from WalkSpawnCFrame
+local SPAWN_FACING = 0.9 -- walk spawn look . direction to the pad centre (flat)
+local SPAWN_STAND_MIN, SPAWN_STAND_MAX = 1.5, 5 -- root height above the floor top while standing
+
+-- Horizontal footprint of a part as a convex polygon: its 8 corners projected on XZ and the projected axes.
+local function spawnPartPoly(part)
+	local cf, s = part.CFrame, part.Size / 2
+	local pts = {}
+	for _, x in { -1, 1 } do
+		for _, y in { -1, 1 } do
+			for _, z in { -1, 1 } do
+				local w = cf:PointToWorldSpace(Vector3.new(x * s.X, y * s.Y, z * s.Z))
+				table.insert(pts, Vector2.new(w.X, w.Z))
+			end
+		end
+	end
+	local dirs = {}
+	for _, v in { cf.RightVector, cf.UpVector, cf.LookVector } do
+		local d = Vector2.new(v.X, v.Z)
+		if d.Magnitude > 1e-3 then
+			table.insert(dirs, d.Unit)
+		end
+	end
+	return { Points = pts, Dirs = dirs }
+end
+
+-- A local (x, z) rectangle in the space of `base`, as a world footprint polygon.
+local function spawnRectPoly(base, minV, maxV)
+	local pts = {}
+	for _, c in
+		{
+			Vector3.new(minV.X, 0, minV.Y),
+			Vector3.new(maxV.X, 0, minV.Y),
+			Vector3.new(maxV.X, 0, maxV.Y),
+			Vector3.new(minV.X, 0, maxV.Y),
+		}
+	do
+		local w = base:PointToWorldSpace(c)
+		table.insert(pts, Vector2.new(w.X, w.Z))
+	end
+	local dirs = {}
+	for _, v in { base.RightVector, base.LookVector } do
+		local d = Vector2.new(v.X, v.Z)
+		if d.Magnitude > 1e-3 then
+			table.insert(dirs, d.Unit)
+		end
+	end
+	return { Points = pts, Dirs = dirs }
+end
+
+-- Separating-axis test of two convex footprints: > 0 is the gap between them, <= 0 means they overlap by -value.
+local function spawnPolySeparation(a, b)
+	local best = -math.huge
+	for _, poly in { a, b } do
+		for _, d in poly.Dirs do
+			for _, ax in { d, Vector2.new(-d.Y, d.X) } do
+				local aMin, aMax, bMin, bMax = math.huge, -math.huge, math.huge, -math.huge
+				for _, p in a.Points do
+					local v = p:Dot(ax)
+					aMin, aMax = math.min(aMin, v), math.max(aMax, v)
+				end
+				for _, p in b.Points do
+					local v = p:Dot(ax)
+					bMin, bMax = math.min(bMin, v), math.max(bMax, v)
+				end
+				best = math.max(best, math.max(bMin - aMax, aMin - bMax))
+			end
+		end
+	end
+	return best
+end
+
+-- Local (x, z) bounds of a part in the space of `base`, and its world top Y.
+local function spawnLocalBounds(base, part)
+	local cf, s = part.CFrame, part.Size / 2
+	local minX, maxX, minZ, maxZ, top = math.huge, -math.huge, math.huge, -math.huge, -math.huge
+	for _, x in { -1, 1 } do
+		for _, y in { -1, 1 } do
+			for _, z in { -1, 1 } do
+				local w = cf:PointToWorldSpace(Vector3.new(x * s.X, y * s.Y, z * s.Z))
+				local l = base:PointToObjectSpace(w)
+				minX, maxX = math.min(minX, l.X), math.max(maxX, l.X)
+				minZ, maxZ = math.min(minZ, l.Z), math.max(maxZ, l.Z)
+				top = math.max(top, w.Y)
+			end
+		end
+	end
+	return Vector2.new(minX, minZ), Vector2.new(maxX, maxZ), top
+end
+
+local function spawnV2Err(a, b)
+	return math.max(math.abs(a.X - b.X), math.abs(a.Y - b.Y))
+end
+
+local function spawnInsideLocal(base, pos, minV, maxV)
+	local l = base:PointToObjectSpace(pos)
+	return l.X >= minV.X and l.X <= maxV.X and l.Z >= minV.Y and l.Z <= maxV.Y
+end
+
+function Scenarios.spawn_area()
+	local checks = {}
+	local metrics = {}
+	local StarterPlayer = game:GetService("StarterPlayer")
+	local SpawnArea = sharedModule("SpawnArea")
+	local CarService = serverModule("CarService")
+	local RaceService = serverModule("RaceService")
+	local PlayerData = serverModule("PlayerData")
+	local Money = serverModule("MoneyService")
+
+	-- Constants and API (section 1)
+	local moduleOk = SpawnArea ~= nil
+	check(checks, "spawn_module_exists", moduleOk and 1 or 0, 1, moduleOk)
+	local A = SpawnArea or {}
+	local function v2is(v, want)
+		return typeof(v) == "Vector2" and spawnV2Err(v, want) <= 1e-6
+	end
+	check(checks, "spawn_color", colorClose(A.COLOR, SPAWN_COLOR) and 1 or 0, 1, colorClose(A.COLOR, SPAWN_COLOR))
+	local boundsConst = v2is(A.AREA_MIN, SPAWN_AREA_MIN) and v2is(A.AREA_MAX, SPAWN_AREA_MAX)
+	check(checks, "spawn_area_bounds_constants", boundsConst and 1 or 0, 1, boundsConst)
+	local padConst = v2is(A.PAD_MIN, SPAWN_PAD_MIN) and v2is(A.PAD_MAX, SPAWN_PAD_MAX)
+	check(checks, "spawn_pad_bounds_constants", padConst and 1 or 0, 1, padConst)
+	check(checks, "spawn_top_y", num(A.TOP_Y), SPAWN_TOP_Y, A.TOP_Y == SPAWN_TOP_Y)
+	check(
+		checks,
+		"spawn_start_cooldown",
+		num(A.START_COOLDOWN),
+		SPAWN_START_COOLDOWN,
+		A.START_COOLDOWN == SPAWN_START_COOLDOWN
+	)
+	check(
+		checks,
+		"spawn_walk_root_height",
+		num(A.WALK_ROOT_HEIGHT),
+		SPAWN_WALK_ROOT_HEIGHT,
+		A.WALK_ROOT_HEIGHT == SPAWN_WALK_ROOT_HEIGHT
+	)
+	local apiOk = moduleOk
+		and type(A.Build) == "function"
+		and type(A.WalkCFrame) == "function"
+		and type(A.Bounds) == "function"
+	check(checks, "spawn_api_exists", apiOk and 1 or 0, 1, apiOk)
+	local serviceOk = CarService ~= nil
+		and RaceService ~= nil
+		and PlayerData ~= nil
+		and Money ~= nil
+		and type(CarService.OnCharacter) == "function"
+		and type(CarService.PadTouched) == "function"
+		and type(CarService.SetAutoRace) == "function"
+		and type(CarService.IsAutoRacing) == "function"
+		and type(CarService.GetCar) == "function"
+		and type(CarService.GetRun) == "function"
+		and type(CarService.WalkSpawnCFrame) == "function"
+		and type(RaceService.NewRun) == "function"
+		and type(RaceService.GetRoute) == "function"
+	check(checks, "spawn_car_service_hooks_exist", serviceOk and 1 or 0, 1, serviceOk)
+
+	-- The live chain and Track 1's Start part
+	local trackFolder = Workspace:FindFirstChild("Track")
+	local specs = type(TrackRegistry.Chain) == "function" and TrackRegistry.Chain() or {}
+	local track1 = trackFolder and specs[1] and trackFolder:FindFirstChild(specs[1].Name)
+	local startPart = track1 and track1:FindFirstChild("Start")
+	local chainOk = startPart ~= nil and startPart:IsA("BasePart")
+	check(checks, "spawn_live_chain_present", chainOk and 1 or 0, 1, chainOk)
+
+	-- Workspace.SpawnArea and its parts
+	local area = Workspace:FindFirstChild("SpawnArea")
+	local areaOk = area ~= nil and area:IsA("Model")
+	check(checks, "spawn_area_model_exists", areaOk and 1 or 0, 1, areaOk)
+	if not (chainOk and areaOk) then
+		return result("spawn_area", checks, metrics)
+	end
+	local base = startPart.CFrame
+	local floor = area:FindFirstChild("Floor")
+	local spawn = area:FindFirstChild("Spawn")
+	local pad = area:FindFirstChild("StartPad")
+	local floorOk = floor ~= nil and floor:IsA("BasePart")
+	local spawnOk = spawn ~= nil and spawn:IsA("SpawnLocation")
+	local padOk = pad ~= nil and pad:IsA("BasePart")
+	check(checks, "spawn_floor_exists", floorOk and 1 or 0, 1, floorOk)
+	check(checks, "spawn_location_exists", spawnOk and 1 or 0, 1, spawnOk)
+	check(checks, "spawn_start_pad_exists", padOk and 1 or 0, 1, padOk)
+
+	-- Floor: anchored, purple SmoothPlastic, covers AREA_MIN..AREA_MAX (160 x 144), top at TOP_Y
+	if floorOk then
+		local fMin, fMax, fTop = spawnLocalBounds(base, floor)
+		local err = math.max(spawnV2Err(fMin, SPAWN_AREA_MIN), spawnV2Err(fMax, SPAWN_AREA_MAX))
+		check(checks, "spawn_floor_covers_area", err, SPAWN_GEOM_TOL, err <= SPAWN_GEOM_TOL)
+		local size = fMax - fMin
+		metrics.floor_size = ("%.1f x %.1f"):format(size.X, size.Y)
+		local sizeOk = math.abs(size.X - 160) <= SPAWN_GEOM_TOL and math.abs(size.Y - 144) <= SPAWN_GEOM_TOL
+		check(checks, "spawn_floor_160_by_144", size.X, 160, sizeOk)
+		check(checks, "spawn_floor_top", fTop, SPAWN_TOP_Y, math.abs(fTop - SPAWN_TOP_Y) <= SPAWN_TOP_TOL)
+		check(checks, "spawn_floor_anchored", floor.Anchored and 1 or 0, 1, floor.Anchored)
+		local purple = colorClose(floor.Color, SPAWN_COLOR)
+		check(checks, "spawn_floor_purple", purple and 1 or 0, 1, purple)
+		local smooth = floor.Material == Enum.Material.SmoothPlastic
+		check(checks, "spawn_floor_smooth_plastic", smooth and 1 or 0, 1, smooth)
+		local collide = floor.CanCollide
+		check(checks, "spawn_floor_walkable", collide and 1 or 0, 1, collide)
+	end
+
+	-- Edge walls: low (2 studs), anchored, on the three outer sides, none on the side facing the pad / road
+	local edges = {}
+	for _, d in area:GetChildren() do
+		if d:IsA("BasePart") and string.sub(d.Name, 1, 4) == "Edge" then
+			table.insert(edges, d)
+		end
+	end
+	check(checks, "spawn_edges_exist", #edges, 3, #edges >= 3)
+	local edgeBad = 0
+	local cover = { xMax = 0, zMin = 0, zMax = 0 }
+	local onPadSide = 0
+	for _, e in edges do
+		local eMin, eMax, eTop = spawnLocalBounds(base, e)
+		if not e.Anchored or math.abs(eTop - (SPAWN_TOP_Y + SPAWN_EDGE_HEIGHT)) > 0.5 then
+			edgeBad += 1
+		end
+		local c = (eMin + eMax) / 2
+		local function spanZ()
+			return math.max(0, math.min(eMax.Y, SPAWN_AREA_MAX.Y) - math.max(eMin.Y, SPAWN_AREA_MIN.Y))
+		end
+		local function spanX()
+			return math.max(0, math.min(eMax.X, SPAWN_AREA_MAX.X) - math.max(eMin.X, SPAWN_AREA_MIN.X))
+		end
+		if math.abs(c.X - SPAWN_AREA_MAX.X) <= SPAWN_SIDE_REACH then
+			cover.xMax += spanZ()
+		end
+		if math.abs(c.Y - SPAWN_AREA_MIN.Y) <= SPAWN_SIDE_REACH then
+			cover.zMin += spanX()
+		end
+		if math.abs(c.Y - SPAWN_AREA_MAX.Y) <= SPAWN_SIDE_REACH then
+			cover.zMax += spanX()
+		end
+		if math.abs(c.X - SPAWN_AREA_MIN.X) <= SPAWN_SIDE_REACH and spanZ() > SPAWN_SIDE_REACH then
+			onPadSide += 1
+		end
+	end
+	check(checks, "spawn_edges_low_and_anchored", edgeBad, 0, #edges > 0 and edgeBad == 0)
+	local sideX = SPAWN_AREA_MAX.X - SPAWN_AREA_MIN.X
+	local sideZ = SPAWN_AREA_MAX.Y - SPAWN_AREA_MIN.Y
+	local worstCover = math.min(cover.xMax / sideZ, cover.zMin / sideX, cover.zMax / sideX)
+	check(checks, "spawn_edges_cover_three_outer_sides", worstCover, SPAWN_SIDE_COVER, worstCover >= SPAWN_SIDE_COVER)
+	check(checks, "spawn_no_edge_on_pad_side", onPadSide, 0, onPadSide == 0)
+
+	-- SpawnLocation: the game's only one, Neutral, Duration 0, 12 x 1 x 12, purple, in the middle, top at TOP_Y
+	local spawnCount = 0
+	for _, d in Workspace:GetDescendants() do
+		if d:IsA("SpawnLocation") then
+			spawnCount += 1
+		end
+	end
+	check(checks, "spawn_only_spawn_location", spawnCount, 1, spawnCount == 1 and spawnOk)
+	if spawnOk then
+		check(checks, "spawn_location_neutral", spawn.Neutral and 1 or 0, 1, spawn.Neutral == true)
+		check(checks, "spawn_location_duration", spawn.Duration, 0, spawn.Duration == 0)
+		local sizeErr = (spawn.Size - SPAWN_LOCATION_SIZE).Magnitude
+		check(checks, "spawn_location_size", sizeErr, 0.01, sizeErr <= 0.01)
+		local sc = colorClose(spawn.Color, SPAWN_COLOR)
+		check(checks, "spawn_location_purple", sc and 1 or 0, 1, sc)
+		local _, _, sTop = spawnLocalBounds(base, spawn)
+		check(checks, "spawn_location_top", sTop, SPAWN_TOP_Y, math.abs(sTop - SPAWN_TOP_Y) <= SPAWN_TOP_TOL)
+		local centre = base:PointToWorldSpace(
+			Vector3.new((SPAWN_AREA_MIN.X + SPAWN_AREA_MAX.X) / 2, 0, (SPAWN_AREA_MIN.Y + SPAWN_AREA_MAX.Y) / 2)
+		)
+		local dMid = hdist(spawn.Position, centre)
+		check(checks, "spawn_location_in_middle", dMid, SPAWN_MIDDLE, dMid <= SPAWN_MIDDLE)
+	end
+
+	-- StartPad: anchored, bright green Neon, tagged StartPad, touchable, covers PAD_MIN..PAD_MAX, top TOP_Y + 0.2,
+	-- with a "RACE" sign; it touches the area and Track 1's Start, and spans the road's centre line
+	if padOk then
+		local pMin, pMax, pTop = spawnLocalBounds(base, pad)
+		local err = math.max(spawnV2Err(pMin, SPAWN_PAD_MIN), spawnV2Err(pMax, SPAWN_PAD_MAX))
+		check(checks, "spawn_pad_covers_bounds", err, SPAWN_GEOM_TOL, err <= SPAWN_GEOM_TOL)
+		check(checks, "spawn_pad_top", pTop, SPAWN_PAD_TOP, math.abs(pTop - SPAWN_PAD_TOP) <= SPAWN_TOP_TOL)
+		check(checks, "spawn_pad_anchored", pad.Anchored and 1 or 0, 1, pad.Anchored)
+		local tagged = CollectionService:HasTag(pad, "StartPad")
+		check(checks, "spawn_pad_tagged", tagged and 1 or 0, 1, tagged)
+		check(checks, "spawn_pad_can_touch", pad.CanTouch and 1 or 0, 1, pad.CanTouch)
+		local neon = pad.Material == Enum.Material.Neon
+		check(checks, "spawn_pad_neon", neon and 1 or 0, 1, neon)
+		local c = pad.Color
+		local green = c.G >= 0.6 and c.G - c.R >= 0.2 and c.G - c.B >= 0.2
+		check(checks, "spawn_pad_bright_green", c.G * 255, 153, green)
+		local sign = false
+		for _, d in pad:GetDescendants() do
+			if d:IsA("TextLabel") and string.find(string.upper(d.Text), "RACE", 1, true) then
+				local gui = d:FindFirstAncestorWhichIsA("LayerCollector")
+				if gui and (gui:IsA("SurfaceGui") or gui:IsA("BillboardGui")) then
+					sign = true
+				end
+			end
+		end
+		check(checks, "spawn_pad_race_sign", sign and 1 or 0, 1, sign)
+		local spansCentre = pMin.X <= 0 and pMax.X >= 0
+		check(checks, "spawn_pad_spans_road_centre", spansCentre and 1 or 0, 1, spansCentre)
+		local padPoly = spawnPartPoly(pad)
+		if floorOk then
+			local gapArea = spawnPolySeparation(padPoly, spawnPartPoly(floor))
+			check(checks, "spawn_pad_touches_area", gapArea, SPAWN_TOUCH_GAP, gapArea <= SPAWN_TOUCH_GAP)
+		end
+		local gapStart = spawnPolySeparation(padPoly, spawnPartPoly(startPart))
+		check(checks, "spawn_pad_touches_track1_start", gapStart, SPAWN_TOUCH_GAP, gapStart <= SPAWN_TOUCH_GAP)
+	end
+
+	-- SpawnArea.Bounds(start): world corners of the area and the pad, Y = TOP_Y
+	if apiOk then
+		local okB, bounds = pcall(A.Bounds, base)
+		local function worldBox(minV, maxV)
+			local lo, hi = Vector3.new(math.huge, 0, math.huge), Vector3.new(-math.huge, 0, -math.huge)
+			for _, x in { minV.X, maxV.X } do
+				for _, z in { minV.Y, maxV.Y } do
+					local w = base:PointToWorldSpace(Vector3.new(x, 0, z))
+					lo = Vector3.new(math.min(lo.X, w.X), 0, math.min(lo.Z, w.Z))
+					hi = Vector3.new(math.max(hi.X, w.X), 0, math.max(hi.Z, w.Z))
+				end
+			end
+			return lo, hi
+		end
+		local function boxErr(b, minV, maxV)
+			if type(b) ~= "table" or typeof(b.Min) ~= "Vector3" or typeof(b.Max) ~= "Vector3" then
+				return math.huge
+			end
+			local lo, hi = worldBox(minV, maxV)
+			local bLo = Vector3.new(math.min(b.Min.X, b.Max.X), 0, math.min(b.Min.Z, b.Max.Z))
+			local bHi = Vector3.new(math.max(b.Min.X, b.Max.X), 0, math.max(b.Min.Z, b.Max.Z))
+			local e =
+				math.max(math.abs(bLo.X - lo.X), math.abs(bLo.Z - lo.Z), math.abs(bHi.X - hi.X), math.abs(bHi.Z - hi.Z))
+			return math.max(e, math.abs(b.Min.Y - SPAWN_TOP_Y), math.abs(b.Max.Y - SPAWN_TOP_Y))
+		end
+		local eA = okB and type(bounds) == "table" and boxErr(bounds.Area, SPAWN_AREA_MIN, SPAWN_AREA_MAX) or math.huge
+		local eP = okB and type(bounds) == "table" and boxErr(bounds.Pad, SPAWN_PAD_MIN, SPAWN_PAD_MAX) or math.huge
+		check(checks, "spawn_bounds_area", eA == math.huge and -1 or eA, 0.01, eA <= 0.01)
+		check(checks, "spawn_bounds_pad", eP == math.huge and -1 or eP, 0.01, eP <= 0.01)
+	end
+
+	-- Walk spawn: SpawnArea.WalkCFrame(start) == CarService.WalkSpawnCFrame(), at the area centre, root
+	-- WALK_ROOT_HEIGHT above TOP_Y, facing the pad, inside the area, >= WALK_CLEARANCE from every race waypoint
+	local okW, walkCF = false, nil
+	if serviceOk then
+		okW, walkCF = pcall(CarService.WalkSpawnCFrame)
+	end
+	local walkOk = okW and typeof(walkCF) == "CFrame"
+	check(checks, "spawn_walk_spawn_is_cframe", walkOk and 1 or 0, 1, walkOk)
+	if not walkOk then
+		walkCF = base * CFrame.new(104, 3, -28)
+	end
+	if apiOk and walkOk then
+		local okA, areaCF = pcall(A.WalkCFrame, base)
+		local same = okA
+			and typeof(areaCF) == "CFrame"
+			and (areaCF.Position - walkCF.Position).Magnitude <= 0.01
+			and areaCF.LookVector:Dot(walkCF.LookVector) >= 0.999
+		check(checks, "spawn_walk_spawn_is_area_walk_cframe", same and 1 or 0, 1, same)
+	end
+	local centreLocal =
+		Vector3.new((SPAWN_AREA_MIN.X + SPAWN_AREA_MAX.X) / 2, 0, (SPAWN_AREA_MIN.Y + SPAWN_AREA_MAX.Y) / 2)
+	local centreWorld = base:PointToWorldSpace(centreLocal)
+	local dCentre = hdist(walkCF.Position, centreWorld)
+	check(checks, "spawn_walk_at_area_centre", dCentre, SPAWN_GEOM_TOL, dCentre <= SPAWN_GEOM_TOL)
+	local wantY = SPAWN_TOP_Y + SPAWN_WALK_ROOT_HEIGHT
+	check(checks, "spawn_walk_root_height", walkCF.Position.Y, wantY, math.abs(walkCF.Position.Y - wantY) <= 0.05)
+	local inside = spawnInsideLocal(base, walkCF.Position, SPAWN_AREA_MIN, SPAWN_AREA_MAX)
+	check(checks, "spawn_walk_inside_area", inside and 1 or 0, 1, inside)
+	local padCentre = base:PointToWorldSpace(
+		Vector3.new((SPAWN_PAD_MIN.X + SPAWN_PAD_MAX.X) / 2, 0, (SPAWN_PAD_MIN.Y + SPAWN_PAD_MAX.Y) / 2)
+	)
+	local toPad = flatV(padCentre - walkCF.Position)
+	local look = flatV(walkCF.LookVector)
+	local facing = (toPad.Magnitude > 1e-6 and look.Magnitude > 1e-6) and look.Unit:Dot(toPad.Unit) or -1
+	check(checks, "spawn_walk_faces_pad", facing, SPAWN_FACING, facing >= SPAWN_FACING)
+	local route = serviceOk and RaceService.GetRoute() or nil
+	local wps = route and route.Path and route.Path.WorldWaypoints or {}
+	local nearest = math.huge
+	for _, w in wps do
+		nearest = math.min(nearest, hdist(w, walkCF.Position))
+	end
+	check(checks, "spawn_route_present", #wps, 2, #wps >= 2)
+	check(
+		checks,
+		"spawn_walk_clear_of_race_path",
+		nearest == math.huge and -1 or nearest,
+		SPAWN_WALK_CLEARANCE,
+		#wps >= 2 and nearest >= SPAWN_WALK_CLEARANCE
+	)
+
+	-- No part of the area (floor, edges, spawn, pad) overlaps any road / wall / checkpoint part of ANY chained
+	-- track horizontally (each track's Ground and its invisible Start marker are not road)
+	local trackParts = {}
+	for _, d in trackFolder:GetDescendants() do
+		if d:IsA("BasePart") and d.Name ~= "Ground" and d.Name ~= "Start" then
+			table.insert(trackParts, { Part = d, Poly = spawnPartPoly(d) })
+		end
+	end
+	metrics.track_parts_checked = #trackParts
+	local overlaps, worst, worstName = 0, math.huge, ""
+	for _, d in area:GetDescendants() do
+		if d:IsA("BasePart") then
+			local poly = spawnPartPoly(d)
+			for _, t in trackParts do
+				local sep = spawnPolySeparation(poly, t.Poly)
+				if sep < worst then
+					worst, worstName = sep, d.Name .. "/" .. t.Part:GetFullName()
+				end
+				if sep < -SPAWN_OVERLAP_TOL then
+					overlaps += 1
+				end
+			end
+		end
+	end
+	if overlaps > 0 then
+		metrics.worst_overlap = worstName
+	end
+	metrics.closest_track_gap = worst == math.huge and -1 or round(worst)
+	check(checks, "spawn_area_no_track_overlap", overlaps, 0, #trackParts > 0 and overlaps == 0)
+	-- the spec rectangles themselves stay clear too (the area is not allowed to grow into a road later)
+	local rectOverlaps = 0
+	for _, rect in
+		{ spawnRectPoly(base, SPAWN_AREA_MIN, SPAWN_AREA_MAX), spawnRectPoly(base, SPAWN_PAD_MIN, SPAWN_PAD_MAX) }
+	do
+		for _, t in trackParts do
+			if spawnPolySeparation(rect, t.Poly) < -SPAWN_OVERLAP_TOL then
+				rectOverlaps += 1
+			end
+		end
+	end
+	check(checks, "spawn_bounds_no_track_overlap", rectOverlaps, 0, rectOverlaps == 0)
+
+	if not serviceOk then
+		return result("spawn_area", checks, metrics)
+	end
+
+	-- Player flow (section 2) with a fake player
+	local function call(fn, ...)
+		local ok, r = pcall(fn, ...)
+		if ok then
+			return r
+		end
+		return nil
+	end
+	local function carModels()
+		local list = {}
+		for _, d in Workspace:GetDescendants() do
+			if d:IsA("Model") then
+				local seat = d:FindFirstChild("DriverSeat")
+				if seat and seat:IsA("VehicleSeat") then
+					table.insert(list, d)
+				end
+			end
+		end
+		return list
+	end
+	local baseline = {}
+	for _, m in carModels() do
+		baseline[m] = true
+	end
+	local function ourCars()
+		local list = {}
+		for _, m in carModels() do
+			if not baseline[m] then
+				table.insert(list, m)
+			end
+		end
+		return list
+	end
+
+	local player = Instance.new("Folder")
+	player.Name = "CarTestSpawnPlayer"
+	player.Parent = Workspace
+	local okSetup = pcall(function()
+		Money.Setup(player)
+		PlayerData.Setup(player)
+		player.leaderstats.Speed.Value = 0
+	end)
+	check(checks, "spawn_fake_player_setup", okSetup and 1 or 0, 1, okSetup)
+
+	local runs = {}
+	local origNewRun = RaceService.NewRun
+	RaceService.NewRun = function(car, raceRoute, p, options)
+		local run = origNewRun(car, raceRoute, p, options)
+		if p == player and type(run) == "table" then
+			table.insert(runs, run)
+		end
+		return run
+	end
+	local function activeRuns()
+		local n = 0
+		for _, r in runs do
+			if r.Connection ~= nil then
+				n += 1
+			end
+		end
+		return n
+	end
+
+	local chars = {}
+	local function newChar(offset)
+		local model, humanoid, root, head, face = newFakeCharacter(CFrame.new(walkCF.Position + offset))
+		model.Name = "CarTestSpawnCharacter"
+		table.insert(chars, model)
+		return { Model = model, Humanoid = humanoid, Root = root, Head = head, Face = face }
+	end
+	local function racing()
+		return call(CarService.IsAutoRacing, player) == true
+	end
+	local walkSpeed = StarterPlayer.CharacterWalkSpeed
+	local jumpHeight = StarterPlayer.CharacterJumpHeight
+
+	-- On foot at the walk spawn, visible, able to walk and jump, not racing, no car, no run
+	local function checkOnFoot(pre, c)
+		local notRacing = not racing() and player:GetAttribute("AutoRacing") == false
+		check(checks, pre .. "_not_racing", notRacing and 1 or 0, 1, notRacing)
+		local noCar = call(CarService.GetCar, player) == nil
+			and call(CarService.GetRun, player) == nil
+			and #ourCars() == 0
+			and activeRuns() == 0
+		check(checks, pre .. "_no_car", #ourCars(), 0, noCar)
+		local d = hdist(c.Root.Position, walkCF.Position)
+		check(checks, pre .. "_at_walk_spawn", d, SPAWN_AT_SPAWN, d <= SPAWN_AT_SPAWN)
+		local inArea = spawnInsideLocal(base, c.Root.Position, SPAWN_AREA_MIN, SPAWN_AREA_MAX)
+		check(checks, pre .. "_inside_area", inArea and 1 or 0, 1, inArea)
+		local h = c.Root.Position.Y - SPAWN_TOP_Y
+		check(
+			checks,
+			pre .. "_standing_height",
+			h,
+			SPAWN_WALK_ROOT_HEIGHT,
+			h >= SPAWN_STAND_MIN and h <= SPAWN_STAND_MAX
+		)
+		local visible = c.Head.Transparency == 0 and c.Face.Transparency == 0
+		check(checks, pre .. "_visible", visible and 1 or 0, 1, visible)
+		local unseated = c.Humanoid.SeatPart == nil and c.Humanoid.Sit == false
+		check(checks, pre .. "_unseated", unseated and 1 or 0, 1, unseated)
+		local walks = c.Humanoid.WalkSpeed == walkSpeed
+			and walkSpeed > 0
+			and math.abs(c.Humanoid.JumpHeight - jumpHeight) <= 1e-3
+		check(checks, pre .. "_walks_and_jumps", c.Humanoid.WalkSpeed, walkSpeed, walks)
+		local ub = player:GetAttribute("Unbanked")
+		check(checks, pre .. "_unbanked_zero", type(ub) == "number" and ub or 0, 0, ub == nil or ub == 0)
+		-- SPAWN_AND_ROLLS_SPEC section 2: "Start is an event": on foot the event is "Off"
+		local ev = player:GetAttribute("RaceEvent")
+		check(checks, pre .. "_race_event_off", ev == "Off" and 1 or 0, 1, ev == "Off")
+	end
+	-- Racing on a fresh car (not `oldCar`), seated in it, one car, one active run
+	local function checkRacing(pre, c, oldCar)
+		local stateOk = racing() and player:GetAttribute("AutoRacing") == true
+		check(checks, pre .. "_racing", stateOk and 1 or 0, 1, stateOk)
+		local car = call(CarService.GetCar, player)
+		local cars = ourCars()
+		local carOk = car ~= nil and car.Parent ~= nil and car ~= oldCar and #cars == 1 and cars[1] == car
+		check(checks, pre .. "_one_car", #cars, 1, carOk)
+		local auto = car ~= nil and car:GetAttribute("AutoRace") == true
+		check(checks, pre .. "_car_auto_race", auto and 1 or 0, 1, auto)
+		local seat = car and car:FindFirstChild("DriverSeat")
+		local seated = seat ~= nil and c.Humanoid.SeatPart == seat
+		check(checks, pre .. "_seated", seated and 1 or 0, 1, seated)
+		local run = call(CarService.GetRun, player)
+		local runOk = type(run) == "table" and run.Connection ~= nil and run.Car == car and activeRuns() == 1
+		check(checks, pre .. "_one_active_run", activeRuns(), 1, runOk)
+		-- "Start is an event": racing means seated, released (chassis not anchored) and RaceEvent "Racing"
+		local ev = player:GetAttribute("RaceEvent")
+		check(checks, pre .. "_race_event_racing", ev == "Racing" and 1 or 0, 1, ev == "Racing")
+		local released = car ~= nil and car.PrimaryPart ~= nil and car.PrimaryPart.Anchored == false
+		check(checks, pre .. "_chassis_released", released and 1 or 0, 1, released)
+		return car, run
+	end
+	local function touch(part)
+		local ok = pcall(CarService.PadTouched, player, part)
+		frames(0.6) -- spawnCar seats the avatar within ~0.5 s
+		return ok
+	end
+	local function unchangedRacing(car, run)
+		return racing()
+			and call(CarService.GetCar, player) == car
+			and car ~= nil
+			and car.Parent ~= nil
+			and call(CarService.GetRun, player) == run
+			and #ourCars() == 1
+			and activeRuns() == 1
+	end
+	local function stillOnFoot()
+		return not racing()
+			and player:GetAttribute("AutoRacing") == false
+			and call(CarService.GetCar, player) == nil
+			and #ourCars() == 0
+			and activeRuns() == 0
+	end
+
+	local function body()
+		-- 1. Join: on foot at the walk spawn, no car (the character spawned somewhere else first)
+		local c1 = newChar(Vector3.new(20, 2, 20))
+		local okJoin = pcall(CarService.OnCharacter, player, c1.Model)
+		check(checks, "join_no_error", okJoin and 1 or 0, 1, okJoin)
+		frames(0.5)
+		checkOnFoot("join", c1)
+		frames(1)
+		check(checks, "join_stays_on_foot", stillOnFoot() and 1 or 0, 1, stillOnFoot())
+
+		-- 2. A pad touch by the living, visible, non-racing avatar starts auto racing
+		local okT = touch(c1.Model:FindFirstChild("Left Leg"))
+		check(checks, "pad_touch_no_error", okT and 1 or 0, 1, okT)
+		local car1, run1 = checkRacing("pad_start", c1, nil)
+
+		-- 3. Touching again while racing (avatar part or the car itself) changes nothing
+		touch(c1.Model:FindFirstChild("Right Leg"))
+		touch(car1 and car1.PrimaryPart or nil)
+		local same = unchangedRacing(car1, run1)
+		check(checks, "pad_touch_while_racing_ignored", same and 1 or 0, 1, same)
+
+		-- 4. Stop: avatar at the walk spawn in the area, visible and walking; Unbanked back to 0
+		local tStop0 = os.clock()
+		local okS, rS = pcall(CarService.SetAutoRace, player, false)
+		local tStop1 = os.clock()
+		check(checks, "stop_returns_false", okS and rS == false and 1 or 0, 1, okS and rS == false)
+		RunService.Heartbeat:Wait()
+		checkOnFoot("stop", c1)
+		local ubStop = player:GetAttribute("Unbanked")
+		check(checks, "stop_unbanked_attribute_zero", num(ubStop), 0, ubStop == 0)
+
+		-- 5. START_COOLDOWN after a stop: a touch right away and one just before the end do nothing...
+		touch(c1.Model:FindFirstChild("Left Leg"))
+		check(checks, "pad_cooldown_refuses_at_once", stillOnFoot() and 1 or 0, 1, stillOnFoot())
+		local lateAt = tStop0 + SPAWN_START_COOLDOWN - 0.5
+		while os.clock() < lateAt do
+			RunService.Heartbeat:Wait()
+		end
+		local okLate = pcall(CarService.PadTouched, player, c1.Model:FindFirstChild("Left Leg"))
+		RunService.Heartbeat:Wait()
+		local refusedLate = okLate and stillOnFoot()
+		check(checks, "pad_cooldown_refuses_before_end", refusedLate and 1 or 0, 1, refusedLate)
+		frames(0.6)
+		check(checks, "pad_cooldown_still_on_foot", stillOnFoot() and 1 or 0, 1, stillOnFoot())
+		-- ...and once it is over a touch starts again
+		while os.clock() < tStop1 + SPAWN_START_COOLDOWN + 0.25 do
+			RunService.Heartbeat:Wait()
+		end
+		touch(c1.Model:FindFirstChild("Left Leg"))
+		local car2 = checkRacing("pad_after_cooldown", c1, car1)
+
+		-- 6. Not the avatar: a loose part, a car part and nil do nothing (after a stop and a full cooldown)
+		pcall(CarService.SetAutoRace, player, false)
+		local tStop2 = os.clock()
+		while os.clock() < tStop2 + SPAWN_START_COOLDOWN + 0.25 do
+			RunService.Heartbeat:Wait()
+		end
+		local loose = Instance.new("Part")
+		loose.Name = "CarTestSpawnLoosePart"
+		loose.Anchored = true
+		loose.CFrame = pad and pad.CFrame + Vector3.new(0, 2, 0) or walkCF
+		loose.Parent = Workspace
+		local strayCar = CarFactory.build(CarConfig)
+		strayCar.Name = "CarTestSpawnStrayCar"
+		strayCar:PivotTo(CFrame.new(walkCF.Position + Vector3.new(0, 50, 0)))
+		for _, d in strayCar:GetDescendants() do
+			if d:IsA("BasePart") then
+				d.Anchored = true
+			end
+		end
+		strayCar.Parent = Workspace
+		baseline[strayCar] = true
+		local okL = pcall(CarService.PadTouched, player, loose)
+		local okC = pcall(CarService.PadTouched, player, strayCar.PrimaryPart)
+		local okN = pcall(CarService.PadTouched, player, nil)
+		frames(0.6)
+		loose:Destroy()
+		strayCar:Destroy()
+		check(checks, "pad_foreign_parts_ignored", stillOnFoot() and 1 or 0, 1, okL and okC and okN and stillOnFoot())
+		check(
+			checks,
+			"pad_old_car_gone",
+			car2 ~= nil and car2.Parent == nil and 1 or 0,
+			1,
+			car2 ~= nil and car2.Parent == nil
+		)
+
+		-- 7. A dead avatar's touch does nothing; the respawn is on foot at the walk spawn
+		c1.Humanoid.Health = 0
+		frames(0.3)
+		touch(c1.Model:FindFirstChild("Left Leg"))
+		check(checks, "pad_dead_avatar_ignored", stillOnFoot() and 1 or 0, 1, stillOnFoot())
+		local c2 = newChar(Vector3.new(-15, 2, 25))
+		local okR = pcall(CarService.OnCharacter, player, c2.Model)
+		check(checks, "respawn_on_foot_no_error", okR and 1 or 0, 1, okR)
+		frames(0.5)
+		checkOnFoot("respawn_on_foot", c2)
+
+		-- 8. Death while racing: the car goes with the avatar, and the respawn is on foot, not racing
+		touch(c2.Model:FindFirstChild("Left Leg"))
+		local car3 = checkRacing("pre_death", c2, car2)
+		c2.Humanoid.Health = 0
+		frames(0.5)
+		local gone = call(CarService.GetCar, player) == nil
+			and #ourCars() == 0
+			and activeRuns() == 0
+			and (car3 == nil or car3.Parent == nil)
+		check(checks, "death_car_removed", gone and 1 or 0, 1, gone)
+		local c3 = newChar(Vector3.new(25, 2, -15))
+		local okR2 = pcall(CarService.OnCharacter, player, c3.Model)
+		check(checks, "respawn_after_race_no_error", okR2 and 1 or 0, 1, okR2)
+		frames(0.5)
+		checkOnFoot("respawn_after_race", c3)
+		frames(1)
+		check(checks, "respawn_after_race_stays_on_foot", stillOnFoot() and 1 or 0, 1, stillOnFoot())
+	end
+
+	local ok, err = pcall(body)
+	check(checks, "spawn_area_no_error", ok and 1 or 0, 1, ok)
+	if not ok then
+		metrics.error = tostring(err)
+	end
+	RaceService.NewRun = origNewRun
+	pcall(CarService.SetAutoRace, player, false)
+	for _, r in runs do
+		pcall(function()
+			r:Destroy()
+		end)
+	end
+	for _, m in ourCars() do
+		m:Destroy()
+	end
+	for _, m in chars do
+		m:Destroy()
+	end
+	player:Destroy()
+	return result("spawn_area", checks, metrics)
+end
+
+-- Banked winnings (contract: docs/SPAWN_AND_ROLLS_SPEC.md, section 3).
+-- BRIEF (owner, 2026-10-01): "Stopping pays the winnings of the checkpoints cleared in this run (banked)." Owner's
+-- answer: stop payout = "bank, pay on stop".
+-- NPC mode: a win adds MoneyService.Quote(player, pad) to run.Unbanked (mirrored in the player attribute
+-- Unbanked) and pays NOTHING at the finish; run:CashOut() pays the bank once and zeroes it; run:Destroy() cashes
+-- out. Losses clearing the bank are checked in `npc` (lose and win-then-lose runs); non-NPC runs paying pads
+-- directly in `race`.
+local BANK_ORIGIN = Vector3.new(0, 0, 40000)
+local BANK_ATTR_WAIT = 0.2 -- s after a Result before the mirrored attribute is read
+
+local function call0(fn, ...)
+	local ok, v = pcall(fn, ...)
+	if ok then
+		return v
+	end
+	return nil
+end
+
+function Scenarios.bank()
+	local checks = {}
+	local metrics = {}
+	local RaceConfig = sharedModule("RaceConfig")
+	local GachaService = serverModule("GachaService")
+	local api = {
+		RaceService = serverModule("RaceService"),
+		Money = serverModule("MoneyService"),
+		PlayerData = serverModule("PlayerData"),
+	}
+	local apiOk = RaceConfig ~= nil
+		and GachaService ~= nil
+		and api.RaceService ~= nil
+		and api.Money ~= nil
+		and api.PlayerData ~= nil
+		and type(api.Money.Quote) == "function"
+		and type(api.Money.Award) == "function"
+		and type(api.Money.Setup) == "function"
+		and type(api.RaceService.BuildRoute) == "function"
+		and type(api.RaceService.NewRun) == "function"
+		and type(GachaService.MoneyMulti) == "function"
+		and type(TrackBuilder.CashFor) == "function"
+	check(checks, "bank_api_exists", apiOk and 1 or 0, 1, apiOk)
+	local specs = type(TrackRegistry.Chain) == "function" and TrackRegistry.Chain() or {}
+	check(checks, "bank_chain_has_two_tracks", #specs, 2, #specs >= 2)
+	if not apiOk or #specs < 2 then
+		return result("bank", checks, metrics)
+	end
+
+	local models, cleanup = {}, {}
+	local racer = nil
+	local okBody, err = pcall(function()
+		local entries
+		entries, models = buildNpcChain(BANK_ORIGIN, "CarTestBankTrack", specs)
+		local pad1 = entries[1].Model:FindFirstChild("WinPad", true)
+		local n1, n2 = specs[1].Number, specs[2].Number
+		local C1, C2 = TrackBuilder.CashFor(n1), TrackBuilder.CashFor(n2)
+
+		-- MoneyService.Quote: floor(Cash * MoneyMulti), no cooldown, pays nothing
+		local pq = newTestPlayer(cleanup, "CarTestBankQuote")
+		api.Money.Setup(pq)
+		GachaService.Setup(pq)
+		local q1 = call0(api.Money.Quote, pq, pad1)
+		local q2 = call0(api.Money.Quote, pq, pad1)
+		check(checks, "quote_is_pad_cash", num(q1), C1, q1 == C1)
+		local noCooldown = q2 == q1 and pq.leaderstats.Money.Value == 0
+		check(checks, "quote_no_cooldown_pays_nothing", pq.leaderstats.Money.Value, 0, noCooldown)
+		local plain = Instance.new("Part")
+		plain.Name = "CarTestBankNotAPad"
+		plain:SetAttribute("Cash", 500)
+		table.insert(cleanup, plain)
+		local qBad = call0(api.Money.Quote, pq, plain)
+		check(checks, "quote_untagged_part_zero", num(qBad), 0, qBad == 0)
+		local pm = newTestPlayer(cleanup, "CarTestBankQuoteMulti")
+		api.Money.Setup(pm)
+		GachaService.Setup(pm)
+		for _, c in GACHA_SEED do
+			GachaService.Grant(pm, c.Id)
+		end
+		GachaService.Allocate(pm, "Money")
+		GachaService.Allocate(pm, "Money")
+		local multi = GachaService.MoneyMulti(pm)
+		local qm = call0(api.Money.Quote, pm, pad1)
+		local wantM = math.floor(C1 * multi)
+		check(checks, "quote_uses_money_multi", num(qm), wantM, multi > 1 and qm == wantM)
+
+		-- A winning NPC-mode run (fast player, slow NPCs) on both tracks
+		local route = api.RaceService.BuildRoute(entries)
+		local wps = route.Path.WorldWaypoints
+		local totalLen = 0
+		for i = 2, #wps do
+			totalLen += (wps[i] - wps[i - 1]).Magnitude
+		end
+		local startCF = entries[1].Model.Start.CFrame + Vector3.new(0, CarConfig.RestHeight, 0)
+		local r =
+			newNpcRacer(api, route, startCF, "Bank", RaceConfig.HALF_STAT, { [n1] = NPC_SLOW, [n2] = NPC_SLOW }, nil)
+		racer = r
+		check(checks, "bank_run_started", r.ok and 1 or 0, 1, r.ok)
+		if not r.ok then
+			metrics.error = r.err
+			return
+		end
+		local run, player, money = r.Run, r.Player, r.Money
+		local function attr()
+			return player:GetAttribute("Unbanked")
+		end
+		check(checks, "bank_starts_empty", num(run.Unbanked), 0, run.Unbanked == 0)
+		check(checks, "bank_attribute_starts_zero", num(attr()), 0, attr() == 0)
+		local hasCashOut = type(run.CashOut) == "function"
+		check(checks, "bank_run_has_cash_out", hasCashOut and 1 or 0, 1, hasCashOut)
+		local cap = totalLen / (0.5 * RaceConfig.SpeedFor(RaceConfig.HALF_STAT)) + 30
+		local function driveUntil(track, seconds)
+			return frames(seconds, function()
+				if npcFind(r, "Result", track) then
+					return "stop"
+				end
+			end)
+		end
+
+		-- Win Track 1: banked, not paid
+		driveUntil(n1, cap)
+		local res1 = npcFind(r, "Result", n1)
+		local win1 = res1 ~= nil and res1.Event.Result == "Win"
+		check(checks, "bank_win_track1", win1 and 1 or 0, 1, win1)
+		if not win1 then
+			return
+		end
+		local e1 = res1.Event
+		check(checks, "bank_result_banked_field", num(e1.Banked), C1, e1.Banked == C1)
+		check(checks, "bank_result_unbanked_field", num(e1.Unbanked), C1, e1.Unbanked == C1)
+		check(checks, "bank_result_has_no_paid_field", e1.Paid == nil and 0 or 1, 0, e1.Paid == nil)
+		check(checks, "bank_win_not_paid_at_finish", res1.Money, 0, res1.Money == 0)
+		frames(BANK_ATTR_WAIT)
+		check(checks, "bank_run_unbanked_after_win", num(run.Unbanked), C1, run.Unbanked == C1)
+		check(checks, "bank_attribute_after_win", num(attr()), C1, attr() == C1)
+		check(checks, "bank_money_unchanged_after_win", money.Value, 0, money.Value == 0)
+		check(checks, "bank_banked_total_after_win", num(run.BankedTotal), C1, run.BankedTotal == C1)
+		local unpaid = run.Payouts == 0 and run.PaidTotal == 0
+		check(checks, "bank_no_payout_before_cash_out", num(run.Payouts), 0, unpaid)
+
+		-- CashOut pays exactly the bank, once, and zeroes it
+		if hasCashOut then
+			local okC, amount = pcall(run.CashOut, run)
+			check(checks, "cash_out_returns_bank", okC and num(amount) or -1, C1, okC and amount == C1)
+			check(checks, "cash_out_pays_money", money.Value, C1, money.Value == C1)
+			check(checks, "cash_out_zeroes_bank", num(run.Unbanked), 0, run.Unbanked == 0)
+			RunService.Heartbeat:Wait()
+			check(checks, "cash_out_zeroes_attribute", num(attr()), 0, attr() == 0)
+			local counted = run.Payouts == 1 and run.PaidTotal == C1 and run.BankedTotal == C1
+			check(checks, "cash_out_counted", num(run.PaidTotal), C1, counted)
+			local okC2, again = pcall(run.CashOut, run)
+			local once = okC2 and again == 0 and money.Value == C1 and run.Payouts == 1 and run.PaidTotal == C1
+			check(checks, "cash_out_twice_pays_once", money.Value, C1, once)
+		end
+
+		-- Win Track 2: the bank fills again from 0, money untouched at the finish
+		local money2 = money.Value
+		driveUntil(n2, cap)
+		local res2 = npcFind(r, "Result", n2)
+		local win2 = res2 ~= nil and res2.Event.Result == "Win"
+		check(checks, "bank_win_track2", win2 and 1 or 0, 1, win2)
+		if not win2 then
+			return
+		end
+		local e2 = res2.Event
+		check(checks, "bank_track2_banked", num(e2.Banked), C2, e2.Banked == C2)
+		check(checks, "bank_track2_unbanked_after_cash_out", num(e2.Unbanked), C2, e2.Unbanked == C2)
+		check(checks, "bank_track2_not_paid_at_finish", res2.Money, money2, res2.Money == money2)
+		frames(BANK_ATTR_WAIT)
+		check(checks, "bank_attribute_after_track2", num(attr()), C2, attr() == C2)
+		check(checks, "bank_banked_total_sums_wins", num(run.BankedTotal), C1 + C2, run.BankedTotal == C1 + C2)
+
+		-- Destroy cashes out (Stop, death and leaving all go through it), and only once
+		local before = money.Value
+		local payoutsBefore = run.Payouts
+		local okD = pcall(function()
+			run:Destroy()
+		end)
+		check(checks, "destroy_no_error", okD and 1 or 0, 1, okD)
+		check(checks, "destroy_cashes_out", money.Value - before, C2, money.Value - before == C2)
+		check(checks, "destroy_zeroes_bank", num(run.Unbanked), 0, run.Unbanked == 0)
+		check(checks, "destroy_zeroes_attribute", num(attr()), 0, attr() == 0)
+		local counted = run.Payouts == payoutsBefore + 1
+		check(checks, "destroy_payout_counted", num(run.Payouts), payoutsBefore + 1, counted)
+		local afterOnce = money.Value
+		pcall(function()
+			run:Destroy()
+		end)
+		if hasCashOut then
+			pcall(run.CashOut, run)
+		end
+		check(checks, "destroy_twice_pays_once", money.Value, afterOnce, money.Value == afterOnce)
+		check(checks, "bank_total_paid", money.Value, C1 + C2, money.Value == C1 + C2)
+	end)
+	if racer then
+		if racer.Run then
+			pcall(function()
+				racer.Run:Destroy()
+			end)
+		end
+		racer.Car:Destroy()
+		racer.Player:Destroy()
+	end
+	for _, m in models do
+		m:Destroy()
+	end
+	for _, inst in cleanup do
+		inst:Destroy()
+	end
+	check(checks, "bank_no_error", okBody and 1 or 0, 1, okBody)
+	if not okBody then
+		metrics.error = tostring(err)
+	end
+	return result("bank", checks, metrics)
 end
 
 -- Chat admin commands (contract: docs/ADMIN_COMMANDS_SPEC.md).
@@ -6605,6 +8123,7 @@ function Scenarios.admin()
 
 			-- Bad jumps and refused /tp: all in one frame (no yield), so the car can not have moved
 			local pos0, idx0, paid0, ev0, money0 = chassis.Position, driver.Index, run.PaidTotal, #events, money.Value
+			local bank0 = run.Unbanked
 			local badJumps = 0
 			if hasJump then
 				for _, bad in { 0, -1, 99, n2 + 0.5, 0 / 0, math.huge, "x" } do
@@ -6664,6 +8183,11 @@ function Scenarios.admin()
 			check(checks, pre .. "not_finished", run.Finished == true and 1 or 0, 0, run.Finished ~= true)
 			local paidNow = run.PaidTotal == paid0 and money.Value == money0
 			check(checks, pre .. "jump_pays_nothing", run.PaidTotal - paid0, 0, paidNow)
+			if npcMode then
+				-- SPAWN_AND_ROLLS_SPEC section 3: admin /tp does not change the bank
+				local bankSame = type(bank0) == "number" and run.Unbanked == bank0
+				check(checks, pre .. "jump_bank_unchanged", num(run.Unbanked), num(bank0), bankSame)
+			end
 
 			-- Drive on from Track 2's start
 			local idx, minUp, dev = s2, 1, 0
@@ -6768,7 +8292,7 @@ function Scenarios.admin()
 	return result("admin", checks, metrics)
 end
 
--- name: "static_settle" | "accel" | "brake" | "skidpad" | "car_size" | "economy" | "hud" | "auto_toggle" | "gacha" | "index" | "npc" | "multiplayer" | "admin" | "lap:<Track>" | "track:<Track>"
+-- name: "static_settle" | "accel" | "brake" | "skidpad" | "car_size" | "economy" | "hud" | "auto_toggle" | "spawn_area" | "gacha" | "index" | "npc" | "bank" | "multiplayer" | "admin" | "lap:<Track>" | "track:<Track>"
 function Scenarios.Run(name)
 	local track = string.match(name, "^lap:(.+)$")
 	if track then

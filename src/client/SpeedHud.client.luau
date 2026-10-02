@@ -1,6 +1,7 @@
 --!nonstrict
 -- Stats panel on the left of the screen. It shows the Speed stat (leaderstats.Speed, grown by the server
--- while the car drives) with Money (leaderstats.Money) under it; both count up smoothly as they grow.
+-- while the car drives) with Money (leaderstats.Money) under it and the run's banked winnings (player attribute
+-- Unbanked, paid into Money when auto racing stops) under that; all count smoothly as they change.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -21,7 +22,7 @@ local panel = Instance.new("Frame")
 panel.Name = "Panel"
 panel.AnchorPoint = Vector2.new(0, 0.5)
 panel.Position = UDim2.new(0, 16, 0.5, 0) -- left edge, vertically centred
-panel.Size = UDim2.fromOffset(150, 140)
+panel.Size = UDim2.fromOffset(150, 184)
 panel.BackgroundColor3 = Color3.fromRGB(20, 28, 48)
 panel.BackgroundTransparency = 0.25
 panel.Parent = gui
@@ -53,12 +54,21 @@ label("MoneyTitle", "MONEY", 14, UDim2.fromOffset(12, 92), Color3.fromRGB(255, 2
 local moneyValue =
 	label("MoneyValue", "$0", 26, UDim2.fromOffset(12, 108), Color3.fromRGB(255, 255, 255), Enum.Font.GothamBlack)
 
+label("UnbankedTitle", "UNBANKED", 14, UDim2.fromOffset(12, 138), Color3.fromRGB(255, 170, 40), Enum.Font.GothamBold)
+local unbankedValue =
+	label("UnbankedValue", "$0", 22, UDim2.fromOffset(12, 154), Color3.fromRGB(255, 255, 255), Enum.Font.GothamBlack)
+
 local stats = player:WaitForChild("leaderstats")
 local speedStat = stats:WaitForChild("Speed")
 local moneyStat = stats:WaitForChild("Money")
 
 local shown = speedStat.Value
 local shownMoney = moneyStat.Value
+local function unbanked()
+	local v = player:GetAttribute("Unbanked")
+	return type(v) == "number" and v or 0
+end
+local shownUnbanked = unbanked()
 -- Heartbeat, not RenderStepped: the numbers stay current even on frames that do not render
 RunService.Heartbeat:Connect(function(dt)
 	shown = HudFormat.Approach(shown, speedStat.Value, dt)
@@ -66,4 +76,6 @@ RunService.Heartbeat:Connect(function(dt)
 	rate.Text = HudFormat.RateText(shown)
 	shownMoney = HudFormat.Approach(shownMoney, moneyStat.Value, dt)
 	moneyValue.Text = HudFormat.MoneyText(shownMoney)
+	shownUnbanked = HudFormat.Approach(shownUnbanked, unbanked(), dt)
+	unbankedValue.Text = HudFormat.MoneyText(shownUnbanked)
 end)
