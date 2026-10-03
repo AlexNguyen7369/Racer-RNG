@@ -6,7 +6,8 @@
 -- Player, then ReplicatedStorage UiTestSetupDone = the same string. On error UiTestSetupError =
 -- "<id>:<nonce>:<message>" is set first, and Done is still set.
 --
--- Ids: snapshot, restore, spy, index_states, stat_points, no_stat_points, auto_racing, lose_event, turbo_next.
+-- Ids: snapshot, restore, spy, index_states, stat_points, no_stat_points, auto_racing, lose_event, turbo_next,
+-- emphasized_next, auto_roll_on.
 -- (Ported from the ServerSetup snippets in Client/UiTest/UiSpec.luau.)
 
 local HttpService = game:GetService("HttpService")
@@ -25,7 +26,7 @@ local function live(name)
 	return require(Server:WaitForChild(name))
 end
 
-local snapshots = {} -- [Player] = { gacha, money, speed, autoRacing }
+local snapshots = {} -- [Player] = { gacha, money, speed, autoRacing, autoRoll }
 local spied = {} -- [RemoteEvent] = connection (never connect twice)
 
 local function stat(player, name)
@@ -63,6 +64,17 @@ local function indexStates(player)
 	player:SetAttribute("StatPoints", G.FreePoints(player))
 end
 
+-- AUTO toggle (docs/ROLL_ANIMATION_CONTRACT.md): through GachaService.SetAutoRoll when it exists, else the
+-- AutoRoll attribute the auto-roll loop reads.
+local function setAutoRoll(player, on)
+	local G = live("GachaService")
+	if type(G.SetAutoRoll) == "function" then
+		G.SetAutoRoll(player, on)
+	else
+		player:SetAttribute("AutoRoll", on)
+	end
+end
+
 local setups = {}
 
 -- Global (not per player): logs every RemoteEvent call into ReplicatedStorage.UiTestSpy attributes,
@@ -93,7 +105,12 @@ local function spy()
 	end
 end
 
+-- Run once per test session: the baseline is kept until 'restore' (a second snapshot must never overwrite it with
+-- state the tests already changed, e.g. after emphasized_next or turbo_next).
 function setups.snapshot(player)
+	if snapshots[player] then
+		return
+	end
 	local G = live("GachaService")
 	local money, speed = stat(player, "Money"), stat(player, "Speed")
 	snapshots[player] = {
@@ -101,6 +118,7 @@ function setups.snapshot(player)
 		money = money and money.Value or nil,
 		speed = speed and speed.Value or nil,
 		autoRacing = player:GetAttribute("AutoRacing"),
+		autoRoll = player:GetAttribute("AutoRoll"),
 	}
 end
 
@@ -118,6 +136,9 @@ function setups.restore(player)
 		speed.Value = snap.speed
 	end
 	live("CarService").SetAutoRace(player, snap.autoRacing == true)
+	if snap.autoRoll ~= nil then
+		setAutoRoll(player, snap.autoRoll == true)
+	end
 	snapshots[player] = nil
 	removeSpy()
 end
@@ -189,6 +210,34 @@ function setups.turbo_next(player)
 	local rolls = player:GetAttribute("Rolls")
 	rolls = type(rolls) == "number" and math.max(0, math.floor(rolls)) or 0
 	player:SetAttribute("Rolls", rolls + (every - 1 - rolls % every) % every)
+end
+
+-- Roll animation (docs/ROLL_ANIMATION_CONTRACT.md): the next auto roll is an emphasized roll. Owning no rollable car
+-- makes any roll new and, with fewer than 5 cars owned, emphasized (GachaConfig.IsEmphasized). As soon as that roll
+-- happened (Rolls changed) exactly the cars owned before are given back (the rolled one is not kept), with the new
+-- roll count, so later rolls are not emphasized by accident and no car is gained.
+function setups.emphasized_next(player)
+	local G = live("GachaService")
+	local before = G.Snapshot(player)
+	local empty = table.clone(before)
+	empty.Cars = {}
+	G.Apply(player, empty)
+	local rolls0 = player:GetAttribute("Rolls")
+	task.spawn(function()
+		local deadline = os.clock() + 60
+		while player.Parent == Players and player:GetAttribute("Rolls") == rolls0 and os.clock() < deadline do
+			task.wait(0.05)
+		end
+		if player.Parent ~= Players then
+			return
+		end
+		before.Rolls = player:GetAttribute("Rolls")
+		G.Apply(player, before)
+	end)
+end
+
+function setups.auto_roll_on(player)
+	setAutoRoll(player, true)
 end
 
 local function runSetup(request)

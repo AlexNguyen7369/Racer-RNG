@@ -66,6 +66,38 @@ function GachaConfig.TurboProgress(rolls)
 	return count(rolls) % GachaConfig.TURBO_EVERY
 end
 
+-- An emphasized roll plays in the enlarged view and is announced to the server (owner, 2026-10-02): the car is
+-- undiscovered (not in `ownedIds`, the player's cars before this roll) and rarer than the player's 5th-rarest
+-- discovered car; with fewer than 5 discovered, any undiscovered car. Rarer = larger Chance (the catch-all has none).
+-- Rarity names never matter.
+GachaConfig.EMPHASIS_RANK = 5
+
+function GachaConfig.IsEmphasized(id, ownedIds)
+	local spec = CarCatalog.Get(id)
+	if not spec or not spec.Rollable then
+		return false
+	end
+	local chances = {}
+	local seen = {}
+	for _, owned in (type(ownedIds) == "table" and ownedIds or {}) do
+		if owned == id then
+			return false
+		end
+		local ownedSpec = CarCatalog.Get(owned)
+		if ownedSpec and ownedSpec.Rollable and not seen[owned] then
+			seen[owned] = true
+			table.insert(chances, ownedSpec.Chance or 0)
+		end
+	end
+	if #chances < GachaConfig.EMPHASIS_RANK then
+		return true
+	end
+	table.sort(chances, function(a, b)
+		return a > b
+	end)
+	return (spec.Chance or 0) > chances[GachaConfig.EMPHASIS_RANK]
+end
+
 -- Stat points earned from the index: floor(unique / DISCOVERIES_PER_POINT).
 function GachaConfig.EarnedPoints(uniqueCount)
 	return math.floor(count(uniqueCount) / GachaConfig.DISCOVERIES_PER_POINT)

@@ -16,6 +16,7 @@ local playerGui = player:WaitForChild("PlayerGui")
 local WHITE = Color3.fromRGB(255, 255, 255)
 local TOP_CLEAR = 68 -- the panel starts below the Auto Race button (top centre, 12 + 48 px)
 local ROW_STEP = 44
+local PANEL_HEIGHT = 60 + ROW_STEP * #GachaConfig.STATS
 local LABELS = {
 	Speed = "Base Speed Multi",
 	Money = "Base Money Multi",
@@ -73,7 +74,12 @@ local panel = Instance.new("Frame")
 panel.Name = "Panel"
 panel.AnchorPoint = Vector2.new(1, 0)
 panel.Position = UDim2.new(1, -140, 0, TOP_CLEAR)
-panel.Size = UDim2.fromOffset(300, 60 + ROW_STEP * #GachaConfig.STATS)
+-- Narrower on small screens so its left edge stays right of the compact roll at the top centre (it ends at 0.56 x
+-- the screen width): the two never overlap (docs/ROLL_ANIMATION_CONTRACT.md)
+panel.Size = UDim2.new(0.44, -150, 0, PANEL_HEIGHT)
+local panelLimit = Instance.new("UISizeConstraint")
+panelLimit.MaxSize = Vector2.new(300, PANEL_HEIGHT)
+panelLimit.Parent = panel
 panel.BackgroundColor3 = Color3.fromRGB(20, 28, 48)
 panel.BackgroundTransparency = 0.05
 panel.Visible = false

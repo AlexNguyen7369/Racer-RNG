@@ -29,5 +29,6 @@ return {
 		"bank",
 		"multiplayer",
 		"admin",
+		"roll_anim",
 	},
 }

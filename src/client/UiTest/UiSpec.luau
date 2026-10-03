@@ -99,28 +99,38 @@ UiSpec.Guis = {
 		},
 		DisabledStats = { Workshop = true }, -- brief: the Workshop row is disabled and never fires
 	},
-	-- docs/SPAWN_AND_ROLLS_SPEC.md section 5, owner's revision (2026-10-01): the toast is the way into the showcase.
-	-- Its area is always reserved (it must never overlap another element), it is a button only while shown
-	-- (Visible = false once faded: no invisible hitbox) and it hides while any panel or the showcase is open.
+	-- The compact roll card (docs/ROLL_ANIMATION_CONTRACT.md, owner's decision 2026-10-02: top centre, directly
+	-- UNDER the Auto Race button; it replaced the bottom-centre toast). Its area is always reserved (it must never
+	-- overlap another element: the overlap checks place it at its contract rect, UiSpec.RollAnim), it is a button
+	-- only while shown (Visible = false at rest: no invisible hitbox; shown at rest only while AutoRoll is false,
+	-- with "AUTO OFF") and it hides while any panel or the enlarged view is open. Text is "": the card parts draw it.
 	RollToast = {
 		Source = "Client/RollToast",
 		AlwaysOn = { "Toast" },
+		Side = "top_centre",
 		Buttons = {
 			{
 				Path = "Toast",
 				Does = "open_overlay",
 				Overlay = "RollShowcase",
-				Label = "<NEW! >CarName · Rarity of the latest RollResult",
+				Label = "the bare model (Viewport / Placeholder) and Odds of the latest RollResult (no card)",
 			},
 		},
 	},
-	-- Full-screen roll showcase (created by Client/RollToast). An Overlay: exempt from the overlap rules while
-	-- open; at rest nothing of it may be visible or clickable. UiSpec.Showcase holds its parts and numbers.
+	-- The enlarged view (created by Client/RollToast). An Overlay: exempt from the overlap rules while open; at rest
+	-- nothing of it may be visible or clickable. UiSpec.Showcase holds its parts and numbers.
 	RollShowcase = {
 		Source = "Client/RollToast",
 		Overlay = true,
 		Buttons = {
 			{ Path = "Backdrop", Does = "close_overlay", Overlay = "RollShowcase" }, -- a click off the card closes
+			{
+				Path = "AutoButton",
+				Does = "remote",
+				Remote = "SetAutoRoll",
+				Arg = "not_attr:AutoRoll", -- the opposite of the current AutoRoll attribute; does NOT close the view
+				Label = "UiSpec.RollAnim.AutoButtonText[AutoRoll]",
+			},
 		},
 	},
 	-- The rolls strip: ONLY the TURBO LUCK bar now (no ROLLS button, no feed). Display only.
@@ -153,12 +163,15 @@ UiSpec.PanelSwitch = {
 	Names = { ["IndexUi/Panel"] = "Index", ["StatsUi/Panel"] = "Stats" },
 }
 
--- A panel's top edge must be at least this far below the top-centre Auto Race button's bottom edge.
+-- A panel's top edge must be at least this far below the top-centre Auto Race button's bottom edge and, where the
+-- panel overlaps the compact roll horizontally, this far below the compact roll's bottom edge (owner decision 6:
+-- panels make room for the roll; the Index panel's top is RollAnimConfig.PANEL_TOP).
 UiSpec.PanelTopMargin = 4
 
--- AlwaysOn elements that must be hidden (Visible = false) while any panel is open (ui_toast enforces it) and
--- while the showcase is open (click checks); the overlap checks then only place them in the rest state.
-UiSpec.HiddenWhilePanelOpen = { "RollToast/Toast" }
+-- AlwaysOn elements that must be hidden (Visible = false) while any panel is open; the overlap checks then only place
+-- them in the rest state. Empty since owner decision 6: the compact roll is independent of every HUD click (it stays
+-- shown and keeps playing while panels open and close, so it must not overlap any panel; ui_toast enforces it).
+UiSpec.HiddenWhilePanelOpen = {}
 
 -- Overlaps that are allowed (a modal panel may cover the HUD read-out, never a button). The toast is a button
 -- now and hides while a panel is open, so it gets no allowance. Removed with the roll feed (owner's revision):
@@ -180,19 +193,153 @@ UiSpec.RollUi = {
 	Removed = { "RollsButton", "Feed" }, -- the owner removed them: they must not exist any more
 }
 
--- The roll showcase (RollShowcase ScreenGui, owner's revision). Card parts are found by name anywhere in Card.
+-- The enlarged view (RollShowcase ScreenGui; docs/ROLL_ANIMATION_CONTRACT.md). Card parts are found by name
+-- anywhere in RollShowcase/Card (the compact roll has no card since owner decision 4: UiSpec.Compact).
 UiSpec.Showcase = {
 	Gui = "RollShowcase",
 	Backdrop = "Backdrop", -- full-screen TextButton, no text, dark, BackgroundTransparency ~0.35
 	BackdropTransparency = { Min = 0.2, Max = 0.5 }, -- "~0.35"
 	BackdropMaxLuminance = 0.3, -- "dark"
-	Card = "Card", -- centred Frame, Active (a click on it does NOT close)
-	CardParts = { "Viewport", "Odds", "CarName", "Rarity", "SpeedMulti", "NewBadge", "TurboBadge" },
+	Card = "Card", -- Frame, Active (a click on it does NOT close)
+	-- Contract geometry of the enlarged card: AnchorPoint (0.5, 0.5), Position UDim2(0.5, 0, 0.5, CardCentreYOffset),
+	-- Size UDim2(ENLARGED_WIDTH, 0, 1, CardSizeYOffset), UISizeConstraint MaxSize = ENLARGED_MAX (Shared/RollAnimConfig).
+	CardCentreYOffset = -55,
+	CardSizeYOffset = -170,
+	-- Every part the enlarged card must have (presence)...
+	CardParts = {
+		"Glow",
+		"Reel",
+		"Viewport",
+		"Odds",
+		"CarName",
+		"SpeedMulti",
+		"Rarity",
+		"NewBadge",
+		"TurboBadge",
+		"TurboFlames",
+		"Streaks",
+		"Smoke",
+		"Ring",
+		"Burst",
+	},
+	-- ...and the content parts that must lie inside the card while shown (effects such as Burst may spill out)
+	ContentParts = { "Viewport", "Odds", "CarName", "Rarity", "SpeedMulti", "NewBadge", "TurboBadge" },
 	TurboBadgeText = "TURBO x<TURBO_LUCK>",
+	SpeedMultiText = "<multi>x Speed", -- contract: "25x Speed"
 	SecretMinLuminance = 0.5, -- Secret's colour is near-black: its Rarity / Odds text must still read (light)
+	CarNameStrokeMaxLuminance = 0.3, -- CarName: bold with a DARK UIStroke outline
 	Blur = "RollShowcaseBlur", -- BlurEffect in Lighting: Enabled while open, disabled when closed
 	CornerInset = 24, -- px: the backdrop click lands this far in from the bottom-right corner (clear of the card)
+	Hint = "Hint", -- Backdrop/Hint
+	HintText = "Tap anywhere to close",
+	-- RollShowcase/AutoButton: bottom centre, AnchorPoint (0.5, 1), bottom edge BottomGap px above the screen bottom,
+	-- above the Hint and the TURBO LUCK bar, clear of the card; at least MinSize (tap-sized on a phone)
+	AutoButton = { Path = "AutoButton", MinSize = Vector2.new(160, 44), BottomGap = 76 },
+	Takeover = "Takeover", -- Secret only: full-screen frame in RollShowcase during its hold
 }
+
+-- The compact roll RollToast/Toast (owner decision 4, 2026-10-02, "Compact = no card"): same rect and placement, an
+-- invisible background, a transparent Body filling it with ONLY the bare model and its odds. The land pop / grow /
+-- exit shrink play on Body. Turbo, NEW and rarity effects show only on the enlarged card.
+UiSpec.Compact = {
+	Body = "Body",
+	Parts = { "Body", "Reel", "Streaks", "Smoke", "Viewport", "Odds" }, -- (+ Placeholder "?" for a car without a model)
+	Forbidden = { -- must not EXIST anywhere in RollToast/Toast (not just be hidden)
+		"Glow",
+		"CarName",
+		"SpeedMulti",
+		"Rarity",
+		"NewBadge",
+		"TurboBadge",
+		"TurboFlames",
+		"Ring",
+		"Burst",
+		"Flare",
+	},
+	AutoOff = "AutoOff", -- caption part, shown only while AutoRoll is false
+	ModelShare = 0.7, -- owner decision 6: Viewport fills the top ~70% of the rect, Odds the bottom ~30%
+	SplitTolerance = 0.06, -- x rect height, for each of those edges
+}
+
+-- The roll animation (docs/ROLL_ANIMATION_CONTRACT.md). Numbers are read from Shared/RollAnimConfig; Fallback is the
+-- contract's table, used only to keep computing the other checks while the module is missing
+-- (roll_anim_config_present fails then).
+UiSpec.RollAnim = {
+	Module = "RollAnimConfig",
+	Fallback = {
+		POP = 0.15,
+		SPIN = 0.8,
+		LAND = 0.15,
+		EXIT = 0.15,
+		SWITCH = 0.3,
+		HOLD = {
+			Common = 0.3,
+			Uncommon = 0.3,
+			Rare = 0.4,
+			Epic = 0.6,
+			Legendary = 1.5,
+			Mythic = 2.5,
+			Secret = 4,
+		},
+		REEL_CARS = 6,
+		LAND_POP = 1.15,
+		COMPACT_WIDTH = 0.12, -- owner decision 6: a smaller compact roll
+		COMPACT_MIN = 100,
+		COMPACT_MAX = 230,
+		COMPACT_HEIGHT = 66,
+		COMPACT_GAP = 8,
+		ENLARGED_FACTOR = 3,
+		ENLARGED_WIDTH = 0.6, -- the enlarged card no longer derives from the compact size
+		ENLARGED_MAX = Vector2.new(780, 336),
+		PANEL_TOP = 138, -- the Index panel's top edge, below the compact roll
+	},
+	Numbers = {
+		"POP",
+		"SPIN",
+		"LAND",
+		"EXIT",
+		"SWITCH",
+		"REEL_CARS",
+		"LAND_POP",
+		"COMPACT_WIDTH",
+		"COMPACT_MIN",
+		"COMPACT_MAX",
+		"COMPACT_HEIGHT",
+		"COMPACT_GAP",
+		"ENLARGED_FACTOR",
+		"ENLARGED_WIDTH",
+		"PANEL_TOP",
+	},
+	Vectors = { "ENLARGED_MAX" },
+	Functions = { "Hold", "Duration", "ExtraPause", "Reel" },
+	Phases = { "PopIn", "Spin", "Land", "Hold", "Exit", "Idle" }, -- one roll, in this order
+	PhaseTolerance = 0.1, -- s, per phase length (frame quantisation at both ends)
+	PhaseStart = 0.2, -- s from the RollResult to PopIn (+ SWITCH for an emphasized roll)
+	LandPopTolerance = 0.06, -- peak card width / nominal within LAND_POP +- this during Land
+	SettledTolerance = 0.02, -- card width / nominal within 1 +- this during Hold (back to 1x)
+	PopInStartMax = 0.25, -- the compact card grows from 0: its smallest width during PopIn <= this x nominal
+	ExitShrinkMax = 0.5, -- the compact card shrinks on Exit: its smallest width during Exit <= this x nominal
+	GlowTurnWait = 0.2, -- s between two Glow UIGradient.Rotation samples in Hold (it must have turned)
+	GlowTurnMin = 0.5, -- degrees
+	FlyIcon = "FlyIcon", -- a small car icon: no text, takes no clicks
+	FlyTarget = "IndexUi/OpenIndex", -- until the Garage button exists
+	FlyArrive = 24, -- px: the FlyIcon centre comes at least this close to the target's rectangle
+	SwitchGrace = 0.2, -- s after SWITCH for the view to be back to Compact after an emphasized roll
+	ViewAttr = "View", -- RollToast ScreenGui attribute: "Compact" | "Enlarged"
+	AutoOffCaption = "AUTO OFF",
+	AutoButtonText = { [true] = "AUTO: ON", [false] = "AUTO: OFF" },
+}
+
+-- Global announcement of an emphasized roll (Remotes.RollAnnounce -> Client/RollAnnounce -> RBXGeneral).
+-- Odds: HudFormat.Odds(Chance), or "Common" for the catch-all (no Chance), like the card's Odds decal.
+UiSpec.Announce = {
+	Remote = "RollAnnounce",
+	Channel = "RBXGeneral",
+	Format = "%s rolled %s (%s)! Total rolls: %d", -- DisplayName, Car Name, odds, Rolls after the roll
+}
+
+-- Client scripts that build no ScreenGui but must exist (StarterPlayerScripts.Client).
+UiSpec.ClientScripts = { "RollAnnounce" }
 
 -- Created by Roblox, not the game.
 UiSpec.IgnoreGuis = { Freecam = true, BubbleChat = true, Chat = true, TouchGui = true, RbxCameraUI = true }
@@ -207,8 +354,13 @@ UiSpec.Waits = {
 	GuiAppear = 15, -- each ScreenGui must exist in PlayerGui within this
 	HudSettle = 2.5, -- HUD counters must reach the server value within this (ui-tester inventory: ~2 s)
 	RollToast = 12, -- a Remotes.RollResult must arrive within this (GachaConfig.ROLL_INTERVAL = 3 s)
-	ToastShown = 0.3, -- the toast must be showing (Visible, text opaque) this soon after a RollResult
-	ToastGone = 2.6, -- and Visible = false this long after it (shows ~1.6 s, fades; < ROLL_INTERVAL 3 s)
+	ToastShown = 0.3, -- the compact card must be showing (Visible, drawn) this soon after a RollResult
+	-- and Visible = false this long after RollAnimConfig's roll length (POP+SPIN+LAND+Hold(rarity)+EXIT)
+	ToastGoneGrace = 0.3,
+	CardSettle = 4, -- a card must reach Phase Hold or Idle (1x, geometry measurable) within this
+	AutoOffWatch = 1, -- with AutoRoll false, no RollResult for ROLL_INTERVAL + this
+	EmphasizedRoll = 25, -- ui_roll_emphasized waits this long for an emphasized roll (ServerSetup emphasized_next)
+	AnnounceWait = 3, -- the RollAnnounce event and its RBXGeneral message arrive this soon after the roll
 	NpcStart = 20, -- an NPC must be on track (or start) within this while auto racing
 	ClickDone = 60, -- click protocol: ui-tester must click within this
 	ClickSettle = 1.5, -- after the click, the server answer must show within this
@@ -233,8 +385,10 @@ whose state is missing fail with value "state_missing:<Id>".
 UiSpec.ServerSetup = {
 	{
 		Id = "snapshot",
-		When = "before UiTestRun and before any click",
-		What = "Remembers the player's GachaService snapshot and AutoRacing so 'restore' can put them back.",
+		When = "ONCE, before UiTestRun and before any click (it is the baseline: never listed in a click's NeedSetup)",
+		What = "Remembers the player's GachaService snapshot, AutoRacing and AutoRoll so 'restore' can put them "
+			.. "back. Run-once is enforced: while a baseline exists a second 'snapshot' keeps it (only 'restore' "
+			.. "clears it), so no setup or click can overwrite the baseline.",
 	},
 	{
 		Id = "spy",
@@ -281,9 +435,24 @@ UiSpec.ServerSetup = {
 			.. "TURBO_EVERY - 1, so the next auto roll is a turbo roll. 'restore' puts Rolls back.",
 	},
 	{
+		Id = "emphasized_next",
+		When = "during UiTestRun when the harness prints '[UITEST] WAIT emphasized_roll' (LocalPlayer attribute "
+			.. "UiTestWaiting == 'emphasized_roll'); needs 'snapshot' first. Without it ui_roll_emphasized fails "
+			.. "with state_missing:emphasized_next",
+		What = "Takes every rollable car away (GachaService.Apply with Cars = {}), so the next auto roll is new and, "
+			.. "with fewer than 5 cars owned, emphasized (GachaConfig.IsEmphasized). As soon as that roll happened "
+			.. "(Rolls changed) exactly the cars owned before are given back (the rolled car is not kept), so later rolls "
+			.. "are not emphasized by accident and no car is gained. 'restore' puts everything back.",
+	},
+	{
+		Id = "auto_roll_on",
+		When = "before UiTestRun if AutoRoll is false (a scenario fails with state_missing:auto_roll_on)",
+		What = "Turns auto-rolling back on (AutoRoll = true; GachaService.SetAutoRoll when it exists).",
+	},
+	{
 		Id = "restore",
 		When = "after the run and the clicks",
-		What = "Applies the 'snapshot', restores AutoRacing and removes UiTestSpy.",
+		What = "Applies the 'snapshot', restores AutoRacing and AutoRoll and removes UiTestSpy.",
 	},
 }
 
@@ -314,7 +483,10 @@ Protocol, per click (run them in this order; the showcase clicks build on each o
     only real clicks open or close it).
 Prepare:
  Open / Closed  declared panels forced visible / hidden before the click
- WaitShown      wait (Waits.RollToast) for the target to be shown by a real RollResult before publishing
+ WaitShown      wait (Waits.RollToast) for the target to be shown by a real RollResult before publishing (for the
+                compact card: until its Phase is Spin, Land or Hold, i.e. fully popped in)
+ RequireShown   the target must already be shown (no roll is waited for), else state_missing:<previous click id>
+ AttrIs         { [attribute] = value } the LocalPlayer must have before the click, else state_missing
  Showcase       required showcase state before the click (true = open). The harness never forces it; a wrong state
                 fails with state_missing:click:<previous click id>.
  WaitSeconds    extra wait before publishing
@@ -333,6 +505,7 @@ UiSpec.Clicks = {
 		Gui = "IndexUi",
 		Path = "OpenIndex",
 		Prepare = { Closed = CLOSED, Showcase = false },
+		NeedSetup = { "spy" },
 		Expect = { Panels = { ["IndexUi/Panel"] = true }, Remote = false },
 	},
 	{
@@ -382,7 +555,7 @@ UiSpec.Clicks = {
 		Gui = "AutoRaceButton",
 		Path = "Toggle",
 		Prepare = { Closed = CLOSED, Showcase = false },
-		NeedSetup = { "snapshot", "spy" },
+		NeedSetup = { "spy" },
 		Expect = {
 			Remote = { Name = "SetAutoRace", Arg = "not_attr:AutoRacing" },
 			After = { "autorace_label_follows_server", "autoracing_is_arg" },
@@ -404,7 +577,7 @@ UiSpec.Clicks = {
 		Gui = "IndexUi",
 		Path = "Panel/Grid/{discovered_unequipped}/Equip",
 		Prepare = { Open = { "IndexUi/Panel" }, Closed = { "StatsUi/Panel" }, Showcase = false },
-		NeedSetup = { "snapshot", "spy", "index_states" },
+		NeedSetup = { "spy", "index_states" },
 		Expect = {
 			Remote = { Name = "EquipCar", Arg = "tile_id" },
 			After = { "equipped_is_tile", "tile_shows_equipped" },
@@ -467,22 +640,25 @@ UiSpec.Clicks = {
 		NeedSetup = { "spy", "no_stat_points" },
 		Expect = { Remote = false, After = { "alloc_unchanged", "points_unchanged" } },
 	},
-	-- Roll toast -> showcase (owner's revision). Run these five in this order, with auto_racing active.
+	-- Compact card -> enlarged view (docs/ROLL_ANIMATION_CONTRACT.md). Run these ten in this order, with
+	-- auto_racing active and AutoRoll on; 'restore' afterwards puts AutoRoll back too.
 	{
 		Id = "open_showcase_from_toast",
 		Gui = "RollToast",
 		Path = "Toast",
-		Prepare = { Closed = CLOSED, Showcase = false, WaitShown = true },
+		Prepare = { Closed = CLOSED, Showcase = false, WaitShown = true, AttrIs = { AutoRoll = true } },
 		Retries = 4,
 		NeedSetup = { "spy", "auto_racing" },
 		Expect = {
 			Showcase = true,
 			Remote = false,
 			After = {
+				"view_enlarged",
 				"showcase_card_is_latest_roll",
 				"showcase_blur_on",
 				"showcase_layout",
 				"showcase_covers_buttons",
+				"autobutton_label_follows_server",
 				"toast_hidden_while_showcase_open",
 			},
 		},
@@ -496,7 +672,32 @@ UiSpec.Clicks = {
 		Expect = {
 			Showcase = true,
 			Remote = false,
-			After = { "showcase_blur_on", "showcase_updates_live_turbo", "toast_hidden_while_showcase_open" },
+			After = {
+				"showcase_blur_on",
+				"view_enlarged",
+				"showcase_updates_live_turbo",
+				"showcase_result_stays_after_exit", -- the enlarged card does not shrink at Exit
+				"toast_hidden_while_showcase_open",
+			},
+		},
+	},
+	{
+		-- AUTO: ON -> OFF. Fires SetAutoRoll(false), the view stays open, no more rolls
+		Id = "showcase_auto_off",
+		Gui = "RollShowcase",
+		Path = "AutoButton",
+		Prepare = { Showcase = true, AttrIs = { AutoRoll = true } },
+		NeedSetup = { "spy" },
+		Expect = {
+			Showcase = true,
+			Remote = { Name = "SetAutoRoll", Arg = "not_attr:AutoRoll" },
+			After = {
+				"autoroll_is_arg",
+				"autobutton_label_follows_server",
+				"view_enlarged",
+				"showcase_blur_on",
+				"no_rolls_while_auto_off",
+			},
 		},
 	},
 	{
@@ -506,19 +707,36 @@ UiSpec.Clicks = {
 		ClickAt = "corner",
 		Prepare = { Showcase = true },
 		NeedSetup = { "spy" },
-		Expect = { Showcase = false, Remote = false, After = { "showcase_blur_off", "normal_view_back" } },
+		Expect = {
+			Showcase = false,
+			Remote = false,
+			After = { "showcase_blur_off", "view_compact", "toast_shows_auto_off", "normal_view_back" },
+		},
 	},
 	{
-		Id = "open_showcase_from_toast_again",
+		-- With AUTO off the compact card stays shown, so the enlarged view (and its AUTO button) is always reachable
+		Id = "open_showcase_from_auto_off_toast",
 		Gui = "RollToast",
 		Path = "Toast",
-		Prepare = { Closed = CLOSED, Showcase = false, WaitShown = true },
-		Retries = 4,
+		Prepare = { Closed = CLOSED, Showcase = false, RequireShown = true, AttrIs = { AutoRoll = false } },
 		NeedSetup = { "spy" },
 		Expect = {
 			Showcase = true,
 			Remote = false,
-			After = { "showcase_card_is_latest_roll", "showcase_blur_on" },
+			After = { "view_enlarged", "showcase_blur_on", "toast_hidden_at_once", "autobutton_label_follows_server" },
+		},
+	},
+	{
+		-- AUTO: OFF -> ON. Fires SetAutoRoll(true), the view stays open, rolls come again
+		Id = "showcase_auto_on",
+		Gui = "RollShowcase",
+		Path = "AutoButton",
+		Prepare = { Showcase = true, AttrIs = { AutoRoll = false } },
+		NeedSetup = { "spy" },
+		Expect = {
+			Showcase = true,
+			Remote = { Name = "SetAutoRoll", Arg = "not_attr:AutoRoll" },
+			After = { "autoroll_is_arg", "autobutton_label_follows_server", "view_enlarged", "rolls_resume" },
 		},
 	},
 	{
@@ -533,7 +751,33 @@ UiSpec.Clicks = {
 			Showcase = false,
 			Panels = { ["IndexUi/Panel"] = false, ["StatsUi/Panel"] = false },
 			Remote = false,
-			After = { "showcase_blur_off", "normal_view_back" },
+			After = { "showcase_blur_off", "view_compact", "normal_view_back" },
+		},
+	},
+	{
+		Id = "open_showcase_from_toast_again",
+		Gui = "RollToast",
+		Path = "Toast",
+		Prepare = { Closed = CLOSED, Showcase = false, WaitShown = true, AttrIs = { AutoRoll = true } },
+		Retries = 4,
+		NeedSetup = { "spy" },
+		Expect = {
+			Showcase = true,
+			Remote = false,
+			After = { "view_enlarged", "showcase_card_is_latest_roll", "showcase_blur_on" },
+		},
+	},
+	{
+		Id = "showcase_backdrop_closes_again",
+		Gui = "RollShowcase",
+		Path = "Backdrop",
+		ClickAt = "corner",
+		Prepare = { Showcase = true },
+		NeedSetup = { "spy" },
+		Expect = {
+			Showcase = false,
+			Remote = false,
+			After = { "showcase_blur_off", "view_compact", "normal_view_back" },
 		},
 	},
 }

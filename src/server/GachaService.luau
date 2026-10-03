@@ -1,7 +1,8 @@
 --!nonstrict
 -- Car gacha, index and stat allocation. The server owns all of it; clients only see:
 --   player.GachaData: one StringValue per owned car Id (discovering a car = owning it; no duplicate counts)
---   player attributes: EquippedCar, Rolls, StatPoints (free points), Alloc_<Stat> for each GachaConfig.STATS
+--   player attributes: EquippedCar, Rolls, StatPoints (free points), Alloc_<Stat> for each GachaConfig.STATS,
+--   AutoRoll (the AUTO toggle of the roll view, true on join, not saved)
 -- Every unique car in the index counts towards stat points (GachaConfig.EarnedPoints); earned points are
 -- never stored, only what was allocated, so the two can not drift apart. Saved by PlayerData (Snapshot/Apply).
 
@@ -11,6 +12,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local CarCatalog = require(Shared.CarCatalog)
 local GachaConfig = require(Shared.GachaConfig)
+local RollAnimConfig = require(Shared.RollAnimConfig)
 
 local GachaService = {}
 
@@ -23,6 +25,7 @@ local rng = Random.new()
 local lastRequest = setmetatable({}, { __mode = "k" }) -- player -> os.clock()
 local autoRolls = setmetatable({}, { __mode = "k" }) -- player -> handle
 local rollRemote = nil -- Remotes.RollResult, made by Start(): tells the player what they rolled
+local announceRemote = nil -- Remotes.RollAnnounce, made by Start(): an emphasized roll, to everyone in the server
 
 local function cleanCount(n)
 	if type(n) ~= "number" or n ~= n or n < 0 then
@@ -56,6 +59,9 @@ function GachaService.Setup(player)
 	end
 	if player:GetAttribute("Rolls") == nil then
 		player:SetAttribute("Rolls", 0)
+	end
+	if player:GetAttribute("AutoRoll") == nil then
+		player:SetAttribute("AutoRoll", true)
 	end
 	for _, stat in GachaConfig.STATS do
 		if player:GetAttribute("Alloc_" .. stat) == nil then
@@ -139,19 +145,53 @@ function GachaService.Grant(player, id)
 	return true
 end
 
+local function ownedIds(player)
+	local ids = {}
+	local data = player:FindFirstChild("GachaData")
+	if data then
+		for _, entry in data:GetChildren() do
+			table.insert(ids, entry.Name)
+		end
+	end
+	return ids
+end
+
+-- Tells everyone in the server about an emphasized roll (Client/RollAnnounce shows it in chat). `rolls` is the
+-- player's Rolls after it. Does nothing for anything that is not a real Player (test fakes).
+function GachaService.Announce(player, id, rolls)
+	if announceRemote and typeof(player) == "Instance" and player:IsA("Player") then
+		announceRemote:FireAllClients(player.UserId, player.DisplayName, id, rolls)
+	end
+end
+
 -- One roll at the player's luck, times GachaConfig.TURBO_LUCK on every TURBO_EVERY-th roll. Returns the car Id,
--- whether it was new and the turbo multi (1 on a normal roll).
+-- whether it was new, the turbo multi (1 on a normal roll) and whether it is emphasized (GachaConfig.IsEmphasized:
+-- played enlarged and announced to the whole server).
 function GachaService.Roll(player, roller)
 	GachaService.Setup(player)
 	local rollNumber = math.min(cleanCount(player:GetAttribute("Rolls")) + 1, MAX_COUNT)
 	local turboMulti = GachaConfig.IsTurbo(rollNumber) and GachaConfig.TURBO_LUCK or 1
 	local id = GachaConfig.Roll(roller or rng, GachaService.Luck(player) * turboMulti)
+	local emphasized = GachaConfig.IsEmphasized(id, ownedIds(player))
 	player:SetAttribute("Rolls", rollNumber)
 	local isNew = GachaService.Grant(player, id)
 	if rollRemote and player:IsA("Player") then
-		rollRemote:FireClient(player, id, isNew, turboMulti)
+		rollRemote:FireClient(player, id, isNew, turboMulti, emphasized)
 	end
-	return id, isNew, turboMulti
+	if emphasized then
+		GachaService.Announce(player, id, rollNumber)
+	end
+	return id, isNew, turboMulti, emphasized
+end
+
+-- The AUTO toggle: while false the auto-roll loop makes no roll. Returns true if the value was applied.
+function GachaService.SetAutoRoll(player, on)
+	if type(on) ~= "boolean" then
+		return false
+	end
+	GachaService.Setup(player)
+	player:SetAttribute("AutoRoll", on)
+	return true
 end
 
 -- Equips the starter or an owned car. Returns true if it is now equipped.
@@ -262,17 +302,29 @@ function GachaService.Apply(player, saved)
 	refreshPoints(player)
 end
 
--- Rolls once every GachaConfig.ROLL_INTERVAL seconds until handle:Stop() (or the player is gone).
-function GachaService.StartAutoRoll(player)
-	local handle = { Running = true }
+-- Seconds to wait after a roll before the next one: ROLL_INTERVAL, longer when that roll's animation is longer
+-- (RollAnimConfig.ExtraPause), so the next roll never covers one still playing.
+function GachaService.WaitAfter(id, emphasized)
+	local spec = CarCatalog.Get(id)
+	return GachaConfig.ROLL_INTERVAL + RollAnimConfig.ExtraPause(spec and spec.Rarity, emphasized == true)
+end
+
+-- Rolls every GachaService.WaitAfter(last roll) seconds while the player's AutoRoll is on, until handle:Stop() (or
+-- the player is gone). `roller` (optional) is the Random the rolls use (tests).
+function GachaService.StartAutoRoll(player, roller)
+	local handle = { Running = true, Rolls = 0 }
 	function handle:Stop()
 		self.Running = false
 	end
 	task.spawn(function()
+		local wait = GachaConfig.ROLL_INTERVAL
 		while handle.Running and player.Parent do
-			task.wait(GachaConfig.ROLL_INTERVAL)
-			if handle.Running and player.Parent then
-				GachaService.Roll(player)
+			task.wait(wait)
+			wait = GachaConfig.ROLL_INTERVAL
+			if handle.Running and player.Parent and player:GetAttribute("AutoRoll") ~= false then
+				local id, _, _, emphasized = GachaService.Roll(player, roller)
+				handle.Rolls += 1
+				wait = GachaService.WaitAfter(id, emphasized)
 			end
 		end
 	end)
@@ -286,6 +338,11 @@ local function accept(player)
 	end
 	lastRequest[player] = now
 	return true
+end
+
+-- What Remotes.SetAutoRoll does: rate-limited like AllocateStat, booleans only. Returns true if applied.
+function GachaService.RequestSetAutoRoll(player, on)
+	return accept(player) and GachaService.SetAutoRoll(player, on)
 end
 
 local function remote(remotes, name)
@@ -306,6 +363,8 @@ function GachaService.Start()
 		remotes.Parent = ReplicatedStorage
 	end
 	rollRemote = remote(remotes, "RollResult")
+	announceRemote = remote(remotes, "RollAnnounce")
+	remote(remotes, "SetAutoRoll").OnServerEvent:Connect(GachaService.RequestSetAutoRoll)
 	remote(remotes, "EquipCar").OnServerEvent:Connect(function(player, id)
 		if accept(player) then
 			GachaService.Equip(player, id)

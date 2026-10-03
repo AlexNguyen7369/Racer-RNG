@@ -13,6 +13,7 @@ local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local TextChatService = game:GetService("TextChatService")
 local TextService = game:GetService("TextService")
 local UserInputService = game:GetService("UserInputService")
 local Lighting = game:GetService("Lighting")
@@ -29,6 +30,61 @@ local TrackBuilder = require(Shared:WaitForChild("TrackBuilder"))
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
+-- Shared/RollAnimConfig (docs/ROLL_ANIMATION_CONTRACT.md), read live. While it is missing, the contract's values
+-- (UiSpec.RollAnim.Fallback) keep the other checks computable and roll_anim_config_present fails.
+local animModule = nil
+local function anim()
+	if animModule == nil then
+		local m = Shared:FindFirstChild(UiSpec.RollAnim.Module)
+		if m and m:IsA("ModuleScript") then
+			local ok, cfg = pcall(require, m)
+			if ok and type(cfg) == "table" then
+				animModule = cfg
+			end
+		end
+	end
+	return animModule
+end
+
+local function animNum(name)
+	local cfg = anim()
+	local v = cfg and cfg[name]
+	if type(v) ~= "number" then
+		v = UiSpec.RollAnim.Fallback[name]
+	end
+	return v
+end
+
+local function animVec(name)
+	local cfg = anim()
+	local v = cfg and cfg[name]
+	if typeof(v) ~= "Vector2" then
+		v = UiSpec.RollAnim.Fallback[name]
+	end
+	return v
+end
+
+local function holdFor(rarity)
+	local cfg = anim()
+	if cfg and type(cfg.Hold) == "function" then
+		local ok, v = pcall(cfg.Hold, rarity)
+		if ok and type(v) == "number" then
+			return v
+		end
+	end
+	local h = UiSpec.RollAnim.Fallback.HOLD
+	return h[rarity] or h.Common
+end
+
+-- One roll's length: POP + SPIN + LAND + Hold(rarity) + EXIT (+ 2 x SWITCH when emphasized)
+local function durationFor(rarity, emphasized)
+	local d = animNum("POP") + animNum("SPIN") + animNum("LAND") + holdFor(rarity) + animNum("EXIT")
+	if emphasized then
+		d += 2 * animNum("SWITCH")
+	end
+	return d
+end
+
 local UiScenarios = {}
 
 UiScenarios.Names = {
@@ -42,10 +98,13 @@ UiScenarios.Names = {
 	"ui_stats",
 	"ui_toast",
 	"ui_rolls",
+	"ui_roll_anim",
 	"ui_showcase",
 	"ui_loser",
 	"ui_billboards",
 	"ui_panels",
+	-- Last: its server setup (emphasized_next) takes the cars away until the emphasized roll happened
+	"ui_roll_emphasized",
 }
 
 local TOL = UiSpec.Tolerance
@@ -410,16 +469,65 @@ local function gridCell(obj, parent, grid, base, ctx)
 	return R(base.x + (i % cols) * (cw + px), base.y + math.floor(i / cols) * (ch + py), cw, ch)
 end
 
+-- The two roll cards animate (PopIn grows from 0, LAND_POP, Exit shrink, the 0.3 s SWITCH), so their live Size /
+-- Position are only meaningful while settled. The solver places them at their CONTRACT rect
+-- (docs/ROLL_ANIMATION_CONTRACT.md, numbers from Shared/RollAnimConfig) unless ctx.live; liveVsNominal proves the
+-- live card sits exactly there (at every viewport) whenever it is settled.
+local function cardKind(obj)
+	if not obj:IsA("GuiObject") then
+		return nil
+	end
+	local gui = obj.Parent
+	if obj.Name == "Toast" and gui and gui.Name == "RollToast" and gui.Parent == playerGui then
+		return "compact"
+	end
+	local lc = obj.Name == UiSpec.Showcase.Card and guiOf(obj)
+	if lc and lc.Name == UiSpec.Showcase.Gui and lc.Parent == playerGui then
+		return "enlarged"
+	end
+	return nil
+end
+
+-- Compact: AnchorPoint (0.5, 0), centred, top edge COMPACT_GAP under the Auto Race button, width
+-- clamp(COMPACT_WIDTH x parent width, COMPACT_MIN, COMPACT_MAX), height COMPACT_HEIGHT.
+local function compactNominal(base, toggleRect)
+	local w = math.clamp(base.w * animNum("COMPACT_WIDTH"), animNum("COMPACT_MIN"), animNum("COMPACT_MAX"))
+	local h = animNum("COMPACT_HEIGHT")
+	local top = toggleRect and (toggleRect.y + toggleRect.h + animNum("COMPACT_GAP")) or base.y
+	return R(base.x + base.w / 2 - w / 2, top, w, h)
+end
+
+-- Enlarged: AnchorPoint (0.5, 0.5), Position UDim2(0.5, 0, 0.5, CardCentreYOffset), Size UDim2(ENLARGED_WIDTH, 0, 1,
+-- CardSizeYOffset), UISizeConstraint MaxSize = ENLARGED_MAX (no longer derived from the compact size).
+local function enlargedNominal(base)
+	local max = animVec("ENLARGED_MAX")
+	local w = math.min(base.w * animNum("ENLARGED_WIDTH"), max.X)
+	local h = math.min(base.h + UiSpec.Showcase.CardSizeYOffset, max.Y)
+	local cx = base.x + base.w / 2
+	local cy = base.y + base.h / 2 + UiSpec.Showcase.CardCentreYOffset
+	return R(cx - w / 2, cy - h / 2, w, h)
+end
+
 -- Layout solver for a hypothetical viewport: UDim2 Position/Size, AnchorPoint, UISizeConstraint, UIGridLayout
 -- (top-left, horizontal fill), ScrollingFrame CanvasPosition, and the top-bar inset. Anything else is recorded
 -- in ctx.unsupported (the layout_model_supported check fails, so the solver must be extended, never ignored).
+-- UIGradient, UICorner, UIStroke and GuiObject.Rotation do not move or size anything (visual only).
 simRect = function(obj, ctx)
 	local cached = ctx.cache[obj]
 	if cached then
 		return cached
 	end
 	local r
-	if obj:IsA("LayerCollector") then
+	local kind = not ctx.live and cardKind(obj)
+	if kind then
+		local base = simRect(obj.Parent, ctx)
+		if kind == "compact" then
+			local toggle = findPath("AutoRaceButton/Toggle")
+			r = compactNominal(base, toggle and simRect(toggle, ctx))
+		else
+			r = enlargedNominal(base)
+		end
+	elseif obj:IsA("LayerCollector") then
 		r = rootRect(obj, ctx.vp)
 	elseif not obj:IsA("GuiObject") then
 		r = simRect(obj.Parent, ctx)
@@ -454,15 +562,54 @@ simRect = function(obj, ctx)
 	return r
 end
 
--- Rect function for a UiSpec.Viewports entry.
+-- Rect function for a UiSpec.Viewports entry ("current": the engine's rects, the roll cards at their contract rect).
 local function provider(vpSpec)
 	if not vpSpec.Size then
-		return realRect, viewport(), { unsupported = {} }
+		local cardCtx = { vp = viewport(), cache = {}, unsupported = {} }
+		return function(obj)
+			if cardKind(obj) then
+				return simRect(obj, cardCtx)
+			end
+			return realRect(obj)
+		end,
+			viewport(),
+			{ unsupported = {} }
 	end
 	local ctx = { vp = vpSpec.Size, cache = {}, unsupported = {} }
 	return function(obj)
 		return simRect(obj, ctx)
 	end, vpSpec.Size, ctx
+end
+
+-- A roll card's contract rect on the live viewport.
+local function nominalOf(obj)
+	return simRect(obj, { vp = viewport(), cache = {}, unsupported = {} })
+end
+
+local function sameRect(a, b)
+	return math.abs(a.x - b.x) <= TOL
+		and math.abs(a.y - b.y) <= TOL
+		and math.abs(a.w - b.w) <= TOL
+		and math.abs(a.h - b.h) <= TOL
+end
+
+-- Where a settled roll card differs from its contract rect: its live properties solved at every UiSpec viewport,
+-- and the engine's rect on the live one. Empty when it sits exactly at the contract place everywhere.
+local function liveVsNominal(obj)
+	local bad = {}
+	for _, vpSpec in UiSpec.Viewports do
+		local vp = vpSpec.Size or viewport()
+		local liveR = simRect(obj, { vp = vp, cache = {}, unsupported = {}, live = true })
+		local nom = simRect(obj, { vp = vp, cache = {}, unsupported = {} })
+		if not sameRect(liveR, nom) then
+			table.insert(bad, vpSpec.Name .. " " .. rstr(liveR) .. " want " .. rstr(nom))
+		end
+	end
+	local real, nom = realRect(obj), nominalOf(obj)
+	if not sameRect(real, nom) then
+		table.insert(bad, "engine " .. rstr(real) .. " want " .. rstr(nom))
+	end
+	return bad
 end
 
 -- The part of obj's rect that can be seen/clicked: cut by every ClipsDescendants ancestor (ScrollingFrames).
@@ -527,7 +674,17 @@ end
 ---------------------------------------------------------------------------------------------------------------
 -- Live state recorders (Init runs when the harness starts so events before the run are seen)
 
-local events = { rolls = {}, npcStart = nil, lastLose = nil, loses = {}, turbos = {}, rollsChanged = 0 }
+local events = {
+	rolls = {},
+	npcStart = nil,
+	lastLose = nil,
+	loses = {},
+	turbos = {},
+	rollsChanged = 0,
+	recs = {}, -- one roll-animation record per RollResult (UiScenarios.SampleRoll)
+	announces = {}, -- Remotes.RollAnnounce events
+	chat = {}, -- TextChatService.MessageReceived
+}
 
 -- Topmost visible object at the centre of each always-on button, and whether it belongs to `gui`.
 local function coversButtons(gui)
@@ -591,6 +748,16 @@ function UiScenarios.Init()
 	player:GetAttributeChangedSignal("Rolls"):Connect(function()
 		events.rollsChanged = os.clock()
 	end)
+	pcall(function()
+		TextChatService.MessageReceived:Connect(function(msg)
+			table.insert(events.chat, {
+				text = msg.Text,
+				channel = msg.TextChannel and msg.TextChannel.Name or "",
+				system = msg.TextSource == nil,
+				t = os.clock(),
+			})
+		end)
+	end)
 	task.spawn(function()
 		local remotes = ReplicatedStorage:WaitForChild("Remotes", 30)
 		if not remotes then
@@ -599,17 +766,35 @@ function UiScenarios.Init()
 		task.spawn(function()
 			local roll = remotes:WaitForChild("RollResult", 30)
 			if roll then
-				roll.OnClientEvent:Connect(function(id, isNew, turboMulti)
+				roll.OnClientEvent:Connect(function(id, isNew, turboMulti, emphasized)
 					local ev = {
 						id = id,
 						isNew = isNew,
 						turboMulti = type(turboMulti) == "number" and turboMulti or 1,
+						emphasized = emphasized == true,
+						rolls = player:GetAttribute("Rolls"), -- set by the server before it fires RollResult
 						t = os.clock(),
 					}
 					table.insert(events.rolls, ev)
+					ev.n = #events.rolls
 					if ev.turboMulti > 1 then
 						task.spawn(UiScenarios.SampleTurbo, ev)
 					end
+					task.spawn(UiScenarios.SampleRoll, ev)
+				end)
+			end
+		end)
+		task.spawn(function()
+			local ann = remotes:WaitForChild(UiSpec.Announce.Remote, 30)
+			if ann and ann:IsA("RemoteEvent") then
+				ann.OnClientEvent:Connect(function(userId, displayName, id, rolls)
+					table.insert(events.announces, {
+						userId = userId,
+						displayName = displayName,
+						id = id,
+						rolls = rolls,
+						t = os.clock(),
+					})
 				end)
 			end
 		end)
@@ -817,11 +1002,11 @@ local function rarityColourProblem(label, rarity)
 	return nil
 end
 
--- What is wrong with the showcase card as the card for roll event `ev` (empty when it shows the roll's truth).
-local function showcaseCardProblems(ev)
-	local _, _, card = showcaseParts()
+-- What is wrong with a roll card (compact or enlarged) as the card for roll event `ev` once it has landed (empty
+-- when it shows the roll's truth).
+local function cardProblems(card, ev)
 	if not card then
-		return { "no " .. UiSpec.Showcase.Card }
+		return { "no card" }
 	end
 	if not ev then
 		return { "no RollResult received yet" }
@@ -835,7 +1020,7 @@ local function showcaseCardProblems(ev)
 		return card:FindFirstChild(name, true)
 	end
 	local cardRect = realRect(card)
-	for _, name in UiSpec.Showcase.CardParts do
+	for _, name in UiSpec.Showcase.ContentParts do
 		local o = part(name)
 		if o and o:IsA("GuiObject") and effectivelyVisible(o) and not contains(cardRect, realRect(o)) then
 			table.insert(bad, name .. rstr(realRect(o)) .. " outside the card")
@@ -866,9 +1051,9 @@ local function showcaseCardProblems(ev)
 	end
 	local multi = part("SpeedMulti")
 	local m = spec.SpeedMulti or 1
-	local wantMulti = "Speed x" .. fmtNum(m)
+	local wantMulti = fmtNum(m) .. "x Speed" -- contract: "25x Speed"
 	if
-		not (multi and multi:IsA("TextLabel") and (multi.Text == wantMulti or multi.Text == "Speed x" .. tostring(m)))
+		not (multi and multi:IsA("TextLabel") and (multi.Text == wantMulti or multi.Text == tostring(m) .. "x Speed"))
 	then
 		table.insert(bad, ("SpeedMulti %q want %q"):format(multi and multi.Text or "nil", wantMulti))
 	end
@@ -920,6 +1105,14 @@ local function showcaseCardProblems(ev)
 		end
 	end
 	return bad
+end
+
+local function showcaseCardProblems(ev)
+	local _, _, card = showcaseParts()
+	if not card then
+		return { "no " .. UiSpec.Showcase.Card }
+	end
+	return cardProblems(card, ev)
 end
 
 -- The topmost click-taking, visible object at a screen point.
@@ -1018,6 +1211,558 @@ local function waitNewRoll(timeout)
 end
 
 ---------------------------------------------------------------------------------------------------------------
+-- Roll animation recorder (docs/ROLL_ANIMATION_CONTRACT.md). Every RollResult starts one: it samples both cards
+-- each Heartbeat until the card that plays the roll is Idle again (or a newer roll arrives), then the view
+-- SWITCH + SwitchGrace later.
+
+local SETTLED = { Hold = true, Idle = true }
+
+local function rarityOf(id)
+	local spec = CarCatalog.Get(id)
+	return spec and spec.Rarity or "Common"
+end
+
+local function rarityRank(rarity)
+	return table.find(GachaConfig.RARITY_ORDER, rarity) or 1
+end
+
+local function rollCards()
+	local toast = findPath("RollToast/Toast")
+	local _, _, card = showcaseParts()
+	return { Compact = toast, Enlarged = card }
+end
+
+local function viewNow()
+	local gui = playerGui:FindFirstChild("RollToast")
+	return gui and gui:GetAttribute(UiSpec.RollAnim.ViewAttr)
+end
+
+local function partOf(card, name)
+	return card and card:FindFirstChild(name, true)
+end
+
+local function partShown(card, name)
+	local p = partOf(card, name)
+	return p ~= nil and p:IsA("GuiObject") and effectivelyVisible(p)
+end
+
+-- Draws something a player can see: itself or a visible descendant with an opaque-enough background, text or image.
+local function drawsSomething(obj)
+	for _, d in { obj, table.unpack(obj:GetDescendants()) } do
+		if d:IsA("GuiObject") and effectivelyVisible(d) then
+			if d.BackgroundTransparency < 0.5 then
+				return true
+			end
+			if (d:IsA("TextLabel") or d:IsA("TextButton")) and d.Text ~= "" and d.TextTransparency < 0.5 then
+				return true
+			end
+			if (d:IsA("ImageLabel") or d:IsA("ImageButton")) and d.Image ~= "" and d.ImageTransparency < 0.5 then
+				return true
+			end
+			if d:IsA("ViewportFrame") and d.ImageTransparency < 0.5 then
+				return true
+			end
+		end
+	end
+	return false
+end
+
+-- The compact roll's element that grows / pops / shrinks: its transparent Body (the Toast keeps its rect).
+local function compactBody(toast)
+	local body = toast and toast:FindFirstChild(UiSpec.Compact.Body)
+	return (body and body:IsA("GuiObject")) and body or toast
+end
+
+-- The compact roll's structure ("Compact = no card"): exactly the model parts, none of the card parts (they must
+-- not exist at all), an invisible background, no frame or border stroke.
+local function compactShapeProblems(toast)
+	if not toast then
+		return { "no RollToast/Toast" }
+	end
+	local bad = {}
+	for _, name in UiSpec.Compact.Parts do
+		if not toast:FindFirstChild(name, true) then
+			table.insert(bad, "no " .. name)
+		end
+	end
+	local view = toast:FindFirstChild("Viewport", true)
+	if view and not view:IsA("ViewportFrame") then
+		table.insert(bad, "Viewport is " .. view.ClassName .. ", want ViewportFrame")
+	end
+	for _, name in UiSpec.Compact.Forbidden do
+		local o = toast:FindFirstChild(name, true)
+		if o then
+			table.insert(bad, pathOf(o) .. " exists (compact = no card)")
+		end
+	end
+	if toast.BackgroundTransparency < 0.99 then
+		table.insert(
+			bad,
+			("Toast background visible (BackgroundTransparency %.2f)"):format(toast.BackgroundTransparency)
+		)
+	end
+	local body = toast:FindFirstChild(UiSpec.Compact.Body)
+	if body and body:IsA("GuiObject") and body.BackgroundTransparency < 0.99 then
+		table.insert(bad, ("Body not transparent (BackgroundTransparency %.2f)"):format(body.BackgroundTransparency))
+	end
+	for _, holder in { toast, body } do
+		local stroke = holder and holder:FindFirstChildWhichIsA("UIStroke")
+		if stroke and stroke.Enabled and stroke.Transparency < 0.99 then
+			table.insert(bad, pathOf(stroke) .. " draws a frame")
+		end
+	end
+	return bad
+end
+
+-- The landed compact roll shows the roll's truth: its odds (rarity-coloured, italic) under the bare model ("?" for a
+-- car without a model), both inside the rect, and a Reel that clips its cars.
+local function compactProblems(toast, ev)
+	if not toast then
+		return { "no RollToast/Toast" }
+	end
+	local spec = ev and CarCatalog.Get(ev.id)
+	if not spec then
+		return { "roll id " .. tostring(ev and ev.id) .. " not in CarCatalog" }
+	end
+	local bad = {}
+	local tr = realRect(toast)
+	local odds = toast:FindFirstChild("Odds", true)
+	local wantOdds = spec.Chance and HudFormat.Odds(spec.Chance) or "Common"
+	if not (odds and odds:IsA("TextLabel") and odds.Text == wantOdds and effectivelyVisible(odds)) then
+		table.insert(bad, ("Odds %q want %q"):format(odds and odds:IsA("TextLabel") and odds.Text or "nil", wantOdds))
+	else
+		local problem = rarityColourProblem(odds, spec.Rarity)
+		if problem then
+			table.insert(bad, problem)
+		end
+		if odds.FontFace.Style ~= Enum.FontStyle.Italic then
+			table.insert(bad, "Odds not italic")
+		end
+	end
+	local view = toast:FindFirstChild("Viewport", true)
+	if not (view and view:IsA("ViewportFrame") and effectivelyVisible(view)) then
+		table.insert(bad, "no visible Viewport ViewportFrame")
+	end
+	local placeholder = toast:FindFirstChild("Placeholder", true)
+	if spec.Model == nil then
+		if
+			not (
+				placeholder
+				and placeholder:IsA("TextLabel")
+				and placeholder.Text == "?"
+				and effectivelyVisible(placeholder)
+			)
+		then
+			table.insert(bad, 'no visible Placeholder "?" for a car without a model')
+		end
+	else
+		local model = view and view:FindFirstChild(spec.Model, true)
+		if not (model and model:IsA("Model")) then
+			table.insert(bad, "Viewport lacks a clone of CarModels." .. tostring(spec.Model))
+		end
+		if placeholder and effectivelyVisible(placeholder) and placeholder.Text ~= "" then
+			table.insert(bad, "Placeholder shown for a car with a model")
+		end
+	end
+	for _, o in { view, odds } do
+		if o and o:IsA("GuiObject") and effectivelyVisible(o) and not contains(tr, realRect(o)) then
+			table.insert(bad, o.Name .. rstr(realRect(o)) .. " outside the rect " .. rstr(tr))
+		end
+	end
+	local reel = toast:FindFirstChild("Reel", true)
+	if not (reel and reel:IsA("GuiObject") and reel.ClipsDescendants) then
+		table.insert(bad, "Reel does not clip its cars (ClipsDescendants)")
+	end
+	return bad
+end
+
+-- At 1x (Hold): Body fills the rect, the model fills the top ModelShare of it and the odds the rest.
+local function compactLayoutProblems(toast)
+	if not toast then
+		return { "no RollToast/Toast" }
+	end
+	local bad = {}
+	local tr = realRect(toast)
+	local tol = UiSpec.Compact.SplitTolerance * tr.h
+	local body = toast:FindFirstChild(UiSpec.Compact.Body)
+	if body and body:IsA("GuiObject") then
+		local br = realRect(body)
+		if not sameRect(br, tr) then
+			table.insert(bad, "Body" .. rstr(br) .. " does not fill " .. rstr(tr))
+		end
+	end
+	local split = tr.y + UiSpec.Compact.ModelShare * tr.h
+	local function edges(name, top, bottom)
+		local o = toast:FindFirstChild(name, true)
+		if not (o and o:IsA("GuiObject")) then
+			table.insert(bad, "no " .. name)
+			return
+		end
+		local r = realRect(o)
+		if math.abs(r.y - top) > tol or math.abs(r.y + r.h - bottom) > tol then
+			table.insert(
+				bad,
+				("%s spans y %d..%d, want %d..%d (+- %d)"):format(
+					name,
+					math.floor(r.y + 0.5),
+					math.floor(r.y + r.h + 0.5),
+					math.floor(top + 0.5),
+					math.floor(bottom + 0.5),
+					math.floor(tol + 0.5)
+				)
+			)
+		end
+	end
+	edges("Viewport", tr.y, split)
+	edges("Odds", split, tr.y + tr.h)
+	return bad
+end
+
+local function glowGradient(card)
+	local glow = partOf(card, "Glow")
+	if not glow then
+		return nil
+	end
+	return glow:IsA("UIGradient") and glow or glow:FindFirstChildWhichIsA("UIGradient", true)
+end
+
+-- The look of a landed card: italic Odds, bold CarName with a dark UIStroke outline, a Glow with a UIGradient in
+-- the rarity colour, a Reel that clips its cars.
+local function styleProblems(card, spec)
+	local bad = {}
+	local odds = partOf(card, "Odds")
+	if not (odds and odds:IsA("TextLabel") and odds.FontFace.Style == Enum.FontStyle.Italic) then
+		table.insert(bad, "Odds not italic")
+	end
+	local name = partOf(card, "CarName")
+	if not (name and name:IsA("TextLabel") and name.FontFace.Weight.Value >= Enum.FontWeight.Bold.Value) then
+		table.insert(bad, "CarName not bold")
+	end
+	local stroke = name and name:FindFirstChildWhichIsA("UIStroke")
+	if
+		not (
+			stroke
+			and stroke.Transparency < 0.5
+			and luminance(stroke.Color) <= UiSpec.Showcase.CarNameStrokeMaxLuminance
+		)
+	then
+		table.insert(bad, "CarName has no dark UIStroke outline")
+	end
+	local glow = partOf(card, "Glow")
+	if not glowGradient(card) then
+		table.insert(bad, "Glow has no UIGradient")
+	end
+	local colour = GachaConfig.RARITY_COLORS[spec.Rarity]
+	local found = false
+	if glow then
+		for _, o in { glow, table.unpack(glow:GetDescendants()) } do
+			local colours = {}
+			if o:IsA("GuiObject") and o.BackgroundTransparency < 1 then
+				table.insert(colours, o.BackgroundColor3)
+			end
+			if o:IsA("ImageLabel") or o:IsA("ImageButton") then
+				table.insert(colours, o.ImageColor3)
+			end
+			if o:IsA("UIStroke") then
+				table.insert(colours, o.Color)
+			end
+			if o:IsA("UIGradient") then
+				for _, k in o.Color.Keypoints do
+					table.insert(colours, k.Value)
+				end
+			end
+			for _, c in colours do
+				found = found or sameColour(c, colour)
+			end
+		end
+	end
+	if not found then
+		table.insert(bad, "Glow not in the " .. spec.Rarity .. " colour")
+	end
+	local reel = partOf(card, "Reel")
+	if not (reel and reel:IsA("GuiObject") and reel.ClipsDescendants) then
+		table.insert(bad, "Reel does not clip its cars (ClipsDescendants)")
+	end
+	return bad
+end
+
+-- Rarity effects at landing: Ring only from Epic, Burst only from Legendary (Legendary and Mythic must show it),
+-- the full-screen Takeover only for Secret. Whether Legendary+ also shows the Ring is not specified: not tested.
+local function effectProblems(card, spec)
+	local bad = {}
+	local r = rarityRank(spec.Rarity)
+	local ring, burst = partShown(card, "Ring"), partShown(card, "Burst")
+	if r < rarityRank("Epic") and ring then
+		table.insert(bad, "Ring shown on a " .. spec.Rarity .. " roll")
+	end
+	if spec.Rarity == "Epic" and not ring then
+		table.insert(bad, "no Ring on an Epic roll")
+	end
+	if r < rarityRank("Legendary") and burst then
+		table.insert(bad, "Burst shown on a " .. spec.Rarity .. " roll")
+	end
+	if (spec.Rarity == "Legendary" or spec.Rarity == "Mythic") and not burst then
+		table.insert(bad, "no Burst on a " .. spec.Rarity .. " roll")
+	end
+	local sgui = playerGui:FindFirstChild(UiSpec.Showcase.Gui)
+	local takeover = sgui and sgui:FindFirstChild(UiSpec.Showcase.Takeover, true)
+	local shown = takeover ~= nil and takeover:IsA("GuiObject") and effectivelyVisible(takeover)
+	if spec.Rarity ~= "Secret" and shown then
+		table.insert(bad, "Takeover shown on a " .. spec.Rarity .. " roll")
+	end
+	if spec.Rarity == "Secret" and not shown then
+		table.insert(bad, "no Takeover on a Secret roll")
+	end
+	return bad
+end
+
+local function findFly()
+	for _, name in declaredGuis() do
+		local gui = playerGui:FindFirstChild(name)
+		local f = gui and gui:FindFirstChild(UiSpec.RollAnim.FlyIcon, true)
+		if f and f:IsA("GuiObject") then
+			return f
+		end
+	end
+	return nil
+end
+
+local function takesClicks(obj)
+	for _, d in { obj, table.unpack(obj:GetDescendants()) } do
+		if d:IsA("GuiObject") and swallows(d) then
+			return true
+		end
+	end
+	return false
+end
+
+local function distToRect(x, y, r)
+	local dx = math.max(r.x - x, 0, x - (r.x + r.w))
+	local dy = math.max(r.y - y, 0, y - (r.y + r.h))
+	return math.sqrt(dx * dx + dy * dy)
+end
+
+function UiScenarios.SampleRoll(ev)
+	local rec = {
+		ev = ev,
+		phases = { Compact = {}, Enlarged = {} }, -- { phase, t } on every Phase change
+		seen = { Compact = {}, Enlarged = {} },
+		ratios = {}, -- the playing card's width / its contract width, every frame it is not Idle
+		spin = {}, -- per card, sampled on entering Spin (turbo badge from pop-in, reel)
+		hold = {}, -- per card, sampled on entering Hold (landed: the roll's truth, 1x)
+		fly = {}, -- FlyIcon samples from Exit on
+		views = {},
+		viewAtStart = viewNow(),
+	}
+	-- The card that plays it: the enlarged one for an emphasized roll or while the player has it open
+	rec.playKey = (ev.emphasized or rec.viewAtStart == "Enlarged") and "Enlarged" or "Compact"
+	table.insert(events.recs, rec)
+	local limit = ev.t + durationFor(rarityOf(ev.id), ev.emphasized) + 3
+	local last, lastView, holdAt, nominalW = {}, nil, {}, {}
+	local function sampleFly(now)
+		local fly = findFly()
+		if fly and effectivelyVisible(fly) then
+			local x, y = centre(realRect(fly))
+			table.insert(rec.fly, { t = now, x = x, y = y, text = allText(fly), clicks = takesClicks(fly) })
+			return true
+		end
+		return false
+	end
+	while os.clock() < limit do
+		if events.rolls[#events.rolls] ~= ev then
+			rec.interruptedAt = os.clock()
+			break
+		end
+		local now = os.clock()
+		local view = viewNow()
+		if view ~= lastView then
+			table.insert(rec.views, { view = tostring(view), t = now })
+			lastView = view
+		end
+		for key, card in rollCards() do
+			local phase = card:GetAttribute("Phase")
+			if phase ~= last[key] then
+				last[key] = phase
+				table.insert(rec.phases[key], { phase = tostring(phase), t = now })
+				rec.seen[key][tostring(phase)] = true
+				if phase == "Spin" and not rec.spin[key] then
+					local badge, reel = partOf(card, "TurboBadge"), partOf(card, "Reel")
+					rec.spin[key] = {
+						badge = partShown(card, "TurboBadge"),
+						badgeText = badge and allText(badge) or "",
+						flames = partShown(card, "TurboFlames"),
+						reelIds = reel and reel:GetAttribute("ReelIds"),
+						view = view,
+					}
+				elseif phase == "Hold" and not rec.hold[key] then
+					holdAt[key] = now
+					local spec = CarCatalog.Get(ev.id)
+					local toast = findPath("RollToast/Toast")
+					local reel = partOf(card, "Reel")
+					local grad = glowGradient(card)
+					local compact = key == "Compact"
+					rec.hold[key] = {
+						rollId = card:GetAttribute("RollId"),
+						serial = card:GetAttribute("RollSerial"),
+						reelIds = reel and reel:GetAttribute("ReelIds"),
+						-- The compact roll is only the model and its odds; the card checks apply to the enlarged card
+						problems = compact and compactProblems(card, ev)
+							or (spec and cardProblems(card, ev) or { "roll id not in CarCatalog" }),
+						styles = (not compact and spec) and styleProblems(card, spec) or {},
+						effects = (not compact and spec) and effectProblems(card, spec) or {},
+						shape = compact and compactShapeProblems(card) or nil,
+						layout = compact and compactLayoutProblems(card) or nil,
+						autoOffShown = compact and partShown(card, UiSpec.Compact.AutoOff),
+						glowRot = grad and grad.Rotation or false,
+						view = view,
+						showcase = showcaseState(),
+						blur = blurState(),
+						toastShown = toast ~= nil and effectivelyVisible(toast),
+						real = realRect(card),
+						nominal = nominalOf(card),
+						live = key == "Compact" and liveVsNominal(card) or nil,
+					}
+				end
+			end
+			if key == rec.playKey and phase ~= nil and phase ~= "Idle" then
+				nominalW[key] = nominalW[key] or math.max(nominalOf(card).w, 1)
+				-- The compact roll grows / pops / shrinks on its Body; the enlarged card on itself
+				local scaled = key == "Compact" and compactBody(card) or card
+				table.insert(
+					rec.ratios,
+					{ phase = tostring(phase), r = scaled.AbsoluteSize.X / nominalW[key], t = now }
+				)
+			end
+			local h = rec.hold[key]
+			if phase == "Hold" and h and h.glowRot2 == nil and now - holdAt[key] >= UiSpec.RollAnim.GlowTurnWait then
+				local grad = glowGradient(card)
+				h.glowRot2 = grad and grad.Rotation or false
+			end
+			if
+				key == rec.playKey
+				and (phase == "Land" or (phase == "Hold" and now - (holdAt[key] or now) < 0.25))
+				and partShown(card, "Smoke")
+			then
+				rec.smoke = true
+			end
+		end
+		local seen = rec.seen[rec.playKey]
+		if seen.Exit then
+			sampleFly(now)
+			if last[rec.playKey] == "Idle" then
+				rec.idleAt = now
+				break
+			end
+		end
+		RunService.Heartbeat:Wait()
+	end
+	if rec.idleAt then
+		local untilT = rec.idleAt + animNum("SWITCH") + UiSpec.RollAnim.SwitchGrace
+		local flyShown = false
+		while os.clock() < untilT and events.rolls[#events.rolls] == ev do
+			RunService.Heartbeat:Wait()
+			flyShown = sampleFly(os.clock())
+		end
+		local toast = findPath("RollToast/Toast")
+		rec.after = {
+			complete = events.rolls[#events.rolls] == ev,
+			view = viewNow(),
+			showcase = showcaseState(),
+			blur = blurState(),
+			toastShown = toast ~= nil and effectivelyVisible(toast),
+			flyShown = flyShown,
+		}
+	end
+	rec.done = true
+end
+
+local function recFor(ev)
+	for i = #events.recs, 1, -1 do
+		if events.recs[i].ev == ev then
+			return events.recs[i]
+		end
+	end
+	return nil
+end
+
+-- The phases of the playing card from its first PopIn up to the next Idle.
+local function phaseSeq(rec, key)
+	local out, started = {}, false
+	for _, p in rec.phases[key] do
+		started = started or p.phase == "PopIn"
+		if started then
+			table.insert(out, p)
+			if p.phase == "Idle" then
+				break
+			end
+		end
+	end
+	return out
+end
+
+local function seqNames(seq)
+	local names = {}
+	for _, p in seq do
+		table.insert(names, p.phase)
+	end
+	return table.concat(names, ",")
+end
+
+-- The enlarged card's look on a landed roll: style, rarity effects and the slowly turning Glow gradient.
+local function enlargedLookChecks(res, prefix, hold)
+	checkList(res, prefix .. "card_style", hold.styles)
+	checkList(res, prefix .. "rarity_effects_match", hold.effects)
+	local r1, r2 = hold.glowRot, hold.glowRot2
+	local turned = type(r1) == "number" and type(r2) == "number" and math.abs(r2 - r1) >= UiSpec.RollAnim.GlowTurnMin
+	check(
+		res,
+		prefix .. "glow_gradient_turns",
+		("%s -> %s"):format(tostring(r1), tostring(r2)),
+		("changes >= %g deg in %.1f s"):format(UiSpec.RollAnim.GlowTurnMin, UiSpec.RollAnim.GlowTurnWait),
+		turned
+	)
+end
+
+-- PopIn -> Spin -> Land -> Hold -> Exit -> Idle, each phase as long as RollAnimConfig says (+- PhaseTolerance).
+local function phaseChecks(res, rec, key, prefix)
+	local seq = phaseSeq(rec, key)
+	local names = seqNames(seq)
+	local want = table.concat(UiSpec.RollAnim.Phases, ",")
+	check(res, prefix .. "phase_sequence", names == "" and "none" or names, want, names == want)
+	if names ~= want then
+		return false
+	end
+	local delay = seq[1].t - rec.ev.t
+	local maxDelay = UiSpec.RollAnim.PhaseStart + (rec.ev.emphasized and animNum("SWITCH") or 0)
+	check(res, prefix .. "phase_starts_after_roll", delay, "<= " .. maxDelay, delay <= maxDelay)
+	local rarity = rarityOf(rec.ev.id)
+	local wants = { animNum("POP"), animNum("SPIN"), animNum("LAND"), holdFor(rarity), animNum("EXIT") }
+	local tol = UiSpec.RollAnim.PhaseTolerance
+	for i = 1, 5 do
+		local d = seq[i + 1].t - seq[i].t
+		local name = prefix .. "phase_" .. string.lower(seq[i].phase) .. "_seconds"
+		local limit = ("%.2f +- %.2f%s"):format(wants[i], tol, seq[i].phase == "Hold" and (" (" .. rarity .. ")") or "")
+		check(res, name, d, limit, math.abs(d - wants[i]) <= tol)
+	end
+	return true
+end
+
+-- Waits until the card's Phase is one of `wanted` for two frames running (geometry settled). False on timeout.
+local function waitCardPhase(card, wanted, timeout)
+	local deadline = os.clock() + timeout
+	while card and os.clock() < deadline do
+		if wanted[card:GetAttribute("Phase")] then
+			RunService.Heartbeat:Wait()
+			if wanted[card:GetAttribute("Phase")] then
+				return true
+			end
+		end
+		RunService.Heartbeat:Wait()
+	end
+	return false
+end
+
+---------------------------------------------------------------------------------------------------------------
 -- Element sets per panel state
 
 -- Every element that is interactive or always on in the given state: AlwaysOn elements, the open panels and
@@ -1107,6 +1852,18 @@ function S.ui_inventory(res)
 		end
 	end
 	checkList(res, "every_screengui_in_spec", unknown)
+	-- Client scripts without a ScreenGui (UiSpec.ClientScripts), e.g. Client/RollAnnounce
+	local folder = script.Parent.Parent
+	for _, name in UiSpec.ClientScripts do
+		local s = folder:FindFirstChild(name)
+		check(
+			res,
+			"client_script_present_" .. name,
+			s and s.ClassName or "missing",
+			"LocalScript",
+			s ~= nil and s:IsA("LocalScript")
+		)
+	end
 
 	-- Every GuiButton is declared, and every declared button exists the expected number of times
 	local counts, undeclared = {}, {}
@@ -1195,6 +1952,81 @@ function S.ui_inventory(res)
 			end
 			checkList(res, "non_interactive_" .. guiName .. "_" .. partName, bad)
 		end
+	end
+end
+
+-- The enlarged view's AUTO button and hint at one viewport (contract): RollShowcase/AutoButton at least MinSize,
+-- bottom centre with its bottom edge BottomGap px above the screen bottom, above the Hint and the TURBO LUCK bar,
+-- clear of the card; the Hint clear of the card and the bar; the backdrop click points (corner, INDEX button) off
+-- the AUTO button and the card.
+local function showcaseAutoButtonLayout(res, vpName, sim, vp, sgui, backdrop, cardRect)
+	local cfg = UiSpec.Showcase.AutoButton
+	local auto = sgui:FindFirstChild(cfg.Path)
+	local hint = backdrop:FindFirstChild(UiSpec.Showcase.Hint)
+	local bar = findPath("RollUi/TurboBar")
+	if not (auto and auto:IsA("GuiObject")) then
+		check(res, "showcase_autobutton_present_" .. vpName, "missing", "RollShowcase/" .. cfg.Path, false)
+		return
+	end
+	local ar = sim(auto)
+	local root = rootRect(sgui, vp)
+	local full = R(0, 0, vp.X, vp.Y)
+	check(
+		res,
+		"autobutton_min_size_" .. vpName,
+		("%dx%d"):format(math.floor(ar.w + 0.5), math.floor(ar.h + 0.5)),
+		(">= %dx%d"):format(cfg.MinSize.X, cfg.MinSize.Y),
+		ar.w >= cfg.MinSize.X - TOL and ar.h >= cfg.MinSize.Y - TOL
+	)
+	local cx = centre(ar)
+	local midX = root.x + root.w / 2
+	check(res, "autobutton_bottom_centre_x_" .. vpName, cx, midX, math.abs(cx - midX) <= TOL)
+	local gap = full.y + full.h - (ar.y + ar.h)
+	check(res, "autobutton_bottom_gap_" .. vpName, gap, cfg.BottomGap, math.abs(gap - cfg.BottomGap) <= TOL)
+	check(res, "autobutton_inside_viewport_" .. vpName, rstr(ar), rstr(full), contains(full, ar))
+	check(
+		res,
+		"autobutton_clear_of_card_" .. vpName,
+		rstr(ar),
+		"no overlap " .. rstr(cardRect),
+		not intersects(ar, cardRect)
+	)
+	if bar then
+		local br = sim(bar)
+		check(res, "autobutton_above_turbobar_" .. vpName, ar.y + ar.h, "<= " .. br.y, ar.y + ar.h <= br.y + TOL)
+	else
+		check(res, "autobutton_above_turbobar_" .. vpName, "no RollUi/TurboBar", "present", false)
+	end
+	if hint and hint:IsA("GuiObject") then
+		local hr = sim(hint)
+		check(res, "autobutton_above_hint_" .. vpName, ar.y + ar.h, "<= " .. hr.y, ar.y + ar.h <= hr.y + TOL)
+		check(
+			res,
+			"hint_clear_of_card_" .. vpName,
+			rstr(hr),
+			"no overlap " .. rstr(cardRect),
+			not intersects(hr, cardRect)
+		)
+		if bar then
+			local br = sim(bar)
+			check(res, "hint_clear_of_turbobar_" .. vpName, rstr(hr), "no overlap " .. rstr(br), not intersects(hr, br))
+		end
+		check(res, "hint_inside_viewport_" .. vpName, rstr(hr), rstr(full), contains(full, hr))
+	else
+		check(res, "showcase_hint_present_" .. vpName, "missing", "Backdrop/" .. UiSpec.Showcase.Hint, false)
+	end
+	-- The backdrop clicks of UiSpec.Clicks must land on the backdrop: off the AUTO button (and off the card)
+	local ci = UiSpec.Showcase.CornerInset
+	local function inside(r, x, y)
+		return x >= r.x and x <= r.x + r.w and y >= r.y and y <= r.y + r.h
+	end
+	local onAuto = inside(ar, vp.X - ci, vp.Y - ci)
+	check(res, "showcase_corner_off_autobutton_" .. vpName, onAuto, false, not onAuto)
+	local index = findPath("IndexUi/OpenIndex")
+	if index then
+		local ix, iy = centre(sim(index))
+		local blocked = inside(ar, ix, iy) or inside(cardRect, ix, iy)
+		check(res, "showcase_index_point_on_backdrop_" .. vpName, blocked, false, not blocked)
 	end
 end
 
@@ -1329,8 +2161,10 @@ function S.ui_layout(res)
 					check(res, "autorace_top_centre_" .. vpSpec.Name, "missing", "present", false)
 				end
 				-- Rolls strip (spec section 5, owner's revision): only the TurboBar, bottom centre, its bottom edge
-				-- BottomGap px above the screen bottom, BarSize; the toast sits above it
-				local turboBar, toastEl = findPath("RollUi/TurboBar"), findPath("RollToast/Toast")
+				-- BottomGap px above the screen bottom, BarSize. (The compact roll card moved to the top centre,
+				-- docs/ROLL_ANIMATION_CONTRACT.md: the overlap checks above place it at its contract rect, ui_toast
+				-- proves the live card sits there.)
+				local turboBar = findPath("RollUi/TurboBar")
 				if turboBar then
 					local bb, root = rectOf(turboBar), rootOf("RollUi/TurboBar")
 					local cx = centre(bb)
@@ -1350,18 +2184,6 @@ function S.ui_layout(res)
 				else
 					check(res, "turbobar_bottom_centre_" .. vpSpec.Name, "missing", "present", false)
 				end
-				if turboBar and toastEl then
-					local bb, tr = rectOf(turboBar), rectOf(toastEl)
-					check(
-						res,
-						"toast_above_turbobar_" .. vpSpec.Name,
-						tr.y + tr.h,
-						"<= " .. bb.y,
-						tr.y + tr.h <= bb.y + TOL
-					)
-				else
-					check(res, "toast_above_turbobar_" .. vpSpec.Name, "missing", "present", false)
-				end
 				-- The showcase (an overlay, closed at rest): backdrop full screen, card centred and on screen
 				local sgui = playerGui:FindFirstChild(UiSpec.Showcase.Gui)
 				local backdrop = sgui and sgui:FindFirstChild(UiSpec.Showcase.Backdrop)
@@ -1380,7 +2202,8 @@ function S.ui_layout(res)
 					local root = rootRect(sgui, vp)
 					local ccx, ccy = centre(cr)
 					local mx, my = centre(root)
-					local d = math.max(math.abs(ccx - mx), math.abs(ccy - my))
+					-- Contract: centred, raised CardCentreYOffset px to leave room for the AUTO button
+					local d = math.max(math.abs(ccx - mx), math.abs(ccy - (my + UiSpec.Showcase.CardCentreYOffset)))
 					check(res, "showcase_card_centred_" .. vpSpec.Name, d, TOL, d <= TOL)
 					check(
 						res,
@@ -1395,6 +2218,7 @@ function S.ui_layout(res)
 						and vp.Y - ci >= cr.y
 						and vp.Y - ci <= cr.y + cr.h
 					check(res, "showcase_corner_off_card_" .. vpSpec.Name, cornerOnCard, false, not cornerOnCard)
+					showcaseAutoButtonLayout(res, vpSpec.Name, sim, vp, sgui, backdrop, cr)
 				else
 					check(res, "showcase_backdrop_full_screen_" .. vpSpec.Name, "missing", "Backdrop and Card", false)
 				end
@@ -1408,6 +2232,32 @@ function S.ui_layout(res)
 					check(res, "loser_overlay_full_screen_" .. vpSpec.Name, rstr(r), rstr(full), ok)
 				else
 					check(res, "loser_overlay_full_screen_" .. vpSpec.Name, "missing", "present", false)
+				end
+			end
+			-- Panels make room for the compact roll (owner decision 6): an open panel never overlaps it and, where it
+			-- overlaps it horizontally, starts PanelTopMargin below its bottom edge
+			for _, panelPath in state.Open do
+				local panel, roll = findPath(panelPath), findPath("RollToast/Toast")
+				if panel and roll then
+					local pr, rr = rectOf(panel), rectOf(roll)
+					local name = "panel_clear_of_compact_roll_" .. panelPath .. "_" .. vpSpec.Name
+					local sideBySide = pr.x >= rr.x + rr.w - TOL or pr.x + pr.w <= rr.x + TOL
+					local minTop = rr.y + rr.h + UiSpec.PanelTopMargin
+					check(
+						res,
+						name,
+						rstr(pr) .. " roll " .. rstr(rr),
+						sideBySide and "side by side" or ("top >= " .. minTop),
+						not intersects(pr, rr) and (sideBySide or pr.y >= minTop - TOL)
+					)
+				else
+					check(
+						res,
+						"panel_clear_of_compact_roll_" .. panelPath .. "_" .. vpSpec.Name,
+						"missing",
+						"present",
+						false
+					)
 				end
 			end
 			if state.Name == "index_open" then
@@ -1428,6 +2278,10 @@ function S.ui_layout(res)
 					end
 					local bottom = root.y + root.h
 					check(res, "index_panel_above_bottom_" .. vpSpec.Name, r.y + r.h, bottom, r.y + r.h <= bottom + TOL)
+					-- Owner decision 6: the Index panel's top edge is PANEL_TOP (below the compact roll)
+					local top = r.y - root.y
+					local want = animNum("PANEL_TOP")
+					check(res, "index_panel_top_is_panel_top_" .. vpSpec.Name, top, want, math.abs(top - want) <= TOL)
 				else
 					check(res, "index_panel_centred_x_" .. vpSpec.Name, "missing", "present", false)
 				end
@@ -1448,6 +2302,20 @@ function S.ui_layout(res)
 				else
 					check(res, "stats_panel_left_of_buttons_" .. vpSpec.Name, "missing", "present", false)
 				end
+				-- Owner decision 6: the Stats panel stays right of the compact roll's right edge
+				local roll = findPath("RollToast/Toast")
+				if p and roll then
+					local pr, rr = rectOf(p), rectOf(roll)
+					check(
+						res,
+						"stats_panel_right_of_compact_roll_" .. vpSpec.Name,
+						pr.x,
+						">= " .. (rr.x + rr.w),
+						pr.x >= rr.x + rr.w - TOL
+					)
+				else
+					check(res, "stats_panel_right_of_compact_roll_" .. vpSpec.Name, "missing", "present", false)
+				end
 			end
 
 			-- 5. The layout model handles every layout object it met (and matches the engine, below)
@@ -1465,7 +2333,8 @@ function S.ui_layout(res)
 		local sim = provider({ Name = "current_sim", Size = viewport() })
 		local worst, worstPath = 0, "none"
 		for _, e in elementsFor(state.Open) do
-			if effectivelyVisible(e.obj) then
+			-- The roll cards are placed at their contract rect here; liveVsNominal compares them with the engine
+			if effectivelyVisible(e.obj) and not cardKind(e.obj) then
 				local a, b = realRect(e.obj), sim(e.obj)
 				local d = math.max(math.abs(a.x - b.x), math.abs(a.y - b.y), math.abs(a.w - b.w), math.abs(a.h - b.h))
 				if d > worst then
@@ -1536,11 +2405,9 @@ function S.ui_hitboxes(res)
 						if d:IsA("GuiObject") and effectivelyVisible(d) then
 							local drawn = d.BackgroundTransparency < 0.95
 								or ((d:IsA("TextLabel") or d:IsA("TextButton")) and d.Text ~= "" and d.TextTransparency < 0.95)
-								or (
-									(d:IsA("ImageLabel") or d:IsA("ImageButton"))
-									and d.Image ~= ""
-									and d.ImageTransparency < 0.95
-								)
+								or ((d:IsA("ImageLabel") or d:IsA("ImageButton")) and d.Image ~= "" and d.ImageTransparency < 0.95)
+								-- a ViewportFrame draws its 3D content over its whole rect (the compact roll's model)
+								or (d:IsA("ViewportFrame") and d.ImageTransparency < 0.95)
 							if drawn then
 								content = union(content, realRect(d))
 							end
@@ -2034,8 +2901,10 @@ function S.ui_stats(res)
 	restore()
 end
 
--- The roll toast (owner's revision): a TextButton that shows every roll, is clickable only while shown
--- (Visible = false once faded: no invisible hitbox) and hides while any panel is open.
+-- The compact roll card RollToast/Toast (docs/ROLL_ANIMATION_CONTRACT.md; it replaced the bottom-centre toast): a
+-- TextButton with no text of its own, shown while a roll plays and clickable only then (Visible = false at rest:
+-- no invisible hitbox), hidden while any panel is open, landed on the roll's truth and placed exactly at its
+-- contract rect (top centre, COMPACT_GAP under the Auto Race button) at every viewport.
 function S.ui_toast(res)
 	waitGuis()
 	local toast = findPath("RollToast/Toast")
@@ -2044,46 +2913,156 @@ function S.ui_toast(res)
 		return
 	end
 	check(res, "toast_is_text_button", toast.ClassName, "TextButton", toast:IsA("TextButton"))
-	local function hidden()
-		return not effectivelyVisible(toast)
+	local text = toast:IsA("TextButton") and toast.Text or "n/a"
+	check(res, "toast_text_empty", text, "", text == "")
+	local ap = toast.AnchorPoint
+	check(res, "toast_anchor_top_centre", ("%g,%g"):format(ap.X, ap.Y), "0.5,0", ap.X == 0.5 and ap.Y == 0)
+	local lim = toast:FindFirstChildWhichIsA("UISizeConstraint")
+	local wantLim = ("%g..%g"):format(animNum("COMPACT_MIN"), animNum("COMPACT_MAX"))
+	check(
+		res,
+		"toast_width_clamp",
+		lim and ("%g..%g"):format(lim.MinSize.X, lim.MaxSize.X) or "no UISizeConstraint",
+		wantLim,
+		lim ~= nil and lim.MinSize.X == animNum("COMPACT_MIN") and lim.MaxSize.X == animNum("COMPACT_MAX")
+	)
+	if attr("AutoRoll") ~= true then
+		stateMissing(res, "autoroll_on_for_toast", "auto_roll_on", "AutoRoll is " .. tostring(attr("AutoRoll")))
+		return
 	end
 
-	-- Hidden (Visible = false) while any panel is open: at once, and when a roll arrives meanwhile
-	for _, p in allPanels() do
-		local restorePanel = setPanels({ p })
-		frames(3)
-		check(res, "toast_hidden_while_open_" .. p, hidden(), true, hidden())
-		if waitNewRoll(UiSpec.Waits.RollToast) then
-			frames(3)
-			check(res, "toast_hidden_on_roll_while_open_" .. p, hidden(), true, hidden())
-		else
-			stateMissing(res, "toast_hidden_on_roll_while_open_" .. p, "auto_racing", "no Remotes.RollResult")
+	-- Independent of every HUD click (owner decision 6): while a roll plays, opening and closing each panel through
+	-- Client/PanelSwitch (what the INDEX / STATS buttons use) never hides, pauses or restarts it, and a roll that
+	-- arrives while a panel is open plays too. (Only enlarging hides it: the showcase clicks check that.)
+	local switchModule = script.Parent.Parent:FindFirstChild(UiSpec.PanelSwitch.Module)
+	local Switch = nil
+	if switchModule and switchModule:IsA("ModuleScript") then
+		local ok, m = pcall(require, switchModule)
+		if ok and type(m) == "table" and type(m.Toggle) == "function" then
+			Switch = m
 		end
+	end
+	local function setPanel(p, open)
+		local o = findPath(p)
+		local name = UiSpec.PanelSwitch.Names[p]
+		if o and o.Visible ~= open then
+			if Switch and name then
+				Switch.Toggle(name)
+			else
+				o.Visible = open
+			end
+		end
+	end
+	local want = table.concat(UiSpec.RollAnim.Phases, ",")
+	for _, p in allPanels() do
+		local restorePanel = setPanels({})
+		if waitNewRoll(UiSpec.Waits.RollToast) then
+			local ev0 = events.rolls[#events.rolls]
+			waitCardPhase(toast, { Spin = true }, animNum("POP") + 0.5)
+			local serial0 = toast:GetAttribute("RollSerial")
+			setPanel(p, true)
+			local panelObj = findPath(p)
+			local opened = panelObj ~= nil and panelObj.Visible
+			local hiddenFrames = 0
+			local untilT = os.clock() + animNum("SPIN") + animNum("LAND")
+			repeat
+				RunService.Heartbeat:Wait()
+				if not effectivelyVisible(toast) then
+					hiddenFrames += 1
+				end
+			until os.clock() > untilT or toast:GetAttribute("Phase") == "Hold"
+			setPanel(p, false)
+			frames(2)
+			if not effectivelyVisible(toast) and toast:GetAttribute("Phase") ~= "Idle" then
+				hiddenFrames += 1
+			end
+			check(
+				res,
+				"toast_stays_shown_while_" .. p .. "_opens_and_closes",
+				("panel opened=%s, %d frames hidden"):format(tostring(opened), hiddenFrames),
+				"panel opened=true, 0 frames hidden",
+				opened and hiddenFrames == 0
+			)
+			local rec = recFor(ev0)
+			local doneBy = os.clock() + durationFor(rarityOf(ev0.id), ev0.emphasized) + 2
+			while rec and not rec.done and os.clock() < doneBy do
+				task.wait(0.05)
+			end
+			local names = rec and seqNames(phaseSeq(rec, "Compact")) or "no record"
+			check(res, "toast_keeps_playing_while_" .. p .. "_toggles", names, want, names == want)
+			local hold = rec and rec.hold.Compact
+			local serial1 = hold and hold.serial
+			check(
+				res,
+				"toast_not_restarted_by_" .. p,
+				("RollSerial %s -> %s, RollId %s"):format(
+					tostring(serial0),
+					tostring(serial1),
+					tostring(hold and hold.rollId)
+				),
+				("unchanged, RollId %s"):format(tostring(ev0.id)),
+				type(serial0) == "number" and serial1 == serial0 and hold.rollId == ev0.id
+			)
+		else
+			stateMissing(
+				res,
+				"toast_stays_shown_while_" .. p .. "_opens_and_closes",
+				"auto_racing",
+				"no Remotes.RollResult"
+			)
+		end
+		setPanel(p, true)
+		if waitNewRoll(UiSpec.Waits.RollToast) then
+			task.wait(UiSpec.Waits.ToastShown)
+			frames(2)
+			local shown = effectivelyVisible(toast) and drawsSomething(toast)
+			check(res, "toast_plays_on_roll_while_" .. p .. "_open", shown, true, shown)
+		else
+			stateMissing(res, "toast_plays_on_roll_while_" .. p .. "_open", "auto_racing", "no Remotes.RollResult")
+		end
+		setPanel(p, false)
 		restorePanel()
 	end
 
-	-- With no panel open: shown on a roll (the roll's truth, clickable), then gone (Visible = false, not clickable).
-	-- Uses a roll with no other roll before ToastGone (3 tries).
+	-- With no panel open: shown on a roll (clickable), landed on the roll's truth at its contract rect, then gone
+	-- (Visible = false, not clickable) once the roll's animation is over. Uses a roll with no other roll before
+	-- that (3 tries).
 	local restore = setPanels({})
-	local ev, shownRec, goneRec = nil, nil, nil
+	local ev, shownRec, holdRec, goneRec = nil, nil, nil, nil
 	for _ = 1, 3 do
 		if not waitNewRoll(UiSpec.Waits.RollToast) then
 			break
 		end
 		local mine = events.rolls[#events.rolls]
 		local n = #events.rolls
+		local spec = CarCatalog.Get(mine.id)
+		local rarity = spec and spec.Rarity or "Common"
 		task.wait(math.max(0, UiSpec.Waits.ToastShown - (os.clock() - mine.t)))
 		renderFrame()
-		local x, y = centre(realRect(toast))
+		local x, y = centre(nominalOf(toast))
 		local top = topAt(x, y)
-		shownRec = {
-			visible = effectivelyVisible(toast),
-			opaque = toast:IsA("TextButton") and toast.TextTransparency < 0.5,
-			text = toast:IsA("TextButton") and toast.Text or "",
-			colour = toast:IsA("TextButton") and toast.TextColor3 or nil,
-			top = top,
+		shownRec = { visible = effectivelyVisible(toast), drawn = drawsSomething(toast), top = top }
+		-- Landed (Hold): the bare model and its odds show the roll, at 1x ("Compact = no card", owner decision 4)
+		local landBy = mine.t + animNum("POP") + animNum("SPIN") + animNum("LAND") + 0.5
+		local landed = waitCardPhase(toast, { Hold = true }, math.max(0.1, landBy - os.clock()))
+		local odds = partOf(toast, "Odds")
+		local colourProblem = "no Odds label"
+		if odds and odds:IsA("TextLabel") then
+			colourProblem = rarityColourProblem(odds, rarity)
+		end
+		holdRec = {
+			colourProblem = colourProblem,
+			landed = landed,
+			odds = odds and odds:IsA("TextLabel") and odds.Text or "missing",
+			oddsShown = odds ~= nil and odds:IsA("GuiObject") and effectivelyVisible(odds),
+			autoOffShown = partShown(toast, UiSpec.Compact.AutoOff),
+			problems = compactProblems(toast, mine),
+			shape = compactShapeProblems(toast),
+			layout = compactLayoutProblems(toast),
+			placement = liveVsNominal(toast),
 		}
-		task.wait(math.max(0, UiSpec.Waits.ToastGone - (os.clock() - mine.t)))
+		local goneAt = mine.t + durationFor(rarity, mine.emphasized) + UiSpec.Waits.ToastGoneGrace
+		task.wait(math.max(0, goneAt - os.clock()))
 		renderFrame()
 		local hit = false
 		for _, h in hitsAt(x, y) do
@@ -2091,8 +3070,8 @@ function S.ui_toast(res)
 		end
 		goneRec = { visible = effectivelyVisible(toast), hit = hit }
 		ev = mine
-		if #events.rolls == n then
-			break -- isolated: no other roll changed the toast meanwhile
+		if #events.rolls == n and not mine.emphasized then
+			break -- isolated: no other roll changed the card meanwhile
 		end
 		ev = nil
 	end
@@ -2115,19 +3094,10 @@ function S.ui_toast(res)
 	check(
 		res,
 		"toast_visible_after_roll",
-		("Visible=%s opaque=%s"):format(tostring(shownRec.visible), tostring(shownRec.opaque)),
+		("Visible=%s drawn=%s"):format(tostring(shownRec.visible), tostring(shownRec.drawn)),
 		("shown within %.1f s"):format(UiSpec.Waits.ToastShown),
-		shownRec.visible and shownRec.opaque
+		shownRec.visible and shownRec.drawn
 	)
-	check(res, "toast_shows_car_name", shownRec.text, spec.Name, string.find(shownRec.text, spec.Name, 1, true) ~= nil)
-	local hasNew = string.find(shownRec.text, "NEW!", 1, true) ~= nil
-	check(res, "toast_new_matches_server", hasNew, ev.isNew == true, hasNew == (ev.isNew == true))
-	local colour = GachaConfig.RARITY_COLORS[spec.Rarity]
-	local stroke = toast:FindFirstChildWhichIsA("UIStroke")
-	-- Secret's colour is near-black: it may be carried by the outline instead of the text
-	local ok = sameColour(shownRec.colour, colour)
-		or (spec.Rarity == "Secret" and stroke ~= nil and sameColour(stroke.Color, colour))
-	check(res, "toast_in_rarity_colour", tostring(shownRec.colour), tostring(colour), ok == true)
 	local top = shownRec.top
 	check(
 		res,
@@ -2136,6 +3106,30 @@ function S.ui_toast(res)
 		"RollToast/Toast",
 		top ~= nil and (top == toast or toast:IsAncestorOf(top))
 	)
+	check(res, "toast_reached_hold", holdRec.landed, true, holdRec.landed == true)
+	-- Owner decision 4: the compact roll shows the odds, not the car's name (CarName / NewBadge are checked on the
+	-- enlarged card: showcase_card_is_latest_roll, showcase_updates_live, emphasized_card_matches_roll)
+	local wantOdds = spec.Chance and HudFormat.Odds(spec.Chance) or "Common"
+	check(res, "toast_shows_odds", holdRec.odds, wantOdds, holdRec.odds == wantOdds and holdRec.oddsShown == true)
+	checkList(res, "toast_is_no_card", holdRec.shape)
+	checkList(res, "toast_model_over_odds", holdRec.layout)
+	check(
+		res,
+		"toast_auto_off_caption_hidden_while_auto_on",
+		holdRec.autoOffShown,
+		false,
+		holdRec.autoOffShown == false
+	)
+	check(
+		res,
+		"toast_in_rarity_colour",
+		holdRec.colourProblem or "ok",
+		spec.Rarity .. " colour (Secret: light text)",
+		holdRec.colourProblem == nil
+	)
+	checkList(res, "toast_card_matches_roll", holdRec.problems)
+	-- The placement (phase 1 of the build): the live card at its contract rect at every viewport and in the engine
+	checkList(res, "toast_at_contract_rect", holdRec.placement)
 	check(res, "toast_not_visible_after_fade", goneRec.visible, false, goneRec.visible == false)
 	check(res, "faded_toast_not_clickable", goneRec.hit, false, goneRec.hit == false)
 	restore()
@@ -2267,6 +3261,313 @@ function S.ui_rolls(res)
 	)
 end
 
+-- One roll on the compact card (docs/ROLL_ANIMATION_CONTRACT.md): PopIn -> Spin -> Land -> Hold -> Exit -> Idle with
+-- RollAnimConfig's timings on a real RollResult, RollId / RollSerial / Reel.ReelIds, every card part, the land pop,
+-- the FlyIcon to INDEX, the turbo badge and flames from pop-in, rarity effects, and no roll covering one still
+-- playing (the server's ExtraPause).
+function S.ui_roll_anim(res)
+	waitGuis()
+	local cfg = anim()
+	local missing = {}
+	if not cfg then
+		table.insert(missing, "module ReplicatedStorage.Shared." .. UiSpec.RollAnim.Module)
+	else
+		for _, name in UiSpec.RollAnim.Numbers do
+			if type(cfg[name]) ~= "number" then
+				table.insert(missing, name)
+			end
+		end
+		for _, name in UiSpec.RollAnim.Vectors do
+			if typeof(cfg[name]) ~= "Vector2" then
+				table.insert(missing, name .. " (Vector2)")
+			end
+		end
+		for _, name in UiSpec.RollAnim.Functions do
+			if type(cfg[name]) ~= "function" then
+				table.insert(missing, name .. "()")
+			end
+		end
+	end
+	checkList(res, "roll_anim_config_present", missing)
+
+	local toast = findPath("RollToast/Toast")
+	local _, _, bigCard = showcaseParts()
+	-- The compact roll is no card (owner decision 4): only its model parts exist, no card part at all
+	checkList(res, "compact_is_no_card", compactShapeProblems(toast))
+	for _, key in { "compact", "enlarged" } do
+		local card = key == "compact" and toast or bigCard
+		if key == "enlarged" then
+			local absent = {}
+			for _, name in UiSpec.Showcase.CardParts do
+				if not partOf(card, name) then
+					table.insert(absent, name)
+				end
+			end
+			local view = partOf(card, "Viewport")
+			if view and not view:IsA("ViewportFrame") then
+				table.insert(absent, "Viewport is " .. view.ClassName .. ", want ViewportFrame")
+			end
+			if not card then
+				absent = { "no card" }
+			end
+			checkList(res, "card_parts_present_" .. key, absent)
+		end
+		local phase = card and card:GetAttribute("Phase")
+		check(
+			res,
+			"card_has_phase_attribute_" .. key,
+			typeof(phase),
+			"string (" .. table.concat(UiSpec.RollAnim.Phases, "|") .. ")",
+			type(phase) == "string" and table.find(UiSpec.RollAnim.Phases, phase) ~= nil
+		)
+	end
+	local rtGui = playerGui:FindFirstChild("RollToast")
+	local view = rtGui and rtGui:GetAttribute(UiSpec.RollAnim.ViewAttr)
+	check(res, "roll_view_attribute", tostring(view), "Compact|Enlarged", view == "Compact" or view == "Enlarged")
+
+	if attr("AutoRoll") ~= true then
+		stateMissing(res, "autoroll_on_for_anim", "auto_roll_on", "AutoRoll is " .. tostring(attr("AutoRoll")))
+		return
+	end
+	local restore = setPanels({})
+
+	-- 1. A whole compact roll, uninterrupted, started after this point
+	local startN = #events.rolls
+	local rec, lastDone = nil, nil
+	local deadline = os.clock() + 3 * UiSpec.Waits.RollToast
+	while not rec and os.clock() < deadline do
+		task.wait(0.1)
+		local done = 0
+		for _, r in events.recs do
+			if r.ev.n > startN and r.done then
+				done += 1
+				lastDone = r
+				if not rec and r.playKey == "Compact" and r.idleAt and not r.ev.emphasized then
+					rec = r
+				end
+			end
+		end
+		if done >= 3 then
+			break
+		end
+	end
+	if not rec then
+		check(
+			res,
+			"roll_animation_completed",
+			lastDone
+					and (seqNames(phaseSeq(lastDone, "Compact")) .. (lastDone.interruptedAt and " (interrupted)" or ""))
+				or "no RollResult",
+			"PopIn,Spin,Land,Hold,Exit,Idle on RollToast/Toast before the next roll",
+			false
+		)
+		restore()
+		return
+	end
+	local ev = rec.ev
+	local spec = CarCatalog.Get(ev.id)
+	phaseChecks(res, rec, "Compact", "")
+	local hold = rec.hold.Compact
+	if not hold then
+		check(res, "card_sampled_at_hold", "no Hold", "Hold", false)
+		restore()
+		return
+	end
+	check(res, "roll_id_matches_roll", tostring(hold.rollId), ev.id, hold.rollId == ev.id)
+	-- Compact = the bare model and its odds (owner decision 4). The card style, rarity effects and the turning
+	-- Glow are checked on the enlarged card (showcase_card_style / emphasized_card_style and friends).
+	checkList(res, "compact_matches_roll", hold.problems)
+	checkList(res, "compact_is_no_card_at_hold", hold.shape or { "no sample" })
+	checkList(res, "compact_model_over_odds", hold.layout or { "no sample" })
+
+	-- Reel: REEL_CARS rollable ids, the last one the result
+	local reelIds = (rec.spin.Compact and rec.spin.Compact.reelIds) or hold.reelIds
+	local ids = {}
+	if type(reelIds) == "string" then
+		for id in string.gmatch(reelIds, "[^,]+") do
+			table.insert(ids, (string.gsub(id, "^%s*(.-)%s*$", "%1")))
+		end
+	end
+	check(res, "reel_ids_count", #ids, animNum("REEL_CARS"), #ids == animNum("REEL_CARS"))
+	check(res, "reel_ids_end_with_result", tostring(ids[#ids]), ev.id, ids[#ids] == ev.id)
+	local notRollable = {}
+	for _, id in ids do
+		local s = CarCatalog.Get(id)
+		if not (s and s.Rollable) then
+			table.insert(notRollable, id)
+		end
+	end
+	if #ids == 0 then
+		notRollable = { "ReelIds " .. tostring(reelIds) }
+	end
+	checkList(res, "reel_ids_rollable_cars", notRollable)
+
+	-- Size: grows from 0 in PopIn, LAND_POP x in Land, back to 1x in Hold, shrinks in Exit
+	local minPop, peakLand, worstHold, minExit = math.huge, 0, 0, math.huge
+	local holdStart = nil
+	for _, p in phaseSeq(rec, "Compact") do
+		if p.phase == "Hold" then
+			holdStart = p.t
+		end
+	end
+	for _, s in rec.ratios do
+		if s.phase == "PopIn" then
+			minPop = math.min(minPop, s.r)
+		elseif s.phase == "Land" or (s.phase == "Hold" and holdStart and s.t - holdStart < 0.05) then
+			peakLand = math.max(peakLand, s.r)
+		elseif s.phase == "Hold" then
+			worstHold = math.max(worstHold, math.abs(s.r - 1))
+		elseif s.phase == "Exit" then
+			minExit = math.min(minExit, s.r)
+		end
+	end
+	check(
+		res,
+		"popin_grows_from_zero",
+		minPop == math.huge and "no PopIn sample" or minPop,
+		"<= " .. UiSpec.RollAnim.PopInStartMax,
+		minPop <= UiSpec.RollAnim.PopInStartMax
+	)
+	local pop = animNum("LAND_POP")
+	check(
+		res,
+		"land_pop_peak",
+		peakLand,
+		("%.2f +- %.2f"):format(pop, UiSpec.RollAnim.LandPopTolerance),
+		math.abs(peakLand - pop) <= UiSpec.RollAnim.LandPopTolerance
+	)
+	check(
+		res,
+		"land_pop_settles_to_1x",
+		worstHold,
+		"<= " .. UiSpec.RollAnim.SettledTolerance,
+		worstHold <= UiSpec.RollAnim.SettledTolerance
+	)
+	check(
+		res,
+		"exit_card_shrinks",
+		minExit == math.huge and "no Exit sample" or minExit,
+		"<= " .. UiSpec.RollAnim.ExitShrinkMax,
+		minExit <= UiSpec.RollAnim.ExitShrinkMax
+	)
+	check(res, "smoke_puff_on_land", rec.smoke == true, true, rec.smoke == true)
+
+	-- FlyIcon (a small car icon, no text) flies from the roll to IndexUi/OpenIndex on Exit, takes no clicks, then
+	-- is gone
+	local target = findPath(UiSpec.RollAnim.FlyTarget)
+	local fly = rec.fly
+	check(res, "flyicon_shown_on_exit", #fly, ">= 1 sample", #fly >= 1)
+	if #fly >= 1 and target and spec then
+		local texts = {}
+		for _, f in fly do
+			if f.text ~= "" and not table.find(texts, f.text) then
+				table.insert(texts, f.text)
+			end
+		end
+		checkList(res, "flyicon_has_no_text", texts)
+		local tr = realRect(target)
+		local first, best = distToRect(fly[1].x, fly[1].y, tr), math.huge
+		local clicks = false
+		for _, f in fly do
+			best = math.min(best, distToRect(f.x, f.y, tr))
+			clicks = clicks or f.clicks
+		end
+		check(res, "flyicon_moves_toward_index", best, "< " .. first, best < first)
+		check(res, "flyicon_reaches_index", best, "<= " .. UiSpec.RollAnim.FlyArrive, best <= UiSpec.RollAnim.FlyArrive)
+		check(res, "flyicon_not_clickable", clicks, false, not clicks)
+	elseif not target then
+		check(res, "flyicon_target_present", "missing", UiSpec.RollAnim.FlyTarget, false)
+	end
+	local after = rec.after
+	check(
+		res,
+		"flyicon_gone_after_exit",
+		after and after.flyShown or "no sample after Idle",
+		false,
+		after ~= nil and after.flyShown == false
+	)
+	check(
+		res,
+		"compact_card_hidden_after_idle",
+		after and after.toastShown or "no sample after Idle",
+		false,
+		after ~= nil and after.toastShown == false
+	)
+	local views = {}
+	for _, v in rec.views do
+		table.insert(views, v.view)
+	end
+	local allCompact = #views > 0
+	for _, v in views do
+		allCompact = allCompact and v == "Compact"
+	end
+	check(res, "normal_roll_stays_compact", table.concat(views, ","), "Compact", allCompact)
+
+	-- 2. Turbo on the compact roll: no badge and no flames exist there (owner decision 4; the turbo badge and flames
+	-- from pop-in are checked on the enlarged card: click showcase_card_click_stays_open,
+	-- showcase_turbo_badge_from_popin)
+	local turboRec = nil
+	for i = #events.recs, 1, -1 do
+		local r = events.recs[i]
+		if not turboRec and r.done and r.ev.turboMulti > 1 and r.playKey == "Compact" and r.hold.Compact then
+			turboRec = r
+		end
+	end
+	if turboRec then
+		checkList(res, "turbo_roll_compact_is_no_card", turboRec.hold.Compact.shape or { "no sample" })
+	else
+		stateMissing(res, "turbo_roll_compact_is_no_card", "turbo_next", "no turbo roll played on the compact roll")
+	end
+
+	-- 3. RollSerial +1 per RollResult received (pairs of rolls sampled on the same card)
+	local prev, pairsSeen, serialBad = {}, 0, {}
+	for _, r in events.recs do
+		for key, h in r.hold do
+			local p = prev[key]
+			if p and type(h.serial) == "number" and type(p.serial) == "number" then
+				pairsSeen += 1
+				if h.serial - p.serial ~= r.ev.n - p.n then
+					table.insert(
+						serialBad,
+						("%s: roll %d serial %d after roll %d serial %d"):format(key, r.ev.n, h.serial, p.n, p.serial)
+					)
+				end
+			elseif p and type(h.serial) ~= "number" then
+				table.insert(serialBad, key .. ": RollSerial " .. tostring(h.serial))
+			end
+			prev[key] = { n = r.ev.n, serial = h.serial }
+		end
+	end
+	if pairsSeen == 0 and #serialBad == 0 then
+		serialBad = { "fewer than 2 rolls sampled at Hold on one card" }
+	end
+	checkList(res, "roll_serial_counts_roll_results", serialBad)
+
+	-- 4. No RollResult arrives while the previous roll still plays (server pauses ExtraPause after long rolls)
+	local evaluated, covered = 0, {}
+	for _, r in events.recs do
+		if r.done and #phaseSeq(r, r.playKey) > 0 then
+			evaluated += 1
+			if r.interruptedAt and not r.idleAt then
+				table.insert(
+					covered,
+					("roll %d (%s, %s) cut at %s"):format(
+						r.ev.n,
+						r.ev.id,
+						rarityOf(r.ev.id),
+						seqNames(phaseSeq(r, r.playKey))
+					)
+				)
+			end
+		end
+	end
+	if evaluated == 0 then
+		covered = { "no roll animation recorded" }
+	end
+	checkList(res, "rolls_never_cut_an_animation", covered)
+	restore()
+end
+
 -- The roll showcase at rest (closed): its parts exist, it draws above the HUD and nothing of it is visible or
 -- clickable. Its open behaviour is checked by the showcase clicks (only a real toast click opens it).
 function S.ui_showcase(res)
@@ -2331,6 +3632,57 @@ function S.ui_showcase(res)
 		end
 	end
 	checkList(res, "showcase_card_has_no_buttons", inner)
+	-- Same for the compact card: its parts never take a click of their own (the card itself is the button)
+	local toast = findPath("RollToast/Toast")
+	local innerToast = {}
+	for _, d in toast and toast:GetDescendants() or {} do
+		if d:IsA("GuiObject") and swallows(d) then
+			table.insert(innerToast, pathOf(d))
+		end
+	end
+	checkList(res, "toast_card_parts_not_clickable", innerToast)
+
+	-- docs/ROLL_ANIMATION_CONTRACT.md: the hint, the AUTO button (label from the server's AutoRoll), the view state
+	local hint = backdrop and backdrop:FindFirstChild(cfg.Hint)
+	check(
+		res,
+		"showcase_hint_text",
+		hint and hint:IsA("TextLabel") and hint.Text or "missing",
+		cfg.HintText,
+		hint ~= nil and hint:IsA("TextLabel") and hint.Text == cfg.HintText
+	)
+	local autoRoll = attr("AutoRoll")
+	check(res, "autoroll_attribute_on", tostring(autoRoll), "true (on join; restored after tests)", autoRoll == true)
+	local auto = gui:FindFirstChild(cfg.AutoButton.Path)
+	check(
+		res,
+		"showcase_autobutton_is_text_button",
+		auto and auto.ClassName or "missing",
+		"TextButton",
+		auto ~= nil and auto:IsA("TextButton")
+	)
+	local wantLabel = UiSpec.RollAnim.AutoButtonText[autoRoll == true]
+	check(
+		res,
+		"autobutton_label_matches_server",
+		auto and auto:IsA("TextButton") and auto.Text or "missing",
+		wantLabel,
+		auto ~= nil and auto:IsA("TextButton") and auto.Text == wantLabel
+	)
+	local rtGui = playerGui:FindFirstChild("RollToast")
+	local view = rtGui and rtGui:GetAttribute(UiSpec.RollAnim.ViewAttr)
+	check(res, "view_compact_at_rest", tostring(view), "Compact", view == "Compact")
+	local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+	for _, name in { "SetAutoRoll", UiSpec.Announce.Remote } do
+		local r = remotes and remotes:FindFirstChild(name)
+		check(
+			res,
+			"remote_present_" .. name,
+			r and r.ClassName or "missing",
+			"RemoteEvent",
+			r ~= nil and r:IsA("RemoteEvent")
+		)
+	end
 
 	-- Draws above every game UI but the loser screen (ui_loser keeps that one on top of the showcase)
 	local highest, who = -math.huge, "none"
@@ -2540,6 +3892,198 @@ function S.ui_panels(res)
 	restore()
 end
 
+-- An emphasized roll (RollResult 5th argument true; docs/ROLL_ANIMATION_CONTRACT.md): the view switches to Enlarged
+-- at PopIn, the roll plays on the enlarged card at its contract size, the view goes back to Compact (closed, blur
+-- off) after Exit because the player did not open it, and the roll is announced to everyone in RBXGeneral.
+-- ServerSetup emphasized_next makes the next roll emphasized ('[UITEST] WAIT emphasized_roll').
+function S.ui_roll_emphasized(res)
+	waitGuis()
+	if attr("AutoRoll") ~= true then
+		stateMissing(res, "autoroll_on_for_emphasized", "auto_roll_on", "AutoRoll is " .. tostring(attr("AutoRoll")))
+		return
+	end
+	local restore = setPanels({})
+	local function find()
+		for i = #events.recs, 1, -1 do
+			if events.recs[i].ev.emphasized then
+				return events.recs[i]
+			end
+		end
+		return nil
+	end
+	local rec = find()
+	if not rec then
+		player:SetAttribute("UiTestWaiting", "emphasized_roll")
+		print(
+			("[UITEST] WAIT emphasized_roll up to %d s (run ServerSetup emphasized_next now)"):format(
+				UiSpec.Waits.EmphasizedRoll
+			)
+		)
+		local deadline = os.clock() + UiSpec.Waits.EmphasizedRoll
+		while not rec and os.clock() < deadline do
+			task.wait(0.1)
+			rec = find()
+		end
+		player:SetAttribute("UiTestWaiting", nil)
+	end
+	if not rec then
+		stateMissing(res, "emphasized_roll_received", "emphasized_next", "no RollResult with emphasized == true")
+		restore()
+		return
+	end
+	local ev = rec.ev
+	local spec = CarCatalog.Get(ev.id)
+	local deadline = os.clock() + durationFor(rarityOf(ev.id), true) + 5
+	while not rec.done and os.clock() < deadline do
+		task.wait(0.1)
+	end
+	check(res, "emphasized_roll_is_new", ev.isNew == true, true, ev.isNew == true)
+
+	-- Switches to Enlarged at PopIn (already Enlarged when the enlarged card spins)
+	local sp = rec.spin.Enlarged
+	check(
+		res,
+		"emphasized_view_enlarged_at_popin",
+		sp and tostring(sp.view) or "enlarged card never reached Spin",
+		"Enlarged",
+		sp ~= nil and sp.view == "Enlarged"
+	)
+	phaseChecks(res, rec, "Enlarged", "emphasized_")
+	local hold = rec.hold.Enlarged
+	if hold then
+		check(res, "emphasized_view_open_at_hold", hold.showcase, "open", hold.showcase == "open")
+		check(res, "emphasized_blur_on_at_hold", hold.blur, "enabled", hold.blur == "enabled")
+		check(res, "emphasized_compact_hidden", hold.toastShown, false, hold.toastShown == false)
+		check(res, "emphasized_roll_id", tostring(hold.rollId), ev.id, hold.rollId == ev.id)
+		checkList(res, "emphasized_card_matches_roll", hold.problems)
+		enlargedLookChecks(res, "emphasized_", hold)
+		check(
+			res,
+			"emphasized_card_at_contract_size",
+			rstr(hold.real),
+			rstr(hold.nominal),
+			sameRect(hold.real, hold.nominal)
+		)
+	else
+		check(res, "emphasized_card_sampled_at_hold", "no Hold on RollShowcase/Card", "Hold", false)
+	end
+	-- The enlarged card does not shrink at Exit (only the compact one does)
+	local minExit = math.huge
+	for _, s in rec.ratios do
+		if s.phase == "Exit" then
+			minExit = math.min(minExit, s.r)
+		end
+	end
+	check(
+		res,
+		"emphasized_card_not_shrunk_on_exit",
+		minExit == math.huge and "no Exit sample" or minExit,
+		">= " .. (1 - UiSpec.RollAnim.SettledTolerance),
+		minExit ~= math.huge and minExit >= 1 - UiSpec.RollAnim.SettledTolerance
+	)
+	-- Back to Compact SWITCH (+ grace) after Exit: view closed, blur off
+	local after = rec.after
+	check(
+		res,
+		"emphasized_back_to_compact",
+		after and tostring(after.view) or "no sample after Idle",
+		"Compact",
+		after ~= nil and after.view == "Compact"
+	)
+	check(
+		res,
+		"emphasized_view_closed_after",
+		after and after.showcase or "no sample after Idle",
+		"closed",
+		after ~= nil and after.showcase == "closed"
+	)
+	check(
+		res,
+		"emphasized_blur_off_after",
+		after and after.blur or "no sample after Idle",
+		"disabled",
+		after ~= nil and after.blur == "disabled"
+	)
+
+	-- Global announcement: Remotes.RollAnnounce(userId, displayName, id, rolls) and the RBXGeneral system message
+	local function findAnnounce()
+		for _, a in events.announces do
+			if a.id == ev.id and a.t >= ev.t - 1 and a.t <= ev.t + UiSpec.Waits.AnnounceWait then
+				return a
+			end
+		end
+		return nil
+	end
+	local wait = ev.t + UiSpec.Waits.AnnounceWait
+	local ann = findAnnounce()
+	while not ann and os.clock() < wait do
+		task.wait(0.1)
+		ann = findAnnounce()
+	end
+	check(res, "roll_announce_received", ann ~= nil, true, ann ~= nil)
+	if not ann then
+		restore()
+		return
+	end
+	local wantRolls = type(ev.rolls) == "number" and ev.rolls or attr("Rolls")
+	local argsOk = ann.userId == player.UserId
+		and ann.displayName == player.DisplayName
+		and ann.id == ev.id
+		and ann.rolls == wantRolls
+	check(
+		res,
+		"roll_announce_args",
+		("%s,%s,%s,%s"):format(tostring(ann.userId), tostring(ann.displayName), tostring(ann.id), tostring(ann.rolls)),
+		("%d,%s,%s,%s"):format(player.UserId, player.DisplayName, ev.id, tostring(wantRolls)),
+		argsOk
+	)
+	local odds = (spec and spec.Chance) and HudFormat.Odds(spec.Chance) or "Common"
+	local want = UiSpec.Announce.Format:format(
+		player.DisplayName,
+		spec and spec.Name or tostring(ev.id),
+		odds,
+		tonumber(ann.rolls) or 0
+	)
+	local function findChat()
+		for _, m in events.chat do
+			local plain = string.gsub(m.text or "", "<[^>]+>", "")
+			if m.t >= ann.t - 0.5 and plain == want then
+				return m
+			end
+		end
+		return nil
+	end
+	local msg = findChat()
+	wait = ann.t + UiSpec.Waits.AnnounceWait
+	while not msg and os.clock() < wait do
+		task.wait(0.1)
+		msg = findChat()
+	end
+	local seen = {}
+	for _, m in events.chat do
+		if m.t >= ann.t - 0.5 then
+			table.insert(seen, (string.gsub(m.text or "", "<[^>]+>", "")))
+		end
+	end
+	check(
+		res,
+		"roll_announce_chat_message",
+		msg and msg.text or (#seen > 0 and table.concat(seen, " | ") or "none"),
+		want,
+		msg ~= nil
+	)
+	if msg then
+		check(
+			res,
+			"roll_announce_in_general_as_system",
+			("%s system=%s"):format(msg.channel, tostring(msg.system)),
+			UiSpec.Announce.Channel .. " system=true",
+			msg.channel == UiSpec.Announce.Channel and msg.system == true
+		)
+	end
+	restore()
+end
+
 function UiScenarios.Run(name)
 	local res = newResult(name)
 	local fn = S[name]
@@ -2577,6 +4121,7 @@ end
 local function attrSnapshot()
 	local snap = {
 		AutoRacing = attr("AutoRacing") == true,
+		AutoRoll = attr("AutoRoll") == true,
 		EquippedCar = attr("EquippedCar"),
 		StatPoints = attr("StatPoints") or 0,
 	}
@@ -2586,9 +4131,16 @@ local function attrSnapshot()
 	return snap
 end
 
--- Shown to the player: visible, and for text buttons the text is not faded out.
+-- Shown to the player: visible and drawing something not faded out (the compact card has no text of its own).
 local function shownNow(obj)
-	return effectivelyVisible(obj) and (not obj:IsA("TextButton") or obj.TextTransparency < 0.5)
+	return effectivelyVisible(obj) and drawsSomething(obj)
+end
+
+-- The compact card is fully popped in (its click point is on it) once it spins, lands or holds.
+local POPPED = { Spin = true, Land = true, Hold = true }
+local function poppedIn(obj)
+	local phase = obj:GetAttribute("Phase")
+	return phase == nil or POPPED[phase] == true
 end
 
 function UiScenarios.RunClick(id)
@@ -2605,6 +4157,21 @@ function UiScenarios.RunClick(id)
 	end
 	waitGuis()
 	local prep = spec.Prepare or {}
+	local index = table.find(UiSpec.Clicks, spec)
+	local previous = index and index > 1 and ("click:" .. UiSpec.Clicks[index - 1].Id) or "none"
+
+	-- Player attributes this click starts from (set by earlier clicks or ServerSetup, never forced here)
+	for name, want in prep.AttrIs or {} do
+		if attr(name) ~= want then
+			stateMissing(
+				res,
+				"attribute_before_click_" .. name,
+				previous,
+				("%s is %s, want %s"):format(name, tostring(attr(name)), tostring(want))
+			)
+			return res
+		end
+	end
 
 	-- The showcase is never forced: it must already be in the state this click starts from
 	local preShowcase = showcaseState()
@@ -2615,7 +4182,7 @@ function UiScenarios.RunClick(id)
 			stateMissing(
 				res,
 				"showcase_state_before_click",
-				prep.Showcase and "click:open_showcase_from_toast" or "click:showcase_backdrop_closes",
+				previous,
 				"showcase is " .. preShowcase .. ", want " .. want
 			)
 			return res
@@ -2715,6 +4282,7 @@ function UiScenarios.RunClick(id)
 
 	local attempts = 1 + (spec.Retries or 0)
 	local pre, prePanels, done, press, cx, cy = nil, nil, false, nil, nil, nil
+	local clickedAt = nil
 	for attempt = 1, attempts do
 		-- Wait for a fresh show of the target (the toast only shows after a RollResult, for ~1.6 s)
 		if prep.WaitShown then
@@ -2723,7 +4291,7 @@ function UiScenarios.RunClick(id)
 				local deadline = os.clock() + UiSpec.Waits.ToastShown
 				repeat
 					renderFrame()
-					shown = shownNow(button)
+					shown = shownNow(button) and poppedIn(button)
 				until shown or os.clock() > deadline
 			end
 			if not shown then
@@ -2739,6 +4307,11 @@ function UiScenarios.RunClick(id)
 			end
 		end
 
+		if prep.RequireShown and not shownNow(button) then
+			stateMissing(res, "target_shown_before_click", previous, pathOf(button) .. " is not shown")
+			restore()
+			return res
+		end
 		pre = attrSnapshot()
 		prePanels = {}
 		for _, p in allPanels() do
@@ -2770,7 +4343,7 @@ function UiScenarios.RunClick(id)
 			then
 				local tl = inset()
 				local px, py = input.Position.X + tl.X, input.Position.Y + tl.Y
-				press = { x = px, y = py, hit = topAt(px, py), targetShown = shownNow(button) }
+				press = { x = px, y = py, hit = topAt(px, py), targetShown = shownNow(button), t = os.clock() }
 			end
 		end)
 
@@ -2806,6 +4379,8 @@ function UiScenarios.RunClick(id)
 		task.wait(UiSpec.Waits.ClickSettle) -- nothing happened; let the view settle before the next try
 	end
 	check(res, "click_performed", done, true, done)
+	-- When the click happened: the press if it was seen, else now (the done acknowledgement)
+	clickedAt = press and press.t or os.clock()
 	if done then
 		if press then
 			local landed = press.hit ~= nil and (press.hit == button or button:IsAncestorOf(press.hit))
@@ -2937,7 +4512,11 @@ function UiScenarios.RunClick(id)
 				v ~= nil and hasNumber(v.Text, n) and string.find(v.Text, multi, 1, true) ~= nil
 			)
 		elseif cond == "showcase_card_is_latest_roll" then
-			-- Opens on the latest roll (or a newer one that arrived during the settle: it updates live)
+			-- Opens on the latest roll (or a newer one that arrived during the settle: it updates live), checked
+			-- once the enlarged card has landed (Hold) or rests (Idle)
+			local _, _, card = showcaseParts()
+			local settled = waitCardPhase(card, SETTLED, UiSpec.Waits.CardSettle)
+			check(res, "showcase_card_settled", settled, true, settled)
 			checkList(res, cond, showcaseCardProblems(events.rolls[#events.rolls]))
 		elseif cond == "showcase_blur_on" then
 			local b = blurState()
@@ -2947,6 +4526,8 @@ function UiScenarios.RunClick(id)
 			check(res, cond, b, "disabled", b == "disabled")
 		elseif cond == "showcase_layout" then
 			local gui, backdrop, card = showcaseParts()
+			-- The card animates (SWITCH, PopIn, LAND_POP): measure it landed (Hold) or resting (Idle)
+			waitCardPhase(card, SETTLED, UiSpec.Waits.CardSettle)
 			local vp = viewport()
 			local full = R(0, 0, vp.X, vp.Y)
 			local br = backdrop and realRect(backdrop)
@@ -2962,9 +4543,11 @@ function UiScenarios.RunClick(id)
 				local root = rootRect(gui, vp)
 				local ccx, ccy = centre(cr)
 				local mx, my = centre(root)
-				local d = math.max(math.abs(ccx - mx), math.abs(ccy - my))
+				local d = math.max(math.abs(ccx - mx), math.abs(ccy - (my + UiSpec.Showcase.CardCentreYOffset)))
 				check(res, "showcase_card_centred", d, TOL, d <= TOL)
 				check(res, "showcase_card_inside_viewport", rstr(cr), rstr(full), contains(full, cr))
+				-- The live enlarged card at its contract rect at every viewport and in the engine
+				checkList(res, "showcase_card_at_contract_rect", liveVsNominal(card))
 				local top = topAt(ccx, ccy)
 				check(
 					res,
@@ -2985,6 +4568,28 @@ function UiScenarios.RunClick(id)
 				backdrop and pathOf(backdrop) or "Backdrop",
 				backdrop ~= nil and top == backdrop
 			)
+			local auto = gui and gui:FindFirstChild(UiSpec.Showcase.AutoButton.Path)
+			local atop = auto and auto:IsA("GuiObject") and topAt(centre(realRect(auto)))
+			check(
+				res,
+				"showcase_autobutton_topmost",
+				atop and pathOf(atop) or "nothing",
+				auto and pathOf(auto) or "RollShowcase/AutoButton",
+				atop ~= nil and atop ~= false and (atop == auto or auto:IsAncestorOf(atop))
+			)
+			local hint = backdrop and backdrop:FindFirstChild(UiSpec.Showcase.Hint)
+			local hintOk = hint ~= nil
+				and hint:IsA("TextLabel")
+				and hint.Text == UiSpec.Showcase.HintText
+				and effectivelyVisible(hint)
+				and hint.TextTransparency < 0.5
+			check(
+				res,
+				"showcase_hint_shown",
+				hint and hint:IsA("TextLabel") and hint.Text or "missing",
+				UiSpec.Showcase.HintText,
+				hintOk
+			)
 		elseif cond == "showcase_covers_buttons" then
 			local gui = playerGui:FindFirstChild(UiSpec.Showcase.Gui)
 			checkList(res, cond, gui and coversButtons(gui) or { "no " .. UiSpec.Showcase.Gui })
@@ -3001,33 +4606,166 @@ function UiScenarios.RunClick(id)
 				stateMissing(res, cond .. "_on_roll", "auto_racing", "no Remotes.RollResult")
 			end
 		elseif cond == "showcase_updates_live_turbo" then
-			-- turbo_next made the next auto roll a turbo roll: the open card follows it, badge included
-			if waitNewRoll(UiSpec.Waits.RollToast) then
-				task.wait(UiSpec.Waits.ToastShown)
-				frames(3)
-				local ev = events.rolls[#events.rolls]
-				local st = showcaseState()
-				check(res, "showcase_still_open_on_roll", st, "open", st == "open")
-				checkList(res, "showcase_updates_live", showcaseCardProblems(ev))
-				if ev.turboMulti > 1 then
-					check(
-						res,
-						"showcase_live_roll_turbo_multi",
-						ev.turboMulti,
-						turboLuck(),
-						ev.turboMulti == turboLuck()
-					)
-				else
-					stateMissing(
-						res,
-						"showcase_live_roll_is_turbo",
-						"turbo_next",
-						"turboMulti " .. tostring(ev.turboMulti)
-					)
+			-- The open card plays a TURBO roll that arrives after the click and lands on it, badge and flames shown
+			-- from pop-in. turbo_next arms one, but setup + mouse click can take longer than ROLL_INTERVAL, so the
+			-- armed roll may land before the click: then the next natural turbo roll (every TURBO_EVERY rolls,
+			-- within Waits.TurboRoll) is used. Read from the roll recorder, so a later roll can not hide it.
+			local since = clickedAt or os.clock()
+			local function turboAfterClick()
+				for _, e in events.rolls do
+					if e.t >= since and e.turboMulti > 1 then
+						return e
+					end
 				end
-			else
-				stateMissing(res, "showcase_updates_live", "auto_racing", "no Remotes.RollResult")
+				return nil
 			end
+			local ev = turboAfterClick()
+			local deadline = os.clock() + UiSpec.Waits.TurboRoll
+			while not ev and os.clock() < deadline do
+				task.wait(0.1)
+				ev = turboAfterClick()
+			end
+			if not ev then
+				stateMissing(
+					res,
+					"showcase_live_roll_is_turbo",
+					"turbo_next",
+					("no turbo RollResult within %d s of the click"):format(UiSpec.Waits.TurboRoll)
+				)
+			else
+				local rec = recFor(ev)
+				local landBy = os.clock() + durationFor(rarityOf(ev.id), ev.emphasized) + 1
+				while rec and not rec.hold.Enlarged and not rec.done and os.clock() < landBy do
+					task.wait(0.05)
+				end
+				local hold = rec and rec.hold.Enlarged
+				check(res, "showcase_live_roll_landed", hold ~= nil, true, hold ~= nil)
+				local sp = rec and rec.spin.Enlarged
+				local want = "TURBO x" .. fmtNum(turboLuck())
+				check(
+					res,
+					"showcase_turbo_badge_from_popin",
+					sp and ("shown=%s flames=%s %q"):format(tostring(sp.badge), tostring(sp.flames), sp.badgeText)
+						or "no Spin sample",
+					"shown=true flames=true " .. want,
+					sp ~= nil
+						and sp.badge == true
+						and sp.flames == true
+						and string.find(sp.badgeText, want, 1, true) ~= nil
+				)
+				check(
+					res,
+					"showcase_still_open_on_roll",
+					hold and hold.showcase or "no Hold sample",
+					"open",
+					hold ~= nil and hold.showcase == "open"
+				)
+				checkList(
+					res,
+					"showcase_updates_live",
+					hold and hold.problems or { "no Hold sample on RollShowcase/Card" }
+				)
+				if hold then
+					local glowBy = os.clock() + UiSpec.RollAnim.GlowTurnWait + 1
+					while hold.glowRot2 == nil and not rec.done and os.clock() < glowBy do
+						task.wait(0.05)
+					end
+					enlargedLookChecks(res, "showcase_", hold)
+				end
+				check(res, "showcase_live_roll_turbo_multi", ev.turboMulti, turboLuck(), ev.turboMulti == turboLuck())
+			end
+		elseif cond == "showcase_result_stays_after_exit" then
+			-- In the enlarged view the landed result stays (1x, the roll's truth) until the next PopIn
+			local _, _, card = showcaseParts()
+			local ev = events.rolls[#events.rolls]
+			local idle = waitCardPhase(card, { Idle = true }, durationFor(rarityOf(ev and ev.id), false) + 1)
+			check(res, "showcase_card_idle_after_exit", idle, true, idle)
+			frames(2)
+			local st = showcaseState()
+			check(res, "showcase_still_open_after_exit", st, "open", st == "open")
+			if card and card:IsA("GuiObject") then
+				local r, nom = realRect(card), nominalOf(card)
+				check(res, "showcase_card_not_shrunk_after_exit", rstr(r), rstr(nom), sameRect(r, nom))
+			end
+			checkList(res, "showcase_result_shown_after_exit", showcaseCardProblems(ev))
+		elseif cond == "view_enlarged" or cond == "view_compact" then
+			local want = cond == "view_enlarged" and "Enlarged" or "Compact"
+			local gui = playerGui:FindFirstChild("RollToast")
+			local v = gui and gui:GetAttribute(UiSpec.RollAnim.ViewAttr)
+			check(res, cond, tostring(v), want, v == want)
+		elseif cond == "autobutton_label_follows_server" then
+			local auto = findPath(UiSpec.Showcase.Gui .. "/" .. UiSpec.Showcase.AutoButton.Path)
+			local want = UiSpec.RollAnim.AutoButtonText[attr("AutoRoll") == true]
+			local text = auto and auto:IsA("TextButton") and auto.Text or "missing"
+			check(res, cond, text, want, text == want)
+		elseif cond == "autoroll_is_arg" then
+			check(res, cond, attr("AutoRoll") == true, wantArg, (attr("AutoRoll") == true) == wantArg)
+		elseif cond == "no_rolls_while_auto_off" then
+			local n0, r0 = #events.rolls, attr("Rolls")
+			task.wait(GachaConfig.ROLL_INTERVAL + UiSpec.Waits.AutoOffWatch)
+			local n1, r1 = #events.rolls, attr("Rolls")
+			check(
+				res,
+				cond,
+				("%d RollResult, Rolls %s -> %s"):format(n1 - n0, tostring(r0), tostring(r1)),
+				"0 RollResult, Rolls unchanged",
+				n1 == n0 and r1 == r0
+			)
+		elseif cond == "rolls_resume" then
+			local ok = waitNewRoll(UiSpec.Waits.RollToast)
+			check(res, cond, ok, true, ok)
+		elseif cond == "toast_hidden_at_once" then
+			check(res, cond, toast and effectivelyVisible(toast), false, toast ~= nil and not effectivelyVisible(toast))
+		elseif cond == "toast_shows_auto_off" then
+			-- AUTO off: the compact card stays shown at rest, at its contract rect, clickable, with the last result
+			-- and the caption "AUTO OFF", and it does not hide when a roll interval passes
+			if attr("AutoRoll") ~= false then
+				stateMissing(
+					res,
+					cond,
+					"click:showcase_auto_off",
+					"AutoRoll is " .. tostring(attr("AutoRoll")) .. ", want false"
+				)
+				continue
+			end
+			frames(2)
+			local shown = toast ~= nil and shownNow(toast)
+			check(res, "toast_shown_while_auto_off", shown, true, shown)
+			local text = toast and allText(toast) or ""
+			local cap = UiSpec.RollAnim.AutoOffCaption
+			check(res, "toast_caption_auto_off", text, "contains " .. cap, string.find(text, cap, 1, true) ~= nil)
+			check(
+				res,
+				"toast_auto_off_caption_shown",
+				partShown(toast, UiSpec.Compact.AutoOff),
+				true,
+				partShown(toast, UiSpec.Compact.AutoOff)
+			)
+			-- The last result as the compact roll shows it: its model ("?" placeholder) and odds (owner decision 4)
+			local last = events.rolls[#events.rolls]
+			if last then
+				checkList(res, "toast_auto_off_shows_last_result", compactProblems(toast, last))
+			else
+				local ph = partOf(toast, "Placeholder")
+				local ok = ph ~= nil and ph:IsA("TextLabel") and ph.Text == "?" and effectivelyVisible(ph)
+				check(res, "toast_auto_off_shows_last_result", ok, 'Placeholder "?" (no roll yet)', ok)
+			end
+			checkList(res, "toast_auto_off_is_no_card", compactShapeProblems(toast))
+			if toast then
+				local top = topAt(centre(nominalOf(toast)))
+				check(
+					res,
+					"toast_clickable_while_auto_off",
+					top and pathOf(top) or "nothing",
+					"RollToast/Toast",
+					top ~= nil and (top == toast or toast:IsAncestorOf(top))
+				)
+				checkList(res, "toast_auto_off_at_contract_rect", liveVsNominal(toast))
+			end
+			task.wait(GachaConfig.ROLL_INTERVAL + 0.5)
+			frames(2)
+			local still = toast ~= nil and shownNow(toast)
+			check(res, "toast_stays_while_auto_off", still, true, still)
 		elseif cond == "normal_view_back" then
 			checkList(res, "normal_view_buttons_clickable", alwaysOnCovered())
 			checkList(res, "showcase_not_clickable_after_close", showcaseHits())

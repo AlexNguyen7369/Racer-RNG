@@ -35,6 +35,30 @@ RULES (details: CLAUDE.md "Track rules" and "Auto race, Speed stat and HUD")
 - Workflow: test-first subagent loop (/build-track, /car-loop). test-writer -> red run -> implement -> audit -> full green run.
   Only test-writer edits tests. Never loosen PhysicsTargets.
 
+!!! URGENT (2026-10-02): ROLL ANIMATION PUSHED TO MAIN UNTESTED - owner exception, NO compat stamp !!!
+The owner asked to commit and push the in-progress roll animation build to main WITHOUT an ALL GREEN /compat-check.
+main is NOT verified. Resume here before any other feature (docs/ROLL_ANIMATION_CONTRACT.md "STATUS" has the same note):
+- Built: Shared/RollAnimConfig (new), GachaConfig.IsEmphasized, GachaService (Roll returns 4 values incl. emphasized,
+  Announce, SetAutoRoll / RequestSetAutoRoll, AutoRoll attribute, StartAutoRoll(player, roller) waits ROLL_INTERVAL +
+  ExtraPause), Client/RollToast rewritten (compact = bare model + "1 in N" under Auto Race, 12% width; enlarged
+  RollShowcase card + AutoButton; phases PopIn/Spin/Land/Hold/Exit), Client/RollAnnounce (new, chat), IndexUi panel top =
+  RollAnimConfig.PANEL_TOP (138) with MinSize.Y 110, StatsUi panel width UDim2(0.44, -150) capped 300.
+- Where the tests left off:
+  * harness: roll_anim + gacha + index + data GREEN (`[CARTEST] END pass=6 fail=0`) BEFORE owner decision 6. Afterwards
+    test-writer changed roll_anim_constants to the decision-6 numbers (0.12/100/230/66, PANEL_TOP, ENLARGED_WIDTH/MAX):
+    NOT re-run. The FULL harness suite has NOT been run with these changes.
+  * ui: red run on the old client confirmed (`[UITEST] END pass=10 fail=6`, all missing-client causes). UI round 1 (an
+    intermediate design) was cut off by a usage limit and then stopped. UI round 2 (the FINAL design: decisions 4 and 6)
+    stalled and was stopped by the owner's exception: NO [UITEST] END line. The ui tests rewritten for decisions 4 and 6
+    (UiSpec.Compact, panel_clear_of_compact_roll_*, toast_stays_shown_while_*, compact_is_no_card, ...) have NEVER run.
+    Studio was restored (UiTestSetup restore ran) and play stopped.
+  * multiplayer-tester, world-tester: never run for this build.
+- Next, in order: (1) UI round 2 again (ui-tester, full suite incl. clicks; snapshot once); fix RollToast / panels until
+  green; (2) harness FULL suite; (3) /compat-check ALL GREEN; (4) update CLAUDE.md (roll toast no longer above the turbo
+  bar; compact roll never hidden by panels) and this file. Owner scope: stop after that compat-check.
+- Risks to check first: phone_landscape layout (Index panel only ~120 px tall, Stats panel ~221 px wide), the compact
+  roll's hitbox padding with an invisible button, the Legendary card shake vs live-rect checks, emphasized auto-open/close.
+
 CHANGE LOG (newest last)
 1. Baseplate: grey -> green studs, defined in default.project.json (Position, not CFrame: Rojo rejected the CFrame form, which silently
    broke project-file syncing until 2026-09-30; fixed, `rojo build` passes). Also applied directly in the open place. SAVE THE PLACE (Ctrl+S).
@@ -105,6 +129,9 @@ CHANGE LOG (newest last)
    under them: the backdrop ignores presses inside the card).
 
 TEST RESULTS (latest first; update after every full run)
+- 2026-10-02 (roll animation, INCOMPLETE): harness roll_anim/gacha/index/data `[CARTEST] END pass=6 fail=0` (before decision 6;
+  roll_anim_constants changed since, not re-run). ui red run `[UITEST] END pass=10 fail=6` (expected). UI green rounds: NO RESULT
+  (cut off / stopped). multiplayer, world: not run. No compat stamp. Pushed to main anyway on the owner's explicit exception.
 - 2026-10-02 (/compat-check round 3, fingerprint 736c261dea05): ALL GREEN, stamp recorded. harness `[CARTEST] END pass=22 fail=0`
   (auto_toggle 173, spawn_area 134, bank 40, npc 114, gacha 79 checks); ui `[UITEST] END pass=14 fail=0`, 21/21 real clicks;
   multiplayer GREEN; world GREEN. Rounds 1-2 RED on auto_toggle event_cancel_* / event_seat_fail_* (stale Humanoid.SeatPart, fixed).
@@ -157,7 +184,7 @@ TODO (in order)
 5. Bring Circuit and Serpentine up to the track rules; an upgrade shop (nothing raises Speed except driving).
 6. QUEUED (owner, 2026-10-02): money upgrade tree (Luck %, roll speed, Speed %, turbo luck x10/x50/x100/x1000 with more rolls per
    turbo each tier, walkspeed, Money %). Spec + open questions: docs/UPGRADE_TREE_SPEC.md; references in references/upgrade_tree/.
-7. QUEUED (owner, 2026-10-02): roll animation + roll UI (compact card under Auto Race, enlarged reveal, spin reel, rarity
+7. IN PROGRESS, PUSHED UNTESTED (see URGENT at the top): roll animation + roll UI (compact card under Auto Race, enlarged reveal, spin reel, rarity
    effects, emphasized rolls = undiscovered and rarer than the 5th-rarest owned car, global chat announce, discovery cutscene).
    Decisions and UI conflicts: docs/ROLL_ANIMATION_SPEC.md; look: the design doc's "Roll animation" section.
 8. QUEUED (owner, 2026-10-02): vehicle skins: a ride's look is any model (a car now, maybe a dragon later) welded on a shared
@@ -184,6 +211,6 @@ Read "[CARTEST] ..." lines and "[CARTEST] END pass=N fail=N". A full run takes 1
 ]=]
 
 return {
-	Updated = "2026-10-01",
+	Updated = "2026-10-02",
 	Read = "Open this script and read the comment block above.",
 }

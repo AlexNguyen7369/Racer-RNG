@@ -8292,7 +8292,669 @@ function Scenarios.admin()
 	return result("admin", checks, metrics)
 end
 
--- name: "static_settle" | "accel" | "brake" | "skidpad" | "car_size" | "economy" | "hud" | "auto_toggle" | "spawn_area" | "gacha" | "index" | "npc" | "bank" | "multiplayer" | "admin" | "lap:<Track>" | "track:<Track>"
+-- Roll animation, server side (docs/ROLL_ANIMATION_CONTRACT.md, sections "Shared/RollAnimConfig" and "Server"; owner
+-- decisions in docs/ROLL_ANIMATION_SPEC.md). BRIEF (owner, 2026-10-02): "A roll is emphasized when the car is
+-- undiscovered AND its odds are rarer than the player's 5th-rarest discovered car (while the player has discovered
+-- fewer than 5 cars, any undiscovered car counts). The rarity name alone never triggers it. Every emphasized roll is
+-- announced in global chat." Every number below is copied from the contract, never from an implementation.
+local ROLL_ANIM_TIMES = { POP = 0.15, SPIN = 0.8, LAND = 0.15, EXIT = 0.15, SWITCH = 0.3 }
+local ROLL_ANIM_HOLD = {
+	Common = 0.3,
+	Uncommon = 0.3,
+	Rare = 0.4,
+	Epic = 0.6,
+	Legendary = 1.5,
+	Mythic = 2.5,
+	Secret = 4,
+}
+local ROLL_ANIM_LAYOUT = {
+	REEL_CARS = 6,
+	LAND_POP = 1.15,
+	COMPACT_WIDTH = 0.12, -- owner decision 6: smaller compact roll
+	COMPACT_MIN = 100,
+	COMPACT_MAX = 230,
+	COMPACT_HEIGHT = 66,
+	COMPACT_GAP = 8,
+	PANEL_TOP = 138, -- 60 + COMPACT_GAP + COMPACT_HEIGHT + 4
+	ENLARGED_FACTOR = 3,
+	ENLARGED_WIDTH = 0.6,
+}
+local ROLL_ANIM_ENLARGED_MAX = Vector2.new(780, 336)
+local ROLL_ANIM_REELS = 4000 -- seeded reels for the filler odds (5 fillers each)
+local ROLL_ANIM_REEL_SEED = 20261002
+local ROLL_ANIM_NEAR_MISS_SEED = 4402
+local ROLL_ANIM_SERVICE_SEED = 9917
+local ROLL_ANIM_SERVICE_ROLLS = 60
+local ROLL_ANIM_TIMING_TOL = 0.05 -- s: a task.wait is never shorter than asked; slack for clock granularity only
+local ROLL_ANIM_LATE = 1.5 -- s: how late a timed auto-roll may come under test load
+
+-- Contract: Duration = POP + SPIN + LAND + Hold(rarity) + EXIT, + 2 x SWITCH when emphasized.
+local function rollAnimDuration(rarity, emphasized)
+	local t = ROLL_ANIM_TIMES
+	local d = t.POP + t.SPIN + t.LAND + (ROLL_ANIM_HOLD[rarity] or ROLL_ANIM_HOLD.Common) + t.EXIT
+	if emphasized then
+		d += 2 * t.SWITCH
+	end
+	return d
+end
+
+-- A Random stand-in returning the given NextNumber values in order (the last one repeats).
+local function seqRoller(values)
+	local i = 0
+	return {
+		NextNumber = function(_self)
+			i += 1
+			return values[math.min(i, #values)]
+		end,
+	}
+end
+
+function Scenarios.roll_anim()
+	local checks, metrics = {}, {}
+	local CarCatalog, GachaConfig, GachaService = gachaModules()
+	local RollAnimConfig = sharedModule("RollAnimConfig")
+	local baseOk = CarCatalog ~= nil
+		and GachaConfig ~= nil
+		and GachaService ~= nil
+		and type(GachaConfig.Roll) == "function"
+		and type(GachaConfig.ROLL_INTERVAL) == "number"
+	check(checks, "roll_anim_gacha_modules", baseOk and 1 or 0, 1, baseOk)
+	if not baseOk then
+		return result("roll_anim", checks, metrics)
+	end
+	local interval = GachaConfig.ROLL_INTERVAL
+	local validIds, catchAllId = {}, nil
+	for _, c in GACHA_SEED do
+		validIds[c.Id] = true
+		if c.Chance == nil then
+			catchAllId = c.Id
+		end
+	end
+
+	-- RollAnimConfig: constants and pure functions
+	local cfgOk = RollAnimConfig ~= nil
+		and type(RollAnimConfig.Hold) == "function"
+		and type(RollAnimConfig.Duration) == "function"
+		and type(RollAnimConfig.ExtraPause) == "function"
+		and type(RollAnimConfig.Reel) == "function"
+	check(checks, "roll_anim_config_api_exists", cfgOk and 1 or 0, 1, cfgOk)
+	if cfgOk then
+		local constBad = {}
+		for name, want in ROLL_ANIM_TIMES do
+			if not nearly(RollAnimConfig[name], want) then
+				table.insert(constBad, name)
+			end
+		end
+		for name, want in ROLL_ANIM_LAYOUT do
+			if not nearly(RollAnimConfig[name], want) then
+				table.insert(constBad, name)
+			end
+		end
+		local enlargedMax = RollAnimConfig.ENLARGED_MAX
+		if
+			typeof(enlargedMax) ~= "Vector2"
+			or not nearly(enlargedMax.X, ROLL_ANIM_ENLARGED_MAX.X)
+			or not nearly(enlargedMax.Y, ROLL_ANIM_ENLARGED_MAX.Y)
+		then
+			table.insert(constBad, "ENLARGED_MAX")
+		end
+		check(checks, "roll_anim_constants", #constBad, table.concat(constBad, ","), #constBad == 0)
+		local holdTableBad = type(RollAnimConfig.HOLD) ~= "table" and 1 or 0
+		local holdFnBad = 0
+		for rarity, want in ROLL_ANIM_HOLD do
+			if holdTableBad == 0 and not nearly(RollAnimConfig.HOLD[rarity], want) then
+				holdTableBad += 1
+			end
+			local ok, got = pcall(RollAnimConfig.Hold, rarity)
+			if not ok or not nearly(got, want) then
+				holdFnBad += 1
+			end
+		end
+		check(checks, "roll_anim_hold_table", holdTableBad, 0, holdTableBad == 0)
+		check(checks, "roll_anim_hold_per_rarity", holdFnBad, 0, holdFnBad == 0)
+		local unknownBad = 0
+		for _, bad in { "Bogus", "", "common", 5 } do
+			local ok, got = pcall(RollAnimConfig.Hold, bad)
+			if not ok or not nearly(got, ROLL_ANIM_HOLD.Common) then
+				unknownBad += 1
+			end
+		end
+		local okNil, gotNil = pcall(RollAnimConfig.Hold, nil)
+		if not okNil or not nearly(gotNil, ROLL_ANIM_HOLD.Common) then
+			unknownBad += 1
+		end
+		check(checks, "roll_anim_hold_unknown_is_common", unknownBad, 0, unknownBad == 0)
+
+		local durBad, pauseBad = 0, 0
+		local rarities = table.clone(GACHA_RARITY_ORDER)
+		table.insert(rarities, "Bogus")
+		for _, rarity in rarities do
+			for _, emphasized in { false, true } do
+				local want = rollAnimDuration(rarity, emphasized)
+				local okD, gotD = pcall(RollAnimConfig.Duration, rarity, emphasized)
+				if not okD or type(gotD) ~= "number" or math.abs(gotD - want) > 1e-6 then
+					durBad += 1
+				end
+				local okP, gotP = pcall(RollAnimConfig.ExtraPause, rarity, emphasized)
+				if not okP or type(gotP) ~= "number" or math.abs(gotP - math.max(0, want - interval)) > 1e-6 then
+					pauseBad += 1
+				end
+			end
+		end
+		check(checks, "roll_anim_duration_formula", durBad, 0, durBad == 0)
+		check(checks, "roll_anim_extra_pause_formula", pauseBad, 0, pauseBad == 0)
+		local okC, commonD = pcall(RollAnimConfig.Duration, "Common", false)
+		commonD = okC and type(commonD) == "number" and commonD or math.huge
+		check(
+			checks,
+			"roll_anim_common_fits_interval",
+			commonD == math.huge and -1 or commonD,
+			interval,
+			commonD <= interval
+		)
+		local okS, secretP = pcall(RollAnimConfig.ExtraPause, "Secret", true)
+		local wantS = rollAnimDuration("Secret", true) - interval
+		check(
+			checks,
+			"roll_anim_secret_needs_pause",
+			okS and type(secretP) == "number" and secretP or -1,
+			wantS,
+			okS and type(secretP) == "number" and wantS > 0 and math.abs(secretP - wantS) <= 1e-6
+		)
+
+		-- Reel(rng, resultId): REEL_CARS ids, the last is the result, the rest are real luck-1 rolls
+		local n = ROLL_ANIM_LAYOUT.REEL_CARS
+		local function reel(rng, id)
+			local ok, r = pcall(RollAnimConfig.Reel, rng, id)
+			if ok and type(r) == "table" then
+				return r
+			end
+			return nil
+		end
+		local lenBad, lastBad, idBad = 0, 0, 0
+		for k, c in GACHA_SEED do
+			for s = 1, 20 do
+				local r = reel(Random.new(1000 * k + s), c.Id)
+				if not r or #r ~= n then
+					lenBad += 1
+				end
+				if not r or r[#r] ~= c.Id then
+					lastBad += 1
+				end
+				if r then
+					for _, id in r do
+						if not validIds[id] then
+							idBad += 1
+						end
+					end
+				end
+			end
+		end
+		check(checks, "reel_length", lenBad, 0, lenBad == 0)
+		check(checks, "reel_last_is_result", lastBad, 0, lastBad == 0)
+		check(checks, "reel_all_rollable", idBad, 0, idBad == 0)
+		local detBad, indepBad = 0, 0
+		for s = 1, 200 do
+			local a = reel(Random.new(s), "void_racer")
+			local b = reel(Random.new(s), "void_racer")
+			local c = reel(Random.new(s), catchAllId)
+			if not (a and b and #a == #b) then
+				detBad += 1
+			else
+				for i = 1, #a do
+					if a[i] ~= b[i] then
+						detBad += 1
+						break
+					end
+				end
+			end
+			-- no planting: the fillers do not depend on what was rolled
+			if not (a and c and #a == n and #c == n) then
+				indepBad += 1
+			else
+				for i = 1, n - 1 do
+					if a[i] ~= c[i] then
+						indepBad += 1
+						break
+					end
+				end
+			end
+		end
+		check(checks, "reel_deterministic_per_seed", detBad, 0, detBad == 0)
+		check(checks, "reel_fillers_independent_of_result", indepBad, 0, indepBad == 0)
+
+		-- Filler odds over many seeded reels match the real luck-1 odds
+		local counts, fillers, reelErr = {}, 0, 0
+		local rng = Random.new(ROLL_ANIM_REEL_SEED)
+		for i = 1, ROLL_ANIM_REELS do
+			local resultId = GACHA_SEED[(i - 1) % #GACHA_SEED + 1].Id
+			local r = reel(rng, resultId)
+			if not r or #r ~= n then
+				reelErr += 1
+			else
+				for j = 1, n - 1 do
+					counts[r[j]] = (counts[r[j]] or 0) + 1
+					fillers += 1
+				end
+			end
+		end
+		check(checks, "reel_odds_sample_ok", reelErr, 0, reelErr == 0 and fillers == ROLL_ANIM_REELS * (n - 1))
+		local expected = gachaExpected(1)
+		for _, c in GACHA_SEED do
+			local p = expected[c.Id]
+			local mean = fillers * p
+			local tol = GACHA_SIGMAS * math.sqrt(fillers * p * (1 - p)) + GACHA_FLOOR
+			local got = counts[c.Id] or 0
+			metrics["reel_" .. c.Id] = got
+			check(
+				checks,
+				"reel_odds_" .. c.Id,
+				got,
+				string.format("%.1f +- %.1f", mean, tol),
+				fillers > 0 and math.abs(got - mean) <= tol
+			)
+		end
+		-- The slot right before a rare result is no likelier to hold a non-common (or a Rare+) car than the odds say
+		local nm = Random.new(ROLL_ANIM_NEAR_MISS_SEED)
+		local slots, nonCommon, rarePlus = 0, 0, 0
+		for i = 1, ROLL_ANIM_REELS do
+			local resultId = i % 2 == 0 and "void_racer" or "hover_car"
+			local r = reel(nm, resultId)
+			if r and #r == n then
+				slots += 1
+				local spec = CarCatalog.Get(r[n - 1])
+				if spec and spec.Chance ~= nil then
+					nonCommon += 1
+					if spec.Chance >= 50 then
+						rarePlus += 1
+					end
+				end
+			end
+		end
+		local pNon = 1 - expected[catchAllId]
+		local pRare = 0
+		for _, c in GACHA_SEED do
+			if c.Chance and c.Chance >= 50 then
+				pRare += expected[c.Id]
+			end
+		end
+		local meanNon = slots * pNon
+		local tolNon = GACHA_SIGMAS * math.sqrt(slots * pNon * (1 - pNon)) + GACHA_FLOOR
+		check(
+			checks,
+			"reel_slot_before_result_odds",
+			nonCommon,
+			string.format("%.1f +- %.1f", meanNon, tolNon),
+			slots == ROLL_ANIM_REELS and math.abs(nonCommon - meanNon) <= tolNon
+		)
+		local maxRare = slots * pRare + GACHA_SIGMAS * math.sqrt(slots * pRare * (1 - pRare)) + GACHA_FLOOR
+		check(
+			checks,
+			"reel_no_planted_rare_before_result",
+			rarePlus,
+			string.format("<= %.1f", maxRare),
+			slots == ROLL_ANIM_REELS and rarePlus <= maxRare
+		)
+	end
+
+	-- GachaConfig.IsEmphasized(id, ownedIds): ownedIds is an array of car ids owned BEFORE the roll
+	local emphOk = type(GachaConfig.IsEmphasized) == "function"
+	check(checks, "emphasized_api_exists", emphOk and 1 or 0, 1, emphOk)
+	if emphOk then
+		local function emph(id, owned)
+			local ok, r = pcall(GachaConfig.IsEmphasized, id, owned)
+			if ok then
+				return r
+			end
+			return "error"
+		end
+		local function expectAll(name, cases)
+			local bad = {}
+			for _, case in cases do
+				if emph(case[1], case[2]) ~= case[3] then
+					table.insert(bad, tostring(case[1]))
+				end
+			end
+			check(checks, name, #bad, table.concat(bad, ","), #bad == 0)
+		end
+		local allIds = {}
+		for _, c in GACHA_SEED do
+			table.insert(allIds, c.Id)
+		end
+		local rare5 = { "void_racer", "hover_car", "rocket_car", "street_racer", "go_kart" } -- 5th-rarest = 1 in 50
+		local rare5w = { "void_racer", "hover_car", "rocket_car", "street_racer", "wooden_car" } -- 5th = 1 in 10
+		local common5 = { "rusty_hatchback", "wooden_car", "go_kart", "street_racer", "rocket_car" } -- 5th = catch-all
+		local six = { "void_racer", "hover_car", "rocket_car", "street_racer", "go_kart", "rusty_hatchback" }
+		local newCases = {}
+		for _, id in allIds do
+			table.insert(newCases, { id, {}, true })
+		end
+		expectAll("emph_nothing_owned_any_new_true", newCases)
+		local ownedCases = {}
+		for _, id in allIds do
+			table.insert(ownedCases, { id, { id }, false })
+			table.insert(ownedCases, { id, table.clone(allIds), false })
+		end
+		expectAll("emph_owned_false", ownedCases)
+		expectAll("emph_not_rollable_false", {
+			{ "starter", {}, false },
+			{ "no_such_car", {}, false },
+			{ "", {}, false },
+			{ nil, {}, false },
+			{ 5, {}, false },
+		})
+		local four = { "void_racer", "hover_car", "rocket_car", "street_racer" }
+		expectAll("emph_under_five_any_new_true", {
+			{ "rusty_hatchback", four, true },
+			{ "wooden_car", four, true },
+			{ "go_kart", four, true },
+		})
+		expectAll("emph_only_distinct_rollable_owned_count", {
+			{ "rusty_hatchback", { "void_racer", "hover_car", "rocket_car", "street_racer", "starter" }, true },
+			{ "rusty_hatchback", { "void_racer", "hover_car", "rocket_car", "street_racer", "no_such_car" }, true },
+			{ "wooden_car", { "void_racer", "void_racer", "hover_car", "rocket_car", "street_racer" }, true },
+		})
+		expectAll("emph_five_owned_catch_all_is_least_rare", {
+			{ "hover_car", common5, true },
+			{ "void_racer", common5, true },
+		})
+		expectAll("emph_not_rarer_than_fifth_false", {
+			{ "wooden_car", rare5, false },
+			{ "rusty_hatchback", rare5, false },
+			{ "rusty_hatchback", rare5w, false },
+		})
+		expectAll("emph_rarer_than_fifth_true", {
+			{ "go_kart", rare5w, true },
+		})
+		-- with 6 owned the 5th-rarest decides (1 in 50 here), not the least rare one
+		expectAll("emph_uses_fifth_rarest_not_least", {
+			{ "wooden_car", six, false },
+		})
+		local reversed = table.clone(rare5w)
+		for i = 1, #reversed // 2 do
+			reversed[i], reversed[#reversed + 1 - i] = reversed[#reversed + 1 - i], reversed[i]
+		end
+		expectAll("emph_owned_order_ignored", {
+			{ "go_kart", reversed, true },
+			{ "rusty_hatchback", reversed, false },
+		})
+		-- Rarity names never matter: relabel cars (restored afterwards) so two cars share a rarity name but only
+		-- the one with the rarer odds passes, and a "Secret"-named common car never passes.
+		local relabel = { rusty_hatchback = "Rare", go_kart = "Common", wooden_car = "Secret" }
+		local saved = {}
+		local okRel, errRel = pcall(function()
+			for id, rarity in relabel do
+				local spec = CarCatalog.Get(id)
+				saved[id] = spec.Rarity
+				spec.Rarity = rarity
+			end
+			expectAll("emph_rarity_names_ignored", {
+				{ "go_kart", rare5w, true }, -- now labelled Common, still passes on odds
+				{ "rusty_hatchback", rare5w, false }, -- now labelled Rare like the real go_kart, still fails
+				{ "wooden_car", rare5, false }, -- labelled Secret, odds 1 in 10: fails
+			})
+		end)
+		for id, rarity in saved do
+			CarCatalog.Get(id).Rarity = rarity
+		end
+		if not okRel then
+			check(checks, "emph_rarity_names_ignored", 0, tostring(errRel), false)
+		end
+	end
+
+	local cleanup, handles, conns = {}, {}, {}
+	local originalAnnounce = GachaService.Announce
+	local okBody, err = pcall(function()
+		-- Remotes (GachaService.Start is called by Main at boot)
+		local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+		local remotesBad = {}
+		for _, name in { "RollResult", "RollAnnounce", "SetAutoRoll" } do
+			local r = remotes and remotes:FindFirstChild(name)
+			if not (r and r:IsA("RemoteEvent")) then
+				table.insert(remotesBad, name)
+			end
+		end
+		check(checks, "roll_anim_remotes_exist", #remotesBad, table.concat(remotesBad, ","), #remotesBad == 0)
+
+		-- GachaService.Roll returns (id, isNew, turboMulti, emphasized); an emphasized roll calls
+		-- GachaService.Announce(player, id, rolls) (which fires Remotes.RollAnnounce:FireAllClients). Fake players can
+		-- not receive remotes, so the announcement is observed by swapping GachaService.Announce for a spy.
+		local announceOk = type(originalAnnounce) == "function"
+		check(checks, "announce_api_exists", announceOk and 1 or 0, 1, announceOk)
+		local calls = {}
+		GachaService.Announce = function(player, id, rolls)
+			table.insert(calls, { player = player, id = id, rolls = rolls })
+		end
+		local secret = seqRoller({ 0 }) -- hits the rarest car first: void_racer
+		local r1 = newTestPlayer(cleanup, "CarTestRollAnimP1")
+		GachaService.Setup(r1)
+		local packed = table.pack(pcall(GachaService.Roll, r1, secret))
+		local okR1 = packed[1] == true
+		check(checks, "service_roll_returns_four_values", okR1 and packed.n - 1 or -1, 4, okR1 and packed.n == 5)
+		local first = okR1 and packed[2] == "void_racer" and packed[3] == true and packed[4] == 1 and packed[5] == true
+		check(checks, "service_roll_new_secret_emphasized", first and 1 or 0, 1, first)
+		local ann1 = #calls == 1
+			and calls[1].player == r1
+			and calls[1].id == "void_racer"
+			and calls[1].rolls == 1
+			and r1:GetAttribute("Rolls") == 1
+		check(checks, "announce_on_emphasized_roll", #calls, 1, ann1)
+		local okR2, id2, new2, _, emph2 = pcall(GachaService.Roll, r1, secret)
+		local second = okR2 and id2 == "void_racer" and new2 == false and emph2 == false
+		check(checks, "service_roll_owned_not_emphasized", second and 1 or 0, 1, second)
+		check(checks, "announce_not_on_owned_roll", #calls, 1, #calls == 1)
+
+		-- 5 rarer cars owned (5th-rarest 1 in 10): Go-Kart (1 in 50) is emphasized, the catch-all is not
+		local r2 = newTestPlayer(cleanup, "CarTestRollAnimP2")
+		GachaService.Setup(r2)
+		for _, id in { "void_racer", "hover_car", "rocket_car", "street_racer", "wooden_car" } do
+			GachaService.Grant(r2, id)
+		end
+		local before = #calls
+		local okK, idK, newK, _, emphK = pcall(GachaService.Roll, r2, seqRoller({ 0.99, 0.99, 0.99, 0.99, 0 }))
+		local kart = okK and idK == "go_kart" and newK == true and emphK == true
+		check(checks, "service_roll_rarer_than_fifth_emphasized", kart and 1 or 0, 1, kart)
+		local annK = #calls == before + 1
+			and calls[#calls].player == r2
+			and calls[#calls].id == "go_kart"
+			and calls[#calls].rolls == r2:GetAttribute("Rolls")
+		check(checks, "announce_rarer_than_fifth", #calls - before, 1, annK)
+		before = #calls
+		local okH, idH, newH, _, emphH = pcall(GachaService.Roll, r2, seqRoller({ 0.99 }))
+		local hatch = okH and idH == catchAllId and newH == true and emphH == false
+		check(checks, "service_roll_new_but_common_not_emphasized", hatch and 1 or 0, 1, hatch)
+		check(checks, "announce_not_on_common_new_roll", #calls - before, 0, #calls == before)
+
+		-- Seeded rolls: the flag always equals IsEmphasized(id, owned before the roll); one announce per flag
+		if type(GachaConfig.IsEmphasized) == "function" then
+			local r3 = newTestPlayer(cleanup, "CarTestRollAnimP3")
+			GachaService.Setup(r3)
+			before = #calls
+			local rng = Random.new(ROLL_ANIM_SERVICE_SEED)
+			local mismatch, flagged, rollErr = 0, 0, 0
+			for _ = 1, ROLL_ANIM_SERVICE_ROLLS do
+				local ownedBefore = {}
+				for _, v in r3.GachaData:GetChildren() do
+					table.insert(ownedBefore, v.Name)
+				end
+				local okS, id, _, _, e = pcall(GachaService.Roll, r3, rng)
+				if not okS then
+					rollErr += 1
+				else
+					local okE, want = pcall(GachaConfig.IsEmphasized, id, ownedBefore)
+					if not okE or e ~= want or type(e) ~= "boolean" then
+						mismatch += 1
+					end
+					if e == true then
+						flagged += 1
+					end
+				end
+			end
+			metrics.serviceEmphasized = flagged
+			check(checks, "service_roll_no_error", rollErr, 0, rollErr == 0)
+			check(checks, "service_roll_emphasized_matches_config", mismatch, 0, rollErr == 0 and mismatch == 0)
+			check(
+				checks,
+				"announce_count_matches_emphasized",
+				#calls - before,
+				flagged,
+				flagged >= 1 and #calls - before == flagged
+			)
+		end
+		GachaService.Announce = originalAnnounce
+
+		-- AUTO toggle: AutoRoll attribute (true on join, not saved, Setup never turns it back on)
+		local pt = newTestPlayer(cleanup, "CarTestRollAnimToggle")
+		GachaService.Setup(pt)
+		check(
+			checks,
+			"auto_roll_attribute_default_true",
+			pt:GetAttribute("AutoRoll") == true and 1 or 0,
+			1,
+			pt:GetAttribute("AutoRoll") == true
+		)
+		pt:SetAttribute("AutoRoll", false)
+		GachaService.Setup(pt)
+		pcall(GachaService.Roll, pt, Random.new(1))
+		check(
+			checks,
+			"setup_keeps_auto_roll_off",
+			pt:GetAttribute("AutoRoll") == false and 1 or 0,
+			1,
+			pt:GetAttribute("AutoRoll") == false
+		)
+		local okSnap, snap = pcall(GachaService.Snapshot, pt)
+		local notSaved = okSnap and type(snap) == "table" and snap.AutoRoll == nil
+		check(checks, "auto_roll_not_saved", notSaved and 1 or 0, 1, notSaved)
+
+		-- Remotes.SetAutoRoll handler: GachaService.RequestSetAutoRoll(player, value) is exactly what its
+		-- OnServerEvent calls (rate limit like AllocateStat, booleans only). Returns true only if applied.
+		local reqOk = type(GachaService.RequestSetAutoRoll) == "function"
+		check(checks, "set_auto_roll_handler_exists", reqOk and 1 or 0, 1, reqOk)
+		local cooldown = GachaService.REMOTE_COOLDOWN
+		local cdOk = type(cooldown) == "number" and cooldown > 0 and cooldown <= 1
+		check(checks, "set_auto_roll_cooldown_range", cdOk and cooldown or -1, "(0, 1]", cdOk)
+		if reqOk and cdOk then
+			local pr = newTestPlayer(cleanup, "CarTestRollAnimRequest")
+			GachaService.Setup(pr)
+			local function req(v)
+				local ok, r = pcall(GachaService.RequestSetAutoRoll, pr, v)
+				return ok and r == true
+			end
+			local a = req(false)
+			check(checks, "set_auto_roll_accepts_bool", a and 1 or 0, 1, a and pr:GetAttribute("AutoRoll") == false)
+			local b = req(true)
+			check(checks, "set_auto_roll_rate_limited", b and 1 or 0, 0, not b and pr:GetAttribute("AutoRoll") == false)
+			local nonBool = 0
+			for _, bad in { "true", 1, 0, {}, "false" } do
+				task.wait(cooldown + 0.05)
+				if req(bad) or pr:GetAttribute("AutoRoll") ~= false then
+					nonBool += 1
+				end
+			end
+			task.wait(cooldown + 0.05)
+			if req(nil) or pr:GetAttribute("AutoRoll") ~= false then
+				nonBool += 1
+			end
+			check(checks, "set_auto_roll_rejects_non_boolean", nonBool, 0, nonBool == 0)
+			task.wait(cooldown + 0.05)
+			local c = req(true)
+			check(checks, "set_auto_roll_back_on", c and 1 or 0, 1, c and pr:GetAttribute("AutoRoll") == true)
+		end
+
+		-- Timed auto-roll (both run at once): A rolls a forced Secret through StartAutoRoll(player, roller) and must
+		-- wait ROLL_INTERVAL + ExtraPause before the next roll; B starts with AutoRoll = false and must not roll
+		-- until it is turned back on.
+		local pa = newTestPlayer(cleanup, "CarTestRollAnimPause")
+		GachaService.Setup(pa)
+		local rollTimes = {}
+		table.insert(
+			conns,
+			pa:GetAttributeChangedSignal("Rolls"):Connect(function()
+				table.insert(rollTimes, os.clock())
+			end)
+		)
+		local pb = newTestPlayer(cleanup, "CarTestRollAnimOff")
+		GachaService.Setup(pb)
+		pb:SetAttribute("AutoRoll", false)
+		local t0 = os.clock()
+		local okA, hA = pcall(GachaService.StartAutoRoll, pa, seqRoller({ 0 }))
+		local okB, hB = pcall(GachaService.StartAutoRoll, pb)
+		if okA then
+			table.insert(handles, hA)
+		end
+		if okB then
+			table.insert(handles, hB)
+		end
+		local offUntil = t0 + interval + ROLL_ANIM_LATE
+		while os.clock() < offUntil do
+			task.wait(0.1)
+		end
+		local offRolls = pb:GetAttribute("Rolls")
+		check(checks, "auto_roll_off_no_rolls", offRolls or -1, 0, okB and offRolls == 0)
+		pb:SetAttribute("AutoRoll", true)
+		local onAt = os.clock()
+		-- measured from the switch: only a roll made AFTER AutoRoll is back on counts as resuming
+		local rollsAtOn = pb:GetAttribute("Rolls") or 0
+		local wantGap = interval + math.max(0, rollAnimDuration("Secret", true) - interval)
+		local deadline = math.max(onAt + interval + ROLL_ANIM_LATE, t0 + interval + wantGap + 2 * ROLL_ANIM_LATE)
+		local resumedAt = nil
+		while os.clock() < deadline do
+			if not resumedAt and (pb:GetAttribute("Rolls") or 0) > rollsAtOn then
+				resumedAt = os.clock()
+			end
+			if resumedAt and #rollTimes >= 2 then
+				break
+			end
+			task.wait(0.05)
+		end
+		local resumeIn = resumedAt and resumedAt - onAt or -1
+		metrics.autoRollResumeSeconds = round(resumeIn)
+		check(
+			checks,
+			"auto_roll_on_resumes",
+			resumeIn,
+			string.format("<= %.2f", interval + ROLL_ANIM_LATE),
+			offRolls == 0 and resumedAt ~= nil and resumeIn <= interval + ROLL_ANIM_LATE
+		)
+		local riggedOk = okA and owns(pa, "void_racer")
+		check(checks, "auto_roll_uses_given_roller", riggedOk and 1 or 0, 1, riggedOk)
+		local gap = #rollTimes >= 2 and rollTimes[2] - rollTimes[1] or -1
+		metrics.autoRollPauseGap = round(gap)
+		check(
+			checks,
+			"auto_roll_pause_after_long_roll",
+			gap,
+			string.format(">= %.2f", wantGap),
+			riggedOk and #rollTimes >= 2 and gap >= wantGap - ROLL_ANIM_TIMING_TOL
+		)
+		check(
+			checks,
+			"auto_roll_pause_not_too_long",
+			gap,
+			string.format("<= %.2f", wantGap + ROLL_ANIM_LATE),
+			riggedOk and #rollTimes >= 2 and gap <= wantGap + ROLL_ANIM_LATE
+		)
+	end)
+	GachaService.Announce = originalAnnounce
+	for _, h in handles do
+		if type(h) == "table" and type(h.Stop) == "function" then
+			pcall(h.Stop, h)
+		end
+	end
+	for _, c in conns do
+		c:Disconnect()
+	end
+	if not okBody then
+		check(checks, "roll_anim_service_no_error", 0, tostring(err), false)
+	end
+	for _, inst in cleanup do
+		inst:Destroy()
+	end
+	return result("roll_anim", checks, metrics)
+end
+
+-- name: "static_settle" | "accel" | "brake" | "skidpad" | "car_size" | "economy" | "hud" | "auto_toggle" | "spawn_area" | "gacha" | "index" | "npc" | "bank" | "multiplayer" | "admin" | "roll_anim" | "lap:<Track>" | "track:<Track>"
 function Scenarios.Run(name)
 	local track = string.match(name, "^lap:(.+)$")
 	if track then

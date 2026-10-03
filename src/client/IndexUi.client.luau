@@ -11,6 +11,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local CarCatalog = require(Shared.CarCatalog)
 local GachaConfig = require(Shared.GachaConfig)
 local HudFormat = require(Shared.HudFormat)
+local RollAnimConfig = require(Shared.RollAnimConfig)
 local equipRemote = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("EquipCar")
 local PanelSwitch = require(script.Parent:WaitForChild("PanelSwitch"))
 
@@ -19,7 +20,7 @@ local playerGui = player:WaitForChild("PlayerGui")
 local data = player:WaitForChild("GachaData")
 
 local PANEL_BG = Color3.fromRGB(20, 28, 48)
-local TOP_CLEAR = 68 -- the panel starts below the Auto Race button (top centre, 12 + 48 px)
+local TOP_CLEAR = RollAnimConfig.PANEL_TOP -- below the Auto Race button and the compact roll under it
 local BOTTOM_CLEAR = 74 -- and ends above the bottom strip (Client/RollUi TURBO LUCK bar and its pop text)
 local TILE_BG = Color3.fromRGB(34, 44, 70)
 local LOCKED_BG = Color3.fromRGB(12, 14, 22)
@@ -74,7 +75,7 @@ panel.Visible = false
 panel.Parent = gui
 round(panel, 16)
 local limit = Instance.new("UISizeConstraint")
-limit.MinSize = Vector2.new(320, 200)
+limit.MinSize = Vector2.new(320, 110) -- still ends above the bottom strip on a phone
 limit.MaxSize = Vector2.new(760, 560)
 limit.Parent = panel
 
