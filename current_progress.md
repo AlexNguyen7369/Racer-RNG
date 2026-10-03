@@ -12,8 +12,9 @@
 9. 2026-10-02 — Alex Nguyen — Drafted the Rusty Hatchback car model in Blender from a CC0 Poly Pizza asset (rusty restyle, game wheel naming) and set the vehicle-skins rule that any model can sit on a shared physics body (docs/VEHICLE_SKINS_SPEC.md).
 10. 2026-10-02 — Alex Nguyen — Changed the roll animation spec and design doc so the compact auto roll shows only the car model with its "1 in N" odds and the stats card appears only when enlarged, and limited the current roll build to finishing its UI round and compat-check.
 11. 2026-10-02 — Alex Nguyen — Specified that the compact roll animation is smaller (about 12% of screen width) and stays visible through every HUD click and open panel, with panels moved below it, in the roll animation spec and design doc.
+12. 2026-10-02 — Alex Nguyen — Implemented the roll animation (bare-model compact roll under Auto Race, enlarged card with AUTO toggle, emphasized rolls announced in chat, panels moved below the roll) and pushed it to `main` on the owner's exception without a green /compat-check (harness roll tests green before decision 6; the final-design UI tests never completed a run).
 
 ## What's next
-**Build the roll animation and roll UI from docs/ROLL_ANIMATION_SPEC.md (in progress in a parallel session): compact card under Auto Race, enlarged reveal with click-anywhere to close, emphasized rolls with the global chat announce.**
+**Resume the roll animation verification: run the full UI suite on the final design (decisions 4 and 6), fix RollToast and the Index/Stats panels until green, then the full harness and an ALL GREEN /compat-check.**
 
-**Why this is next:** a parallel session has already started it against this spec, and the bottom HUD rework (Garage, ROLL, Upgrades) and the upgrade tree's turbo tiers both plug into the roll UI it builds, so its layout has to land first.
+**Why this is next:** `main` now carries the roll animation unverified (see the URGENT block in context/ProjectContext.luau), and the bottom HUD rework and the upgrade tree's turbo tiers build on this roll UI, so it has to be proven green before anything else lands on top of it.
