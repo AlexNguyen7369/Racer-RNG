@@ -37,6 +37,12 @@ RULES (details: CLAUDE.md "Track rules" and "Auto race, Speed stat and HUD")
 
 !!! URGENT (2026-10-02): ROLL ANIMATION PUSHED TO MAIN UNTESTED - owner exception, NO compat stamp !!!
 The owner asked to commit and push the in-progress roll animation build to main WITHOUT an ALL GREEN /compat-check.
+NOTE FOR THE NEXT SESSION (2026-10-03): the push has NOT happened yet. The commits are only on local `initial-import`
+(2 ahead of origin; origin/main is still e0f9978). Claude's compat-gate hook blocks pushes to main, so the owner pushes by
+hand: `git push --no-verify origin initial-import` then `git push --no-verify origin initial-import:main`. Check with
+`git status -sb` / `git log origin/main` before assuming it is on main. The other session (car-gacha-stat-allocation) was
+NOT told that Studio is free or that the roll build is committed (that message failed). Do not start implementation until
+the owner asks; when they do, resume from the list below.
 main is NOT verified. Resume here before any other feature (docs/ROLL_ANIMATION_CONTRACT.md "STATUS" has the same note):
 - Built: Shared/RollAnimConfig (new), GachaConfig.IsEmphasized, GachaService (Roll returns 4 values incl. emphasized,
   Announce, SetAutoRoll / RequestSetAutoRoll, AutoRoll attribute, StartAutoRoll(player, roller) waits ROLL_INTERVAL +
