@@ -6,7 +6,7 @@ This file records the owner's decisions of 2026-10-02 and the conflicts with wha
 test-first like the spawn area (test-writer + ui-test-writer first, red run, implement, `/compat-check` ALL GREEN).
 
 ## What the design doc asks for (summary)
-- **Two views.** Compact (default): just the car model and its "1 in N" at top-center, about 20% of screen width (no card, see decision 4). Enlarged: a big
+- **Two views.** Compact (default): just the car model and its "1 in N" at top-center, about 12% of screen width (no card, smaller and always shown, see decisions 4 and 6). Enlarged: a big
   center-screen card about 3x the compact one; the switch takes about 0.3 s with a slight overshoot, closing plays it
   in reverse. In the enlarged view the bottom HUD shrinks to an AUTO toggle.
 - **Card:** rarity-colored hexagon badge behind a slowly turning 3D car, italic "1 in N" odds decal, name, the car's
@@ -41,6 +41,13 @@ test-first like the spawn area (test-writer + ui-test-writer first, red run, imp
    "1 in N" odds under it: no card frame, no name, no rarity text, no Speed multi, no description. The card (frame,
    name, rarity, Speed multi, odds, badges) appears only in the enlarged view, after a click on the compact roll.
    The spin/land animation plays on the bare model in compact; the stats appear when it is enlarged.
+6. **Smaller, and independent of every HUD click (owner, 2026-10-02).** Today clicking INDEX hides the roll
+   animation (the old "hide the toast while a panel is open" rule). New rule: the compact roll keeps playing no
+   matter what HUD button is clicked or which panel (Index, Stats, later Upgrades) is open; opening or closing a
+   panel never pauses, hides or restarts it. Make it smaller than the 20%-of-width placeholder (target about 12% of
+   screen width, readable "1 in N" on phone landscape). So the two never overlap, the panels start BELOW the compact
+   roll's area (raise their top margin) instead of the roll hiding. Only the enlarged view (a click on the roll)
+   closes open panels.
 5. **Scope of the current build (owner):** finish the UI round, then `/compat-check`, and stop there. No further
    features in that build.
 
