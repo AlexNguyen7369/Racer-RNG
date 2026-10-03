@@ -6,7 +6,7 @@ This file records the owner's decisions of 2026-10-02 and the conflicts with wha
 test-first like the spawn area (test-writer + ui-test-writer first, red run, implement, `/compat-check` ALL GREEN).
 
 ## What the design doc asks for (summary)
-- **Two views.** Compact (default): a small card at top-center, about 20% of screen width. Enlarged: a big
+- **Two views.** Compact (default): just the car model and its "1 in N" at top-center, about 20% of screen width (no card, see decision 4). Enlarged: a big
   center-screen card about 3x the compact one; the switch takes about 0.3 s with a slight overshoot, closing plays it
   in reverse. In the enlarged view the bottom HUD shrinks to an AUTO toggle.
 - **Card:** rarity-colored hexagon badge behind a slowly turning 3D car, italic "1 in N" odds decal, name, the car's
@@ -36,6 +36,13 @@ test-first like the spawn area (test-writer + ui-test-writer first, red run, imp
    inspect, etc.) is planned for later, not part of this build.
 3. **Start state.** New players always start on foot (regular avatar) at the spawn point, with the roll UI in the
    compact view (already true for the avatar since the spawn area build).
+
+4. **Compact = no card (owner, 2026-10-02, later the same day).** An auto roll shows ONLY the car model with its
+   "1 in N" odds under it: no card frame, no name, no rarity text, no Speed multi, no description. The card (frame,
+   name, rarity, Speed multi, odds, badges) appears only in the enlarged view, after a click on the compact roll.
+   The spin/land animation plays on the bare model in compact; the stats appear when it is enlarged.
+5. **Scope of the current build (owner):** finish the UI round, then `/compat-check`, and stop there. No further
+   features in that build.
 
 ## Conflicts with what is built (decided)
 1. **Top-center is the Auto Race button.** The compact roll card goes directly UNDER the Auto Race button.
