@@ -1,25 +1,40 @@
 :root {
+  color-scheme: light;
   --bg: #f6f7f9; --panel: #ffffff; --line: #e2e5ea; --text: #1b1f24; --muted: #6a7380;
-  --pass: #1f9d55; --pass-bg: #e3f6ea; --fail: #d4373b; --fail-bg: #fde8e8; --run: #c98a00; --run-bg: #fff4d6;
+  --pass: #1f9d55; --pass-bg: #e3f6ea; --on-pass: #ffffff; --fail: #d4373b; --fail-bg: #fde8e8; --run: #c98a00; --run-bg: #fff4d6;
   --stale: #c26a00; --stale-bg: #fff0dc; --code-bg: #f1f3f6; --add: #e6f6ea; --del: #fdecec;
   /* one colour per agent, matching `color:` in .claude/agents/*.md so the terminal and the page agree */
   --a-main: #1b1f24; --a-test-writer: #8e44ad; --a-ui-test-writer: #d6409f; --a-physics-tester: #2f6fdb;
   --a-ui-tester: #0fa3c2; --a-multiplayer-tester: #b89500; --a-world-tester: #2e9e4a; --a-physics-tuner: #e0731d;
   --a-track-designer: #b8323a; --a-other: #7d8590;
 }
+/* Dark theme: follows the system unless the header switch picks Light or Dark (html[data-theme]). */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
+    color-scheme: dark;
     --bg: #0f1216; --panel: #171b21; --line: #2a3039; --text: #e6e9ee; --muted: #8b95a3;
-    --pass-bg: #123222; --fail-bg: #3a1618; --run-bg: #3a2e0c; --stale-bg: #3a250c; --code-bg: #10141a;
-    --add: #12301c; --del: #3a1618; --a-main: #e6e9ee;
+    --pass: #3ccf7c; --on-pass: #0b1f14; --pass-bg: #123222; --fail: #ff6b6b; --fail-bg: #3a1618; --run: #e8b130; --run-bg: #3a2e0c;
+    --stale: #f0953a; --stale-bg: #3a250c; --code-bg: #10141a; --add: #12301c; --del: #3a1618;
+    --a-main: #e6e9ee; --a-test-writer: #b57ee0; --a-ui-test-writer: #ec6bb8; --a-physics-tester: #5b94f0;
+    --a-ui-tester: #3cc4e0; --a-multiplayer-tester: #e0c040; --a-world-tester: #4cc46a; --a-physics-tuner: #f0904a;
+    --a-track-designer: #e5555d; --a-other: #8b95a3;
   }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0f1216; --panel: #171b21; --line: #2a3039; --text: #e6e9ee; --muted: #8b95a3;
+  --pass: #3ccf7c; --on-pass: #0b1f14; --pass-bg: #123222; --fail: #ff6b6b; --fail-bg: #3a1618; --run: #e8b130; --run-bg: #3a2e0c;
+  --stale: #f0953a; --stale-bg: #3a250c; --code-bg: #10141a; --add: #12301c; --del: #3a1618;
+  --a-main: #e6e9ee; --a-test-writer: #b57ee0; --a-ui-test-writer: #ec6bb8; --a-physics-tester: #5b94f0;
+  --a-ui-tester: #3cc4e0; --a-multiplayer-tester: #e0c040; --a-world-tester: #4cc46a; --a-physics-tuner: #f0904a;
+  --a-track-designer: #e5555d; --a-other: #8b95a3;
 }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
 button, select, input { font: inherit; color: inherit; }
 button { cursor: pointer; border: 1px solid var(--line); background: var(--panel); border-radius: 6px; padding: 4px 10px; }
 button:hover { border-color: var(--muted); }
-button.primary { background: var(--pass); border-color: var(--pass); color: #fff; }
+button.primary { background: var(--pass); border-color: var(--pass); color: var(--on-pass); }
 button.ghost { background: transparent; }
 select, input { border: 1px solid var(--line); background: var(--panel); border-radius: 6px; padding: 4px 8px; min-width: 0; }
 .muted { color: var(--muted); }
@@ -36,6 +51,10 @@ select, input { border: 1px solid var(--line); background: var(--panel); border-
 .suites { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
 .session { display: flex; flex-direction: column; font-size: 12px; color: var(--muted); max-width: 100%; }
 .session select { max-width: 320px; }
+.theme { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.theme button { border: none; border-radius: 0; padding: 4px 10px; background: var(--panel); color: var(--muted); }
+.theme button + button { border-left: 1px solid var(--line); }
+.theme button.on { background: var(--code-bg); color: var(--text); font-weight: 600; }
 
 .tabs { display: flex; gap: 4px; padding: 8px 16px 0; overflow-x: auto; }
 .tabs button { border: none; border-bottom: 2px solid transparent; border-radius: 0; background: none; padding: 8px 12px; color: var(--muted); white-space: nowrap; }
@@ -142,4 +161,4 @@ main { padding: 12px 16px 40px; }
 .suite.pass { border-color: var(--pass); } .suite.fail { border-color: var(--fail); }
 .suite .s { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
 .err { color: var(--fail); }
-.toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 8px 14px; border-radius: 8px; z-index: 10; max-width: calc(100% - 32px); }
+.toast { box-shadow: 0 4px 16px rgba(0,0,0,.25); position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--bg); padding: 8px 14px; border-radius: 8px; z-index: 10; max-width: calc(100% - 32px); }

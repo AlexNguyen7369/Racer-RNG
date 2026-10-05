@@ -384,6 +384,15 @@ $("todo-form").addEventListener("submit", (e) => {
   $("todo-title").value = "";
 });
 
+function setTheme(t) {
+  if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+  else delete document.documentElement.dataset.theme;
+  document.querySelectorAll("#theme button").forEach((b) => b.classList.toggle("on", b.dataset.theme === (t || "system")));
+  try { localStorage.setItem("dash-theme", t); } catch (_) { /* storage blocked: fine */ }
+}
+$("theme").addEventListener("click", (e) => { if (e.target.dataset.theme) setTheme(e.target.dataset.theme); });
+setTheme(document.documentElement.dataset.theme || "system");
+
 renderLegend();
 // #changes, #todo, #tests open that tab (shareable links); otherwise the last tab this browser used
 let startTab = location.hash.slice(1);

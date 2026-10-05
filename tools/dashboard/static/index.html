@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Agent Dashboard</title>
 <link rel="stylesheet" href="/static/style.css">
+<script>
+  // apply the saved theme before the first paint so the page never flashes light
+  try { const t = localStorage.getItem("dash-theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch (_) {}
+</script>
 </head>
 <body>
 <header class="top">
@@ -18,6 +22,11 @@
       <div class="gate-text" id="gate-text">Checking the compat gate…</div>
       <div class="suites" id="suites"></div>
     </div>
+  </div>
+  <div class="theme" id="theme" role="group" aria-label="Theme">
+    <button data-theme="system" title="Follow the system setting">System</button>
+    <button data-theme="light">Light</button>
+    <button data-theme="dark">Dark</button>
   </div>
   <label class="session">Session
     <select id="session"></select>
