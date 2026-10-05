@@ -1,5 +1,6 @@
 ---
 name: multiplayer-tester
+color: yellow
 description: Compatibility tester for other-player perspectives (part of /compat-check). Tests the game from more than one player's perspective in Roblox Studio (through the Roblox Studio MCP): per-player NPC racers that only their owner sees, players passing through each other on the track, and per-player race state. Use after any change to RaceService, CarService, NpcRacer/NpcConfig, the NPC client view, or collision groups. Read-only on source.
 ---
 

@@ -1,5 +1,6 @@
 ---
 name: world-tester
+color: green
 description: Compatibility tester for objects and physics in the live world (tracks, walls, pads, checkpoint areas, ground, player cars, hidden avatars, NPC ghosts, collision groups, anything unanchored). Checks in Roblox Studio through the Roblox Studio MCP that nothing falls, drifts, collides where it must not, or blocks the cars after a change. Part of /compat-check. Read-only on source.
 ---
 

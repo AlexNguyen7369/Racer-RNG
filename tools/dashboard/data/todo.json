@@ -1,0 +1,104 @@
+{
+  "items": [
+    {
+      "id": "roll-verify",
+      "title": "Verify the roll animation (UI suite, harness, /compat-check)",
+      "detail": "main carries the roll animation unverified. Run the full UI suite on the final design (decisions 4 and 6), fix RollToast and the Index/Stats panels until green, then the full harness and an ALL GREEN /compat-check.",
+      "status": "doing",
+      "source": "current_progress.md What's next",
+      "by": "Alex Nguyen",
+      "added": "2026-10-05T00:00:00-07:00",
+      "updated": "2026-10-05T00:00:00-07:00"
+    },
+    {
+      "id": "upgrade-tree",
+      "title": "Money upgrade tree",
+      "detail": "Luck %, roll speed to 2 s, Speed %, turbo x10-x1000 with more rolls per tier, walkspeed, Money %. Spec and open questions: docs/UPGRADE_TREE_SPEC.md.",
+      "status": "next",
+      "source": "ProjectContext TODO 6",
+      "by": "Alex Nguyen",
+      "added": "2026-10-05T00:00:00-07:00",
+      "updated": "2026-10-05T00:00:00-07:00"
+    },
+    {
+      "id": "hud-rework",
+      "title": "Bottom HUD rework",
+      "detail": "Builds on the roll UI; starts once the roll animation is green.",
+      "status": "next",
+      "source": "current_progress.md",
+      "by": "Alex Nguyen",
+      "added": "2026-10-05T00:00:00-07:00",
+      "updated": "2026-10-05T00:00:00-07:00"
+    },
+    {
+      "id": "vehicle-skins",
+      "title": "Vehicle skins on a shared physics body",
+      "detail": "Any model welded on a shared invisible physics body; physics and tests never depend on the model. docs/VEHICLE_SKINS_SPEC.md.",
+      "status": "next",
+      "source": "ProjectContext TODO 8",
+      "by": "Alex Nguyen",
+      "added": "2026-10-05T00:00:00-07:00",
+      "updated": "2026-10-05T00:00:00-07:00"
+    },
+    {
+      "id": "rusty-hatchback",
+      "title": "Import the Rusty Hatchback into Studio",
+      "detail": "Bake the procedural rust, export FBX, import as CarModels.RustyHatchback, set Model in Cars/rusty_hatchback.luau. Needs Studio free.",
+      "status": "next",
+      "source": "ProjectContext TODO 8",
+      "by": "Alex Nguyen",
+      "added": "2026-10-05T00:00:00-07:00",
+      "updated": "2026-10-05T00:00:00-07:00"
+    },
+    {
+      "id": "datastore",
+      "title": "Test real DataStore saving",
+      "detail": "Studio: Game Settings > Security > Enable Studio Access to API Services. Only a stubbed store is tested now.",
+      "status": "backlog",
+      "source": "ProjectContext known issues",
+      "by": "Alex Nguyen",
+      "added": "2026-10-05T00:00:00-07:00",
+      "updated": "2026-10-05T00:00:00-07:00"
+    },
+    {
+      "id": "circuit-serpentine",
+      "title": "Bring Circuit and Serpentine up to the track rules",
+      "detail": "Through /build-track (test-first).",
+      "status": "backlog",
+      "source": "ProjectContext TODO 5",
+      "by": "Alex Nguyen",
+      "added": "2026-10-05T00:00:00-07:00",
+      "updated": "2026-10-05T00:00:00-07:00"
+    },
+    {
+      "id": "static-settle-flake",
+      "title": "static_settle cold-start flake",
+      "detail": "Failed 4 of ~8 cold starts (0.58-0.78 vs 0.5). DampingRatio raised to 1.0, not yet re-verified.",
+      "status": "backlog",
+      "source": "ProjectContext known issues",
+      "by": "Alex Nguyen",
+      "added": "2026-10-05T00:00:00-07:00",
+      "updated": "2026-10-05T00:00:00-07:00"
+    },
+    {
+      "id": "npc-loser-live",
+      "title": "Live-check the NPC client view and LoserScreen",
+      "detail": "ui-tester / multiplayer-tester have not checked them live.",
+      "status": "backlog",
+      "source": "ProjectContext known issues",
+      "by": "Alex Nguyen",
+      "added": "2026-10-05T00:00:00-07:00",
+      "updated": "2026-10-05T00:00:00-07:00"
+    },
+    {
+      "id": "slack",
+      "title": "Slack bot setup for test results",
+      "detail": "Revoke the exposed token, install the app with bot scopes, re-add the MCP, post results after each green run.",
+      "status": "backlog",
+      "source": "ProjectContext TODO 3",
+      "by": "Alex Nguyen",
+      "added": "2026-10-05T00:00:00-07:00",
+      "updated": "2026-10-05T00:00:00-07:00"
+    }
+  ]
+}

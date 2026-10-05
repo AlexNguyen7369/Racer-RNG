@@ -1,5 +1,6 @@
 ---
 name: track-designer
+color: red
 description: Designs and edits race track specs in src/shared/Tracks/. Use to create a new track, change an existing one, or fix a track the physics-tester reported as invalid or undrivable. Does not touch car physics.
 tools: Read, Edit, Write, Bash, Glob, Grep
 ---

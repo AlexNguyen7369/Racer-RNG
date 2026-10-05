@@ -1,5 +1,6 @@
 ---
 name: ui-tester
+color: cyan
 description: Compatibility tester for every player-facing UI (HUD, Auto Race button, loser screen, billboards such as the NPC label and the pad $ text). Checks the live client in Roblox Studio through the Roblox Studio MCP that every UI exists, shows the server's truth, does not overlap other UI, and still works after any change. Part of /compat-check. Read-only on source.
 ---
 

@@ -22,9 +22,10 @@ selene src            # lint
 ```
 
 ## Collaborator setup (once per clone)
-- Shared Claude Code tooling is in the repo: agents in `.claude/agents/`, slash commands in `.claude/commands/` (`/build-track`, `/car-loop`, `/compat-check`, `/progress-tracker`, `/system-design-brainstorm`), hooks in `.claude/hooks/` wired by `.claude/settings.json`. Personal overrides go in `.claude/settings.local.json` (git-ignored).
+- Shared Claude Code tooling is in the repo: agents in `.claude/agents/`, slash commands in `.claude/commands/` (`/build-track`, `/car-loop`, `/compat-check`, `/dashboard`, `/progress-tracker`, `/refresh-suggestions`, `/system-design-brainstorm`), hooks in `.claude/hooks/` wired by `.claude/settings.json`. Personal overrides go in `.claude/settings.local.json` (git-ignored).
 - Needs: Roblox Studio with the Roblox Studio MCP and the Rojo plugin (`rojo serve`), `stylua`, `selene`, `python3`; the Blender MCP for art work.
 - The main-branch gate: Claude Code runs `git config core.hooksPath .githooks` at session start; without Claude Code run it once by hand. Then `.githooks/pre-push` refuses any push to `main` unless `/compat-check` was ALL GREEN for exactly that code (`tools/compat.py`, stamp in the git-ignored `.compat/`, so every collaborator runs the check on their own machine).
+- Agent dashboard: `python3 tools/dashboard/server.py` (or `/dashboard`), http://127.0.0.1:8765. Subagent progress and messages, changes, commit history, the compat gate light, the shared TODO board, suggested features and every test explained. `--lan` lets teammates view it. Details: `tools/dashboard/README.md`.
 - One Studio, one test run: never run the harness while someone else's session uses the same Studio.
 
 ## Car system
@@ -99,6 +100,9 @@ Only `test-writer` edits tests. Never change `PhysicsTargets.luau` to make a tes
 
 ## Context file (always keep current)
 `context/ProjectContext.luau` is a small ModuleScript that Rojo syncs into Studio's Explorer at `ServerScriptService > ProjectContext`. It holds what collaborators need: where things live, the rules, a change log, the latest test results and known issues. Claude MUST update it at the end of every loop (after a full run: add the dated result, what changed, what is unverified) and whenever a rule, file or number in it changes. Edit the file on disk, never in Studio.
+
+## Dashboard TODO (always keep current)
+`tools/dashboard/data/todo.json` is the team's TODO board (statuses `doing`, `next`, `backlog`, `done`). Claude updates it in the same step as `ProjectContext.luau`: at the end of every loop move finished items to `done` (with `done` date), the next one to `doing`, and add new follow-ups or known issues. Never edit or remove a suggestion someone marked `added` or `dismissed` in `data/suggestions.json`. A new test scenario needs an entry in `data/tests_explained.json`.
 
 ## Conventions
 - `.luau` files, tabs, `--!nonstrict` header. Server decides every number that matters; the client only displays (see the design doc's technical section).

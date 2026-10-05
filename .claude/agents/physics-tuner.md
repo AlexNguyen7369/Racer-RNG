@@ -1,5 +1,6 @@
 ---
 name: physics-tuner
+color: orange
 description: Adjusts car handling numbers in src/shared/CarConfig.luau (and fixes bugs in CarPhysics.luau) to make failing physics-tester scenarios pass. Use when physics-tester reports a car-side failure.
 tools: Read, Edit, Write, Bash, Glob, Grep
 ---

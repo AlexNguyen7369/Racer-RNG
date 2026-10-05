@@ -20,6 +20,12 @@ StarterPlayerScripts.Client CarController (skips AutoRace cars), SpeedHud (left 
 ReplicatedStorage.Remotes  SetAutoRace (RemoteEvent, client fires a boolean; created by CarService.Start)
 Workspace.Baseplate (green studs, Rojo-owned) and Workspace.Track (Oval, Hill built at run time, chained)
 
+DASHBOARD (2026-10-05)
+Agent dashboard for every collaborator: python3 tools/dashboard/server.py (or /dashboard), http://127.0.0.1:8765.
+Shows subagent progress and messages, uncommitted changes, commit history (developer, date, green/local), the compat
+gate light, the shared TODO board (tools/dashboard/data/todo.json, Claude keeps it current) and suggested features
+(/refresh-suggestions), and every test explained. Not under src/, so it never changes the compat fingerprint.
+
 RULES (details: CLAUDE.md "Track rules" and "Auto race, Speed stat and HUD")
 - Tracks: numbered, point-to-point, finish of track N is the start of track N+1; last straight >= CHECKPOINT_LENGTH+4.
 - Checkpoint at each finish: apron wider than the road, yellow Neon WinPad on the LEFT apron, "$N" text (N = track number x 100).

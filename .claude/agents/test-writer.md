@@ -1,5 +1,6 @@
 ---
 name: test-writer
+color: purple
 description: Writes the failing (red) tests for a track or car feature BEFORE it is implemented, and audits the test suite every loop round so tests are never weakened. Use at the start of every track build and after every implementation round. Only edits test files.
 tools: Read, Edit, Write, Bash, Glob, Grep
 ---

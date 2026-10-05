@@ -1,0 +1,156 @@
+{
+  "researched": "2026-10-05",
+  "note": "Trend snapshot from web search on 2026-10-05 (Steal a Brainrot, Grow a Garden, Steal An Egg, Cars RNG, Horse RNG, Sol's RNG-style games, 99 Nights in the Forest). Run /refresh-suggestions to redo it.",
+  "items": [
+    {
+      "id": "rebirth",
+      "title": "Rebirth / prestige with a permanent multiplier",
+      "inspiredBy": "Most idle simulators (Race Clicker, Sonic Speed Simulator)",
+      "description": "Once a player reaches a Money or Speed threshold they can rebirth: Money and Speed reset, they keep their car index, and get a permanent multiplier (for example +25% Speed gain and Money per rebirth) plus a rebirth counter on the leaderboard.",
+      "fit": "The Speed stat already has diminishing returns, so late players stall. Rebirth turns that stall into the next goal and gives a reason to rerun Track 1 fast.",
+      "effort": "M",
+      "dependsOn": "Money upgrade tree (so rebirth can reset or keep tiers on purpose)",
+      "status": "open"
+    },
+    {
+      "id": "weather-events",
+      "title": "Rotating weather / biome events that boost luck",
+      "inspiredBy": "Sol's RNG biomes, Grow a Garden weather events",
+      "description": "Every 10-20 minutes a server-wide event runs for a few minutes (Rain: x2 luck, Night Race: NPCs faster but pads pay x2, Gold Rush: Money x3). A banner and a skybox / lighting change show it; some cars can only be rolled during an event.",
+      "fit": "Rolling is free and automatic, so events give players a reason to stay online at a given moment. Plugs straight into GachaConfig luck and MoneyService multipliers.",
+      "effort": "M",
+      "dependsOn": "",
+      "status": "open"
+    },
+    {
+      "id": "potions",
+      "title": "Timed boosts (luck / money / speed potions)",
+      "inspiredBy": "Sol's RNG and Cars RNG luck items",
+      "description": "Consumable boosts that last 5-15 minutes: Luck x2, Money x2, Speed gain x2. Earned from track wins, daily rewards or bought with Money; stacking rules shown in a small timer row in the HUD.",
+      "fit": "Gives Money a second use besides the upgrade tree and makes the turbo-luck rhythm more exciting.",
+      "effort": "S",
+      "dependsOn": "",
+      "status": "open"
+    },
+    {
+      "id": "sell-duplicates",
+      "title": "Scrap duplicate cars for parts",
+      "inspiredBy": "Cars RNG (sell unwanted cars to buy luck items)",
+      "description": "Right now a duplicate roll does nothing. Instead, duplicates turn into Parts (more for rarer cars); Parts buy luck items or the upgrade tree's turbo tiers.",
+      "fit": "Every roll then has value, even late game when the index is mostly full. Needs a save field for Parts (PlayerData VERSION bump).",
+      "effort": "S",
+      "dependsOn": "",
+      "status": "open"
+    },
+    {
+      "id": "offline-earnings",
+      "title": "Offline earnings",
+      "inspiredBy": "Horse RNG and Grow a Garden (progress while away)",
+      "description": "On join, pay a capped amount of Money and Speed for the time away (for example 10% of the player's average rate, up to 8 hours), shown in a 'While you were away' popup.",
+      "fit": "This is an idle game; offline progress is the main reason idle players come back. The server already knows the save time.",
+      "effort": "S",
+      "dependsOn": "",
+      "status": "open"
+    },
+    {
+      "id": "daily-streak",
+      "title": "Daily login streak and rewards",
+      "inspiredBy": "Grow a Garden, Adopt Me!",
+      "description": "A 7-day reward track (Money, potions, a guaranteed rare roll on day 7) that resets if a day is missed.",
+      "fit": "Cheap retention; rewards reuse existing systems (Money, rolls).",
+      "effort": "S",
+      "dependsOn": "Potions (optional)",
+      "status": "open"
+    },
+    {
+      "id": "steal-rival",
+      "title": "Rival challenges: race another player's ghost for their bank",
+      "inspiredBy": "Steal a Brainrot / Steal An Egg (take from other players)",
+      "description": "A player standing on a 'Challenge' pad picks another online player; they race that player's best-time ghost on a track. Winning takes a small share of the target's UNBANKED money (the target can bank it to protect it).",
+      "fit": "Uses the existing per-player NPC ghost and the banked-money rule, and makes banking a real decision. Server decides everything, so it stays exploit-safe.",
+      "effort": "L",
+      "dependsOn": "",
+      "status": "open"
+    },
+    {
+      "id": "garage-showroom",
+      "title": "Garage showroom players can visit",
+      "inspiredBy": "Steal a Brainrot bases, Car Dealership Tycoon",
+      "description": "Each player gets a plot in the spawn area that shows their rarest cars on turntables. Others can walk in and see them.",
+      "fit": "The car index already exists; showing it off is the social payoff for rare rolls.",
+      "effort": "M",
+      "dependsOn": "Vehicle skins (real car models)",
+      "status": "open"
+    },
+    {
+      "id": "trading",
+      "title": "Car trading between players",
+      "inspiredBy": "Adopt Me!, Steal a Brainrot (trading builds a social graph)",
+      "description": "Two-sided trade window with both players confirming; server-side validation and a trade log.",
+      "fit": "Big for long-term engagement, but owning = discovering in the current index rules, so the index rules would have to change first.",
+      "effort": "L",
+      "dependsOn": "Index rule change (owning vs discovering)",
+      "status": "open"
+    },
+    {
+      "id": "leaderboards",
+      "title": "Global leaderboards in the spawn area",
+      "inspiredBy": "Most top simulators",
+      "description": "OrderedDataStore boards for Speed, Money earned, rolls and rarest car, shown on signs in the spawn area.",
+      "fit": "Cheap, and gives top players a visible goal. Server-only.",
+      "effort": "S",
+      "dependsOn": "Real DataStore saving tested",
+      "status": "open"
+    },
+    {
+      "id": "codes",
+      "title": "Redeem codes",
+      "inspiredBy": "Almost every trending game (codes drive social posts)",
+      "description": "A small codes box: each code grants Money, a potion or rolls once per player; codes listed in a server config with expiry dates.",
+      "fit": "Low effort marketing hook for updates.",
+      "effort": "S",
+      "dependsOn": "",
+      "status": "open"
+    },
+    {
+      "id": "quests",
+      "title": "Daily quests",
+      "inspiredBy": "Grow a Garden, Blox Fruits",
+      "description": "Three daily tasks (win 5 tracks, roll a rare, reach X speed) with rewards; rerolls at UTC midnight.",
+      "fit": "Points players at features they skip (the NPC race, later tracks).",
+      "effort": "M",
+      "dependsOn": "",
+      "status": "open"
+    },
+    {
+      "id": "friend-boost",
+      "title": "Friends-in-server boost",
+      "inspiredBy": "Common in 2025-2026 simulators",
+      "description": "+10% luck and Money per friend in the same server, up to +40%.",
+      "fit": "Encourages inviting friends; one multiplier in GachaService and MoneyService.",
+      "effort": "S",
+      "dependsOn": "",
+      "status": "open"
+    },
+    {
+      "id": "gamepasses",
+      "title": "Gamepasses: 2x luck, faster auto-roll, VIP",
+      "inspiredBy": "Sol's RNG, Cars RNG",
+      "description": "Standard monetisation: 2x luck, roll every 2 s, x2 Money, VIP chat tag. Checked server-side with MarketplaceService.",
+      "fit": "Matches the upgrade tree numbers, so balance it after the tree ships.",
+      "effort": "S",
+      "dependsOn": "Money upgrade tree",
+      "status": "open"
+    },
+    {
+      "id": "coop-night-race",
+      "title": "Co-op night race event",
+      "inspiredBy": "99 Nights in the Forest (co-op survival nights)",
+      "description": "A timed event where everyone in the server races the chain together against one fast NPC; each track the group wins adds to a shared pot paid to all.",
+      "fit": "Adds a social mode on top of the existing per-player races without changing them.",
+      "effort": "L",
+      "dependsOn": "Weather / events system",
+      "status": "open"
+    }
+  ]
+}

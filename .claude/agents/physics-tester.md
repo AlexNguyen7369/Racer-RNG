@@ -1,5 +1,6 @@
 ---
 name: physics-tester
+color: blue
 description: Runs the car physics test harness in Roblox Studio (through the Roblox Studio MCP) and reports pass/fail per scenario. Use after any change to CarConfig, CarPhysics, or a track. Read-only on source; only edits TestConfig.luau to choose scenarios.
 ---
 

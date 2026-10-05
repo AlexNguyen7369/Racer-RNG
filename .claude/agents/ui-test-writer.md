@@ -1,5 +1,6 @@
 ---
 name: ui-test-writer
+color: pink
 description: Writes the failing (red) UI compatibility tests BEFORE a UI is built or changed, and audits them every round so they are never weakened. Covers overlap between UI elements, click hitboxes that reach into areas they should not, and buttons whose click does not do what their label shows. Only edits UI test files; `ui-tester` runs them as part of /compat-check.
 tools: Read, Edit, Write, Bash, Glob, Grep
 ---

@@ -1,0 +1,32 @@
+# Agent dashboard
+
+A local web page for everyone working on this repo: what the subagents are doing, the messages between agents, uncommitted changes, commit history (who committed what and when), the compat gate to `main`, the shared TODO list, suggested features, and every test with a plain-English explanation.
+
+```
+python3 tools/dashboard/server.py              # http://127.0.0.1:8765
+python3 tools/dashboard/server.py --port 9000
+python3 tools/dashboard/server.py --lan        # teammates on your network can view (read-only)
+python3 tools/dashboard/server.py --lan --lan-write   # ...and edit the TODO / suggestions
+```
+Or `/dashboard` in Claude Code. Needs only `python3` and `git` (no packages).
+
+Tabs (`#agents`, `#changes`, `#todo`, `#tests` in the URL open one directly):
+
+| Tab | Shows | Source |
+|---|---|---|
+| Agents | subagent cards (colour per agent, running / passed / failed), every message between main and the agents, one agent's full timeline (prompt, tool calls, results, report), Need to know | Claude Code transcripts in `~/.claude/projects/<this repo>/`, `context/ProjectContext.luau`, `current_progress.md` |
+| Changes & history | uncommitted files with diffs; commits on all branches with developer, date and time, files, `green` (that commit's game code passed /compat-check) and `local` (not pushed) | git, `tools/compat.py` |
+| TODO & ideas | Doing / Up next / Backlog / Done board; suggested features that expand and can be added to the backlog or dismissed | `data/todo.json`, `data/suggestions.json` |
+| Tests | how testing works, latest tester runs, the four compat suites, every scenario with its last status and what it checks | `src/server/CarTest/`, `src/client/UiTest/`, tester reports, `.compat/`, `data/tests_explained.json` |
+
+Top bar: the gate light. Green = this exact code passed `/compat-check`, you can commit and push to `main`. Amber = code changed since the last green run. Red = a suite failed.
+
+## Shared vs per machine
+- `data/*.json` is checked in: commit it so the team shares the TODO list and suggestion decisions. Each change records who (`git config user.name`) and when.
+- The Agents tab reads your own Claude Code transcripts, so each developer sees their own sessions. Use `--lan` to show yours to a teammate.
+- Nothing here is under `src/`, so the dashboard never changes the compat fingerprint.
+
+## Upkeep
+- Claude moves TODO items at the end of every loop (see CLAUDE.md).
+- `/refresh-suggestions` redoes the trend research.
+- A new test scenario appears automatically; add its explanation to `data/tests_explained.json`.
