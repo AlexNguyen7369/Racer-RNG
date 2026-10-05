@@ -8954,7 +8954,584 @@ function Scenarios.roll_anim()
 	return result("roll_anim", checks, metrics)
 end
 
--- name: "static_settle" | "accel" | "brake" | "skidpad" | "car_size" | "economy" | "hud" | "auto_toggle" | "spawn_area" | "gacha" | "index" | "npc" | "bank" | "multiplayer" | "admin" | "roll_anim" | "lap:<Track>" | "track:<Track>"
+-- Upgrade tree, PHASE 1: the pure rules in Shared/UpgradeTree over the data in Shared/UpgradeConfig
+-- (docs/UPGRADE_TREE_SPEC.md, owner-confirmed; prices: docs/UPGRADE_TREE_DESIGN.md "Prices"). No server, no Instances,
+-- no UI. Every number below is the owner's: never loosen one. Every UpgradeTree call is pcall-guarded, so a missing
+-- or erroring function FAILS its check and never crashes the harness.
+local UPGRADE_BRANCH_ORDER = { "money", "luck", "rollspeed", "turbo", "speed", "walkspeed" }
+local UPGRADE_BRANCH_TIERS = { money = 5, luck = 5, rollspeed = 5, turbo = 4, speed = 5, walkspeed = 5 }
+local UPGRADE_BRANCH_NAMES = {
+	money = "Money",
+	luck = "Luck",
+	rollspeed = "Roll Speed",
+	turbo = "Turbo",
+	speed = "Speed",
+	walkspeed = "Walkspeed",
+}
+local UPGRADE_BRANCH_WEIGHTS = { money = 1, luck = 1.2, rollspeed = 1.5, turbo = 2, speed = 1, walkspeed = 0.5 }
+local UPGRADE_BONUS = {
+	money = { 0.10, 0.10, 0.15, 0.15, 0.20 },
+	luck = { 0.10, 0.15, 0.20, 0.25, 0.30 },
+	rollspeed = { 0.10, 0.10, 0.10, 0.10, 0.10 },
+	speed = { 0.10, 0.10, 0.15, 0.15, 0.20 },
+}
+local UPGRADE_PRICES = {
+	money = { 150, 330, 730, 1600, 3500 },
+	luck = { 180, 400, 870, 1900, 4200 },
+	rollspeed = { 230, 500, 1100, 2400, 5300 },
+	speed = { 150, 330, 730, 1600, 3500 },
+	walkspeed = { 75, 170, 360, 800, 1800 },
+	turbo = { 660, 3200, 15000, 34000 },
+}
+local UPGRADE_TURBO = {
+	{ Multi = 10, Every = 15 },
+	{ Multi = 50, Every = 25 },
+	{ Multi = 100, Every = 40 },
+	{ Multi = 1000, Every = 100 },
+}
+local UPGRADE_WALKSPEED = { 18, 20, 23, 26, 30 }
+local UPGRADE_ROLL_INTERVALS = { 2.727, 2.5, 2.308, 2.143, 2.0 }
+local ROMAN = { "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X" }
+
+local function hexDistance(q1, r1, q2, r2)
+	local dq, dr = q1 - q2, r1 - r2
+	return (math.abs(dq) + math.abs(dr) + math.abs(dq + dr)) / 2
+end
+
+local function deepCopy(v)
+	if type(v) ~= "table" then
+		return v
+	end
+	local t = {}
+	for k, x in v do
+		t[k] = deepCopy(x)
+	end
+	return t
+end
+
+local function deepEqual(a, b)
+	if type(a) ~= type(b) then
+		return false
+	end
+	if type(a) ~= "table" then
+		return a == b
+	end
+	for k, x in a do
+		if not deepEqual(x, b[k]) then
+			return false
+		end
+	end
+	for k in b do
+		if a[k] == nil then
+			return false
+		end
+	end
+	return true
+end
+
+local function idSet(ids)
+	local s = {}
+	for _, id in ids do
+		s[id] = true
+	end
+	return s
+end
+
+local function tierIds(branch, n)
+	local ids = {}
+	for t = 1, n do
+		table.insert(ids, branch .. "_" .. t)
+	end
+	return ids
+end
+
+function Scenarios.upgrades()
+	local checks = {}
+	local metrics = {}
+	local UpgradeTree = sharedModule("UpgradeTree")
+	local UpgradeConfig = sharedModule("UpgradeConfig")
+	local FN_NAMES = {
+		"Tiles",
+		"Get",
+		"Price",
+		"NiceRound",
+		"RequiredTrack",
+		"CanBuy",
+		"BuyableCount",
+		"Bonuses",
+		"RollInterval",
+		"Turbo",
+		"WalkSpeed",
+	}
+	local apiOk = UpgradeTree ~= nil and UpgradeConfig ~= nil and type(UpgradeConfig.Branches) == "table"
+	if apiOk then
+		for _, fname in FN_NAMES do
+			if type(UpgradeTree[fname]) ~= "function" then
+				apiOk = false
+			end
+		end
+	end
+	check(checks, "upgrades_api_exists", apiOk and 1 or 0, 1, apiOk)
+	if not apiOk then
+		return result("upgrades", checks, metrics)
+	end
+
+	local function flag(name, ok, limit)
+		check(checks, name, ok and 1 or 0, limit or 1, ok == true)
+	end
+	-- pcall wrapper: returns callOk, r1, r2. The first errors are kept in metrics for the report.
+	local errorCount = 0
+	local function call(fname, ...)
+		local res = table.pack(pcall(UpgradeTree[fname], ...))
+		if not res[1] then
+			errorCount += 1
+			if errorCount <= 3 then
+				metrics["error_" .. errorCount] = fname .. ": " .. tostring(res[2])
+			end
+			return false, nil, nil
+		end
+		return true, res[2], res[3]
+	end
+	local function near(a, b, tol)
+		return type(a) == "number" and a == a and math.abs(a - b) <= (tol or 1e-6)
+	end
+	local function state(ownedIds, money, best, trackCount)
+		return { Owned = idSet(ownedIds), Money = money, BestTrack = best, TrackCount = trackCount }
+	end
+	local configBefore = deepCopy(UpgradeConfig)
+
+	-- Config guard: the data still holds the owner's numbers (spec sections 1, 2, 4; design "Prices").
+	local cfgOk = UpgradeConfig.START_ID == "start"
+		and UpgradeConfig.BASE_PRICE == 150
+		and UpgradeConfig.PRICE_GROWTH == 2.2
+		and UpgradeConfig.GATE_FROM_TIER == 3
+		and UpgradeConfig.BASE_ROLL_INTERVAL == 3
+		and UpgradeConfig.MIN_ROLL_INTERVAL == 2
+		and UpgradeConfig.BASE_WALKSPEED == 16
+		and type(UpgradeConfig.BASE_TURBO) == "table"
+		and UpgradeConfig.BASE_TURBO.Multi == 5
+		and UpgradeConfig.BASE_TURBO.Every == 10
+		and #UpgradeConfig.Branches == #UPGRADE_BRANCH_ORDER
+	local configTierTotal = 0
+	for i, b in UpgradeConfig.Branches do
+		local id = b.Id
+		local list = b.Bonus or b.Tiers or b.WalkSpeed
+		local n = type(list) == "table" and #list or 0
+		configTierTotal += n
+		local branchOk = id == UPGRADE_BRANCH_ORDER[i]
+			and n == UPGRADE_BRANCH_TIERS[id]
+			and b.Name == UPGRADE_BRANCH_NAMES[id]
+			and b.Weight == UPGRADE_BRANCH_WEIGHTS[id]
+			and (UPGRADE_BONUS[id] == nil or deepEqual(b.Bonus, UPGRADE_BONUS[id]))
+			and (id ~= "turbo" or (deepEqual(b.Tiers, UPGRADE_TURBO) and deepEqual(b.PriceDepth, { 2, 4, 6, 7 })))
+			and b.Parent == (id == "turbo" and "rollspeed_1" or "start")
+			and (id ~= "walkspeed" or deepEqual(b.WalkSpeed, UPGRADE_WALKSPEED))
+		cfgOk = cfgOk and branchOk
+	end
+	local specTotal = 0
+	for _, n in UPGRADE_BRANCH_TIERS do
+		specTotal += n
+	end
+	cfgOk = cfgOk and configTierTotal == specTotal
+	check(checks, "upgrades_config_matches_spec", configTierTotal, specTotal, cfgOk)
+
+	-- The expected tile list, built from the config's layout (Origin + tier * Direction, Parent) and the spec's tiers.
+	local expected = {}
+	local expectedById = {}
+	for _, b in UpgradeConfig.Branches do
+		local n = UPGRADE_BRANCH_TIERS[b.Id] or 0
+		local parent = b.Parent == "start" and { Depth = 0, Q = 0, R = 0 } or expectedById[b.Parent]
+		for t = 1, n do
+			local e = {
+				Id = b.Id .. "_" .. t,
+				Branch = b.Id,
+				Tier = t,
+				Name = UPGRADE_BRANCH_NAMES[b.Id] .. " " .. ROMAN[t],
+				Depth = parent and parent.Depth + t or -1,
+				Q = b.Origin[1] + t * b.Direction[1],
+				R = b.Origin[2] + t * b.Direction[2],
+				Parent = t == 1 and b.Parent or (b.Id .. "_" .. (t - 1)),
+			}
+			e.PriceDepth = b.PriceDepth and b.PriceDepth[t] or e.Depth
+			table.insert(expected, e)
+			expectedById[e.Id] = e
+		end
+	end
+
+	-- Tiles()
+	local okTiles, tilesRes = call("Tiles")
+	local tiles = (okTiles and type(tilesRes) == "table") and tilesRes or {}
+	check(checks, "upgrades_tile_count", #tiles, specTotal, #tiles == specTotal)
+	local orderOk, namesOk, fieldsOk, fromConfigOk = #tiles == #expected, #tiles > 0, #tiles > 0, #tiles > 0
+	local seenIds, seenHex = {}, {}
+	local uniqueOk, notStartOk = #tiles > 0, #tiles > 0
+	local byId = {}
+	for i, tile in tiles do
+		local e = expected[i]
+		if type(tile) ~= "table" then
+			orderOk, namesOk, fieldsOk, fromConfigOk, uniqueOk = false, false, false, false, false
+			continue
+		end
+		if not e or tile.Id ~= e.Id then
+			orderOk = false
+		end
+		local ee = expectedById[tile.Id]
+		if not ee or tile.Name ~= ee.Name then
+			namesOk = false
+		end
+		if
+			not ee
+			or tile.Branch ~= ee.Branch
+			or tile.Tier ~= ee.Tier
+			or tile.Depth ~= ee.Depth
+			or tile.PriceDepth ~= ee.PriceDepth
+			or tile.Parent ~= ee.Parent
+		then
+			fieldsOk = false
+		end
+		if not ee or tile.Q ~= ee.Q or tile.R ~= ee.R then
+			fromConfigOk = false
+		end
+		if type(tile.Id) ~= "string" or seenIds[tile.Id] then
+			uniqueOk = false
+		else
+			seenIds[tile.Id] = true
+			byId[tile.Id] = tile
+		end
+		local key = tostring(tile.Q) .. "," .. tostring(tile.R)
+		if type(tile.Q) ~= "number" or type(tile.R) ~= "number" or seenHex[key] then
+			uniqueOk = false
+		end
+		seenHex[key] = true
+		if tile.Q == 0 and tile.R == 0 then
+			notStartOk = false
+		end
+	end
+	flag("upgrades_tile_ids_and_order", orderOk)
+	flag("upgrades_tile_names_roman", namesOk)
+	flag("upgrades_tile_fields", fieldsOk)
+	flag("upgrades_tile_ids_and_hex_unique", uniqueOk)
+	flag("upgrades_hex_none_at_start", notStartOk)
+	flag("upgrades_hex_positions_from_config", fromConfigOk)
+
+	-- Real tree: tier I touches its Parent (Start, or rollspeed_1 for Turbo), tier n touches tier n-1.
+	local tier1Ok, chainOk = #tiles > 0, #tiles > 0
+	for _, e in expected do
+		local tile = byId[e.Id]
+		local parentId = e.Parent
+		local pq, pr
+		if parentId == "start" then
+			pq, pr = 0, 0
+		elseif byId[parentId] then
+			pq, pr = byId[parentId].Q, byId[parentId].R
+		end
+		local touches = tile ~= nil
+			and type(tile.Q) == "number"
+			and type(tile.R) == "number"
+			and type(pq) == "number"
+			and type(pr) == "number"
+			and hexDistance(tile.Q, tile.R, pq, pr) == 1
+		if e.Tier == 1 then
+			tier1Ok = tier1Ok and touches
+		else
+			chainOk = chainOk and touches
+		end
+	end
+	flag("upgrades_hex_tier1_touches_parent", tier1Ok)
+	flag("upgrades_hex_tiers_chain", chainOk)
+	local turbo1 = byId.turbo_1
+	local forkOk = turbo1 ~= nil and turbo1.Parent == "rollspeed_1" and turbo1.Depth == 2
+	check(checks, "upgrades_turbo_forks_rollspeed_depth_2", turbo1 and tonumber(turbo1.Depth) or 0, 2, forkOk)
+
+	-- Get
+	local getOk = true
+	for _, e in expected do
+		local okc, t = call("Get", e.Id)
+		if not okc or type(t) ~= "table" or t.Id ~= e.Id or t.Q ~= e.Q or t.R ~= e.R or t.Name ~= e.Name then
+			getOk = false
+		end
+	end
+	flag("upgrades_get", getOk)
+	local getNilOk = true
+	local badGet = table.pack("nope", "", "money_0", "money_6", "turbo_5", "Money_1", nil, 5, true, {})
+	for i = 1, badGet.n do
+		local okc, t = call("Get", badGet[i])
+		if not okc or t ~= nil then
+			getNilOk = false
+		end
+	end
+	flag("upgrades_get_unknown_nil", getNilOk)
+
+	-- NiceRound: two significant figures.
+	local niceOk = true
+	for _, c in
+		{
+			{ 726, 730 },
+			{ 1597, 1600 },
+			{ 150, 150 },
+			{ 7730, 7700 },
+			{ 34000, 34000 },
+			{ 225, 230 },
+			{ 165, 170 },
+			{ 495, 500 },
+		}
+	do
+		local okc, v = call("NiceRound", c[1])
+		if not okc or v ~= c[2] then
+			niceOk = false
+		end
+	end
+	flag("upgrades_nice_round", niceOk)
+
+	-- Price: the design table, every tile.
+	local priceBad = 0
+	for branch, prices in UPGRADE_PRICES do
+		for tier, want in prices do
+			local okc, p = call("Price", branch .. "_" .. tier)
+			if not okc or p ~= want then
+				priceBad += 1
+			end
+		end
+	end
+	check(checks, "upgrades_price_table", priceBad, 0, priceBad == 0)
+	local priceNilOk = true
+	local badPrice = table.pack("nope", "money_6", nil, 7, {})
+	for i = 1, badPrice.n do
+		local okc, p = call("Price", badPrice[i])
+		if not okc or p ~= nil then
+			priceNilOk = false
+		end
+	end
+	flag("upgrades_price_unknown_nil", priceNilOk)
+
+	-- RequiredTrack: tier >= 3 needs min(tier - 1, trackCount); turbo uses its own tier number.
+	local function req(id, tc, want)
+		local okc, v = call("RequiredTrack", id, tc)
+		return okc and v == want
+	end
+	local reqLowOk = true
+	for _, branch in UPGRADE_BRANCH_ORDER do
+		for tier = 1, 2 do
+			for _, tc in { 1, 2, 10 } do
+				reqLowOk = req(branch .. "_" .. tier, tc, 0) and reqLowOk
+			end
+		end
+	end
+	flag("upgrades_required_track_tiers_1_2_ungated", reqLowOk)
+	local req3Ok = req("money_3", 1, 1) and req("money_3", 2, 2) and req("luck_3", 10, 2) and req("speed_3", 2, 2)
+	flag("upgrades_required_track_tier_3", req3Ok)
+	local req45Ok = req("walkspeed_5", 2, 2)
+		and req("money_5", 10, 4)
+		and req("rollspeed_4", 2, 2)
+		and req("rollspeed_4", 10, 3)
+		and req("luck_5", 3, 3)
+	flag("upgrades_required_track_tiers_4_5", req45Ok)
+	local reqTurboOk = req("turbo_1", 10, 0)
+		and req("turbo_2", 10, 0)
+		and req("turbo_3", 10, 2)
+		and req("turbo_3", 1, 1)
+		and req("turbo_4", 10, 3)
+		and req("turbo_4", 2, 2)
+	flag("upgrades_required_track_turbo_own_tier", reqTurboOk)
+
+	-- CanBuy
+	local function canBuy(st, id)
+		local okc, ok, reason = call("CanBuy", st, id)
+		if not okc then
+			return "error", "error"
+		end
+		return ok, reason
+	end
+	local function isOk(st, id)
+		local ok = canBuy(st, id)
+		return ok == true
+	end
+	local function isReason(st, id, want)
+		local ok, reason = canBuy(st, id)
+		return ok == false and reason == want
+	end
+	local RICH = 1e9
+	local canOk = isOk(state({}, RICH, 0, 2), "money_1")
+		and isOk(state({}, RICH, 0, 2), "walkspeed_1")
+		and isOk(state({ "luck_1" }, RICH, 0, 2), "luck_2")
+		and isOk(state({ "luck_1", "luck_2" }, RICH, 2, 2), "luck_3")
+		and isOk(state(tierIds("speed", 4), RICH, 2, 2), "speed_5")
+		and isOk(state(tierIds("money", 4), RICH, 4, 10), "money_5")
+	flag("upgrades_canbuy_ok", canOk)
+	local unknownOk = true
+	local badBuy = table.pack("nope", "money_6", "turbo_5", "", nil, 5, true, {})
+	for i = 1, badBuy.n do
+		unknownOk = isReason(state({}, RICH, 10, 10), badBuy[i], "unknown") and unknownOk
+	end
+	flag("upgrades_canbuy_unknown", unknownOk)
+	local ownedOk = isReason(state({ "money_1" }, RICH, 0, 2), "money_1", "owned")
+		and isReason(state(tierIds("luck", 5), RICH, 10, 10), "luck_5", "owned")
+	flag("upgrades_canbuy_owned", ownedOk)
+	local lockedOk = isReason(state({}, RICH, 0, 2), "money_2", "locked")
+		and isReason(state({ "luck_1", "luck_3" }, RICH, 10, 10), "luck_5", "locked")
+		and isReason(state({ "speed_1" }, RICH, 10, 10), "speed_3", "locked")
+	flag("upgrades_canbuy_locked", lockedOk)
+	local gatedOk = isReason(state({ "money_1", "money_2" }, RICH, 0, 2), "money_3", "gated")
+		and isReason(state({ "money_1", "money_2" }, RICH, 1, 2), "money_3", "gated")
+		and isOk(state({ "money_1", "money_2" }, RICH, 2, 2), "money_3")
+		and isReason(state(tierIds("money", 3), RICH, 2, 10), "money_4", "gated")
+		and isOk(state(tierIds("money", 3), RICH, 3, 10), "money_4")
+		and isOk(state(tierIds("money", 4), RICH, 2, 2), "money_5")
+	flag("upgrades_canbuy_gated", gatedOk)
+	local boundaryOk = isOk(state({}, 150, 0, 2), "money_1")
+		and isReason(state({}, 149, 0, 2), "money_1", "money")
+		and isOk(state({}, 75, 0, 2), "walkspeed_1")
+		and isReason(state({}, 74, 0, 2), "walkspeed_1", "money")
+		and isOk(state({ "luck_1" }, 400, 0, 2), "luck_2")
+		and isReason(state({ "luck_1" }, 399, 0, 2), "luck_2", "money")
+		and isReason(state({}, 0, 0, 2), "rollspeed_1", "money")
+	flag("upgrades_canbuy_money_boundary", boundaryOk)
+	-- Order of checks: unknown > owned > locked > gated > money.
+	local orderCbOk = isReason(state({ "nope" }, 0, 0, 2), "nope", "unknown")
+		and isReason(state({ "money_3" }, 0, 0, 2), "money_3", "owned")
+		and isReason(state({}, 0, 0, 2), "money_3", "locked")
+		and isReason(state({}, 0, 0, 2), "money_2", "locked")
+		and isReason(state({ "money_1", "money_2" }, 0, 0, 2), "money_3", "gated")
+	flag("upgrades_canbuy_reason_order", orderCbOk)
+	local turboLockOk = isReason(state({}, RICH, 10, 10), "turbo_1", "locked")
+		and isReason(state({ "money_1", "luck_1", "speed_1" }, RICH, 10, 10), "turbo_1", "locked")
+		and isOk(state({ "rollspeed_1" }, RICH, 0, 2), "turbo_1")
+		and isOk(state({ "rollspeed_1" }, 660, 0, 2), "turbo_1")
+		and isReason(state({ "rollspeed_1" }, 659, 0, 2), "turbo_1", "money")
+		and isReason(state({ "rollspeed_1" }, RICH, 0, 2), "turbo_2", "locked")
+	flag("upgrades_canbuy_turbo_needs_rollspeed_1", turboLockOk)
+
+	-- BuyableCount (the UPGRADES badge)
+	local function buyable(st, want)
+		local okc, n = call("BuyableCount", st)
+		return okc and n == want
+	end
+	flag("upgrades_buyable_count_broke_is_0", buyable(state({}, 0, 0, 2), 0))
+	flag("upgrades_buyable_count_rich_is_5", buyable(state({}, RICH, 0, 2), 5))
+	flag("upgrades_buyable_count_turbo_unlocks", buyable(state({ "rollspeed_1" }, RICH, 0, 2), 6))
+	local partialOk = buyable(state({}, 100, 0, 2), 1) -- walkspeed_1 ($75) only
+		and buyable(state({}, 150, 0, 2), 3) -- + money_1, speed_1
+		and buyable(state({ "money_1", "money_2" }, RICH, 0, 2), 4) -- money_3 gated
+		and buyable(state({ "money_1", "money_2" }, RICH, 2, 2), 5)
+	flag("upgrades_buyable_count_money_and_gate", partialOk)
+
+	-- Bonuses: added percentages, pure sum of what is owned.
+	local function bonuses(ids)
+		local okc, b = call("Bonuses", idSet(ids))
+		return okc and type(b) == "table" and b or nil
+	end
+	local function bonusIs(b, want)
+		if not b then
+			return false
+		end
+		for _, key in { "Money", "Luck", "Speed", "RollSpeed" } do
+			if not near(b[key], want[key] or 0) then
+				return false
+			end
+		end
+		return true
+	end
+	flag("upgrades_bonuses_empty_zero", bonusIs(bonuses({}), {}) and bonusIs(bonuses({ "start" }), {}))
+	flag("upgrades_bonuses_luck_1_2_is_0_25", bonusIs(bonuses({ "luck_1", "luck_2" }), { Luck = 0.25 }))
+	local fullOk = bonusIs(bonuses(tierIds("money", 5)), { Money = 0.70 })
+		and bonusIs(bonuses(tierIds("luck", 5)), { Luck = 1.00 })
+		and bonusIs(bonuses(tierIds("speed", 5)), { Speed = 0.70 })
+		and bonusIs(bonuses(tierIds("rollspeed", 5)), { RollSpeed = 0.50 })
+	flag("upgrades_bonuses_added_full_branches", fullOk)
+	local sumOk = bonusIs(bonuses({ "luck_3" }), { Luck = 0.20 })
+		and bonusIs(bonuses({ "money_2", "money_5", "speed_4" }), { Money = 0.30, Speed = 0.15 })
+	flag("upgrades_bonuses_pure_sum_of_owned", sumOk)
+	local otherOk = bonusIs(bonuses({ "walkspeed_1", "walkspeed_2", "turbo_1", "nope" }), {})
+	flag("upgrades_bonuses_ignore_walkspeed_turbo_unknown", otherOk)
+
+	-- RollInterval: 3 / (1 + bonus), never below 2.
+	local function interval(ids)
+		local okc, v = call("RollInterval", idSet(ids))
+		return okc and v or nil
+	end
+	local base = interval({})
+	check(checks, "upgrades_roll_interval_base_3", tonumber(base) or -1, 3, near(base, 3, 0.01))
+	local riOk = true
+	for k = 1, 5 do
+		riOk = near(interval(tierIds("rollspeed", k)), UPGRADE_ROLL_INTERVALS[k], 0.01) and riOk
+	end
+	riOk = near(interval({ "rollspeed_3" }), 2.727, 0.01) and riOk
+	flag("upgrades_roll_interval_tiers", riOk)
+	local floorOk = true
+	local minSeen = math.huge
+	for mask = 0, 31 do
+		local ids = {}
+		for t = 1, 5 do
+			if bit32.btest(mask, bit32.lshift(1, t - 1)) then
+				table.insert(ids, "rollspeed_" .. t)
+			end
+		end
+		local v = interval(ids)
+		if type(v) ~= "number" or v < 2 - 1e-9 then
+			floorOk = false
+		end
+		if type(v) == "number" then
+			minSeen = math.min(minSeen, v)
+		end
+	end
+	check(checks, "upgrades_roll_interval_never_below_2", minSeen == math.huge and -1 or minSeen, ">= 2", floorOk)
+
+	-- Turbo: highest owned tier wins.
+	local function turboIs(ids, multi, every)
+		local okc, v = call("Turbo", idSet(ids))
+		return okc and type(v) == "table" and v.Multi == multi and v.Every == every
+	end
+	flag("upgrades_turbo_base", turboIs({}, 5, 10))
+	local turboTiersOk = true
+	for k, want in UPGRADE_TURBO do
+		turboTiersOk = turboIs(tierIds("turbo", k), want.Multi, want.Every) and turboTiersOk
+	end
+	flag("upgrades_turbo_tiers", turboTiersOk)
+	local turboHighOk = turboIs({ "turbo_1" }, 10, 15)
+		and turboIs({ "turbo_2" }, 50, 25)
+		and turboIs({ "turbo_1", "turbo_3" }, 100, 40)
+		and turboIs({ "turbo_4" }, 1000, 100)
+		and turboIs({ "rollspeed_1", "luck_5" }, 5, 10)
+	flag("upgrades_turbo_highest_owned_wins", turboHighOk)
+
+	-- WalkSpeed: highest owned tier wins.
+	local function walkIs(ids, want)
+		local okc, v = call("WalkSpeed", idSet(ids))
+		return okc and v == want
+	end
+	flag("upgrades_walkspeed_base_16", walkIs({}, 16))
+	local walkTiersOk = true
+	for k, want in UPGRADE_WALKSPEED do
+		walkTiersOk = walkIs(tierIds("walkspeed", k), want) and walkTiersOk
+	end
+	flag("upgrades_walkspeed_tiers", walkTiersOk)
+	flag(
+		"upgrades_walkspeed_highest_owned_wins",
+		walkIs({ "walkspeed_5" }, 30) and walkIs({ "walkspeed_2", "walkspeed_4" }, 26) and walkIs({ "money_5" }, 16)
+	)
+
+	-- Purity: nothing mutates the owned set, the state or the config.
+	local owned = idSet({ "rollspeed_1", "rollspeed_2", "luck_1", "turbo_1", "walkspeed_1", "money_3" })
+	local st = { Owned = owned, Money = 5000, BestTrack = 1, TrackCount = 2 }
+	local ownedBefore, stBefore = deepCopy(owned), deepCopy(st)
+	call("Bonuses", owned)
+	call("RollInterval", owned)
+	call("Turbo", owned)
+	call("WalkSpeed", owned)
+	call("BuyableCount", st)
+	for _, e in expected do
+		call("CanBuy", st, e.Id)
+	end
+	local pureOk = deepEqual(owned, ownedBefore) and deepEqual(st, stBefore) and st.Owned == owned
+	flag("upgrades_pure_inputs_unchanged", pureOk)
+	flag("upgrades_config_unchanged", deepEqual(UpgradeConfig, configBefore))
+
+	metrics.tiles = #tiles
+	metrics.call_errors = errorCount
+	return result("upgrades", checks, metrics)
+end
+
+-- name: "static_settle" | "accel" | "brake" | "skidpad" | "car_size" | "economy" | "hud" | "auto_toggle" | "spawn_area" | "gacha" | "index" | "npc" | "bank" | "multiplayer" | "admin" | "roll_anim" | "upgrades" | "lap:<Track>" | "track:<Track>"
 function Scenarios.Run(name)
 	local track = string.match(name, "^lap:(.+)$")
 	if track then

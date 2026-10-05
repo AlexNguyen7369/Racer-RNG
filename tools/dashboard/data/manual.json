@@ -1,0 +1,121 @@
+{
+  "items": [
+    {
+      "id": "reopen-studio",
+      "title": "Reopen Studio so the compat check can finish",
+      "priority": "high",
+      "why": "The compat check stopped halfway: the harness ran (23/24 pass) but the UI, multiplayer and world testers were cut off by a usage limit, and Studio is no longer connected to Claude.",
+      "blocks": "An ALL GREEN /compat-check, which is what lets initial-import go to main",
+      "when": "Now.",
+      "steps": [
+        "Open Roblox Studio with the place \"Racer RNG\" (Edit mode, not playing).",
+        "Make sure the Roblox Studio MCP is enabled (Assistant settings) and the Rojo plugin is connected (`rojo serve` is already running in the project).",
+        "Optional but recommended: in the Explorer, delete `Workspace.SpawnLocation` (the default spawn at -2, 0.5, -2; NOT `Workspace.SpawnArea.Spawn`) and save the place (Ctrl+S). It is the only harness failure: the game must have exactly one spawn. If you skip this, Claude deletes it in Edit mode and asks you to save.",
+        "Tell Claude \"Studio is open\"."
+      ],
+      "status": "open",
+      "added": "2026-10-05T06:05:00-07:00",
+      "by": "Claude"
+    },
+    {
+      "id": "hatchback-import",
+      "title": "Import the Rusty Hatchback into Studio",
+      "priority": "high",
+      "why": "Studio can only import a 3D file through its own Import 3D window; no script or MCP tool can do it. Until this is done the Rusty Hatchback shows a \"?\" in rolls.",
+      "blocks": "Rusty Hatchback in the game (TODO: Import the Rusty Hatchback into Studio)",
+      "when": "Not while a test run is using Studio (wait for the compat check to finish; the Agents tab shows physics-tester / ui-tester as running).",
+      "steps": [
+        "In Roblox Studio (place \"Racer RNG\"), open File > Import 3D (or Avatar tab > Import 3D).",
+        "Pick `~/Documents/RobloxGames/blender/exports/rusty_hatchback/RustyHatchback.fbx`.",
+        "In the importer check the size reads about 6.6 studs long. If it is 100x too big or small, change the file units (Stud / Meter) until it does.",
+        "Keep it importing as ONE model, then click Import. Leave it wherever Studio puts it.",
+        "Tell Claude \"hatchback imported\". Claude renames and orients it, makes it non-colliding and massless, checks the mesh and texture ids uploaded, and moves it to ReplicatedStorage.CarModels."
+      ],
+      "status": "open",
+      "added": "2026-10-05T04:20:00-07:00",
+      "by": "Claude"
+    },
+    {
+      "id": "hatchback-rbxm",
+      "title": "Save the hatchback model to the repo",
+      "priority": "high",
+      "why": "The place file is not in git, so other developers only get the model if it is saved as a file Rojo can sync.",
+      "blocks": "Collaborators seeing the Rusty Hatchback",
+      "when": "After Claude has finished setting up the imported model (it will say so).",
+      "steps": [
+        "In Studio's Explorer, open ReplicatedStorage > CarModels and right-click RustyHatchback.",
+        "Choose Save to File... and save it as `~/Documents/RobloxGames/assets/CarModels/RustyHatchback.rbxm` (create the CarModels folder if asked).",
+        "Tell Claude \"rbxm saved\". Claude maps ReplicatedStorage.CarModels to assets/CarModels in default.project.json and sets Model = \"RustyHatchback\" in Cars/rusty_hatchback.luau."
+      ],
+      "status": "open",
+      "added": "2026-10-05T04:20:00-07:00",
+      "by": "Claude"
+    },
+    {
+      "id": "upgrade-decisions",
+      "title": "Confirm two upgrade tree decisions",
+      "priority": "medium",
+      "why": "Claude made two calls the spec did not spell out. Both are easy to change now and harder after the UI is built.",
+      "blocks": "Upgrade tree phase 3 (UI)",
+      "when": "Any time.",
+      "steps": [
+        "Read docs/UPGRADE_TREE_DESIGN.md, sections \"Tile ids and the tree\" and \"Prices\".",
+        "Decision 1: Turbo forks off Roll Speed I (so its first tier is never the first purchase) instead of having its own direction from Start.",
+        "Decision 2: prices round halves UP (Roll Speed I $230, Walkspeed II $170).",
+        "Tell Claude \"keep both\", or what to change. Changing a price means test-writer updates the test first."
+      ],
+      "status": "open",
+      "added": "2026-10-05T04:20:00-07:00",
+      "by": "Claude"
+    },
+    {
+      "id": "studio-api-access",
+      "title": "Let Studio use DataStores (to test real saving)",
+      "priority": "medium",
+      "why": "Real DataStore saving has never been tested: Studio blocks it by default, so only a stubbed store is tested (the console shows StudioAccessToApisNotAllowed).",
+      "blocks": "TODO: Test real DataStore saving",
+      "when": "Any time Studio is not running a test.",
+      "steps": [
+        "In Studio: Home > Game Settings > Security.",
+        "Turn on \"Enable Studio Access to API Services\" and Save.",
+        "Tell Claude \"API access on\"; Claude then tests saving and loading for real."
+      ],
+      "status": "open",
+      "added": "2026-10-05T04:20:00-07:00",
+      "by": "Claude"
+    },
+    {
+      "id": "slack-token",
+      "title": "Revoke the exposed Slack token and reinstall the bot",
+      "priority": "medium",
+      "why": "A user (xoxp) Slack token was exposed earlier (ProjectContext TODO 3). Only you can revoke it and install the app.",
+      "blocks": "Posting test results to #racer-dev",
+      "when": "Soon (security).",
+      "steps": [
+        "At api.slack.com/apps, open the app, go to OAuth & Permissions and revoke the old xoxp token.",
+        "Add bot scopes: chat:write, channels:read, channels:history, groups:read, groups:history, users:read, reactions:write. Reinstall to the workspace and copy the new xoxb- token.",
+        "In a terminal: `claude mcp remove slack --scope user`, then re-add the Slack MCP with the xoxb- token and SLACK_TEAM_ID=T0C5AK11CNB.",
+        "In Slack: `/invite` the bot to #racer-dev."
+      ],
+      "status": "open",
+      "added": "2026-10-05T04:20:00-07:00",
+      "by": "Claude"
+    },
+    {
+      "id": "blender-mcp",
+      "title": "Reconnect the Blender MCP add-on (optional)",
+      "priority": "low",
+      "why": "The Blender add-on is out of date and not connected, so Claude cannot see or edit an open Blender scene. Exports still work headless, so this only matters for new modelling work.",
+      "blocks": "Live Blender work (new car drafts)",
+      "when": "Before the next car or prop draft.",
+      "steps": [
+        "In a terminal: `uvx mcp-for-blender install-addon`.",
+        "Restart Blender (or Preferences > Add-ons: disable and re-enable \"Interface: Blender MCP\").",
+        "In the 3D view press N, open the BlenderMCP tab and click Start MCP Server / Connect."
+      ],
+      "status": "open",
+      "added": "2026-10-05T04:20:00-07:00",
+      "by": "Claude"
+    }
+  ]
+}

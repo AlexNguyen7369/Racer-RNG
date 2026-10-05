@@ -23,6 +23,7 @@
       <div class="suites" id="suites"></div>
     </div>
   </div>
+  <button class="needs" id="needs" hidden></button>
   <div class="theme" id="theme" role="group" aria-label="Theme">
     <button data-theme="system" title="Follow the system setting">System</button>
     <button data-theme="light">Light</button>
@@ -34,6 +35,7 @@
 </header>
 
 <nav class="tabs" id="tabs">
+  <button data-tab="manual">Needs you <span class="count" id="manual-count" hidden></span></button>
   <button data-tab="agents" class="on">Agents</button>
   <button data-tab="changes">Changes &amp; history</button>
   <button data-tab="todo">TODO &amp; ideas</button>
@@ -41,6 +43,15 @@
 </nav>
 
 <main>
+  <!-- NEEDS YOU -->
+  <section id="tab-manual" class="tab">
+    <div class="panel">
+      <h2>Needs you <span class="muted small">tasks only you can do, with directions; tell Claude when one is done</span></h2>
+      <div id="manual"></div>
+      <details class="dismissed"><summary>Done</summary><div id="manual-done"></div></details>
+    </div>
+  </section>
+
   <!-- AGENTS -->
   <section id="tab-agents" class="tab on">
     <div class="legend" id="legend"></div>

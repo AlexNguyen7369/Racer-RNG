@@ -185,6 +185,14 @@ TEST RESULTS (latest first; update after every full run)
   0 flips. Live: car moving on its own, pads 24 studs left, Money rose to 700.
 - 2026-09-30 (money / $ round): cold starts gave pass=7 fail=1 (static_settle settle_speed 0.598 > 0.5) and pass=8 fail=0.
 
+COMPAT CHECK 2026-10-05 (fingerprint e100816666cf, INCOMPLETE, NOT GREEN):
+- harness: `[CARTEST] END pass=23 fail=1`. roll_anim 65/65 and upgrades 49/49 pass in the full suite (first full run of the
+  roll animation build). Only failure: spawn_area `spawn_only_spawn_location: 2 (1)` because the place file has a stray default
+  Workspace.SpawnLocation at (-2, 0.5, -2) besides Workspace.SpawnArea.Spawn (environment, not code). Fix: delete it and save the place.
+- ui, multiplayer, world: NOT RUN (the testers were cut off by a usage limit; Studio then disconnected). The roll animation's
+  rewritten UI tests have still never completed a run.
+- Resume: delete the stray SpawnLocation, rerun the full harness, then ui/multiplayer/world on the same play session.
+
 TODO (in order)
 1. Reopen the place, connect Rojo, run the FULL suite; loop (physics-tuner / PathDriver / track-designer) until `[CARTEST] END fail=0`.
    Watch: path deviation <= 5 and up-Y >= 0.9 at MAX_STAT speed, flip_recovery, the lane checks, auto_toggle, the static_settle cold-start flake.
@@ -194,7 +202,11 @@ TODO (in order)
    /invite the bot to #racer-dev; then post results and TODOs there after each green run. Claude in Slack also needs the GitHub repo linked.
 4. Test real DataStore saving (Studio: Game Settings > Security > Enable Studio Access to API Services). Save the place (Ctrl+S).
 5. Bring Circuit and Serpentine up to the track rules; an upgrade shop (nothing raises Speed except driving).
-6. QUEUED (owner, 2026-10-02): money upgrade tree (Luck %, roll speed, Speed %, turbo luck x10/x50/x100/x1000 with more rolls per
+6. STARTED 2026-10-05: money upgrade tree. Implementation design: docs/UPGRADE_TREE_DESIGN.md (modules, ids, hex layout, prices,
+   save v4, tests, phases). PHASE 1 GREEN (2026-10-05): Shared/UpgradeConfig (data) + Shared/UpgradeTree (pure rules) implemented;
+   harness `upgrades` red run (44 fails, stubs) then green 49/49 (`[CARTEST] END pass=3 fail=0` with track:Hill/Oval), test-writer
+   audit OK. Server/UpgradeService is still stubs (not required by Main). Next: phase 2 (server, effects, save v4); the FULL harness
+   and /compat-check have NOT been run with these changes. Was QUEUED (owner, 2026-10-02): (Luck %, roll speed, Speed %, turbo luck x10/x50/x100/x1000 with more rolls per
    turbo each tier, walkspeed, Money %). Spec + open questions: docs/UPGRADE_TREE_SPEC.md; references in references/upgrade_tree/.
 7. IN PROGRESS, PUSHED UNTESTED (see URGENT at the top): roll animation + roll UI (compact card under Auto Race, enlarged reveal, spin reel, rarity
    effects, emphasized rolls = undiscovered and rarer than the 5th-rarest owned car, global chat announce, discovery cutscene).
@@ -202,8 +214,9 @@ TODO (in order)
 8. QUEUED (owner, 2026-10-02): vehicle skins: a ride's look is any model (a car now, maybe a dragon later) welded on a shared
    invisible physics body; physics and tests never depend on the model. docs/VEHICLE_SKINS_SPEC.md. Car model drafts follow it
    Rusty Hatchback Blender draft DONE 2026-10-02 (drafts/cars/rusty-hatchback, CC0 "Car Hatchback" by Kay Lousberg, rusty
-   restyle, Wheel_FL/FR/RL/RR). Next for it: bake the procedural rust, export FBX, import to Studio as CarModels.RustyHatchback,
-   set Model in Cars/rusty_hatchback.luau (needs Studio free). Blender MCP add-on updated to protocol 13; Poly Pizza on.
+   restyle, Wheel_FL/FR/RL/RR). 2026-10-05: baked + exported headless (blender/scenes/export_rusty_hatchback.py -> blender/exports/rusty_hatchback/
+   RustyHatchback.fbx, 6.6 studs long). Next: owner does Studio File > Import 3D, then Claude finishes it as CarModels.RustyHatchback
+   (steps in drafts/cars/rusty-hatchback/DRAFT.md), maps CarModels to assets/CarModels in Rojo, sets Model in Cars/rusty_hatchback.luau. Blender MCP add-on updated to protocol 13; Poly Pizza on.
 
 KNOWN ISSUES / NOT VERIFIED
 - 2026-10-01: another session is building gacha/index (scenarios gacha, index in TestConfig, red) and shares the same Studio; runs

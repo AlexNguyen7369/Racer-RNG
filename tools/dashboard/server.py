@@ -8,7 +8,7 @@ commit history, the compat gate, the TODO list, feature suggestions and the test
   python3 tools/dashboard/server.py --lan --lan-write   others on the network may also edit TODO / suggestions
 
 Stdlib only. Reads Claude Code transcripts from ~/.claude/projects/<this repo>/, git, .compat/ and the repo files.
-Writes only tools/dashboard/data/todo.json and suggestions.json (checked in, so the team shares them).
+Writes only tools/dashboard/data/todo.json, suggestions.json and manual.json (checked in, so the team shares them).
 """
 import argparse
 import datetime
@@ -30,6 +30,7 @@ STATIC = os.path.join(HERE, "static")
 DATA = os.path.join(HERE, "data")
 TODO_FILE = os.path.join(DATA, "todo.json")
 SUGGEST_FILE = os.path.join(DATA, "suggestions.json")
+MANUAL_FILE = os.path.join(DATA, "manual.json")
 EXPLAIN_FILE = os.path.join(DATA, "tests_explained.json")
 TRANSCRIPTS = os.path.join(os.path.expanduser("~"), ".claude", "projects", re.sub(r"[^A-Za-z0-9]", "-", ROOT))
 
@@ -517,6 +518,20 @@ def suggestion_action(sid, body):
         return data
 
 
+def manual_action(mid, body):
+    """Tasks only the developer can do by hand (Studio imports, settings, accounts): mark done or reopen."""
+    with WRITE_LOCK:
+        data = read_json(MANUAL_FILE, {"items": []})
+        m = next((i for i in data["items"] if i["id"] == mid), None)
+        act = body.get("action")
+        if not m or act not in ("done", "reopen"):
+            return {"error": "bad request"}
+        m["status"] = "done" if act == "done" else "open"
+        m["doneBy"], m["doneAt"] = (developer(), now_iso()) if act == "done" else (None, None)
+        write_json(MANUAL_FILE, data)
+        return data
+
+
 # ---------------------------------------------------------------------------------------------------------------
 # HTTP
 
@@ -564,6 +579,7 @@ class Handler(BaseHTTPRequestHandler):
                 "/api/needtoknow": need_to_know,
                 "/api/todo": lambda: read_json(TODO_FILE, {"items": []}),
                 "/api/suggestions": lambda: read_json(SUGGEST_FILE, {"items": []}),
+                "/api/manual": lambda: read_json(MANUAL_FILE, {"items": []}),
                 "/api/tests": tests,
                 "/api/history": lambda: history(min(int(q.get("limit", 60)), 300), q.get("author"), q.get("branch")),
             }
@@ -596,6 +612,8 @@ class Handler(BaseHTTPRequestHandler):
         p = urlparse(self.path).path
         if p == "/api/todo":
             r = todo_action(body)
+        elif p.startswith("/api/manual/"):
+            r = manual_action(p.rsplit("/", 1)[1], body)
         elif p.startswith("/api/suggestions/"):
             r = suggestion_action(p.rsplit("/", 1)[1], body)
         else:

@@ -15,8 +15,11 @@
 12. 2026-10-02 — Alex Nguyen — Implemented the roll animation (bare-model compact roll under Auto Race, enlarged card with AUTO toggle, emphasized rolls announced in chat, panels moved below the roll) and pushed it to `main` on the owner's exception without a green /compat-check (harness roll tests green before decision 6; the final-design UI tests never completed a run).
 13. 2026-10-05 — Alex Nguyen — Added the agent dashboard for all collaborators (tools/dashboard, /dashboard): compat gate light, live subagents and agent messages, changes and commit history, a shared TODO board, trend-based feature suggestions (/refresh-suggestions) and every test explained.
 14. 2026-10-05 — Alex Nguyen — Added dark mode to the agent dashboard with a System / Light / Dark switch remembered per browser.
+15. 2026-10-05 — Alex Nguyen — Built upgrade tree phase 1 test-first (design doc with RNG Heroes and Anime Dice references, UpgradeConfig, UpgradeTree pure rules, UpgradeService stubs; `upgrades` 49/49 after a red run).
+16. 2026-10-05 — Alex Nguyen — Baked and exported the Rusty Hatchback for Studio headlessly (blender/exports/rusty_hatchback/RustyHatchback.fbx, 6.6 studs long); the Studio import is pending.
+17. 2026-10-05 — Alex Nguyen — Added a "Needs you" tab to the agent dashboard listing hand-done tasks with step-by-step directions.
 
 ## What's next
-**Resume the roll animation verification: run the full UI suite on the final design (decisions 4 and 6), fix RollToast and the Index/Stats panels until green, then the full harness and an ALL GREEN /compat-check.**
+**Finish the /compat-check for fingerprint e100816666cf (delete the stray Workspace.SpawnLocation, rerun the full harness, then the ui, multiplayer and world suites) and push `initial-import` to `main` once it is ALL GREEN.**
 
-**Why this is next:** `main` now carries the roll animation unverified (see the URGENT block in context/ProjectContext.luau), and the bottom HUD rework and the upgrade tree's turbo tiers build on this roll UI, so it has to be proven green before anything else lands on top of it.
+**Why this is next:** the first full harness run passed 23 of 24 (roll animation and upgrades included; only the stray spawn failed), but the live suites were cut off, so `main` still carries the unverified roll animation and the upgrade tree phase 2, the hatchback hookup and the bottom HUD rework all build on a verified `main`.

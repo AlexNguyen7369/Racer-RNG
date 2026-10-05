@@ -13,12 +13,13 @@
     {
       "id": "upgrade-tree",
       "title": "Money upgrade tree",
-      "detail": "Luck %, roll speed to 2 s, Speed %, turbo x10-x1000 with more rolls per tier, walkspeed, Money %. Spec and open questions: docs/UPGRADE_TREE_SPEC.md.",
-      "status": "next",
+      "detail": "Design: docs/UPGRADE_TREE_DESIGN.md. Phase 1 GREEN 2026-10-05: UpgradeConfig + UpgradeTree implemented, `upgrades` 49/49 after a red run, audit OK. Next: phase 2 (UpgradeService, effects in Gacha/Car/RaceService, TurboCount, PlayerData v4) test-first; then UI (phase 3) and /compat-check.",
+      "status": "doing",
       "source": "ProjectContext TODO 6",
       "by": "Alex Nguyen",
       "added": "2026-10-05T00:00:00-07:00",
-      "updated": "2026-10-05T00:00:00-07:00"
+      "updated": "2026-10-05T04:00:00-07:00",
+      "updatedBy": "Alex Nguyen"
     },
     {
       "id": "hud-rework",
@@ -43,12 +44,13 @@
     {
       "id": "rusty-hatchback",
       "title": "Import the Rusty Hatchback into Studio",
-      "detail": "Bake the procedural rust, export FBX, import as CarModels.RustyHatchback, set Model in Cars/rusty_hatchback.luau. Needs Studio free.",
-      "status": "next",
+      "detail": "Blender export DONE 2026-10-05 (blender/exports/rusty_hatchback/RustyHatchback.fbx, baked textures, 6.6 studs long). Next: Studio Import 3D (owner), then Claude finishes the model, Rojo mapping and Model = \"RustyHatchback\". Steps: drafts/cars/rusty-hatchback/DRAFT.md.",
+      "status": "doing",
       "source": "ProjectContext TODO 8",
       "by": "Alex Nguyen",
       "added": "2026-10-05T00:00:00-07:00",
-      "updated": "2026-10-05T00:00:00-07:00"
+      "updated": "2026-10-05T03:20:00-07:00",
+      "updatedBy": "Alex Nguyen"
     },
     {
       "id": "datastore",

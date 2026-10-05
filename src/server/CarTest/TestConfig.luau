@@ -30,5 +30,6 @@ return {
 		"multiplayer",
 		"admin",
 		"roll_anim",
+		"upgrades",
 	},
 }

@@ -309,6 +309,60 @@ async function loadSuggestions() {
   keepOpen($("tab-todo"));
 }
 
+// ------------------------------------------------------------------------------------------------ needs you
+
+// `code` spans in a task's text become <code> (click copies it).
+function richText(t) {
+  return esc(t).replace(/`([^`]+)`/g, "<code title=\"Click to copy\">$1</code>");
+}
+
+function taskHtml(m) {
+  const done = m.status === "done";
+  const action = !state.canWrite ? "" : done
+    ? `<button data-m="${esc(m.id)}" data-ma="reopen">Reopen</button>`
+    : `<button class="primary" data-m="${esc(m.id)}" data-ma="done">Mark done</button>`;
+  return `<div class="task ${esc(m.priority || "")}">
+    <div class="head"><span class="t">${esc(m.title)}</span><span class="badge">${esc(m.priority || "")} priority</span></div>
+    <p><b>Why:</b> ${richText(m.why)}</p>
+    ${m.blocks ? `<p><b>Unblocks:</b> ${richText(m.blocks)}</p>` : ""}
+    ${m.when ? `<p><b>When:</b> ${richText(m.when)}</p>` : ""}
+    <ol>${(m.steps || []).map((st) => `<li>${richText(st)}</li>`).join("")}</ol>
+    <div class="actions">${action}<span>${done ? `done by ${esc(m.doneBy || "")} ${when(m.doneAt)}` : `added by ${esc(m.by || "")} ${when(m.added)}`}</span></div>
+  </div>`;
+}
+
+const PRIORITY = { high: 0, medium: 1, low: 2 };
+
+async function loadManualCount() {
+  const d = await api("/api/manual");
+  const open = d.items.filter((m) => m.status !== "done");
+  $("manual-count").hidden = open.length === 0;
+  $("manual-count").textContent = open.length;
+  $("needs").hidden = open.length === 0;
+  $("needs").textContent = `${open.length} task${open.length === 1 ? "" : "s"} need${open.length === 1 ? "s" : ""} you`;
+  return d;
+}
+
+async function loadManual() {
+  const d = await loadManualCount();
+  if (!changed("manual", d)) return;
+  const byPriority = (a, b) => (PRIORITY[a.priority] ?? 3) - (PRIORITY[b.priority] ?? 3);
+  $("manual").innerHTML = d.items.filter((m) => m.status !== "done").sort(byPriority).map(taskHtml).join("") ||
+    `<p class="muted">Nothing needs you right now.</p>`;
+  $("manual-done").innerHTML = d.items.filter((m) => m.status === "done").map(taskHtml).join("") || `<p class="muted small">None yet.</p>`;
+  document.querySelectorAll("#tab-manual [data-ma]").forEach((b) => b.addEventListener("click", async () => {
+    try {
+      await api(`/api/manual/${b.dataset.m}`, { action: b.dataset.ma });
+      toast(b.dataset.ma === "done" ? "Marked done: tell Claude so it can pick it up" : "Reopened");
+      state.last.manual = null;
+      await loadManual();
+    } catch (e) { toast(e.message); }
+  }));
+  document.querySelectorAll("#tab-manual code").forEach((c) => c.addEventListener("click", () => {
+    navigator.clipboard?.writeText(c.textContent).then(() => toast("Copied"), () => {});
+  }));
+}
+
 // ------------------------------------------------------------------------------------------------ tests
 
 async function loadTests() {
@@ -339,6 +393,7 @@ async function loadTests() {
 // ------------------------------------------------------------------------------------------------ wiring + polling
 
 const LOADERS = {
+  manual: [loadManual],
   agents: [loadAgents, loadTimeline, loadNeedToKnow],
   changes: [loadChanges, loadHistory],
   todo: [loadTodo, loadSuggestions],
@@ -348,14 +403,15 @@ const LOADERS = {
 async function refresh() {
   try {
     await loadMeta();
-    await Promise.all([loadGate(), ...LOADERS[state.tab].map((f) => f())]);
+    await Promise.all([loadGate(), ...(state.tab === "manual" ? [] : [loadManualCount()]), ...LOADERS[state.tab].map((f) => f())]);
   } catch (e) {
     toast(`Dashboard server: ${e.message}`);
   }
 }
 
+$("needs").addEventListener("click", () => document.querySelector('.tabs [data-tab="manual"]').click());
 $("tabs").addEventListener("click", (e) => {
-  const tab = e.target.dataset.tab;
+  const tab = e.target.closest("button")?.dataset.tab;
   if (!tab) return;
   state.tab = tab;
   document.querySelectorAll(".tabs button").forEach((b) => b.classList.toggle("on", b.dataset.tab === tab));

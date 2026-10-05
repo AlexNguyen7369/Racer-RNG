@@ -10,10 +10,11 @@ python3 tools/dashboard/server.py --lan --lan-write   # ...and edit the TODO / s
 ```
 Or `/dashboard` in Claude Code. Needs only `python3` and `git` (no packages).
 
-Tabs (`#agents`, `#changes`, `#todo`, `#tests` in the URL open one directly):
+Tabs (`#manual`, `#agents`, `#changes`, `#todo`, `#tests` in the URL open one directly):
 
 | Tab | Shows | Source |
 |---|---|---|
+| Needs you | tasks only the developer can do by hand (Studio imports, settings, accounts, decisions), each with why, what it unblocks, when, and numbered steps (click a `code` path to copy it); Mark done / Reopen. The header pill shows how many are open | `data/manual.json` (Claude adds and closes items) |
 | Agents | subagent cards (colour per agent, running / passed / failed), every message between main and the agents, one agent's full timeline (prompt, tool calls, results, report), Need to know | Claude Code transcripts in `~/.claude/projects/<this repo>/`, `context/ProjectContext.luau`, `current_progress.md` |
 | Changes & history | uncommitted files with diffs; commits on all branches with developer, date and time, files, `green` (that commit's game code passed /compat-check) and `local` (not pushed) | git, `tools/compat.py` |
 | TODO & ideas | Doing / Up next / Backlog / Done board; suggested features that expand and can be added to the backlog or dismissed | `data/todo.json`, `data/suggestions.json` |
