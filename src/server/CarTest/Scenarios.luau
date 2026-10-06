@@ -2085,6 +2085,62 @@ local function newFakeCharacter(cf)
 	return model, humanoid, root, head, face
 end
 
+-- Test isolation: keeps every REAL player's character (Players:GetPlayers(); the fake players are Folders) out of
+-- the way while a scenario puts its fake avatars at the walk spawn. Any real, unseated character within `radius`
+-- studs (horizontal) of `center` is anchored and parked SPAWN_CLEAR_LIFT studs above it, now and on every frame
+-- until released (a respawn lands on the SpawnLocation right there). The returned release() restores each
+-- character's exact pivot and HumanoidRootPart.Anchored; it is idempotent, so call it from the cleanup path too.
+local SPAWN_CLEAR_RADIUS = 20 -- studs (horizontal) around the walk spawn kept free of real characters
+local SPAWN_CLEAR_LIFT = 80 -- studs above the walk spawn where real characters wait (anchored)
+local function clearSpawnOfRealPlayers(center, radius)
+	radius = radius or SPAWN_CLEAR_RADIUS
+	local moved = {} -- [character] = { Pivot, Root, Anchored }
+	local function sweep()
+		for _, plr in game:GetService("Players"):GetPlayers() do
+			local char = plr.Character
+			if char and char.Parent and not moved[char] then
+				local hum = char:FindFirstChildOfClass("Humanoid")
+				local seated = hum ~= nil and hum.SeatPart ~= nil
+				local okPivot, pivot = pcall(char.GetPivot, char)
+				if not seated and okPivot and hdist(pivot.Position, center) <= radius then
+					local rootPart = char:FindFirstChild("HumanoidRootPart")
+					moved[char] = {
+						Pivot = pivot,
+						Root = rootPart,
+						Anchored = rootPart and rootPart:IsA("BasePart") and rootPart.Anchored or false,
+					}
+					pcall(function()
+						if rootPart and rootPart:IsA("BasePart") then
+							rootPart.Anchored = true
+						end
+						char:PivotTo(CFrame.new(center + Vector3.new(0, SPAWN_CLEAR_LIFT, 0)))
+					end)
+				end
+			end
+		end
+	end
+	sweep()
+	local conn = RunService.Heartbeat:Connect(sweep)
+	local released = false
+	return function()
+		if released then
+			return
+		end
+		released = true
+		conn:Disconnect()
+		for char, saved in moved do
+			if char.Parent then
+				pcall(function()
+					char:PivotTo(saved.Pivot)
+					if saved.Root and saved.Root.Parent then
+						saved.Root.Anchored = saved.Anchored
+					end
+				end)
+			end
+		end
+	end
+end
+
 function Scenarios.auto_toggle()
 	local checks = {}
 	local metrics = {}
@@ -2247,6 +2303,9 @@ function Scenarios.auto_toggle()
 	if not walkOk then
 		walkCF = CFrame.new(startPos + Vector3.new(0, 3, 0))
 	end
+	-- Isolation: the fake avatar is sent to the walk spawn by every Stop below (and the seatless avatars stand
+	-- there), so the real Studio player is kept off it for the whole scenario (released in the cleanup path)
+	local releaseSpawn = clearSpawnOfRealPlayers(walkCF.Position)
 	local character, humanoid, root, head, face = newFakeCharacter(CFrame.new(walkCF.Position + Vector3.new(0, 3, 0)))
 	local before = {}
 	for _, d in character:GetDescendants() do
@@ -3073,6 +3132,7 @@ function Scenarios.auto_toggle()
 	end
 	character:Destroy()
 	player:Destroy()
+	releaseSpawn()
 	return result("auto_toggle", checks, metrics)
 end
 
@@ -6895,8 +6955,38 @@ function Scenarios.spawn_area()
 	local walkSpeed = StarterPlayer.CharacterWalkSpeed
 	local jumpHeight = StarterPlayer.CharacterJumpHeight
 
-	-- On foot at the walk spawn, visible, able to walk and jump, not racing, no car, no run
-	local function checkOnFoot(pre, c)
+	-- Waits until the avatar has landed before its height is sampled: Humanoid.FloorMaterial is not Air and the
+	-- root's |vertical speed| < SPAWN_SETTLE_MAX_VY for SPAWN_SETTLE_FRAMES frames in a row, at most `timeout`
+	-- seconds. On timeout it returns anyway so a character that never lands still FAILS the height check.
+	-- Records <pre>_settle_s (seconds waited) and <pre>_settle_landed (1 landed, 0 timed out) in the metrics.
+	local SPAWN_SETTLE_MAX_VY = 1 -- studs/s
+	local SPAWN_SETTLE_FRAMES = 3
+	local SPAWN_SETTLE_TIMEOUT = 3 -- seconds
+	local function settleOnFloor(pre, c, timeout)
+		local t0 = os.clock()
+		local streak = 0
+		local landed = false
+		while os.clock() - t0 < timeout do
+			local hum, root = c.Humanoid, c.Root
+			local grounded = hum.Parent ~= nil
+				and root.Parent ~= nil
+				and hum.FloorMaterial ~= Enum.Material.Air
+				and math.abs(root.AssemblyLinearVelocity.Y) < SPAWN_SETTLE_MAX_VY
+			streak = grounded and streak + 1 or 0
+			if streak >= SPAWN_SETTLE_FRAMES then
+				landed = true
+				break
+			end
+			RunService.Heartbeat:Wait()
+		end
+		metrics[pre .. "_settle_s"] = math.floor((os.clock() - t0) * 1000 + 0.5) / 1000
+		metrics[pre .. "_settle_landed"] = landed and 1 or 0
+	end
+
+	-- On foot at the walk spawn, visible, able to walk and jump, not racing, no car, no run.
+	-- `settleTimeout` bounds the landing wait before sampling (default SPAWN_SETTLE_TIMEOUT).
+	local function checkOnFoot(pre, c, settleTimeout)
+		settleOnFloor(pre, c, settleTimeout or SPAWN_SETTLE_TIMEOUT)
 		local notRacing = not racing() and player:GetAttribute("AutoRacing") == false
 		check(checks, pre .. "_not_racing", notRacing and 1 or 0, 1, notRacing)
 		local noCar = call(CarService.GetCar, player) == nil
@@ -7002,7 +7092,9 @@ function Scenarios.spawn_area()
 		local tStop1 = os.clock()
 		check(checks, "stop_returns_false", okS and rS == false and 1 or 0, 1, okS and rS == false)
 		RunService.Heartbeat:Wait()
-		checkOnFoot("stop", c1)
+		-- Short landing wait here: section 5 times START_COOLDOWN from tStop0, so the wait must stay well inside it
+		-- (refuses_at_once samples at wait + 0.6 s, which must stay under the 2 s cooldown)
+		checkOnFoot("stop", c1, 0.8)
 		local ubStop = player:GetAttribute("Unbanked")
 		check(checks, "stop_unbanked_attribute_zero", num(ubStop), 0, ubStop == 0)
 
@@ -7092,6 +7184,9 @@ function Scenarios.spawn_area()
 		check(checks, "respawn_after_race_stays_on_foot", stillOnFoot() and 1 or 0, 1, stillOnFoot())
 	end
 
+	-- Isolation: every fake avatar here is created up to ~30 studs from the walk spawn and then sent to it, so the
+	-- real Studio player is kept off that whole patch (radius 40)
+	local releaseSpawn = clearSpawnOfRealPlayers(walkCF.Position, 40)
 	local ok, err = pcall(body)
 	check(checks, "spawn_area_no_error", ok and 1 or 0, 1, ok)
 	if not ok then
@@ -7111,6 +7206,7 @@ function Scenarios.spawn_area()
 		m:Destroy()
 	end
 	player:Destroy()
+	releaseSpawn()
 	return result("spawn_area", checks, metrics)
 end
 

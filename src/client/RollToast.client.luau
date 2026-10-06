@@ -878,16 +878,15 @@ local function flyToIndex(spec)
 	icon.Size = UDim2.fromScale(1, 1)
 	flyIcon.Position = UDim2.fromOffset(from.X, from.Y)
 	flyIcon.Visible = true
-	local t = tween(
+	-- Lands inside Exit and rests on the button until Phase "Idle" hides it (contract: flies to OpenIndex, then
+	-- Idle), easing out so the player sees it arrive instead of vanishing on the way.
+	tween(
 		flyIcon,
-		A.EXIT + 0.25,
+		A.EXIT * 0.7,
 		{ Position = UDim2.fromOffset(to.X, to.Y) },
 		Enum.EasingStyle.Quad,
-		Enum.EasingDirection.In
+		Enum.EasingDirection.Out
 	)
-	t.Completed:Connect(function()
-		flyIcon.Visible = false
-	end)
 end
 
 local function play(roll)
@@ -1004,6 +1003,7 @@ local function play(roll)
 	if not after(A.EXIT) then
 		return
 	end
+	flyIcon.Visible = false
 	setPhase("Idle")
 	if roll.Emphasized and autoOpened then
 		closeEnlarged()

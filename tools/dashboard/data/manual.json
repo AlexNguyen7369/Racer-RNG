@@ -1,6 +1,99 @@
 {
   "items": [
     {
+      "id": "rojo-connect",
+      "title": "Click Connect in Studio's Rojo plugin",
+      "priority": "high",
+      "why": "Rojo is running again (rojo serve) but Studio has to connect to it so the place runs exactly the repo code for /compat-check. It will replace Studio's RollToast with the repo version (the Studio versions are saved on branch studio/racer-hud-ui).",
+      "blocks": "Finishing /compat-check and pushing to main",
+      "when": "Now (Studio in Edit mode).",
+      "steps": [
+        "In Studio, open the Plugins tab > Rojo.",
+        "Click Connect (localhost:34872). Accept the sync if it asks.",
+        "Tell Claude \"rojo connected\"."
+      ],
+      "status": "done",
+      "added": "2026-10-05T20:00:00-07:00",
+      "by": "Claude",
+      "doneBy": "Alex Nguyen",
+      "doneAt": "2026-10-05T20:10:00-07:00",
+      "verified": "Studio scripts match the repo (RollToast 33807 bytes with the fly-icon fix)."
+    },
+    {
+      "id": "recover-hud-items",
+      "title": "Reopen Studio WITHOUT saving to recover two deleted HUD items",
+      "priority": "high",
+      "why": "Claude deleted Client/Ui (Racer HUD) in Edit mode after exporting only part of it: Ui/RollShowcase and Ui/RacerMotion were not exported, and Studio's undo did not restore them. They still exist in the last saved version of the place.",
+      "blocks": "Saving the complete Racer HUD to git (branch studio/racer-hud-ui) and finishing the compat check",
+      "when": "Now, before any save.",
+      "steps": [
+        "Do NOT press Ctrl+S or publish.",
+        "Close Roblox Studio and choose Don't Save.",
+        "Reopen the place \"Racer RNG\" (Edit mode, do not press Play).",
+        "Tell Claude \"reopened\"; Claude exports every item under StarterPlayerScripts.Client/Ui and RacerUiController from Edit mode before changing anything."
+      ],
+      "status": "done",
+      "added": "2026-10-05T19:50:00-07:00",
+      "by": "Claude",
+      "doneBy": "Alex Nguyen",
+      "doneAt": "2026-10-05T20:00:00-07:00",
+      "verified": "Reopened without saving. The place never held the HUD scripts; Ui/RollShowcase and Ui/RacerMotion are not recoverable on this machine (noted in drafts/ui/racer-hud/DRAFT.md on branch studio/racer-hud-ui)."
+    },
+    {
+      "id": "hud-screenguis-rbxm",
+      "title": "Save the Racer HUD ScreenGuis to files",
+      "priority": "low",
+      "why": "The HUD's baked ScreenGuis (RacerHud, RacerIndex, RacerStats, RacerSettings, RollShowcase) exist only in the place. Claude moved them to ServerStorage.RacerHudStash for the compat check; they are not in git.",
+      "blocks": "Rebuilding the Racer HUD from the repo later",
+      "when": "Any time after the compat check.",
+      "steps": [
+        "In Explorer open ServerStorage > RacerHudStash.",
+        "Select the five ScreenGuis, right-click > Save to File, and save them as `~/Documents/RobloxGames/drafts/ui/racer-hud/RacerHudGuis.rbxm`.",
+        "Tell Claude; it adds the file to branch studio/racer-hud-ui.",
+        "To use the HUD in the place again, drag the five ScreenGuis back into StarterGui."
+      ],
+      "status": "open",
+      "added": "2026-10-05T20:00:00-07:00",
+      "by": "Claude"
+    },
+    {
+      "id": "save-place-spawn",
+      "title": "Save the place after the stray spawn was deleted",
+      "priority": "high",
+      "why": "Claude deleted the stray Workspace.SpawnLocation (-2, 0.5, -2) in Edit mode. Studio only keeps that change if you save; otherwise it comes back next time and the spawn_area test fails again.",
+      "blocks": "Keeping spawn_area green (exactly one spawn in the game)",
+      "when": "After the compat check finishes (play stopped), not during a test run.",
+      "steps": [
+        "Make sure play is stopped (Edit mode).",
+        "Check Explorer: Workspace has no `SpawnLocation` directly under it (Workspace.SpawnArea is built only during play).",
+        "Press Ctrl+S (File > Save to Roblox) to save the place.",
+        "Mark this done."
+      ],
+      "status": "done",
+      "added": "2026-10-05T06:30:00-07:00",
+      "by": "Claude",
+      "doneBy": "Alex Nguyen",
+      "doneAt": "2026-10-05T08:30:00-07:00",
+      "verified": "Claude, 2026-10-05: after a Studio restart the place has exactly one SpawnLocation (SpawnArea.Spawn) during play."
+    },
+    {
+      "id": "duplicate-baseplate",
+      "title": "Remove the extra Baseplate saved in the place",
+      "priority": "low",
+      "why": "world-tester found two identical Workspace.Baseplate parts (2048x16x2048 at 0,-8,0), both purple-ish (180,107,191) instead of the green Rojo defines in default.project.json. One is most likely an old Baseplate saved in the place file next to the Rojo one. Harmless for physics, but it z-fights and hides the intended green ground.",
+      "blocks": "Nothing (cosmetic, keeps the place matching the repo)",
+      "when": "With the place save after the compat check (Studio in Edit mode).",
+      "steps": [
+        "In Edit mode, select Workspace and look for two children named `Baseplate`.",
+        "Decide which ground colour you want: green (the repo's default.project.json) or purple. If purple is intended, tell Claude so it updates default.project.json instead.",
+        "Delete the one that is NOT managed by Rojo (Rojo recreates its own on sync; if unsure, delete one, wait a few seconds and check one Baseplate remains).",
+        "Save the place (Ctrl+S)."
+      ],
+      "status": "open",
+      "added": "2026-10-05T07:30:00-07:00",
+      "by": "Claude"
+    },
+    {
       "id": "reopen-studio",
       "title": "Reopen Studio so the compat check can finish",
       "priority": "high",
@@ -13,9 +106,11 @@
         "Optional but recommended: in the Explorer, delete `Workspace.SpawnLocation` (the default spawn at -2, 0.5, -2; NOT `Workspace.SpawnArea.Spawn`) and save the place (Ctrl+S). It is the only harness failure: the game must have exactly one spawn. If you skip this, Claude deletes it in Edit mode and asks you to save.",
         "Tell Claude \"Studio is open\"."
       ],
-      "status": "open",
+      "status": "done",
       "added": "2026-10-05T06:05:00-07:00",
-      "by": "Claude"
+      "by": "Claude",
+      "doneBy": "Alex Nguyen",
+      "doneAt": "2026-10-05T06:30:00-07:00"
     },
     {
       "id": "hatchback-import",

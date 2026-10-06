@@ -52,7 +52,7 @@ local Config = {
 	ReverseTopSpeed = 30,
 	BrakeAccel = 120,
 	AeroDrag = 0.0004, -- accel = AeroDrag * speed^2
-	RollingDrag = 0.15, -- 1/s, only when coasting
+	RollingDrag = 1.0, -- 1/s, only with no throttle and no brake (parked / manual coast); kills creep after landing
 
 	-- Steering
 	MaxSteer = math.rad(30),

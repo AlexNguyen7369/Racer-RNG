@@ -18,8 +18,9 @@
 15. 2026-10-05 — Alex Nguyen — Built upgrade tree phase 1 test-first (design doc with RNG Heroes and Anime Dice references, UpgradeConfig, UpgradeTree pure rules, UpgradeService stubs; `upgrades` 49/49 after a red run).
 16. 2026-10-05 — Alex Nguyen — Baked and exported the Rusty Hatchback for Studio headlessly (blender/exports/rusty_hatchback/RustyHatchback.fbx, 6.6 studs long); the Studio import is pending.
 17. 2026-10-05 — Alex Nguyen — Added a "Needs you" tab to the agent dashboard listing hand-done tasks with step-by-step directions.
+18. 2026-10-05 — Alex Nguyen — Fixed compat-check findings (fly icon now lands on INDEX, harness isolation from the real Studio player, spawn landing wait, coast drag) to a full harness of 24/24, and saved the Studio-built Racer HUD scripts on branch `studio/racer-hud-ui`; UI, multiplayer and world suites not completed, so `main` was not pushed.
 
 ## What's next
-**Finish the /compat-check for fingerprint e100816666cf (delete the stray Workspace.SpawnLocation, rerun the full harness, then the ui, multiplayer and world suites) and push `initial-import` to `main` once it is ALL GREEN.**
+**Make the Studio place run exactly the repo client (decide the Racer HUD: re-enable SpeedHud, AutoRaceButton, IndexUi, StatsUi and RollUi and stash the HUD ScreenGuis, after confirming nobody else edits this Studio), then finish /compat-check for `initial-import` (harness, UI, multiplayer with one auto race, world) and push it to `main`.**
 
-**Why this is next:** the first full harness run passed 23 of 24 (roll animation and upgrades included; only the stray spawn failed), but the live suites were cut off, so `main` still carries the unverified roll animation and the upgrade tree phase 2, the hatchback hookup and the bottom HUD rework all build on a verified `main`.
+**Why this is next:** the harness is green (24/24) for this code but the live suites could not run because the place diverged from the repo, so `main` still carries the unverified roll animation, and upgrade tree phase 2, the hatchback hookup and the Racer HUD all build on a verified `main`.
