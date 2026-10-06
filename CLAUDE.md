@@ -103,6 +103,7 @@ Only `test-writer` edits tests. Never change `PhysicsTargets.luau` to make a tes
 
 ## Dashboard TODO (always keep current)
 `tools/dashboard/data/todo.json` is the team's TODO board (statuses `doing`, `next`, `backlog`, `done`). Claude updates it in the same step as `ProjectContext.luau`: at the end of every loop move finished items to `done` (with `done` date), the next one to `doing`, and add new follow-ups or known issues. Never edit or remove a suggestion someone marked `added` or `dismissed` in `data/suggestions.json`. Whenever Claude needs the developer to do something by hand (Studio imports, settings, accounts, decisions), it adds it to `data/manual.json` (the dashboard's "Needs you" tab) with `why`, `blocks`, `when` and numbered `steps`, and marks it `done` once it has verified the result. A new test scenario needs an entry in `data/tests_explained.json`.
+`README.md`'s TODO section (between the `TODO:START`/`TODO:END` markers) is generated from `todo.json` by `tools/readme_sync.py`; the dashboard, a PostToolUse hook and `.githooks/pre-commit` run it, so never edit that block by hand. When a feature ships, also update the hand-written "Features implemented" section of `README.md`.
 
 ## Conventions
 - `.luau` files, tabs, `--!nonstrict` header. Server decides every number that matters; the client only displays (see the design doc's technical section).

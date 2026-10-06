@@ -1,0 +1,15 @@
+#!/bin/sh
+# Keeps the generated TODO section of README.md in step with tools/dashboard/data/todo.json (tools/readme_sync.py).
+# Enabled with: git config core.hooksPath .githooks
+root="$(git rev-parse --show-toplevel)"
+if python3 "$root/tools/readme_sync.py" --check >/dev/null 2>&1; then
+	exit 0
+fi
+if git -C "$root" diff --quiet -- README.md; then
+	python3 "$root/tools/readme_sync.py" >/dev/null && git -C "$root" add README.md
+	echo "pre-commit: README.md TODO section regenerated from todo.json and staged."
+	exit 0
+fi
+python3 "$root/tools/readme_sync.py" >/dev/null
+echo "pre-commit: README.md TODO section was out of date and README.md has unstaged edits; regenerated it. Review, git add README.md, and commit again." >&2
+exit 1

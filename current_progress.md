@@ -20,6 +20,7 @@
 17. 2026-10-05 — Alex Nguyen — Added a "Needs you" tab to the agent dashboard listing hand-done tasks with step-by-step directions.
 18. 2026-10-05 — Alex Nguyen — Fixed compat-check findings (fly icon now lands on INDEX, harness isolation from the real Studio player, spawn landing wait, coast drag) to a full harness of 24/24, and saved the Studio-built Racer HUD scripts on branch `studio/racer-hud-ui`; UI, multiplayer and world suites not completed, so `main` was not pushed.
 19. 2026-10-05 — Alex Nguyen — Re-enabled the five repo UI scripts in the place, passed /compat-check ALL GREEN for fingerprint f11ddc2d32ad (harness 24/24, UI 16/16 with 25 clicks, multiplayer and world green on a live race) and pushed `initial-import` to `main`, verifying the roll animation and upgrade tree phase 1.
+20. 2026-10-05 — Alex Nguyen — Added a README with the project vision, implemented and planned features, and a TODO section regenerated from the dashboard board by tools/readme_sync.py (run by the dashboard, a Claude Code hook and a pre-commit hook).
 
 ## What's next
 **Build upgrade tree phase 2 test-first: UpgradeService (validated BuyUpgrade, BestTrack, TurboCount), its effects in GachaService, CarService and RaceService, and PlayerData VERSION 4, per docs/UPGRADE_TREE_DESIGN.md.**

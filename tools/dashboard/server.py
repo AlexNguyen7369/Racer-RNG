@@ -8,7 +8,8 @@ commit history, the compat gate, the TODO list, feature suggestions and the test
   python3 tools/dashboard/server.py --lan --lan-write   others on the network may also edit TODO / suggestions
 
 Stdlib only. Reads Claude Code transcripts from ~/.claude/projects/<this repo>/, git, .compat/ and the repo files.
-Writes only tools/dashboard/data/todo.json, suggestions.json and manual.json (checked in, so the team shares them).
+Writes only tools/dashboard/data/todo.json, suggestions.json and manual.json (checked in, so the team shares them),
+plus the generated TODO section of README.md after every TODO change (tools/readme_sync.py).
 """
 import argparse
 import datetime
@@ -36,6 +37,7 @@ TRANSCRIPTS = os.path.join(os.path.expanduser("~"), ".claude", "projects", re.su
 
 sys.path.insert(0, os.path.join(ROOT, "tools"))
 import compat  # noqa: E402  (fingerprints and the green stamp)
+import readme_sync  # noqa: E402  (README.md TODO section mirrors todo.json)
 
 RUNNING_SECONDS = 120  # a transcript written to this recently, without a final report, counts as running
 WRITE_LOCK = threading.RLock()  # re-entrant: adding a suggestion writes the TODO inside the same lock
@@ -499,6 +501,7 @@ def todo_action(body):
                 return {"error": "bad action"}
             item["updated"], item["updatedBy"] = at, by
         write_json(TODO_FILE, data)
+        readme_sync.sync()
         return data
 
 
