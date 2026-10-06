@@ -3,7 +3,7 @@
 PROJECT CONTEXT - Idle Vehicle Simulator (read me first)
 Shown in Studio at: ServerScriptService > ProjectContext   (source file: context/ProjectContext.luau)
 Do NOT edit this in Studio: edit the file on disk, Rojo syncs it. Claude updates it at the end of every loop.
-Last updated: 2026-10-02 (spawn area, banked winnings, turbo luck, roll showcase, race start event: /compat-check ALL GREEN, fingerprint 736c261dea05)
+Last updated: 2026-10-06 (upgrade tree phase 2 + Mechanical Workshop phase 1 implemented, not yet run in Studio)
 
 WHAT IT IS
 A baby-blue mini car auto-races a chain of tracks (Oval -> Hill -> ...). No steering: the car drives itself,
@@ -25,6 +25,12 @@ Agent dashboard for every collaborator: python3 tools/dashboard/server.py (or /d
 Shows subagent progress and messages, uncommitted changes, commit history (developer, date, green/local), the compat
 gate light, the shared TODO board (tools/dashboard/data/todo.json, Claude keeps it current) and suggested features
 (/refresh-suggestions), and every test explained. Not under src/, so it never changes the compat fingerprint.
+TEAM & GITHUB (2026-10-06): dashboard tab "Team & branches" + tools/collab.py. New features start on their own branch
+feature/<handle>/<slug> from origin/main (dashboard form, moving a TODO card to Doing, /feature, or `python3 tools/collab.py
+start "Title"`): an empty "Start feature" commit carries Feature-Title / Initiated-By trailers, it is pushed to GitHub and the
+TODO card shows owner + branch. The tab fetches origin every 2 min and shows every unmerged branch: who started it, who
+commits on it, systems touched, ahead/behind main, files that overlap your work, real merge conflicts, Rojo/Studio warnings,
+handoff notes. People: tools/dashboard/data/team.json (Isaac Li = @issacli). Git actions only from the local machine.
 
 RULES (details: CLAUDE.md "Track rules" and "Auto race, Speed stat and HUD")
 - Tracks: numbered, point-to-point, finish of track N is the start of track N+1; last straight >= CHECKPOINT_LENGTH+4.
@@ -212,7 +218,13 @@ TODO (in order)
    save v4, tests, phases). PHASE 1 GREEN (2026-10-05): Shared/UpgradeConfig (data) + Shared/UpgradeTree (pure rules) implemented;
    harness `upgrades` red run (44 fails, stubs) then green 49/49 (`[CARTEST] END pass=3 fail=0` with track:Hill/Oval), test-writer
    audit OK. Server/UpgradeService is still stubs (not required by Main). Next: phase 2 (server, effects, save v4); the FULL harness
-   and /compat-check have NOT been run with these changes. Was QUEUED (owner, 2026-10-02): (Luck %, roll speed, Speed %, turbo luck x10/x50/x100/x1000 with more rolls per
+   and /compat-check have NOT been run with these changes.
+   PHASE 2 IMPLEMENTED 2026-10-06, NOT VERIFIED (Studio was not connected): Server/UpgradeService (BuyUpgrade RemoteFunction,
+   rate limit, gate with SetTrackCount(#chain), BestTrack via RaceService on a won/finished track, TurboCount turbo rolls,
+   UpgradesBuyable badge), GachaConfig.Multis(alloc, bonuses) adds tree %, GachaService uses the tree for Luck/Money/Speed multis,
+   per-player turbo tier and roll interval (3 s -> 2 s), CarService on-foot WalkSpeed, PlayerData VERSION 4, RollUi bar reads
+   TurboCount/TurboEvery, /wipe clears the tree. test-writer wrote the phase 2 tests in the same round; NO red or green run seen.
+   Next: full harness in Studio, then phase 3 (UPGRADES button + hex panel + world pad) and /compat-check. Was QUEUED (owner, 2026-10-02): (Luck %, roll speed, Speed %, turbo luck x10/x50/x100/x1000 with more rolls per
    turbo each tier, walkspeed, Money %). Spec + open questions: docs/UPGRADE_TREE_SPEC.md; references in references/upgrade_tree/.
 7. IN PROGRESS, PUSHED UNTESTED (see URGENT at the top): roll animation + roll UI (compact card under Auto Race, enlarged reveal, spin reel, rarity
    effects, emphasized rolls = undiscovered and rarer than the 5th-rarest owned car, global chat announce, discovery cutscene).
@@ -223,8 +235,23 @@ TODO (in order)
    restyle, Wheel_FL/FR/RL/RR). 2026-10-05: baked + exported headless (blender/scenes/export_rusty_hatchback.py -> blender/exports/rusty_hatchback/
    RustyHatchback.fbx, 6.6 studs long). Next: owner does Studio File > Import 3D, then Claude finishes it as CarModels.RustyHatchback
    (steps in drafts/cars/rusty-hatchback/DRAFT.md), maps CarModels to assets/CarModels in Rojo, sets Model in Cars/rusty_hatchback.luau. Blender MCP add-on updated to protocol 13; Poly Pizza on.
+9. STARTED 2026-10-06 (owner brief): Mechanical Workshop. Spec: docs/WORKSHOP_SPEC.md. 7 plots in the spawn area, max 7 players
+   (server size set by hand: dashboard "Needs you"). The spawn floor grew to (24,-188)..(252,44) = 228 x 232; the old floor is
+   SpawnArea.HUB_MIN/MAX and keeps the spawn (same position). Shared/WorkshopConfig (plots, zone 32x12x32, BASE_RATE 1/s, levels),
+   Shared/Workshop (pure: PlotCFrame, ZoneBounds, InZone, FreePlot, CleanLevel, LevelMulti, Rate), Shared/WorkshopBuilder (plot +
+   level-1 workshop, all anchored, open front toward the hub), Server/WorkshopService (Workspace.Workshops.Plot_1..7, lowest free plot
+   on join after the save loads, freed on leave, server zone check every 0.5 s pays BASE_RATE x SpeedMulti x W x Workshop points /
+   (1 + stat/GAIN_SOFT)). Player attributes Plot, WorkshopLevel (saved, v4), InWorkshop, WorkshopRate. NOT VERIFIED (no Studio run).
+   Open (owner): BASE_RATE, level prices, offline earnings.
 
 KNOWN ISSUES / NOT VERIFIED
+- 2026-10-06 /compat-check (upgrade tree phase 2 + workshop phase 1), NOT GREEN, main not cleared:
+  round 1 (0354a64af31e): harness `[CARTEST] END pass=23 fail=2` (upgrades: badge did not follow Money for fake players,
+  walkspeed_after_buy was a test bug (tier IV gated at BestTrack 0); workshop: Rate sign empty until in the zone). Fixed.
+  round 2 (96313e6fc99c): harness `[CARTEST] END pass=24 fail=1`: upgrades 96/96, workshop 55/55, every car/race/track
+  scenario green; spawn_area respawn_on_foot_standing_height 5.034 (band 1.5..5), green in round 1, avatar rests at ~3.8
+  afterwards: probably measured while still settling (unproven flake). ui / multiplayer / world suites NOT run (stopped by
+  the owner). The phase 2 / workshop tests were never seen red (written while the implementation was being written).
 - 2026-10-01: another session is building gacha/index (scenarios gacha, index in TestConfig, red) and shares the same Studio; runs
   collide. Nothing can be ALL GREEN (so nothing can go to main) until gacha/index are implemented and one run has Studio to itself.
 - NPC client view and LoserScreen are untested live (ui-tester / multiplayer-tester not run yet).
@@ -235,7 +262,7 @@ KNOWN ISSUES / NOT VERIFIED
   after the landing pitch kick, damped only by RollingDrag 0.15/s (DampingRatio is 0.6 on purpose since the half-size retune; the old
   "raised to 1.0" note was stale). Fix 2026-10-05: RollingDrag 1.0 (only acts with throttle 0 and brake 0). Being verified in /compat-check.
 - Real DataStore saving untested (Studio blocks it by default). Only a stubbed store is tested.
-- Nothing raises the Speed stat except driving; no upgrade shop yet. Circuit and Serpentine do not follow the track rules.
+- Circuit and Serpentine do not follow the track rules.
 - Visuals (checkpoint, pad, HUD) are checked by numbers and live reads, not by eye.
 
 HOW TO RUN TESTS
@@ -244,6 +271,6 @@ Read "[CARTEST] ..." lines and "[CARTEST] END pass=N fail=N". A full run takes 1
 ]=]
 
 return {
-	Updated = "2026-10-02",
+	Updated = "2026-10-06",
 	Read = "Open this script and read the comment block above.",
 }

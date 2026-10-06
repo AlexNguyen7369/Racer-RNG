@@ -56,7 +56,7 @@ A command with no target argument acts on the sender. The sender may be a test s
 | `/give <carId\|all> [target]` | `GachaService.Grant` the car (or every rollable car). Unknown / starter id -> `false`. StatPoints update as usual. |
 | `/equip <carId> [target]` | `GachaService.Equip`; not owned / unknown -> `false`. |
 | `/roll [count] [target]` | `GachaService.Roll` count times (default 1, 1..`MAX_ROLLS`). |
-| `/wipe [target]` | Money 0, Speed 0, `GachaService.Apply(player, {})` (no cars, no allocations, Rolls 0, starter equipped). |
+| `/wipe [target]` | Money 0, Speed 0, `GachaService.Apply(player, {})` (no cars, no allocations, Rolls 0, starter equipped), `UpgradeService.Apply(player, {})` (no upgrade tiles, BestTrack 0, TurboCount 0). |
 | `/tp <trackNumber> [target]` | `RunOf(target):JumpToTrack(n)`; no run or bad number -> `false`. |
 
 ### `RaceService` run: `run:JumpToTrack(number) -> boolean`

@@ -13,15 +13,37 @@
       "updatedBy": "Alex Nguyen"
     },
     {
+      "id": "workshop",
+      "title": "Mechanical Workshop: 7 plots in the spawn area",
+      "detail": "Spec: docs/WORKSHOP_SPEC.md. Phase 1 (2026-10-06) IMPLEMENTED, NOT VERIFIED: spawn floor grown to 228 x 232 with the old floor kept as the hub, 7 plots (WorkshopConfig), each joining player gets the lowest free plot with a level-1 workshop, empty plots show EMPTY PLOT, server-side zone check pays idle Speed (BASE_RATE 1/s x Speed multi x W x Workshop points, same diminishing term as racing), WorkshopLevel saved in PlayerData v4. Next: full harness in Studio (`workshop`, `spawn_area`, `data`), world-tester walk check. Open: BASE_RATE, level prices, offline earnings.",
+      "status": "doing",
+      "source": "Owner brief 2026-10-06",
+      "by": "Alex Nguyen",
+      "added": "2026-10-06T12:00:00-07:00",
+      "updated": "2026-10-06T12:00:00-07:00",
+      "updatedBy": "Claude"
+    },
+    {
+      "id": "workshop-phase2",
+      "title": "Workshop phase 2: HUD line, level upgrades, offline earnings",
+      "detail": "IN WORKSHOP +N Speed/s HUD line (ui-test-writer first), workshop levels bought with Money once the owner sets prices (placeholder: W x2, price x5 per level), offline earnings and a welcome-back screen (design doc: 25 %, 8 h cap).",
+      "status": "backlog",
+      "source": "docs/WORKSHOP_SPEC.md section 8",
+      "by": "Claude",
+      "added": "2026-10-06T12:00:00-07:00",
+      "updated": "2026-10-06T12:00:00-07:00",
+      "updatedBy": "Claude"
+    },
+    {
       "id": "upgrade-tree",
       "title": "Money upgrade tree",
-      "detail": "Design: docs/UPGRADE_TREE_DESIGN.md. Phase 1 GREEN 2026-10-05: UpgradeConfig + UpgradeTree implemented, `upgrades` 49/49 after a red run, audit OK. Next: phase 2 (UpgradeService, effects in Gacha/Car/RaceService, TurboCount, PlayerData v4) test-first; then UI (phase 3) and /compat-check.",
+      "detail": "Design: docs/UPGRADE_TREE_DESIGN.md. Phase 1 GREEN 2026-10-05 (`upgrades` 49/49). Phase 2 (2026-10-06) IMPLEMENTED, NOT VERIFIED: UpgradeService (BuyUpgrade, BestTrack, TurboCount), effects in Gacha/Car/Race/MoneyService, PlayerData v4, RollUi reads TurboCount/TurboEvery; test-writer's phase 2 tests written while Studio was offline, so no red run was seen. Next: run the full harness in Studio, then phase 3 (UI + world pad) and /compat-check.",
       "status": "doing",
       "source": "ProjectContext TODO 6",
       "by": "Alex Nguyen",
       "added": "2026-10-05T00:00:00-07:00",
-      "updated": "2026-10-05T04:00:00-07:00",
-      "updatedBy": "Alex Nguyen"
+      "updated": "2026-10-06T12:00:00-07:00",
+      "updatedBy": "Claude"
     },
     {
       "id": "hud-rework",
@@ -133,6 +155,28 @@
       "by": "Alex Nguyen",
       "added": "2026-10-05T21:00:00-07:00",
       "updated": "2026-10-05T21:00:00-07:00"
+    },
+    {
+      "id": "team-branches",
+      "title": "Dashboard Team tab: GitHub sync, labelled feature branches, collaborator overview",
+      "detail": "tools/collab.py + Team & branches tab: start feature/<handle>/<slug> from origin/main (form, TODO card Branch button, moving a card to Doing, /feature), Initiated-By trailers, background fetch, push / switch, every unmerged branch with initiator, committers, systems, overlap and merge conflicts with your work, Rojo/Studio warnings, handoff notes. People in data/team.json. Tested in a sandbox clone with a local origin.",
+      "status": "done",
+      "source": "Owner brief 2026-10-06",
+      "by": "Alex Nguyen",
+      "added": "2026-10-06T02:05:00-07:00",
+      "updated": "2026-10-06T02:05:00-07:00",
+      "done": "2026-10-06T02:05:00-07:00",
+      "updatedBy": "Alex Nguyen"
+    },
+    {
+      "id": "isaac-draft05",
+      "title": "Review and merge Isaac's studio/draft05-cars-ui (Draft05 cars + Racer UI)",
+      "detail": "Isaac Li (@issacli), 2 commits on 2026-10-06, 2 ahead / 0 behind main. Adds 7 Blender cars (assets/studio/CarModels.rbxm), redesigned Racer UI under RollToast (8 UI modules + StarterGui.rbxm), Shared/CarAppearance (cosmetic model welded on the physics chassis; CarService applies it on spawn and on EquippedCar change), and default.project.json maps CarModels + StarterGui and disables 5 legacy client scripts. Not compat-checked (his handoff says so). Overlaps our uncommitted CarService, ProjectContext, README, todo.json; git conflict with current_progress.md. His branch does not touch src/client/UiTest, and UiSpec still expects the IndexUi / StatsUi / AutoRaceButton ScreenGuis whose scripts he disables, so the UI suite will likely fail until ui-test-writer updates it. Handoff: docs/DRAFT05_HANDOFF.md on his branch.",
+      "status": "next",
+      "source": "Team tab overview",
+      "by": "Alex Nguyen",
+      "added": "2026-10-06T02:05:00-07:00",
+      "updated": "2026-10-06T02:05:00-07:00"
     }
   ]
 }

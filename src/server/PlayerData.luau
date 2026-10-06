@@ -1,5 +1,6 @@
 --!nonstrict
--- Saved player stats: Money, Speed and the car gacha (inventory, equipped car, rolls, stat allocation) (a continuous stat that grows while the car drives and sets the
+-- Saved player stats: Money, Speed, the car gacha (inventory, equipped car, rolls, stat allocation), the upgrade tree
+-- (owned tiles, BestTrack, TurboCount) and the workshop level. Speed is a continuous stat that grows while the car drives and sets the
 -- auto-race cruise speed, see RaceConfig). The server owns them: leaderstats replicate down to clients, nothing a client sends ever changes a value. Data is
 -- kept in a DataStore; if the store cannot be read (Studio without API access, outage) the player is
 -- flagged DataFailed and their stats are never written, so a failed load can not wipe a save.
@@ -8,14 +9,17 @@ local DataStoreService = game:GetService("DataStoreService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local RaceConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("RaceConfig"))
+local Shared = ReplicatedStorage:WaitForChild("Shared")
+local RaceConfig = require(Shared:WaitForChild("RaceConfig"))
+local Workshop = require(Shared:WaitForChild("Workshop"))
 local MoneyService = require(script.Parent.MoneyService)
 local GachaService = require(script.Parent.GachaService)
+local UpgradeService = require(script.Parent.UpgradeService)
 
 local PlayerData = {}
 
 local STORE_NAME = "PlayerStats_v1"
-local VERSION = 3 -- 3: car inventory, equipped car, roll count and stat allocation (GachaService)
+local VERSION = 4 -- 3: car gacha (GachaService); 4: upgrade tree (UpgradeService) and WorkshopLevel
 local MAX_MONEY = 1e12
 local MAX_ADD = 1e6 -- most a single AddSpeed call may add
 local AUTOSAVE_SECONDS = 60
@@ -105,6 +109,8 @@ function PlayerData.Load(player, userId)
 	money.Value = cleanInt(data.Money, 0, MAX_MONEY, 0)
 	speed.Value = cleanStat(data.Speed)
 	GachaService.Apply(player, data) -- older saves have no gacha fields: starter car, nothing allocated
+	UpgradeService.Apply(player, data) -- version 3 and older: no tiles, BestTrack 0, TurboCount from Rolls % 10
+	player:SetAttribute("WorkshopLevel", Workshop.CleanLevel(data.WorkshopLevel)) -- missing = the starter workshop
 	player:SetAttribute("DataLoaded", true)
 	return true
 end
@@ -124,6 +130,7 @@ function PlayerData.Save(player, userId)
 	local money = MoneyService.Setup(player)
 	local speed = speedValue(player)
 	local gacha = GachaService.Snapshot(player)
+	local upgrades = UpgradeService.Snapshot(player)
 	local payload = {
 		Money = cleanInt(money.Value, 0, MAX_MONEY, 0),
 		Speed = cleanStat(speed.Value),
@@ -131,6 +138,10 @@ function PlayerData.Save(player, userId)
 		Equipped = gacha.Equipped,
 		Rolls = gacha.Rolls,
 		StatAlloc = gacha.StatAlloc,
+		Upgrades = upgrades.Upgrades,
+		BestTrack = upgrades.BestTrack,
+		TurboCount = upgrades.TurboCount,
+		WorkshopLevel = Workshop.CleanLevel(player:GetAttribute("WorkshopLevel")),
 		Version = VERSION,
 	}
 	local ok = pcall(function()

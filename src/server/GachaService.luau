@@ -13,6 +13,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local CarCatalog = require(Shared.CarCatalog)
 local GachaConfig = require(Shared.GachaConfig)
 local RollAnimConfig = require(Shared.RollAnimConfig)
+local UpgradeService = require(script.Parent.UpgradeService)
 
 local GachaService = {}
 
@@ -164,13 +165,14 @@ function GachaService.Announce(player, id, rolls)
 	end
 end
 
--- One roll at the player's luck, times GachaConfig.TURBO_LUCK on every TURBO_EVERY-th roll. Returns the car Id,
+-- One roll at the player's luck, times the Turbo tier's Multi on every turbo roll (UpgradeService.AdvanceTurbo: the
+-- player's TurboCount reaches the tier's Every; x5 every 10th roll with no Turbo tier). Returns the car Id,
 -- whether it was new, the turbo multi (1 on a normal roll) and whether it is emphasized (GachaConfig.IsEmphasized:
 -- played enlarged and announced to the whole server).
 function GachaService.Roll(player, roller)
 	GachaService.Setup(player)
 	local rollNumber = math.min(cleanCount(player:GetAttribute("Rolls")) + 1, MAX_COUNT)
-	local turboMulti = GachaConfig.IsTurbo(rollNumber) and GachaConfig.TURBO_LUCK or 1
+	local turboMulti = UpgradeService.AdvanceTurbo(player)
 	local id = GachaConfig.Roll(roller or rng, GachaService.Luck(player) * turboMulti)
 	local emphasized = GachaConfig.IsEmphasized(id, ownedIds(player))
 	player:SetAttribute("Rolls", rollNumber)
@@ -222,15 +224,20 @@ end
 function GachaService.SpeedMulti(player)
 	local spec = CarCatalog.Get(player:GetAttribute("EquippedCar"))
 	local carMulti = spec and owns(player, spec.Id) and spec.SpeedMulti or 1
-	return carMulti * GachaConfig.Multis(alloc(player)).Speed
+	return carMulti * GachaConfig.Multis(alloc(player), UpgradeService.Bonuses(player)).Speed
 end
 
 function GachaService.MoneyMulti(player)
-	return GachaConfig.Multis(alloc(player)).Money
+	return GachaConfig.Multis(alloc(player), UpgradeService.Bonuses(player)).Money
 end
 
 function GachaService.Luck(player)
-	return GachaConfig.Multis(alloc(player)).Luck
+	return GachaConfig.Multis(alloc(player), UpgradeService.Bonuses(player)).Luck
+end
+
+-- The Workshop multi: Workshop stat points (the tree has no Workshop branch). Used by WorkshopService.
+function GachaService.WorkshopMulti(player)
+	return GachaConfig.Multis(alloc(player)).Workshop
 end
 
 -- The save format: { Cars = { id, ... } (sorted), Equipped = id, Rolls = n, StatAlloc = { [stat] = n } }.
@@ -302,11 +309,20 @@ function GachaService.Apply(player, saved)
 	refreshPoints(player)
 end
 
--- Seconds to wait after a roll before the next one: ROLL_INTERVAL, longer when that roll's animation is longer
--- (RollAnimConfig.ExtraPause), so the next roll never covers one still playing.
-function GachaService.WaitAfter(id, emphasized)
+-- Seconds between rolls for a player: UpgradeService.RollInterval (3 s, down to 2 s with Roll Speed tiers);
+-- GachaConfig.ROLL_INTERVAL when no player is given.
+function GachaService.RollInterval(player)
+	if typeof(player) == "Instance" then
+		return UpgradeService.RollInterval(player)
+	end
+	return GachaConfig.ROLL_INTERVAL
+end
+
+-- Seconds to wait after a roll before the next one: the player's roll interval, longer when that roll's animation is
+-- longer (RollAnimConfig.ExtraPause), so the next roll never covers one still playing.
+function GachaService.WaitAfter(id, emphasized, player)
 	local spec = CarCatalog.Get(id)
-	return GachaConfig.ROLL_INTERVAL + RollAnimConfig.ExtraPause(spec and spec.Rarity, emphasized == true)
+	return GachaService.RollInterval(player) + RollAnimConfig.ExtraPause(spec and spec.Rarity, emphasized == true)
 end
 
 -- Rolls every GachaService.WaitAfter(last roll) seconds while the player's AutoRoll is on, until handle:Stop() (or
@@ -317,14 +333,14 @@ function GachaService.StartAutoRoll(player, roller)
 		self.Running = false
 	end
 	task.spawn(function()
-		local wait = GachaConfig.ROLL_INTERVAL
+		local wait = GachaService.RollInterval(player)
 		while handle.Running and player.Parent do
 			task.wait(wait)
-			wait = GachaConfig.ROLL_INTERVAL
+			wait = GachaService.RollInterval(player) -- read every roll: a Roll Speed purchase applies at once
 			if handle.Running and player.Parent and player:GetAttribute("AutoRoll") ~= false then
 				local id, _, _, emphasized = GachaService.Roll(player, roller)
 				handle.Rolls += 1
-				wait = GachaService.WaitAfter(id, emphasized)
+				wait = GachaService.WaitAfter(id, emphasized, player)
 			end
 		end
 	end)
@@ -378,6 +394,7 @@ function GachaService.Start()
 
 	local function onPlayer(player)
 		GachaService.Setup(player)
+		UpgradeService.Setup(player)
 		-- Rolling before the save is loaded would be overwritten by the load: wait for it (or for it to fail,
 		-- then the player still rolls but nothing is saved).
 		task.spawn(function()

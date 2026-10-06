@@ -31,5 +31,6 @@ return {
 		"admin",
 		"roll_anim",
 		"upgrades",
+		"workshop",
 	},
 }

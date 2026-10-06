@@ -22,6 +22,7 @@ local CarFactory = require(Shared.CarFactory)
 local SpawnArea = require(Shared.SpawnArea)
 local PlayerData = require(script.Parent.PlayerData)
 local RaceService = require(script.Parent.RaceService)
+local UpgradeService = require(script.Parent.UpgradeService)
 local TrackBuilder = require(Shared.TrackBuilder)
 
 local CarService = {}
@@ -115,7 +116,15 @@ local function hideCharacter(character)
 	end
 end
 
-local function showCharacter(character)
+-- On-foot WalkSpeed: the player's Walkspeed upgrade tier (UpgradeService), the StarterPlayer default for fakes.
+local function walkSpeedOf(player)
+	if typeof(player) == "Instance" then
+		return UpgradeService.WalkSpeed(player)
+	end
+	return StarterPlayer.CharacterWalkSpeed
+end
+
+local function showCharacter(character, player)
 	local state = hidden[character]
 	if state then
 		hidden[character] = nil
@@ -131,7 +140,7 @@ local function showCharacter(character)
 	local humanoid = character:FindFirstChildOfClass("Humanoid")
 	if humanoid then
 		humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.Viewer
-		humanoid.WalkSpeed = StarterPlayer.CharacterWalkSpeed
+		humanoid.WalkSpeed = walkSpeedOf(player)
 		humanoid.JumpHeight = StarterPlayer.CharacterJumpHeight
 		humanoid.JumpPower = StarterPlayer.CharacterJumpPower
 	end
@@ -327,7 +336,7 @@ function standUp(player, gen)
 	if not character or not character.Parent then
 		return
 	end
-	showCharacter(character)
+	showCharacter(character, player)
 	local humanoid = character:FindFirstChildOfClass("Humanoid")
 	if humanoid then
 		unseat(humanoid)
@@ -383,6 +392,18 @@ function CarService.GetCar(player)
 	return cars[player]
 end
 
+-- The avatar CarService knows for this player (Attach / OnCharacter), else a real player's Character.
+function CarService.GetCharacter(player)
+	local character = characters[player]
+	if character and character.Parent then
+		return character
+	end
+	if typeof(player) == "Instance" and player:IsA("Player") then
+		return player.Character
+	end
+	return nil
+end
+
 function CarService.GetRun(player)
 	return runs[player]
 end
@@ -435,6 +456,10 @@ function CarService.OnCharacter(player, character)
 	character:WaitForChild("HumanoidRootPart")
 	if generation[player] ~= gen then
 		return
+	end
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if humanoid then
+		humanoid.WalkSpeed = walkSpeedOf(player)
 	end
 	placeAtWalkSpawn(player, character, gen)
 end
@@ -509,6 +534,14 @@ function CarService.Start()
 	for _, p in Players:GetPlayers() do
 		onPlayer(p)
 	end
+	-- A Walkspeed purchase applies at once to an avatar on foot (a hidden, riding avatar keeps WalkSpeed 0)
+	UpgradeService.OnChanged(function(player)
+		local character = characters[player]
+		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+		if humanoid and not hidden[character] then
+			humanoid.WalkSpeed = walkSpeedOf(player)
+		end
+	end)
 	PlayerData.OnLeaving(forget) -- before the leave save, so the run's last Speed gain is saved
 	Players.PlayerRemoving:Connect(forget)
 end

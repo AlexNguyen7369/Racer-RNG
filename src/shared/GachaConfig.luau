@@ -103,12 +103,18 @@ function GachaConfig.EarnedPoints(uniqueCount)
 	return math.floor(count(uniqueCount) / GachaConfig.DISCOVERIES_PER_POINT)
 end
 
--- Multis from allocated points: { Speed, Money, Luck, Workshop }, each 1 + points * PER_POINT.
-function GachaConfig.Multis(alloc)
+-- Multis from allocated points: { Speed, Money, Luck, Workshop }, each 1 + points * PER_POINT. `bonuses` (optional,
+-- the upgrade tree's UpgradeTree.Bonuses) is ADDED on top: 1 + points * PER_POINT + bonuses[stat].
+function GachaConfig.Multis(alloc, bonuses)
 	alloc = type(alloc) == "table" and alloc or {}
+	bonuses = type(bonuses) == "table" and bonuses or {}
 	local multis = {}
 	for _, stat in GachaConfig.STATS do
-		multis[stat] = 1 + count(alloc[stat]) * GachaConfig.PER_POINT[stat]
+		local extra = bonuses[stat]
+		if type(extra) ~= "number" or extra ~= extra or extra < 0 or extra == math.huge then
+			extra = 0
+		end
+		multis[stat] = 1 + count(alloc[stat]) * GachaConfig.PER_POINT[stat] + extra
 	end
 	return multis
 end

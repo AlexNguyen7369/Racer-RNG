@@ -17,6 +17,7 @@ local CarService = require(script.Parent.CarService)
 local GachaService = require(script.Parent.GachaService)
 local MoneyService = require(script.Parent.MoneyService)
 local PlayerData = require(script.Parent.PlayerData)
+local UpgradeService = require(script.Parent.UpgradeService)
 
 local AdminService = {}
 
@@ -285,7 +286,7 @@ AdminService.Commands = {
 	},
 	wipe = {
 		Usage = "/wipe [player]",
-		Help = "reset Money, Speed, cars and stat points",
+		Help = "reset Money, Speed, cars, stat points and upgrades",
 		Min = 0,
 		Max = 0,
 		Check = function()
@@ -295,6 +296,7 @@ AdminService.Commands = {
 			moneyValue(p).Value = 0
 			speedValue(p).Value = 0
 			GachaService.Apply(p, {})
+			UpgradeService.Apply(p, {}) -- after the gacha reset, so TurboCount starts from Rolls = 0
 			return true, "wiped"
 		end,
 	},

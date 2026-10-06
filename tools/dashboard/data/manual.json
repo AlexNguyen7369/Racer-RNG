@@ -1,6 +1,22 @@
 {
   "items": [
     {
+      "id": "max-players-7",
+      "title": "Set the server size to 7 players",
+      "priority": "medium",
+      "why": "Each player gets one of the 7 workshop plots in the spawn area (docs/WORKSHOP_SPEC.md). With a larger server, an 8th player would get no plot. Rojo can't set the server size, so it's set by hand in the place settings.",
+      "blocks": "Publishing a server with workshops (Studio tests are unaffected)",
+      "when": "Before the next publish.",
+      "steps": [
+        "In Studio, open Home > Game Settings > Places.",
+        "Open the place's settings (the ... button > Edit) and set Server Size (Max Players) to 7.",
+        "Save, then tell Claude \"server size 7\"."
+      ],
+      "status": "open",
+      "added": "2026-10-06T12:00:00-07:00",
+      "by": "Claude"
+    },
+    {
       "id": "rojo-connect",
       "title": "Click Connect in Studio's Rojo plugin",
       "priority": "high",

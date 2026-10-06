@@ -5,6 +5,8 @@
 -- Everything is placed in the local space of Track 1's Start part (forward -Z, right +X). Track 1's finish and
 -- Track 2 pass behind the start line, so the area sits to the RIGHT of the start straight and the pad fills the
 -- gap right behind the start line.
+-- Workshop plots (docs/WORKSHOP_SPEC.md, owner 2026-10-06): the floor was grown outward (+X) and forward (-Z) to hold
+-- the 7 plots (Shared/WorkshopConfig) in an L around the HUB, the old 160 x 144 floor, which keeps the spawn.
 
 local CollectionService = game:GetService("CollectionService")
 
@@ -12,8 +14,10 @@ local SpawnArea = {}
 
 SpawnArea.COLOR = Color3.fromRGB(140, 70, 220) -- purple, so the area is easy to tell apart (placeholder look)
 SpawnArea.PAD_COLOR = Color3.fromRGB(60, 220, 110)
-SpawnArea.AREA_MIN = Vector2.new(24, -100) -- local (x, z) corners of the floor: 160 x 144 studs
-SpawnArea.AREA_MAX = Vector2.new(184, 44)
+SpawnArea.AREA_MIN = Vector2.new(24, -188) -- local (x, z) corners of the floor: 228 x 232 studs (hub + plots)
+SpawnArea.AREA_MAX = Vector2.new(252, 44)
+SpawnArea.HUB_MIN = Vector2.new(24, -100) -- the part of the floor kept free of plots: spawn, StartPad side, upgrade pad
+SpawnArea.HUB_MAX = Vector2.new(184, 44)
 SpawnArea.PAD_MIN = Vector2.new(-20, 2) -- local (x, z) corners of the start platform: behind the start line,
 SpawnArea.PAD_MAX = Vector2.new(24, 38) -- from the road's left wall to the area
 SpawnArea.TOP_Y = 1 -- floor top = road top
@@ -28,7 +32,7 @@ local PAD_RAISE = 0.2
 local SPAWN_SIZE = 12
 local LABEL_DISTANCE = 150
 
--- Track 1's start, flattened: yaw only, at ground level
+-- Track 1's start, flattened: yaw only, at ground level (the local space every spawn-area and plot position uses)
 local function base(startCFrame)
 	local look = startCFrame.LookVector
 	local flat = Vector3.new(look.X, 0, look.Z)
@@ -36,6 +40,8 @@ local function base(startCFrame)
 	local p = Vector3.new(startCFrame.Position.X, 0, startCFrame.Position.Z)
 	return CFrame.lookAt(p, p + flat)
 end
+
+SpawnArea.Base = base
 
 local function world(startCFrame, x, z, y)
 	local p = base(startCFrame):PointToWorldSpace(Vector3.new(x, 0, z))
@@ -63,9 +69,9 @@ local function centre(min, max)
 	return (min + max) / 2
 end
 
--- Where an avatar stands in the area: the middle of the floor, facing the start platform.
+-- Where an avatar stands in the area: the middle of the hub, facing the start platform.
 function SpawnArea.WalkCFrame(startCFrame)
-	local c = centre(SpawnArea.AREA_MIN, SpawnArea.AREA_MAX)
+	local c = centre(SpawnArea.HUB_MIN, SpawnArea.HUB_MAX)
 	local pad = centre(SpawnArea.PAD_MIN, SpawnArea.PAD_MAX)
 	local y = SpawnArea.TOP_Y + SpawnArea.WALK_ROOT_HEIGHT
 	local pos = world(startCFrame, c.X, c.Y, y)
@@ -109,7 +115,7 @@ function SpawnArea.Build(startCFrame)
 		edge.Material = Enum.Material.SmoothPlastic
 	end
 
-	local c = centre(amin, amax)
+	local c = centre(SpawnArea.HUB_MIN, SpawnArea.HUB_MAX)
 	local half = SPAWN_SIZE / 2
 	local spawn = slab(
 		model,

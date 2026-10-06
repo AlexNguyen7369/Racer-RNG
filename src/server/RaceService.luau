@@ -28,6 +28,7 @@ local NpcRacer = require(Shared.NpcRacer)
 local MoneyService = require(script.Parent.MoneyService)
 local PlayerData = require(script.Parent.PlayerData)
 local GachaService = require(script.Parent.GachaService)
+local UpgradeService = require(script.Parent.UpgradeService)
 
 local RaceService = {}
 
@@ -48,7 +49,7 @@ function RaceService.BuildRoute(entries)
 	local pads, tracks = {}, {}
 	for i, entry in entries do
 		local pad = entry.Model and entry.Model:FindFirstChild("WinPad", true)
-		table.insert(pads, { Pad = pad, Index = path.PadIndices[i] })
+		table.insert(pads, { Pad = pad, Index = path.PadIndices[i], Number = entry.Number or i })
 		local config = NpcConfig.For(entry.Number or i)
 		local lane = NpcRacer.LanePath(entry)
 		table.insert(tracks, {
@@ -73,6 +74,13 @@ end
 
 local function isPlayer(player)
 	return typeof(player) == "Instance" and player:IsA("Player")
+end
+
+-- The upgrade tree's gate: the best track the player has won (NPC mode) or finished (no NPC). Fakes are Instances too.
+local function reachTrack(player, number)
+	if typeof(player) == "Instance" then
+		UpgradeService.ReachTrack(player, number)
+	end
 end
 
 local function setCarGroup(car)
@@ -201,6 +209,7 @@ function RaceService.NewRun(car, raceRoute, player, options)
 			amount = track.Pad and MoneyService.Quote(player, track.Pad) or 0
 			run.BankedTotal += amount
 			setUnbanked(run.Unbanked + amount)
+			reachTrack(player, track.Number)
 		else
 			setUnbanked(0) -- a lost race loses what was not banked yet
 		end
@@ -250,6 +259,7 @@ function RaceService.NewRun(car, raceRoute, player, options)
 		for _, entry in raceRoute.Pads do
 			if entry.Pad and not paid[entry] and driver.Index >= entry.Index then
 				paid[entry] = true
+				reachTrack(player, entry.Number)
 				local amount = MoneyService.Collect(player, entry.Pad)
 				if amount > 0 then
 					run.Payouts += 1

@@ -115,3 +115,24 @@ Unchanged: every stability test (the tree never touches cruise speed or physics)
    v4 -> test-writer extends `upgrades` + `data` first -> implement -> full harness green.
 3. **UI:** ui-test-writer writes `ui_upgrades` first -> `Client/UpgradeUi`, world pad in `SpawnArea` -> UI suite green.
 4. `/compat-check` ALL GREEN, update ProjectContext, dashboard TODO, progress log.
+
+## Phase 2 plan (drafted 2026-10-06)
+Server side only; the UI (phase 3) and `Client/RollUi` reading `TurboCount` / `TurboEvery` come after. Built in the
+same round as workshop phase 1 (`docs/WORKSHOP_SPEC.md`) because both bump `PlayerData` to VERSION 4.
+
+| Step | File | Change |
+|---|---|---|
+| 1 | `CarTest/Scenarios.luau` (test-writer) | extend `upgrades` with the server checks listed under Tests; extend `data` for VERSION 4 (`Upgrades`, `BestTrack`, `TurboCount`, `WorkshopLevel`); must be red against the stubs |
+| 2 | `Server/UpgradeService` | implement every stub: `player.Upgrades` folder, attributes, `Buy` (rate limit, `UpgradeTree.CanBuy` with the real track count from `RaceService.GetRoute()`, Money taken once from `leaderstats.Money`), `Bonuses` / `RollInterval` / `Turbo` / `WalkSpeed`, `ReachTrack`, `Snapshot` / `Apply`, `Start` (remote + badge refresh on Money / tiles / BestTrack change) |
+| 3 | `Shared/GachaConfig` | `Multis(alloc, bonuses)`: optional second table of added tree bonuses (Money, Luck, Speed); one-argument calls unchanged |
+| 4 | `Server/GachaService` | `SpeedMulti` / `MoneyMulti` / `Luck` pass `UpgradeService.Bonuses`; `Roll` uses `TurboCount` and the player's Turbo tier instead of `IsTurbo(Rolls)`; `StartAutoRoll` / `WaitAfter` use `UpgradeService.RollInterval(player)` read every roll |
+| 5 | `Server/CarService` | on-foot `Humanoid.WalkSpeed = UpgradeService.WalkSpeed(player)` on spawn, Stop (showCharacter) and after a Walkspeed buy |
+| 6 | `Server/RaceService` | `UpgradeService.ReachTrack(player, n)` on a won track (NPC mode) or a finished one (no NPC) |
+| 7 | `Server/PlayerData` | VERSION 4: save/load `UpgradeService.Snapshot` fields (and `WorkshopLevel`); a version-3 save loads with `TurboCount = Rolls % 10`, `BestTrack = 0`, no tiles |
+| 8 | `Server/Main` | `UpgradeService.Start()` after `GachaService.Start()` |
+| 9 | docs / context | ProjectContext, todo.json, tests_explained.json, README features after the full harness is green |
+
+Dependency order to avoid require cycles: `UpgradeService` requires shared modules only (it reads and writes
+`leaderstats.Money` itself, because `MoneyService` requires `GachaService`, which will require `UpgradeService`);
+`GachaService`, `MoneyService` and `CarService` require `UpgradeService`; `UpgradeService` never requires them. The track count is
+handed in by `Main` (`UpgradeService.SetTrackCount(#chain)`), so it does not need `RaceService` either.

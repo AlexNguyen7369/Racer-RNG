@@ -1960,8 +1960,11 @@ local AUTO_SEAT_TIMEOUT = 3 -- spec SEAT_TIMEOUT: not seated within this -> no r
 local AUTO_SPAWN_KEEP_OUT = 60 -- studs (horizontal): a fresh run's car never comes this close to the walk spawn
 local AUTO_EVENT_WATCH = 1 -- seconds of a fresh run watched for drifting towards the spawn area
 local AUTO_RAPID_CYCLES = 4 -- Stop -> Auto Race cycles with no wait between them
-local AUTO_AREA_MIN = Vector2.new(24, -100) -- spec section 1: spawn floor, local (x, z) of Track 1's flattened Start
-local AUTO_AREA_MAX = Vector2.new(184, 44)
+-- The whole spawn floor, local (x, z) of Track 1's flattened Start. Owner brief 2026-10-06 (docs/WORKSHOP_SPEC.md
+-- section 1) grew it from (24, -100)..(184, 44) to hold the 7 workshop plots: a fresh run's car must never be over
+-- ANY of it (hub or plots), so the check uses the full floor.
+local AUTO_AREA_MIN = Vector2.new(24, -188)
+local AUTO_AREA_MAX = Vector2.new(252, 44)
 local AUTO_JUMP_HEIGHT = 7.2
 
 local function hdist(a, b)
@@ -3312,7 +3315,10 @@ local function anyCountAttribute(player)
 end
 
 -- Data: PlayerData saves/loads Money and the float Speed stat through an injected store (no real DataStore is touched).
+-- The save version is 4 since upgrade tree phase 2 + workshop phase 1 (2026-10-06, docs/UPGRADE_TREE_DESIGN.md "Data
+-- and save", docs/WORKSHOP_SPEC.md section 5): every save writes Version 4; older versions still load.
 function Scenarios.data()
+	local DATA_VERSION = 4
 	local checks = {}
 	local PlayerData = serverModule("PlayerData")
 	local RaceConfig = sharedModule("RaceConfig")
@@ -3432,7 +3438,7 @@ function Scenarios.data()
 	if type(rec) == "table" then
 		check(checks, "saved_money", rec.Money or -1, 1234, rec.Money == 1234)
 		check(checks, "saved_speed", rec.Speed or -1, 12.345, near(rec.Speed, 12.345))
-		check(checks, "saved_version", rec.Version or -1, 3, rec.Version == 3)
+		check(checks, "saved_version", rec.Version or -1, DATA_VERSION, rec.Version == DATA_VERSION)
 	else
 		for _, name in { "saved_money", "saved_speed", "saved_version" } do
 			check(checks, name, 0, 1, false)
@@ -3468,7 +3474,7 @@ function Scenarios.data()
 			and r.Money == c.wantMoney
 			and near(r.Speed, c.wantSpeed)
 			and r.Money == math.floor(r.Money)
-			and r.Version == 3
+			and r.Version == DATA_VERSION
 		check(checks, "save_sanitised_" .. c.name, type(r) == "table" and r.Speed or -1, c.wantSpeed, good)
 	end
 
@@ -3498,7 +3504,7 @@ function Scenarios.data()
 	end
 
 	-- records written by older versions (Version 1 or no Version at all) still load: money kept, Speed a
-	-- valid non-negative stat, and the next save upgrades the record to Version 3
+	-- valid non-negative stat, and the next save upgrades the record to the current version (DATA_VERSION)
 	local legacy = {
 		{ name = "v1", value = { Money = 250, Speed = 3, Version = 1 }, wantMoney = 250, wantSpeed = 3 },
 		{ name = "no_version", value = { Money = 250 }, wantMoney = 250, wantSpeed = 0 },
@@ -3518,8 +3524,8 @@ function Scenarios.data()
 			checks,
 			"legacy_" .. c.name .. "_upgraded_on_save",
 			type(legacyRec) == "table" and legacyRec.Version or -1,
-			3,
-			oksv and type(legacyRec) == "table" and legacyRec.Version == 3 and legacyRec.Money == c.wantMoney
+			DATA_VERSION,
+			oksv and type(legacyRec) == "table" and legacyRec.Version == DATA_VERSION and legacyRec.Money == c.wantMoney
 		)
 	end
 
@@ -3744,14 +3750,14 @@ function Scenarios.data()
 			local recG = gStore.data["Player_9501"]
 			local recOk = savedG == true
 				and type(recG) == "table"
-				and recG.Version == 3
+				and recG.Version == DATA_VERSION
 				and type(snap1) == "table"
 				and isIdArray(recG.Cars)
 				and sameMap(recG.Cars, snap1.Cars)
 				and recG.Equipped == "go_kart"
 				and recG.Rolls == 2
 				and sameMap(recG.StatAlloc, snap1.StatAlloc)
-			check(checks, "v3_save_has_gacha_fields", type(recG) == "table" and recG.Version or -1, 3, recOk)
+			check(checks, "v3_save_has_gacha_fields", type(recG) == "table" and recG.Version or -1, DATA_VERSION, recOk)
 			local g2 = newPlayer("CarTestDataGacha2")
 			PlayerData.Load(g2, 9501)
 			local snap2 = GachaService.Snapshot(g2)
@@ -3980,6 +3986,279 @@ function Scenarios.data()
 		end)
 		if not okG then
 			check(checks, "data_gacha_no_error", 0, tostring(errG), false)
+		end
+	end
+
+	-- Version 4 (2026-10-06): the upgrade tree (Upgrades = sorted owned tile ids, BestTrack, TurboCount; through
+	-- Server/UpgradeService Snapshot/Apply) and the workshop level (WorkshopLevel, player attribute of the same name)
+	-- are saved. docs/UPGRADE_TREE_DESIGN.md "Data and save" + "Phase 2 plan" step 7, docs/WORKSHOP_SPEC.md section 5.
+	-- A version-3 save loads with TurboCount = Rolls % 10, BestTrack 0, no tiles, WorkshopLevel 1. WorkshopLevel is
+	-- clamped to 1 .. WorkshopConfig.MAX_LEVEL (missing or garbage = 1).
+	local UpgradeService = serverModule("UpgradeService")
+	local WorkshopConfig = sharedModule("WorkshopConfig")
+	local v4ApiOk = gachaApiOk
+		and UpgradeService ~= nil
+		and WorkshopConfig ~= nil
+		and type(WorkshopConfig.MAX_LEVEL) == "number"
+		and WorkshopConfig.MAX_LEVEL >= 1
+		and type(UpgradeService.Setup) == "function"
+		and type(UpgradeService.Owned) == "function"
+		and type(UpgradeService.Snapshot) == "function"
+		and type(UpgradeService.Apply) == "function"
+	check(checks, "data_v4_api_exists", v4ApiOk and 1 or 0, 1, v4ApiOk)
+	if v4ApiOk then
+		local okV4, errV4 = pcall(function()
+			local MAXL = WorkshopConfig.MAX_LEVEL
+			local function sameArray(a, b)
+				if type(a) ~= "table" or type(b) ~= "table" or #a ~= #b then
+					return false
+				end
+				local n = 0
+				for _ in a do
+					n += 1
+				end
+				if n ~= #a then
+					return false
+				end
+				for i, v in b do
+					if a[i] ~= v then
+						return false
+					end
+				end
+				return true
+			end
+			local function upg(p)
+				local ok, snap = pcall(UpgradeService.Snapshot, p)
+				return ok and type(snap) == "table" and snap or nil
+			end
+			local function tileNames(p)
+				local f = p:FindFirstChild("Upgrades")
+				local names = {}
+				if f then
+					for _, v in f:GetChildren() do
+						if v:IsA("StringValue") and v.Value == v.Name then
+							table.insert(names, v.Name)
+						else
+							table.insert(names, "<bad:" .. v.Name .. ">")
+						end
+					end
+				end
+				table.sort(names)
+				return f ~= nil, names
+			end
+			local function wantLevel(v)
+				if type(v) ~= "number" or v ~= v then
+					return 1
+				end
+				return math.clamp(math.floor(math.clamp(v, -1e9, 1e9)), 1, MAXL)
+			end
+
+			-- round trip through the store
+			local wantTiles = { "luck_1", "luck_2", "money_1", "retired_tile" } -- sorted; retired_tile = unknown id, kept
+			local st = makeStore()
+			PlayerData.SetStore(st)
+			local u1 = newPlayer("CarTestDataV4A")
+			PlayerData.Load(u1, 9601)
+			UpgradeService.Apply(u1, {
+				Upgrades = { "money_1", "luck_2", "retired_tile", "luck_1" },
+				BestTrack = 2,
+				TurboCount = 7,
+			})
+			local saved4 = PlayerData.Save(u1, 9601)
+			local rec4 = st.data["Player_9601"]
+			local recOk = saved4 == true
+				and type(rec4) == "table"
+				and rec4.Version == DATA_VERSION
+				and sameArray(rec4.Upgrades, wantTiles)
+				and rec4.BestTrack == 2
+				and rec4.TurboCount == 7
+				and rec4.WorkshopLevel == 1
+			check(checks, "v4_save_has_upgrade_and_workshop_fields", type(rec4) == "table" and 1 or 0, 1, recOk)
+			local u2 = newPlayer("CarTestDataV4B")
+			PlayerData.Load(u2, 9601)
+			local s2 = upg(u2)
+			local hasFolder, names2 = tileNames(u2)
+			local okOwned, owned2 = pcall(UpgradeService.Owned, u2)
+			local rtOk = s2 ~= nil
+				and sameArray(s2.Upgrades, wantTiles)
+				and s2.BestTrack == 2
+				and s2.TurboCount == 7
+				and u2:GetAttribute("BestTrack") == 2
+				and u2:GetAttribute("TurboCount") == 7
+				and hasFolder
+				and sameArray(names2, wantTiles)
+				and okOwned
+				and type(owned2) == "table"
+				and owned2.start == true
+				and owned2.luck_2 == true
+				and owned2.money_1 == true
+			check(checks, "v4_roundtrip_upgrades", rtOk and 1 or 0, 1, rtOk)
+			check(
+				checks,
+				"v4_roundtrip_workshop_level",
+				tonumber(u2:GetAttribute("WorkshopLevel")) or -1,
+				1,
+				u2:GetAttribute("WorkshopLevel") == 1
+			)
+			-- the top level round-trips too (MAX_LEVEL is 1 until the owner sets prices, the check follows it)
+			local stTop =
+				makeStore({ ["Player_9602"] = { Money = 1, Speed = 0, Version = DATA_VERSION, WorkshopLevel = MAXL } })
+			PlayerData.SetStore(stTop)
+			local uTop = newPlayer("CarTestDataV4Top")
+			PlayerData.Load(uTop, 9602)
+			PlayerData.Save(uTop, 9602)
+			local recTop = stTop.data["Player_9602"]
+			local topOk = uTop:GetAttribute("WorkshopLevel") == MAXL
+				and type(recTop) == "table"
+				and recTop.WorkshopLevel == MAXL
+			check(
+				checks,
+				"v4_workshop_level_max_roundtrip",
+				tonumber(uTop:GetAttribute("WorkshopLevel")) or -1,
+				MAXL,
+				topOk
+			)
+
+			-- a version-3 save loads: TurboCount = Rolls % 10, BestTrack 0, no tiles, WorkshopLevel 1; the next save is v4
+			local v3Bad = 0
+			for i, c in { { rolls = 23, turbo = 3 }, { rolls = 30, turbo = 0 }, { rolls = 9, turbo = 9 } } do
+				local id = 9610 + i
+				local st3 = makeStore({
+					["Player_" .. id] = {
+						Money = 40,
+						Speed = 2,
+						Version = 3,
+						Cars = { "wooden_car" },
+						Equipped = "starter",
+						Rolls = c.rolls,
+						StatAlloc = { Speed = 0, Money = 0, Luck = 0, Workshop = 0 },
+					},
+				})
+				PlayerData.SetStore(st3)
+				local u3 = newPlayer("CarTestDataV4FromV3_" .. i)
+				local ok3 = PlayerData.Load(u3, id)
+				local s3 = upg(u3)
+				local _, names3 = tileNames(u3)
+				local loadOk = ok3 == true
+					and val(u3, "Money") == 40
+					and u3:GetAttribute("Rolls") == c.rolls
+					and u3:GetAttribute("TurboCount") == c.turbo
+					and u3:GetAttribute("BestTrack") == 0
+					and #names3 == 0
+					and u3:GetAttribute("WorkshopLevel") == 1
+					and s3 ~= nil
+					and sameArray(s3.Upgrades, {})
+					and s3.BestTrack == 0
+					and s3.TurboCount == c.turbo
+				local saved3 = PlayerData.Save(u3, id)
+				local r3 = st3.data["Player_" .. id]
+				local upOk = saved3 == true
+					and type(r3) == "table"
+					and r3.Version == DATA_VERSION
+					and r3.TurboCount == c.turbo
+					and r3.BestTrack == 0
+					and sameArray(r3.Upgrades, {})
+					and r3.WorkshopLevel == 1
+					and r3.Rolls == c.rolls
+				if not (loadOk and upOk) then
+					v3Bad += 1
+				end
+			end
+			check(checks, "v3_save_loads_v4_defaults", v3Bad, 0, v3Bad == 0)
+			-- a v4 record's own TurboCount wins over Rolls % 10
+			PlayerData.SetStore(makeStore({
+				["Player_9620"] = { Money = 0, Speed = 0, Version = DATA_VERSION, Rolls = 23, TurboCount = 5 },
+			}))
+			local u4 = newPlayer("CarTestDataV4Turbo")
+			PlayerData.Load(u4, 9620)
+			check(
+				checks,
+				"v4_turbo_count_not_derived",
+				tonumber(u4:GetAttribute("TurboCount")) or -1,
+				5,
+				u4:GetAttribute("TurboCount") == 5
+			)
+
+			-- WorkshopLevel: missing = 1, garbage / out of range clamped to 1 .. MAX_LEVEL (attribute and next save)
+			local levelBad = 0
+			local levelCases =
+				table.pack(nil, 0, -3, 1, 2.5, MAXL, MAXL + 1, 1e9, math.huge, -math.huge, 0 / 0, "3", true, {})
+			for i = 1, levelCases.n do
+				local v = levelCases[i]
+				local id = 9630 + i
+				local stL = makeStore({
+					["Player_" .. id] = { Money = 0, Speed = 0, Version = DATA_VERSION, WorkshopLevel = v },
+				})
+				PlayerData.SetStore(stL)
+				local uL = newPlayer("CarTestDataV4Level" .. i)
+				local okL, loadedL = pcall(PlayerData.Load, uL, id)
+				local want = wantLevel(v)
+				local okS = okL and PlayerData.Save(uL, id)
+				local rL = stL.data["Player_" .. id]
+				if
+					not okL
+					or loadedL ~= true
+					or uL:GetAttribute("WorkshopLevel") ~= want
+					or okS ~= true
+					or type(rL) ~= "table"
+					or rL.WorkshopLevel ~= want
+				then
+					levelBad += 1
+				end
+			end
+			check(checks, "v4_workshop_level_clamped", levelBad, 0, levelBad == 0)
+
+			-- junk upgrade fields load as a fresh tree, never an error
+			PlayerData.SetStore(makeStore({
+				["Player_9650"] = {
+					Money = 0,
+					Speed = 0,
+					Version = DATA_VERSION,
+					Upgrades = "garbage",
+					BestTrack = -5,
+					TurboCount = 0 / 0,
+				},
+			}))
+			local uJ = newPlayer("CarTestDataV4Junk")
+			local okJ, loadedJ = pcall(PlayerData.Load, uJ, 9650)
+			local sJ = upg(uJ)
+			local junkOk = okJ
+				and loadedJ == true
+				and sJ ~= nil
+				and sameArray(sJ.Upgrades, {})
+				and sJ.BestTrack == 0
+				and sJ.TurboCount == 0
+				and uJ:GetAttribute("BestTrack") == 0
+				and uJ:GetAttribute("TurboCount") == 0
+			check(checks, "v4_junk_upgrade_fields_are_defaults", junkOk and 1 or 0, 1, junkOk)
+
+			-- never writes before the load finished: a v4 record is left alone
+			local v4Rec = {
+				Money = 10,
+				Speed = 1,
+				Version = DATA_VERSION,
+				Upgrades = { "money_1" },
+				BestTrack = 2,
+				TurboCount = 4,
+				WorkshopLevel = 1,
+			}
+			local guard4 = makeStore({ ["Player_9660"] = v4Rec })
+			PlayerData.SetStore(guard4)
+			local uE = newPlayer("CarTestDataV4Early")
+			pcall(UpgradeService.Setup, uE)
+			local okE4, savedE4 = pcall(PlayerData.Save, uE, 9660)
+			local rE = guard4.data["Player_9660"]
+			local keep4 = okE4
+				and savedE4 == false
+				and guard4.sets == 0
+				and type(rE) == "table"
+				and rE.BestTrack == 2
+				and type(rE.Upgrades) == "table"
+				and rE.Upgrades[1] == "money_1"
+			check(checks, "v4_save_before_load_keeps_record", keep4 and 1 or 0, 1, keep4)
+		end)
+		if not okV4 then
+			check(checks, "data_v4_no_error", 0, tostring(errV4), false)
 		end
 	end
 
@@ -4673,7 +4952,10 @@ function Scenarios.gacha()
 		check(checks, "turbo_multi_every_10th_roll", multiBad, 0, multiBad == 0 and turboRolls == 2)
 		check(checks, "turbo_rolls_counted", tp:GetAttribute("Rolls") or -1, 25, tp:GetAttribute("Rolls") == 25)
 		-- The turbo roll really uses Luck * 5: with a seed where luck and luck * 5 pick different cars, the service's
-		-- 10th roll matches GachaConfig.Roll at luck * 5 and its 11th roll matches it at plain luck
+		-- 10th roll matches GachaConfig.Roll at luck * 5 and its 11th roll matches it at plain luck.
+		-- Upgrade tree phase 2 (docs/UPGRADE_TREE_DESIGN.md "Turbo"): the turbo rhythm comes from the saved
+		-- TurboCount (rolls since the last turbo roll, player attribute), no longer from Rolls, so the jump to "9
+		-- rolls done" sets both (a design change, not a loosening: the 10th roll is still the turbo roll).
 		local tq = newTestPlayer(cleanup, "CarTestGachaTurboLuck")
 		GachaService.Setup(tq)
 		local luck = GachaService.Luck(tq)
@@ -4690,6 +4972,7 @@ function Scenarios.gacha()
 		if seed then
 			metrics.turboSeed = seed
 			tq:SetAttribute("Rolls", 9)
+			tq:SetAttribute("TurboCount", 9)
 			local okA, idA, _, mA = pcall(GachaService.Roll, tq, Random.new(seed))
 			local turboOk = okA and idA == idTurbo and mA == 5 and tq:GetAttribute("Rolls") == 10
 			check(checks, "turbo_roll_uses_luck_x5", turboOk and 1 or 0, 1, turboOk)
@@ -4697,6 +4980,7 @@ function Scenarios.gacha()
 			local plainOk = okB and idB == idPlain and mB == 1 and tq:GetAttribute("Rolls") == 11
 			check(checks, "turbo_next_roll_plain_luck", plainOk and 1 or 0, 1, plainOk)
 			tq:SetAttribute("Rolls", 19)
+			tq:SetAttribute("TurboCount", 9)
 			local okC, idC, _, mC = pcall(GachaService.Roll, tq, Random.new(seed))
 			local turbo20 = okC and idC == idTurbo and mC == 5 and tq:GetAttribute("Rolls") == 20
 			check(checks, "turbo_roll_20th_uses_luck_x5", turbo20 and 1 or 0, 1, turbo20)
@@ -6429,8 +6713,15 @@ end
 -- and on every respawn) and CarService.PadTouched(player, hitPart) (what StartPad.Touched runs once it has
 -- resolved the player).
 local SPAWN_COLOR = Color3.fromRGB(140, 70, 220)
-local SPAWN_AREA_MIN = Vector2.new(24, -100) -- local (x, z)
-local SPAWN_AREA_MAX = Vector2.new(184, 44)
+-- Owner brief 2026-10-06 (docs/WORKSHOP_SPEC.md section 1, a requested layout change): the floor grew from
+-- (24, -100)..(184, 44) (160 x 144) to hold the 7 workshop plots; the old floor is now the HUB (kept free of plots),
+-- and the Spawn / walk spawn stay at its centre (same world spot as before).
+local SPAWN_AREA_MIN = Vector2.new(24, -188) -- local (x, z): the floor, 228 x 232
+local SPAWN_AREA_MAX = Vector2.new(252, 44)
+local SPAWN_LAYOUT = {} -- floor size and hub of the 2026-10-06 layout
+SPAWN_LAYOUT.FLOOR_SIZE = Vector2.new(228, 232)
+SPAWN_LAYOUT.HUB_MIN = Vector2.new(24, -100) -- local (x, z): the hub, 160 x 144
+SPAWN_LAYOUT.HUB_MAX = Vector2.new(184, 44)
 local SPAWN_PAD_MIN = Vector2.new(-20, 2)
 local SPAWN_PAD_MAX = Vector2.new(24, 38)
 local SPAWN_TOP_Y = 1
@@ -6566,6 +6857,8 @@ function Scenarios.spawn_area()
 	check(checks, "spawn_color", colorClose(A.COLOR, SPAWN_COLOR) and 1 or 0, 1, colorClose(A.COLOR, SPAWN_COLOR))
 	local boundsConst = v2is(A.AREA_MIN, SPAWN_AREA_MIN) and v2is(A.AREA_MAX, SPAWN_AREA_MAX)
 	check(checks, "spawn_area_bounds_constants", boundsConst and 1 or 0, 1, boundsConst)
+	local hubConst = v2is(A.HUB_MIN, SPAWN_LAYOUT.HUB_MIN) and v2is(A.HUB_MAX, SPAWN_LAYOUT.HUB_MAX)
+	check(checks, "spawn_hub_bounds_constants", hubConst and 1 or 0, 1, hubConst)
 	local padConst = v2is(A.PAD_MIN, SPAWN_PAD_MIN) and v2is(A.PAD_MAX, SPAWN_PAD_MAX)
 	check(checks, "spawn_pad_bounds_constants", padConst and 1 or 0, 1, padConst)
 	check(checks, "spawn_top_y", num(A.TOP_Y), SPAWN_TOP_Y, A.TOP_Y == SPAWN_TOP_Y)
@@ -6629,15 +6922,16 @@ function Scenarios.spawn_area()
 	check(checks, "spawn_location_exists", spawnOk and 1 or 0, 1, spawnOk)
 	check(checks, "spawn_start_pad_exists", padOk and 1 or 0, 1, padOk)
 
-	-- Floor: anchored, purple SmoothPlastic, covers AREA_MIN..AREA_MAX (160 x 144), top at TOP_Y
+	-- Floor: anchored, purple SmoothPlastic, covers AREA_MIN..AREA_MAX (228 x 232 since 2026-10-06), top at TOP_Y
 	if floorOk then
 		local fMin, fMax, fTop = spawnLocalBounds(base, floor)
 		local err = math.max(spawnV2Err(fMin, SPAWN_AREA_MIN), spawnV2Err(fMax, SPAWN_AREA_MAX))
 		check(checks, "spawn_floor_covers_area", err, SPAWN_GEOM_TOL, err <= SPAWN_GEOM_TOL)
 		local size = fMax - fMin
 		metrics.floor_size = ("%.1f x %.1f"):format(size.X, size.Y)
-		local sizeOk = math.abs(size.X - 160) <= SPAWN_GEOM_TOL and math.abs(size.Y - 144) <= SPAWN_GEOM_TOL
-		check(checks, "spawn_floor_160_by_144", size.X, 160, sizeOk)
+		local sizeOk = math.abs(size.X - SPAWN_LAYOUT.FLOOR_SIZE.X) <= SPAWN_GEOM_TOL
+			and math.abs(size.Y - SPAWN_LAYOUT.FLOOR_SIZE.Y) <= SPAWN_GEOM_TOL
+		check(checks, "spawn_floor_228_by_232", size.X, SPAWN_LAYOUT.FLOOR_SIZE.X, sizeOk)
 		check(checks, "spawn_floor_top", fTop, SPAWN_TOP_Y, math.abs(fTop - SPAWN_TOP_Y) <= SPAWN_TOP_TOL)
 		check(checks, "spawn_floor_anchored", floor.Anchored and 1 or 0, 1, floor.Anchored)
 		local purple = colorClose(floor.Color, SPAWN_COLOR)
@@ -6648,7 +6942,8 @@ function Scenarios.spawn_area()
 		check(checks, "spawn_floor_walkable", collide and 1 or 0, 1, collide)
 	end
 
-	-- Edge walls: low (2 studs), anchored, on the three outer sides, none on the side facing the pad / road
+	-- Edge walls: low (2 studs), anchored, on the three outer sides of the NEW floor, none on the side facing the
+	-- pad / road, and none left inside the floor (the old hub edges at x = 184 / z = -100 would wall the plots off)
 	local edges = {}
 	for _, d in area:GetChildren() do
 		if d:IsA("BasePart") and string.sub(d.Name, 1, 4) == "Edge" then
@@ -6659,6 +6954,7 @@ function Scenarios.spawn_area()
 	local edgeBad = 0
 	local cover = { xMax = 0, zMin = 0, zMax = 0 }
 	local onPadSide = 0
+	local inside = 0
 	for _, e in edges do
 		local eMin, eMax, eTop = spawnLocalBounds(base, e)
 		if not e.Anchored or math.abs(eTop - (SPAWN_TOP_Y + SPAWN_EDGE_HEIGHT)) > 0.5 then
@@ -6683,6 +6979,12 @@ function Scenarios.spawn_area()
 		if math.abs(c.X - SPAWN_AREA_MIN.X) <= SPAWN_SIDE_REACH and spanZ() > SPAWN_SIDE_REACH then
 			onPadSide += 1
 		end
+		local nearOuter = math.abs(c.X - SPAWN_AREA_MAX.X) <= SPAWN_SIDE_REACH
+			or math.abs(c.Y - SPAWN_AREA_MIN.Y) <= SPAWN_SIDE_REACH
+			or math.abs(c.Y - SPAWN_AREA_MAX.Y) <= SPAWN_SIDE_REACH
+		if not nearOuter then
+			inside += 1
+		end
 	end
 	check(checks, "spawn_edges_low_and_anchored", edgeBad, 0, #edges > 0 and edgeBad == 0)
 	local sideX = SPAWN_AREA_MAX.X - SPAWN_AREA_MIN.X
@@ -6690,8 +6992,9 @@ function Scenarios.spawn_area()
 	local worstCover = math.min(cover.xMax / sideZ, cover.zMin / sideX, cover.zMax / sideX)
 	check(checks, "spawn_edges_cover_three_outer_sides", worstCover, SPAWN_SIDE_COVER, worstCover >= SPAWN_SIDE_COVER)
 	check(checks, "spawn_no_edge_on_pad_side", onPadSide, 0, onPadSide == 0)
+	check(checks, "spawn_no_edge_inside_floor", inside, 0, inside == 0)
 
-	-- SpawnLocation: the game's only one, Neutral, Duration 0, 12 x 1 x 12, purple, in the middle, top at TOP_Y
+	-- SpawnLocation: the game's only one, Neutral, Duration 0, 12 x 1 x 12, purple, in the middle of the HUB, top at TOP_Y
 	local spawnCount = 0
 	for _, d in Workspace:GetDescendants() do
 		if d:IsA("SpawnLocation") then
@@ -6709,7 +7012,11 @@ function Scenarios.spawn_area()
 		local _, _, sTop = spawnLocalBounds(base, spawn)
 		check(checks, "spawn_location_top", sTop, SPAWN_TOP_Y, math.abs(sTop - SPAWN_TOP_Y) <= SPAWN_TOP_TOL)
 		local centre = base:PointToWorldSpace(
-			Vector3.new((SPAWN_AREA_MIN.X + SPAWN_AREA_MAX.X) / 2, 0, (SPAWN_AREA_MIN.Y + SPAWN_AREA_MAX.Y) / 2)
+			Vector3.new(
+				(SPAWN_LAYOUT.HUB_MIN.X + SPAWN_LAYOUT.HUB_MAX.X) / 2,
+				0,
+				(SPAWN_LAYOUT.HUB_MIN.Y + SPAWN_LAYOUT.HUB_MAX.Y) / 2
+			)
 		)
 		local dMid = hdist(spawn.Position, centre)
 		check(checks, "spawn_location_in_middle", dMid, SPAWN_MIDDLE, dMid <= SPAWN_MIDDLE)
@@ -6783,8 +7090,9 @@ function Scenarios.spawn_area()
 		check(checks, "spawn_bounds_pad", eP == math.huge and -1 or eP, 0.01, eP <= 0.01)
 	end
 
-	-- Walk spawn: SpawnArea.WalkCFrame(start) == CarService.WalkSpawnCFrame(), at the area centre, root
-	-- WALK_ROOT_HEIGHT above TOP_Y, facing the pad, inside the area, >= WALK_CLEARANCE from every race waypoint
+	-- Walk spawn: SpawnArea.WalkCFrame(start) == CarService.WalkSpawnCFrame(), at the HUB centre (local (104, -28),
+	-- the same spot as before the floor grew), root WALK_ROOT_HEIGHT above TOP_Y, facing the pad, inside the hub,
+	-- >= WALK_CLEARANCE from every race waypoint
 	local okW, walkCF = false, nil
 	if serviceOk then
 		okW, walkCF = pcall(CarService.WalkSpawnCFrame)
@@ -6802,15 +7110,18 @@ function Scenarios.spawn_area()
 			and areaCF.LookVector:Dot(walkCF.LookVector) >= 0.999
 		check(checks, "spawn_walk_spawn_is_area_walk_cframe", same and 1 or 0, 1, same)
 	end
-	local centreLocal =
-		Vector3.new((SPAWN_AREA_MIN.X + SPAWN_AREA_MAX.X) / 2, 0, (SPAWN_AREA_MIN.Y + SPAWN_AREA_MAX.Y) / 2)
+	local centreLocal = Vector3.new(
+		(SPAWN_LAYOUT.HUB_MIN.X + SPAWN_LAYOUT.HUB_MAX.X) / 2,
+		0,
+		(SPAWN_LAYOUT.HUB_MIN.Y + SPAWN_LAYOUT.HUB_MAX.Y) / 2
+	)
 	local centreWorld = base:PointToWorldSpace(centreLocal)
 	local dCentre = hdist(walkCF.Position, centreWorld)
 	check(checks, "spawn_walk_at_area_centre", dCentre, SPAWN_GEOM_TOL, dCentre <= SPAWN_GEOM_TOL)
 	local wantY = SPAWN_TOP_Y + SPAWN_WALK_ROOT_HEIGHT
 	check(checks, "spawn_walk_root_height", walkCF.Position.Y, wantY, math.abs(walkCF.Position.Y - wantY) <= 0.05)
-	local inside = spawnInsideLocal(base, walkCF.Position, SPAWN_AREA_MIN, SPAWN_AREA_MAX)
-	check(checks, "spawn_walk_inside_area", inside and 1 or 0, 1, inside)
+	local insideHub = spawnInsideLocal(base, walkCF.Position, SPAWN_LAYOUT.HUB_MIN, SPAWN_LAYOUT.HUB_MAX)
+	check(checks, "spawn_walk_inside_area", insideHub and 1 or 0, 1, insideHub)
 	local padCentre = base:PointToWorldSpace(
 		Vector3.new((SPAWN_PAD_MIN.X + SPAWN_PAD_MAX.X) / 2, 0, (SPAWN_PAD_MIN.Y + SPAWN_PAD_MAX.Y) / 2)
 	)
@@ -6865,7 +7176,11 @@ function Scenarios.spawn_area()
 	-- the spec rectangles themselves stay clear too (the area is not allowed to grow into a road later)
 	local rectOverlaps = 0
 	for _, rect in
-		{ spawnRectPoly(base, SPAWN_AREA_MIN, SPAWN_AREA_MAX), spawnRectPoly(base, SPAWN_PAD_MIN, SPAWN_PAD_MAX) }
+		{
+			spawnRectPoly(base, SPAWN_AREA_MIN, SPAWN_AREA_MAX),
+			spawnRectPoly(base, SPAWN_LAYOUT.HUB_MIN, SPAWN_LAYOUT.HUB_MAX),
+			spawnRectPoly(base, SPAWN_PAD_MIN, SPAWN_PAD_MAX),
+		}
 	do
 		for _, t in trackParts do
 			if spawnPolySeparation(rect, t.Poly) < -SPAWN_OVERLAP_TOL then
@@ -6996,7 +7311,8 @@ function Scenarios.spawn_area()
 		check(checks, pre .. "_no_car", #ourCars(), 0, noCar)
 		local d = hdist(c.Root.Position, walkCF.Position)
 		check(checks, pre .. "_at_walk_spawn", d, SPAWN_AT_SPAWN, d <= SPAWN_AT_SPAWN)
-		local inArea = spawnInsideLocal(base, c.Root.Position, SPAWN_AREA_MIN, SPAWN_AREA_MAX)
+		-- the walk spawn is in the hub, so an avatar sent there stands in the hub (not just anywhere on the floor)
+		local inArea = spawnInsideLocal(base, c.Root.Position, SPAWN_LAYOUT.HUB_MIN, SPAWN_LAYOUT.HUB_MAX)
 		check(checks, pre .. "_inside_area", inArea and 1 or 0, 1, inArea)
 		local h = c.Root.Position.Y - SPAWN_TOP_Y
 		check(
@@ -9054,9 +9370,10 @@ end
 -- (docs/UPGRADE_TREE_SPEC.md, owner-confirmed; prices: docs/UPGRADE_TREE_DESIGN.md "Prices"). No server, no Instances,
 -- no UI. Every number below is the owner's: never loosen one. Every UpgradeTree call is pcall-guarded, so a missing
 -- or erroring function FAILS its check and never crashes the harness.
-local UPGRADE_BRANCH_ORDER = { "money", "luck", "rollspeed", "turbo", "speed", "walkspeed" }
-local UPGRADE_BRANCH_TIERS = { money = 5, luck = 5, rollspeed = 5, turbo = 4, speed = 5, walkspeed = 5 }
-local UPGRADE_BRANCH_NAMES = {
+local UPG = {} -- upgrade tree test constants and helpers (one local: the chunk has a 200-local limit)
+UPG.BRANCH_ORDER = { "money", "luck", "rollspeed", "turbo", "speed", "walkspeed" }
+UPG.BRANCH_TIERS = { money = 5, luck = 5, rollspeed = 5, turbo = 4, speed = 5, walkspeed = 5 }
+UPG.BRANCH_NAMES = {
 	money = "Money",
 	luck = "Luck",
 	rollspeed = "Roll Speed",
@@ -9064,14 +9381,14 @@ local UPGRADE_BRANCH_NAMES = {
 	speed = "Speed",
 	walkspeed = "Walkspeed",
 }
-local UPGRADE_BRANCH_WEIGHTS = { money = 1, luck = 1.2, rollspeed = 1.5, turbo = 2, speed = 1, walkspeed = 0.5 }
-local UPGRADE_BONUS = {
+UPG.BRANCH_WEIGHTS = { money = 1, luck = 1.2, rollspeed = 1.5, turbo = 2, speed = 1, walkspeed = 0.5 }
+UPG.BONUS = {
 	money = { 0.10, 0.10, 0.15, 0.15, 0.20 },
 	luck = { 0.10, 0.15, 0.20, 0.25, 0.30 },
 	rollspeed = { 0.10, 0.10, 0.10, 0.10, 0.10 },
 	speed = { 0.10, 0.10, 0.15, 0.15, 0.20 },
 }
-local UPGRADE_PRICES = {
+UPG.PRICES = {
 	money = { 150, 330, 730, 1600, 3500 },
 	luck = { 180, 400, 870, 1900, 4200 },
 	rollspeed = { 230, 500, 1100, 2400, 5300 },
@@ -9079,33 +9396,33 @@ local UPGRADE_PRICES = {
 	walkspeed = { 75, 170, 360, 800, 1800 },
 	turbo = { 660, 3200, 15000, 34000 },
 }
-local UPGRADE_TURBO = {
+UPG.TURBO = {
 	{ Multi = 10, Every = 15 },
 	{ Multi = 50, Every = 25 },
 	{ Multi = 100, Every = 40 },
 	{ Multi = 1000, Every = 100 },
 }
-local UPGRADE_WALKSPEED = { 18, 20, 23, 26, 30 }
-local UPGRADE_ROLL_INTERVALS = { 2.727, 2.5, 2.308, 2.143, 2.0 }
-local ROMAN = { "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X" }
+UPG.WALKSPEED = { 18, 20, 23, 26, 30 }
+UPG.ROLL_INTERVALS = { 2.727, 2.5, 2.308, 2.143, 2.0 }
+UPG.ROMAN = { "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X" }
 
-local function hexDistance(q1, r1, q2, r2)
+function UPG.hexDistance(q1, r1, q2, r2)
 	local dq, dr = q1 - q2, r1 - r2
 	return (math.abs(dq) + math.abs(dr) + math.abs(dq + dr)) / 2
 end
 
-local function deepCopy(v)
+function UPG.deepCopy(v)
 	if type(v) ~= "table" then
 		return v
 	end
 	local t = {}
 	for k, x in v do
-		t[k] = deepCopy(x)
+		t[k] = UPG.deepCopy(x)
 	end
 	return t
 end
 
-local function deepEqual(a, b)
+function UPG.deepEqual(a, b)
 	if type(a) ~= type(b) then
 		return false
 	end
@@ -9113,7 +9430,7 @@ local function deepEqual(a, b)
 		return a == b
 	end
 	for k, x in a do
-		if not deepEqual(x, b[k]) then
+		if not UPG.deepEqual(x, b[k]) then
 			return false
 		end
 	end
@@ -9125,7 +9442,7 @@ local function deepEqual(a, b)
 	return true
 end
 
-local function idSet(ids)
+function UPG.idSet(ids)
 	local s = {}
 	for _, id in ids do
 		s[id] = true
@@ -9133,12 +9450,723 @@ local function idSet(ids)
 	return s
 end
 
-local function tierIds(branch, n)
+function UPG.tierIds(branch, n)
 	local ids = {}
 	for t = 1, n do
 		table.insert(ids, branch .. "_" .. t)
 	end
 	return ids
+end
+
+-- Upgrade tree, PHASE 2: the server side (docs/UPGRADE_TREE_DESIGN.md "Phase 2 plan", "Where the effects plug in",
+-- "Data and save", "Remote"; owner rules: docs/UPGRADE_TREE_SPEC.md sections 1, 4, 6). Fake players are Folders with a
+-- UserId attribute (like `data`, `gacha`, `admin`). The server state the checks read: player.Upgrades (one StringValue
+-- per owned tile, Value = id), the attributes BestTrack, TurboCount (rolls since the last turbo roll), TurboEvery,
+-- TurboMulti, UpgradesBuyable, and leaderstats.Money. Every service call is pcall-guarded: a missing or erroring
+-- function FAILS its check and never crashes the harness. Numbers: the spec tables at the top of the phase 1 block.
+UPG.SERVICE_FNS = {
+	"Setup",
+	"Owned",
+	"Buy",
+	"Bonuses",
+	"RollInterval",
+	"Turbo",
+	"WalkSpeed",
+	"ReachTrack",
+	"Snapshot",
+	"Apply",
+	"Start",
+	"SetTrackCount", -- design: Main hands in the real chain length (UpgradeService never requires RaceService)
+}
+UPG.RICH = 1e9
+UPG.SIX_CARS = { "rusty_hatchback", "wooden_car", "go_kart", "street_racer", "rocket_car", "hover_car" } -- 6 unique = 2 stat points
+UPG.UID = 914300000
+UPG.AUTO_ROLL_WATCH = 4 -- s: a rollspeed_5 player's first auto-roll must come at 2 s, the old interval was 3 s
+
+function UPG.upgradesServerChecks(checks, metrics, UpgradeTree)
+	local UpgradeService = serverModule("UpgradeService")
+	local GachaService = serverModule("GachaService")
+	local GachaConfig = sharedModule("GachaConfig")
+	local Money = serverModule("MoneyService")
+	local RollAnimConfig = sharedModule("RollAnimConfig")
+	local CarService = serverModule("CarService")
+	local function flag(name, ok)
+		check(checks, name, ok and 1 or 0, 1, ok == true)
+	end
+	local missing = {}
+	if UpgradeService then
+		for _, fname in UPG.SERVICE_FNS do
+			if type(UpgradeService[fname]) ~= "function" then
+				table.insert(missing, fname)
+			end
+		end
+	end
+	local apiOk = UpgradeService ~= nil
+		and GachaService ~= nil
+		and GachaConfig ~= nil
+		and Money ~= nil
+		and RollAnimConfig ~= nil
+		and #missing == 0
+		and type(UpgradeService.REMOTE_COOLDOWN) == "number"
+	if #missing > 0 then
+		metrics.server_missing = table.concat(missing, ",")
+	end
+	flag("upgrades_server_api_exists", apiOk)
+	if not apiOk then
+		return
+	end
+	local cooldown = UpgradeService.REMOTE_COOLDOWN
+	-- design "Remote": rate-limited like AllocateStat
+	flag(
+		"upgrades_remote_cooldown_like_allocate",
+		cooldown > 0 and cooldown <= 1 and cooldown == GachaService.REMOTE_COOLDOWN
+	)
+
+	local errorCount = 0
+	local function try(label, fn, ...)
+		local res = table.pack(pcall(fn, ...))
+		if not res[1] then
+			errorCount += 1
+			if errorCount <= 4 then
+				metrics["server_error_" .. errorCount] = label .. ": " .. tostring(res[2])
+			end
+			return false, nil, nil, nil
+		end
+		return true, res[2], res[3], res[4]
+	end
+	local function svc(fname, ...)
+		return try(fname, UpgradeService[fname], ...)
+	end
+	local function near(a, b, tol)
+		return type(a) == "number" and a == a and math.abs(a - b) <= (tol or 1e-6)
+	end
+	local function pause()
+		task.wait(cooldown + 0.05)
+	end
+
+	local cleanup = {}
+	local function moneyValue(p)
+		local ls = p:FindFirstChild("leaderstats")
+		return ls and ls:FindFirstChild("Money")
+	end
+	local function moneyOf(p)
+		local m = moneyValue(p)
+		return m and m.Value or nil
+	end
+	local function setMoney(p, v)
+		local m = moneyValue(p)
+		if m then
+			m.Value = v
+		end
+	end
+	local function fake(name, money)
+		UPG.UID += 1
+		local p = Instance.new("Folder")
+		p.Name = "CarTestUpg" .. name
+		p:SetAttribute("UserId", UPG.UID)
+		p.Parent = Workspace
+		table.insert(cleanup, p)
+		pcall(Money.Setup, p)
+		pcall(GachaService.Setup, p)
+		svc("Setup", p)
+		setMoney(p, money or 0)
+		return p
+	end
+	-- Sorted ids of the StringValues in player.Upgrades ("<bad>" marks a malformed entry).
+	local function folderIds(p)
+		local f = p:FindFirstChild("Upgrades")
+		local ids = {}
+		if f then
+			for _, v in f:GetChildren() do
+				table.insert(ids, (v:IsA("StringValue") and v.Value == v.Name) and v.Name or "<bad>")
+			end
+		end
+		table.sort(ids)
+		return ids
+	end
+	local function joined(list)
+		return table.concat(list, ",")
+	end
+	local function ownedSet(p)
+		local ok, set = svc("Owned", p)
+		return ok and type(set) == "table" and set or {}
+	end
+	local function apply(p, saved)
+		return svc("Apply", p, saved)
+	end
+	local function liveTrackCount()
+		local ok, chain = pcall(function()
+			return TrackRegistry.Chain()
+		end)
+		return ok and type(chain) == "table" and #chain or 0
+	end
+	local function treeState(p, trackCount)
+		return {
+			Owned = ownedSet(p),
+			Money = moneyOf(p) or 0,
+			BestTrack = p:GetAttribute("BestTrack") or 0,
+			TrackCount = trackCount,
+		}
+	end
+	local function treeCount(st)
+		local ok, n = pcall(UpgradeTree.BuyableCount, st)
+		return ok and n or -1
+	end
+
+	local autoHandle = nil
+	local function body()
+		svc("SetTrackCount", 2)
+
+		-- Timed auto-roll, started first and read at the end: with Roll Speed I-V (2.00 s) the first roll comes at
+		-- 2 s, not at the old 3 s (GachaService.StartAutoRoll reads UpgradeService.RollInterval(player)).
+		local pAuto = fake("AutoRoll")
+		apply(pAuto, { Upgrades = UPG.tierIds("rollspeed", 5) })
+		local autoT0, firstRollAt = os.clock(), nil
+		local conn = pAuto:GetAttributeChangedSignal("Rolls"):Connect(function()
+			firstRollAt = firstRollAt or os.clock()
+		end)
+		local okAuto, handle = try("StartAutoRoll", GachaService.StartAutoRoll, pAuto)
+		autoHandle = okAuto and handle or nil
+
+		-- Setup: one Upgrades folder, attributes at their fresh values (base turbo x5 every 10)
+		local p0 = fake("Setup")
+		svc("Setup", p0)
+		local folders = 0
+		for _, c in p0:GetChildren() do
+			if c.Name == "Upgrades" then
+				folders += 1
+			end
+		end
+		local f0 = p0:FindFirstChild("Upgrades")
+		local setupOk = folders == 1
+			and f0 ~= nil
+			and f0:IsA("Folder")
+			and #f0:GetChildren() == 0
+			and p0:GetAttribute("BestTrack") == 0
+			and p0:GetAttribute("TurboCount") == 0
+			and p0:GetAttribute("TurboEvery") == 10
+			and p0:GetAttribute("TurboMulti") == 5
+			and p0:GetAttribute("UpgradesBuyable") == 0
+		flag("upgrades_setup_folder_and_attributes", setupOk)
+		local okO, owned0 = svc("Owned", p0)
+		local n0 = 0
+		if okO and type(owned0) == "table" then
+			for _, v in owned0 do
+				if v == true then
+					n0 += 1
+				end
+			end
+		end
+		flag("upgrades_owned_start_always", okO and type(owned0) == "table" and owned0.start == true and n0 == 1)
+
+		-- Buy: the price is taken from leaderstats.Money exactly once, the tile is granted
+		local pb = fake("Buy", 1000)
+		local okB, r1 = svc("Buy", pb, "money_1")
+		flag("upgrades_buy_ok", okB and r1 == true)
+		check(checks, "upgrades_buy_takes_price_once", moneyOf(pb) or -1, 850, moneyOf(pb) == 850)
+		flag("upgrades_buy_grants_tile", ownedSet(pb).money_1 == true and joined(folderIds(pb)) == "money_1")
+		pause()
+		local _, r2, why2 = svc("Buy", pb, "money_1")
+		flag(
+			"upgrades_buy_again_owned_no_charge",
+			r2 == false and why2 == "owned" and moneyOf(pb) == 850 and joined(folderIds(pb)) == "money_1"
+		)
+		pause()
+		local _, r3 = svc("Buy", pb, "money_2")
+		check(
+			checks,
+			"upgrades_buy_next_tier",
+			moneyOf(pb) or -1,
+			520,
+			r3 == true and moneyOf(pb) == 520 and joined(folderIds(pb)) == "money_1,money_2"
+		)
+		local pExact = fake("BuyExact", 150)
+		local _, rE = svc("Buy", pExact, "money_1")
+		check(checks, "upgrades_buy_exact_price", moneyOf(pExact) or -1, 0, rE == true and moneyOf(pExact) == 0)
+
+		-- Every reject leaves Money and the owned tiles exactly as they were
+		local function rejects(p, id, wantReason, alt)
+			local moneyBefore, tilesBefore = moneyOf(p), joined(folderIds(p))
+			local okc, r, why = svc("Buy", p, id)
+			local reasonOk = wantReason == nil or why == wantReason or (alt ~= nil and why == alt)
+			local good = okc
+				and r == false
+				and reasonOk
+				and moneyOf(p) == moneyBefore
+				and joined(folderIds(p)) == tilesBefore
+			if not good then
+				metrics["reject_" .. tostring(id) .. "_reason"] = tostring(why)
+			end
+			pause()
+			return good
+		end
+		local pu = fake("RejectUnknown", UPG.RICH)
+		flag(
+			"upgrades_buy_rejects_unknown",
+			rejects(pu, "nope", "unknown")
+				and rejects(pu, "money_6", "unknown")
+				and rejects(pu, "turbo_5", "unknown")
+				and rejects(pu, "", "unknown")
+		)
+		local po = fake("RejectOwned", UPG.RICH)
+		apply(po, { Upgrades = { "luck_1" } })
+		flag("upgrades_buy_rejects_owned", rejects(po, "luck_1", "owned"))
+		local pl = fake("RejectLocked", UPG.RICH)
+		flag(
+			"upgrades_buy_rejects_locked",
+			rejects(pl, "money_2", "locked") and rejects(pl, "turbo_1", "locked") and rejects(pl, "luck_3", "locked")
+		)
+		local pm = fake("RejectMoney", 149)
+		flag("upgrades_buy_rejects_money", rejects(pm, "money_1", "money") and rejects(pm, "rollspeed_1", "money"))
+		-- gate (design "Remote": the reason is "gated"; the UI text "Reach Track N" is accepted too)
+		local pg = fake("RejectGated", UPG.RICH)
+		apply(pg, { Upgrades = { "money_1", "money_2" }, BestTrack = 0 })
+		local gatedOk = rejects(pg, "money_3", "gated", "Reach Track 2")
+		svc("ReachTrack", pg, 1)
+		gatedOk = gatedOk and rejects(pg, "money_3", "gated", "Reach Track 2")
+		svc("ReachTrack", pg, 2)
+		local _, rG = svc("Buy", pg, "money_3")
+		check(
+			checks,
+			"upgrades_buy_rejects_gated_until_best_track",
+			moneyOf(pg) or -1,
+			UPG.RICH - 730,
+			gatedOk and rG == true and moneyOf(pg) == UPG.RICH - 730 and ownedSet(pg).money_3 == true
+		)
+		-- non-string ids: refused, no error, nothing changes
+		local pn = fake("RejectNonString", UPG.RICH)
+		local nonStr = table.pack(nil, 5, true, {}, pn, "start")
+		local nonOk = true
+		for i = 1, nonStr.n do
+			nonOk = rejects(pn, nonStr[i], nil) and nonOk
+		end
+		flag("upgrades_buy_rejects_non_string_ids", nonOk)
+		-- rate limit: a second buy within REMOTE_COOLDOWN is refused, after it the same buy works
+		local prl = fake("RateLimit", UPG.RICH)
+		local _, ra = svc("Buy", prl, "money_1")
+		local _, rb = svc("Buy", prl, "walkspeed_1")
+		local limitedOk = ra == true
+			and rb == false
+			and moneyOf(prl) == UPG.RICH - 150
+			and joined(folderIds(prl)) == "money_1"
+		pause()
+		local _, rc = svc("Buy", prl, "walkspeed_1")
+		check(
+			checks,
+			"upgrades_buy_rate_limited",
+			moneyOf(prl) or -1,
+			UPG.RICH - 225,
+			limitedOk and rc == true and moneyOf(prl) == UPG.RICH - 225
+		)
+
+		-- The gate uses the real track count handed in by SetTrackCount: tier IV needs min(3, trackCount)
+		svc("SetTrackCount", 10)
+		local pt10 = fake("Gate10", UPG.RICH)
+		apply(pt10, { Upgrades = UPG.tierIds("money", 3), BestTrack = 2 })
+		local gate10 = rejects(pt10, "money_4", "gated", "Reach Track 3")
+		svc("SetTrackCount", 2)
+		local pt2 = fake("Gate2", UPG.RICH)
+		apply(pt2, { Upgrades = UPG.tierIds("money", 3), BestTrack = 2 })
+		local _, r4 = svc("Buy", pt2, "money_4")
+		flag("upgrades_gate_uses_set_track_count", gate10 and r4 == true and ownedSet(pt2).money_4 == true)
+
+		-- ReachTrack raises BestTrack only upward; junk is ignored
+		local pr = fake("ReachTrack")
+		svc("ReachTrack", pr, 2)
+		local b1 = pr:GetAttribute("BestTrack")
+		svc("ReachTrack", pr, 1)
+		local b2 = pr:GetAttribute("BestTrack")
+		svc("ReachTrack", pr, 3)
+		local b3 = pr:GetAttribute("BestTrack")
+		check(checks, "upgrades_reach_track_only_up", tonumber(b3) or -1, 3, b1 == 2 and b2 == 2 and b3 == 3)
+		local junkReach = table.pack(nil, -1, 0, 0 / 0, {}, true)
+		local junkOk = true
+		for i = 1, junkReach.n do
+			local okj = svc("ReachTrack", pr, junkReach[i])
+			junkOk = junkOk and okj and pr:GetAttribute("BestTrack") == 3
+		end
+		flag("upgrades_reach_track_junk_ignored", junkOk)
+
+		-- Effects per player = the pure UpgradeTree rules on the player's owned set (+ spec values)
+		local sets = {
+			{},
+			UPG.tierIds("rollspeed", 5),
+			{ "luck_1", "luck_2", "money_1" },
+			{ "rollspeed_1", "turbo_1", "turbo_2", "turbo_3" },
+			UPG.tierIds("walkspeed", 4),
+			{ "speed_1", "speed_2", "money_5", "retired_tile" },
+		}
+		local matchBad = 0
+		local players = {}
+		for i, ids in sets do
+			local p = fake("Effects" .. i)
+			apply(p, { Upgrades = ids })
+			players[i] = p
+			local owned = UPG.idSet(ids)
+			local _, b = svc("Bonuses", p)
+			local _, ri = svc("RollInterval", p)
+			local _, tu = svc("Turbo", p)
+			local _, ws = svc("WalkSpeed", p)
+			local okT, wantB = pcall(UpgradeTree.Bonuses, owned)
+			local good = okT
+				and UPG.deepEqual(b, wantB)
+				and near(ri, UpgradeTree.RollInterval(owned), 1e-9)
+				and UPG.deepEqual(tu, UpgradeTree.Turbo(owned))
+				and ws == UpgradeTree.WalkSpeed(owned)
+			if not good then
+				matchBad += 1
+			end
+		end
+		check(checks, "upgrades_effects_match_tree", matchBad, 0, matchBad == 0)
+		local _, ri5 = svc("RollInterval", players[2])
+		local _, b3s = svc("Bonuses", players[3])
+		local _, tu3 = svc("Turbo", players[4])
+		local _, ws4 = svc("WalkSpeed", players[5])
+		local specOk = near(ri5, 2.0, 0.01)
+			and type(b3s) == "table"
+			and near(b3s.Luck, 0.25)
+			and near(b3s.Money, 0.10)
+			and type(tu3) == "table"
+			and tu3.Multi == 100
+			and tu3.Every == 40
+			and ws4 == 26
+		flag("upgrades_effects_spec_values", specOk)
+		local bare = Instance.new("Folder")
+		bare.Name = "CarTestUpgBare"
+		bare.Parent = Workspace
+		table.insert(cleanup, bare)
+		local _, bb = svc("Bonuses", bare)
+		local _, bri = svc("RollInterval", bare)
+		local _, btu = svc("Turbo", bare)
+		local _, bws = svc("WalkSpeed", bare)
+		local bareOk = type(bb) == "table"
+			and near(bb.Money, 0)
+			and near(bb.Luck, 0)
+			and near(bb.Speed, 0)
+			and near(bb.RollSpeed, 0)
+			and near(bri, 3)
+			and type(btu) == "table"
+			and btu.Multi == 5
+			and btu.Every == 10
+			and bws == 16
+		flag("upgrades_effects_bare_player_base", bareOk)
+
+		-- GachaConfig.Multis(alloc, bonuses): ADDED; the one-argument call is unchanged
+		local okM2, m2 = try("Multis2", GachaConfig.Multis, { Luck = 2, Money = 2, Speed = 1 }, {
+			Luck = 0.25,
+			Money = 0.2,
+			Speed = 0.1,
+			RollSpeed = 0.5,
+		})
+		local twoOk = okM2
+			and type(m2) == "table"
+			and near(m2.Luck, 1.35)
+			and near(m2.Money, 1.4)
+			and near(m2.Speed, 1.2)
+			and near(m2.Workshop, 1)
+		flag("upgrades_multis_bonuses_added", twoOk)
+		local okM1, m1 = try("Multis1", GachaConfig.Multis, { Luck = 2, Money = 3, Speed = 1, Workshop = 2 })
+		local okM0, m0 = try("Multis0", GachaConfig.Multis, nil)
+		local oneOk = okM1
+			and type(m1) == "table"
+			and near(m1.Luck, 1.10)
+			and near(m1.Money, 1.3)
+			and near(m1.Speed, 1.1)
+			and near(m1.Workshop, 1.4)
+			and okM0
+			and type(m0) == "table"
+			and near(m0.Luck, 1)
+			and near(m0.Money, 1)
+			and near(m0.Speed, 1)
+			and near(m0.Workshop, 1)
+		flag("upgrades_multis_one_arg_unchanged", oneOk)
+
+		-- Effects reach GachaService as ADDED percentages with stat points (spec example: 2 Luck points + Luck I-II = 1.35)
+		local function withCars(name)
+			local p = fake(name)
+			for _, id in UPG.SIX_CARS do
+				pcall(GachaService.Grant, p, id)
+			end
+			return p
+		end
+		local pLuck = withCars("GachaLuck")
+		pcall(GachaService.Allocate, pLuck, "Luck")
+		pcall(GachaService.Allocate, pLuck, "Luck")
+		local _, luckBefore = try("Luck", GachaService.Luck, pLuck)
+		apply(pLuck, { Upgrades = { "luck_1", "luck_2" } })
+		local _, luckAfter = try("Luck", GachaService.Luck, pLuck)
+		check(
+			checks,
+			"upgrades_gacha_luck_added_1_35",
+			tonumber(luckAfter) or -1,
+			1.35,
+			near(luckBefore, 1.10) and near(luckAfter, 1.35)
+		)
+		local pMoney = withCars("GachaMoney")
+		pcall(GachaService.Allocate, pMoney, "Money")
+		pcall(GachaService.Allocate, pMoney, "Money")
+		apply(pMoney, { Upgrades = { "money_1", "money_2" } })
+		local _, mm = try("MoneyMulti", GachaService.MoneyMulti, pMoney)
+		check(checks, "upgrades_gacha_money_multi_added", tonumber(mm) or -1, 1.4, near(mm, 1.4))
+		local pSpeed = withCars("GachaSpeed")
+		pcall(GachaService.Equip, pSpeed, "go_kart") -- SpeedMulti 2 (catalog)
+		pcall(GachaService.Allocate, pSpeed, "Speed")
+		apply(pSpeed, { Upgrades = { "speed_1" } })
+		local _, sm = try("SpeedMulti", GachaService.SpeedMulti, pSpeed)
+		-- car x (1 + points + tree) = 2 x (1 + 0.1 + 0.1) = 2.4; multiplying the two (2 x 1.1 x 1.1 = 2.42) is wrong
+		check(checks, "upgrades_gacha_speed_multi_car_times_added", tonumber(sm) or -1, 2.4, near(sm, 2.4))
+
+		-- Turbo through GachaService.Roll: TurboCount counts rolls since the last turbo roll; turbo when
+		-- TurboCount + 1 >= Every, then TurboCount = 0; the turbo multi is the tier's Multi
+		local pT = fake("TurboBase")
+		local seqOk = true
+		for k = 1, 10 do
+			local okR, _, _, m = try("Roll", GachaService.Roll, pT, Random.new(8100 + k))
+			local wantM = k == 10 and 5 or 1
+			local wantC = k == 10 and 0 or k
+			seqOk = seqOk and okR and m == wantM and pT:GetAttribute("TurboCount") == wantC
+		end
+		seqOk = seqOk
+			and pT:GetAttribute("Rolls") == 10
+			and pT:GetAttribute("TurboEvery") == 10
+			and pT:GetAttribute("TurboMulti") == 5
+		flag("upgrades_turbo_base_every_10_x5", seqOk)
+		local pT1 = fake("TurboTier1")
+		apply(pT1, { Upgrades = { "rollspeed_1", "turbo_1" }, TurboCount = 13 })
+		local attrsT1 = pT1:GetAttribute("TurboEvery") == 15 and pT1:GetAttribute("TurboMulti") == 10
+		local _, _, _, ma = try("Roll", GachaService.Roll, pT1, Random.new(8201))
+		local ca = pT1:GetAttribute("TurboCount")
+		local _, _, _, mb = try("Roll", GachaService.Roll, pT1, Random.new(8202))
+		local cb = pT1:GetAttribute("TurboCount")
+		flag("upgrades_turbo_tier_1_every_15_x10", attrsT1 and ma == 1 and ca == 14 and mb == 10 and cb == 0)
+		local pOver = fake("TurboOver")
+		apply(pOver, { Upgrades = {}, TurboCount = 50 })
+		local _, _, _, mo = try("Roll", GachaService.Roll, pOver, Random.new(8301))
+		flag("upgrades_turbo_count_at_or_over_every_is_turbo", mo == 5 and pOver:GetAttribute("TurboCount") == 0)
+		-- the turbo roll really rolls at Luck x tier Multi (Turbo IV: x1000)
+		local pT4 = fake("TurboTier4")
+		apply(pT4, { Upgrades = { "rollspeed_1", "turbo_1", "turbo_2", "turbo_3", "turbo_4" }, TurboCount = 99 })
+		local _, luck4 = try("Luck", GachaService.Luck, pT4)
+		local seed, idTurbo, idPlain = nil, nil, nil
+		if type(luck4) == "number" then
+			for sd = 1, 5000 do
+				local a = GachaConfig.Roll(Random.new(sd), luck4 * 1000)
+				local b = GachaConfig.Roll(Random.new(sd), luck4)
+				if a ~= b then
+					seed, idTurbo, idPlain = sd, a, b
+					break
+				end
+			end
+		end
+		local t4Ok = false
+		if seed then
+			local _, idA, _, mA = try("Roll", GachaService.Roll, pT4, Random.new(seed))
+			local _, idB, _, mB = try("Roll", GachaService.Roll, pT4, Random.new(seed))
+			t4Ok = idA == idTurbo
+				and mA == 1000
+				and idB == idPlain
+				and mB == 1
+				and pT4:GetAttribute("TurboCount") == 1
+				and pT4:GetAttribute("TurboEvery") == 100
+				and pT4:GetAttribute("TurboMulti") == 1000
+		end
+		flag("upgrades_turbo_tier_4_rolls_at_luck_x1000", t4Ok)
+		-- buying a Turbo tier keeps the progress (capped at the new Every - 1) and does not fire a turbo roll
+		local pK = fake("TurboKeep", UPG.RICH)
+		apply(pK, { Upgrades = { "rollspeed_1" }, TurboCount = 9 })
+		local _, rk = svc("Buy", pK, "turbo_1")
+		local keepOk = rk == true
+			and pK:GetAttribute("TurboCount") == 9
+			and pK:GetAttribute("TurboEvery") == 15
+			and pK:GetAttribute("TurboMulti") == 10
+		local _, _, _, mk = try("Roll", GachaService.Roll, pK, Random.new(8401))
+		keepOk = keepOk and mk == 1 and pK:GetAttribute("TurboCount") == 10
+		flag("upgrades_turbo_buy_keeps_progress", keepOk)
+		local pK2 = fake("TurboKeep2", UPG.RICH)
+		apply(pK2, { Upgrades = { "rollspeed_1", "turbo_1" }, TurboCount = 14, BestTrack = 0 })
+		local _, rk2 = svc("Buy", pK2, "turbo_2")
+		local count2 = pK2:GetAttribute("TurboCount")
+		flag(
+			"upgrades_turbo_buy_progress_capped_below_every",
+			rk2 == true
+				and count2 == 14
+				and pK2:GetAttribute("TurboEvery") == 25
+				and type(count2) == "number"
+				and count2 <= 25 - 1
+		)
+
+		-- Roll interval: GachaService.WaitAfter(id, emphasized, player) uses UpgradeService.RollInterval(player);
+		-- without a player it is unchanged (GachaConfig.ROLL_INTERVAL = 3)
+		local extra = RollAnimConfig.ExtraPause(GACHA_SEED[1].Rarity, false)
+		local pW2 = fake("WaitAfter2")
+		apply(pW2, { Upgrades = { "rollspeed_1", "rollspeed_2" } })
+		local _, w5 = try("WaitAfter", GachaService.WaitAfter, GACHA_SEED[1].Id, false, players[2])
+		local _, w2 = try("WaitAfter", GachaService.WaitAfter, GACHA_SEED[1].Id, false, pW2)
+		local _, w0 = try("WaitAfter", GachaService.WaitAfter, GACHA_SEED[1].Id, false)
+		check(
+			checks,
+			"upgrades_wait_after_uses_roll_interval",
+			tonumber(w5) or -1,
+			2 + extra,
+			near(w5, 2 + extra, 0.01) and near(w2, 2.5 + extra, 0.01) and near(w0, 3 + extra, 0.01)
+		)
+
+		-- UpgradesBuyable (the badge) = UpgradeTree.BuyableCount of the player's state, kept current when Money,
+		-- the owned tiles or BestTrack change
+		local pBadge = fake("Badge", 0)
+		local function badgeIs(p)
+			local want = treeCount(treeState(p, 2))
+			return p:GetAttribute("UpgradesBuyable") == want, want
+		end
+		local a0 = badgeIs(pBadge)
+		setMoney(pBadge, 160)
+		task.wait(0.2)
+		local a1, want1 = badgeIs(pBadge)
+		check(
+			checks,
+			"upgrades_buyable_attribute_follows_money",
+			tonumber(pBadge:GetAttribute("UpgradesBuyable")) or -1,
+			want1,
+			a0 and a1 and want1 == 3
+		)
+		svc("Buy", pBadge, "money_1")
+		local a2 = badgeIs(pBadge)
+		pause()
+		setMoney(pBadge, UPG.RICH)
+		task.wait(0.2)
+		local a3 = badgeIs(pBadge)
+		flag("upgrades_buyable_attribute_follows_tiles", a2 and a3)
+		local pBadge2 = fake("Badge2", UPG.RICH)
+		apply(pBadge2, { Upgrades = { "money_1", "money_2" } })
+		task.wait(0.2)
+		local before = pBadge2:GetAttribute("UpgradesBuyable")
+		local b4 = badgeIs(pBadge2)
+		svc("ReachTrack", pBadge2, 2)
+		task.wait(0.2)
+		local b5 = badgeIs(pBadge2)
+		flag(
+			"upgrades_buyable_attribute_follows_best_track",
+			b4 and b5 and type(before) == "number" and pBadge2:GetAttribute("UpgradesBuyable") == before + 1
+		)
+
+		-- Snapshot / Apply: sorted ids, unknown ids kept, start never saved, junk cleaned, a version-3 save derives
+		-- TurboCount = Rolls % 10 and BestTrack 0
+		local pS = fake("Snapshot")
+		apply(pS, { Upgrades = { "money_2", "luck_1", "old_tile", "money_1" }, BestTrack = 3, TurboCount = 4 })
+		local _, snap = svc("Snapshot", pS)
+		local wantIds = { "luck_1", "money_1", "money_2", "old_tile" }
+		local snapOk = type(snap) == "table"
+			and UPG.deepEqual(snap.Upgrades, wantIds)
+			and snap.BestTrack == 3
+			and snap.TurboCount == 4
+			and joined(folderIds(pS)) == joined(wantIds)
+			and pS:GetAttribute("BestTrack") == 3
+			and pS:GetAttribute("TurboCount") == 4
+		flag("upgrades_snapshot_sorted_unknown_kept", snapOk)
+		local pC = fake("ApplyClean")
+		apply(pC, {
+			Upgrades = { "money_2", "luck_1", "money_1", "money_1", "start", 5, true, "old_tile", string.rep("x", 65) },
+			BestTrack = 3,
+			TurboCount = 4,
+		})
+		local _, snapC = svc("Snapshot", pC)
+		flag("upgrades_apply_cleans_ids", type(snapC) == "table" and UPG.deepEqual(snapC.Upgrades, wantIds))
+		apply(pC, { Upgrades = { "speed_1" }, BestTrack = 1, TurboCount = 2 })
+		local _, snapR = svc("Snapshot", pC)
+		flag(
+			"upgrades_apply_replaces_state",
+			type(snapR) == "table"
+				and UPG.deepEqual(snapR.Upgrades, { "speed_1" })
+				and snapR.BestTrack == 1
+				and joined(folderIds(pC)) == "speed_1"
+		)
+		local v3Bad = 0
+		for i, c in { { 23, 3 }, { 40, 0 }, { 9, 9 }, { 0, 0 } } do
+			local p3 = fake("ApplyV3_" .. i)
+			apply(p3, { Version = 3, Money = 5, Rolls = c[1], Cars = { "go_kart" }, Equipped = "starter" })
+			local _, s3 = svc("Snapshot", p3)
+			if
+				type(s3) ~= "table"
+				or s3.TurboCount ~= c[2]
+				or s3.BestTrack ~= 0
+				or not UPG.deepEqual(s3.Upgrades, {})
+				or p3:GetAttribute("TurboCount") ~= c[2]
+			then
+				v3Bad += 1
+			end
+		end
+		check(checks, "upgrades_apply_v3_turbo_from_rolls", v3Bad, 0, v3Bad == 0)
+		local junkBad = 0
+		local junks = table.pack(nil, "garbage", 12345, { Upgrades = "x", BestTrack = -1, TurboCount = 0 / 0 })
+		for i = 1, junks.n do
+			local pj = fake("ApplyJunk" .. i)
+			local okj = apply(pj, junks[i])
+			local _, sj = svc("Snapshot", pj)
+			if
+				not okj
+				or type(sj) ~= "table"
+				or not UPG.deepEqual(sj.Upgrades, {})
+				or sj.BestTrack ~= 0
+				or sj.TurboCount ~= 0
+			then
+				junkBad += 1
+			end
+		end
+		check(checks, "upgrades_apply_junk_is_defaults", junkBad, 0, junkBad == 0)
+
+		-- Remotes.BuyUpgrade (RemoteFunction, made by UpgradeService.Start, which Main calls at boot)
+		local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+		local rf = remotes and remotes:FindFirstChild("BuyUpgrade")
+		flag("upgrades_remote_buy_upgrade_exists", rf ~= nil and rf:IsA("RemoteFunction"))
+
+		-- On-foot WalkSpeed (CarService): set on spawn and again after a Walkspeed purchase
+		if CarService and type(CarService.OnCharacter) == "function" then
+			local pWalk = fake("Walk", UPG.RICH)
+			apply(pWalk, { Upgrades = { "walkspeed_1", "walkspeed_2", "walkspeed_3" }, BestTrack = 2 }) -- tier IV gate: min(3, 2 tracks) = 2
+			local okWalk, walkCF = try("WalkSpawnCFrame", CarService.WalkSpawnCFrame)
+			local model, humanoid = newFakeCharacter((okWalk and typeof(walkCF) == "CFrame") and walkCF or CFrame.new())
+			model.Name = "CarTestUpgWalkCharacter"
+			table.insert(cleanup, model)
+			try("OnCharacter", CarService.OnCharacter, pWalk, model)
+			task.wait(0.5)
+			local onSpawn = humanoid.WalkSpeed
+			check(checks, "upgrades_walkspeed_on_spawn", onSpawn, 23, onSpawn == 23)
+			svc("Buy", pWalk, "walkspeed_4")
+			task.wait(0.3)
+			check(checks, "upgrades_walkspeed_after_buy", humanoid.WalkSpeed, 26, humanoid.WalkSpeed == 26)
+		else
+			flag("upgrades_walkspeed_on_spawn", false)
+		end
+
+		-- the timed auto-roll started at the top
+		while os.clock() - autoT0 < UPG.AUTO_ROLL_WATCH and not firstRollAt do
+			task.wait(0.1)
+		end
+		conn:Disconnect()
+		local firstWait = firstRollAt and (firstRollAt - autoT0) or -1
+		metrics.auto_roll_first_wait = math.floor(firstWait * 1000 + 0.5) / 1000
+		check(
+			checks,
+			"upgrades_auto_roll_uses_roll_interval",
+			firstWait,
+			"2.0 (< 2.95)",
+			okAuto and firstRollAt ~= nil and firstWait >= 2 - 0.05 and firstWait < 3 - 0.05
+		)
+	end
+
+	local okBody, err = pcall(body)
+	if autoHandle then
+		pcall(autoHandle.Stop, autoHandle)
+	end
+	-- the live game's gate must see the real chain length again
+	svc("SetTrackCount", liveTrackCount())
+	if not okBody then
+		check(checks, "upgrades_server_no_error", 0, tostring(err), false)
+	end
+	metrics.server_call_errors = errorCount
+	for _, inst in cleanup do
+		inst:Destroy()
+	end
 end
 
 function Scenarios.upgrades()
@@ -9192,9 +10220,9 @@ function Scenarios.upgrades()
 		return type(a) == "number" and a == a and math.abs(a - b) <= (tol or 1e-6)
 	end
 	local function state(ownedIds, money, best, trackCount)
-		return { Owned = idSet(ownedIds), Money = money, BestTrack = best, TrackCount = trackCount }
+		return { Owned = UPG.idSet(ownedIds), Money = money, BestTrack = best, TrackCount = trackCount }
 	end
-	local configBefore = deepCopy(UpgradeConfig)
+	local configBefore = UPG.deepCopy(UpgradeConfig)
 
 	-- Config guard: the data still holds the owner's numbers (spec sections 1, 2, 4; design "Prices").
 	local cfgOk = UpgradeConfig.START_ID == "start"
@@ -9207,25 +10235,25 @@ function Scenarios.upgrades()
 		and type(UpgradeConfig.BASE_TURBO) == "table"
 		and UpgradeConfig.BASE_TURBO.Multi == 5
 		and UpgradeConfig.BASE_TURBO.Every == 10
-		and #UpgradeConfig.Branches == #UPGRADE_BRANCH_ORDER
+		and #UpgradeConfig.Branches == #UPG.BRANCH_ORDER
 	local configTierTotal = 0
 	for i, b in UpgradeConfig.Branches do
 		local id = b.Id
 		local list = b.Bonus or b.Tiers or b.WalkSpeed
 		local n = type(list) == "table" and #list or 0
 		configTierTotal += n
-		local branchOk = id == UPGRADE_BRANCH_ORDER[i]
-			and n == UPGRADE_BRANCH_TIERS[id]
-			and b.Name == UPGRADE_BRANCH_NAMES[id]
-			and b.Weight == UPGRADE_BRANCH_WEIGHTS[id]
-			and (UPGRADE_BONUS[id] == nil or deepEqual(b.Bonus, UPGRADE_BONUS[id]))
-			and (id ~= "turbo" or (deepEqual(b.Tiers, UPGRADE_TURBO) and deepEqual(b.PriceDepth, { 2, 4, 6, 7 })))
+		local branchOk = id == UPG.BRANCH_ORDER[i]
+			and n == UPG.BRANCH_TIERS[id]
+			and b.Name == UPG.BRANCH_NAMES[id]
+			and b.Weight == UPG.BRANCH_WEIGHTS[id]
+			and (UPG.BONUS[id] == nil or UPG.deepEqual(b.Bonus, UPG.BONUS[id]))
+			and (id ~= "turbo" or (UPG.deepEqual(b.Tiers, UPG.TURBO) and UPG.deepEqual(b.PriceDepth, { 2, 4, 6, 7 })))
 			and b.Parent == (id == "turbo" and "rollspeed_1" or "start")
-			and (id ~= "walkspeed" or deepEqual(b.WalkSpeed, UPGRADE_WALKSPEED))
+			and (id ~= "walkspeed" or UPG.deepEqual(b.WalkSpeed, UPG.WALKSPEED))
 		cfgOk = cfgOk and branchOk
 	end
 	local specTotal = 0
-	for _, n in UPGRADE_BRANCH_TIERS do
+	for _, n in UPG.BRANCH_TIERS do
 		specTotal += n
 	end
 	cfgOk = cfgOk and configTierTotal == specTotal
@@ -9235,14 +10263,14 @@ function Scenarios.upgrades()
 	local expected = {}
 	local expectedById = {}
 	for _, b in UpgradeConfig.Branches do
-		local n = UPGRADE_BRANCH_TIERS[b.Id] or 0
+		local n = UPG.BRANCH_TIERS[b.Id] or 0
 		local parent = b.Parent == "start" and { Depth = 0, Q = 0, R = 0 } or expectedById[b.Parent]
 		for t = 1, n do
 			local e = {
 				Id = b.Id .. "_" .. t,
 				Branch = b.Id,
 				Tier = t,
-				Name = UPGRADE_BRANCH_NAMES[b.Id] .. " " .. ROMAN[t],
+				Name = UPG.BRANCH_NAMES[b.Id] .. " " .. UPG.ROMAN[t],
 				Depth = parent and parent.Depth + t or -1,
 				Q = b.Origin[1] + t * b.Direction[1],
 				R = b.Origin[2] + t * b.Direction[2],
@@ -9326,7 +10354,7 @@ function Scenarios.upgrades()
 			and type(tile.R) == "number"
 			and type(pq) == "number"
 			and type(pr) == "number"
-			and hexDistance(tile.Q, tile.R, pq, pr) == 1
+			and UPG.hexDistance(tile.Q, tile.R, pq, pr) == 1
 		if e.Tier == 1 then
 			tier1Ok = tier1Ok and touches
 		else
@@ -9381,7 +10409,7 @@ function Scenarios.upgrades()
 
 	-- Price: the design table, every tile.
 	local priceBad = 0
-	for branch, prices in UPGRADE_PRICES do
+	for branch, prices in UPG.PRICES do
 		for tier, want in prices do
 			local okc, p = call("Price", branch .. "_" .. tier)
 			if not okc or p ~= want then
@@ -9406,7 +10434,7 @@ function Scenarios.upgrades()
 		return okc and v == want
 	end
 	local reqLowOk = true
-	for _, branch in UPGRADE_BRANCH_ORDER do
+	for _, branch in UPG.BRANCH_ORDER do
 		for tier = 1, 2 do
 			for _, tc in { 1, 2, 10 } do
 				reqLowOk = req(branch .. "_" .. tier, tc, 0) and reqLowOk
@@ -9451,8 +10479,8 @@ function Scenarios.upgrades()
 		and isOk(state({}, RICH, 0, 2), "walkspeed_1")
 		and isOk(state({ "luck_1" }, RICH, 0, 2), "luck_2")
 		and isOk(state({ "luck_1", "luck_2" }, RICH, 2, 2), "luck_3")
-		and isOk(state(tierIds("speed", 4), RICH, 2, 2), "speed_5")
-		and isOk(state(tierIds("money", 4), RICH, 4, 10), "money_5")
+		and isOk(state(UPG.tierIds("speed", 4), RICH, 2, 2), "speed_5")
+		and isOk(state(UPG.tierIds("money", 4), RICH, 4, 10), "money_5")
 	flag("upgrades_canbuy_ok", canOk)
 	local unknownOk = true
 	local badBuy = table.pack("nope", "money_6", "turbo_5", "", nil, 5, true, {})
@@ -9461,7 +10489,7 @@ function Scenarios.upgrades()
 	end
 	flag("upgrades_canbuy_unknown", unknownOk)
 	local ownedOk = isReason(state({ "money_1" }, RICH, 0, 2), "money_1", "owned")
-		and isReason(state(tierIds("luck", 5), RICH, 10, 10), "luck_5", "owned")
+		and isReason(state(UPG.tierIds("luck", 5), RICH, 10, 10), "luck_5", "owned")
 	flag("upgrades_canbuy_owned", ownedOk)
 	local lockedOk = isReason(state({}, RICH, 0, 2), "money_2", "locked")
 		and isReason(state({ "luck_1", "luck_3" }, RICH, 10, 10), "luck_5", "locked")
@@ -9470,9 +10498,9 @@ function Scenarios.upgrades()
 	local gatedOk = isReason(state({ "money_1", "money_2" }, RICH, 0, 2), "money_3", "gated")
 		and isReason(state({ "money_1", "money_2" }, RICH, 1, 2), "money_3", "gated")
 		and isOk(state({ "money_1", "money_2" }, RICH, 2, 2), "money_3")
-		and isReason(state(tierIds("money", 3), RICH, 2, 10), "money_4", "gated")
-		and isOk(state(tierIds("money", 3), RICH, 3, 10), "money_4")
-		and isOk(state(tierIds("money", 4), RICH, 2, 2), "money_5")
+		and isReason(state(UPG.tierIds("money", 3), RICH, 2, 10), "money_4", "gated")
+		and isOk(state(UPG.tierIds("money", 3), RICH, 3, 10), "money_4")
+		and isOk(state(UPG.tierIds("money", 4), RICH, 2, 2), "money_5")
 	flag("upgrades_canbuy_gated", gatedOk)
 	local boundaryOk = isOk(state({}, 150, 0, 2), "money_1")
 		and isReason(state({}, 149, 0, 2), "money_1", "money")
@@ -9513,7 +10541,7 @@ function Scenarios.upgrades()
 
 	-- Bonuses: added percentages, pure sum of what is owned.
 	local function bonuses(ids)
-		local okc, b = call("Bonuses", idSet(ids))
+		local okc, b = call("Bonuses", UPG.idSet(ids))
 		return okc and type(b) == "table" and b or nil
 	end
 	local function bonusIs(b, want)
@@ -9529,10 +10557,10 @@ function Scenarios.upgrades()
 	end
 	flag("upgrades_bonuses_empty_zero", bonusIs(bonuses({}), {}) and bonusIs(bonuses({ "start" }), {}))
 	flag("upgrades_bonuses_luck_1_2_is_0_25", bonusIs(bonuses({ "luck_1", "luck_2" }), { Luck = 0.25 }))
-	local fullOk = bonusIs(bonuses(tierIds("money", 5)), { Money = 0.70 })
-		and bonusIs(bonuses(tierIds("luck", 5)), { Luck = 1.00 })
-		and bonusIs(bonuses(tierIds("speed", 5)), { Speed = 0.70 })
-		and bonusIs(bonuses(tierIds("rollspeed", 5)), { RollSpeed = 0.50 })
+	local fullOk = bonusIs(bonuses(UPG.tierIds("money", 5)), { Money = 0.70 })
+		and bonusIs(bonuses(UPG.tierIds("luck", 5)), { Luck = 1.00 })
+		and bonusIs(bonuses(UPG.tierIds("speed", 5)), { Speed = 0.70 })
+		and bonusIs(bonuses(UPG.tierIds("rollspeed", 5)), { RollSpeed = 0.50 })
 	flag("upgrades_bonuses_added_full_branches", fullOk)
 	local sumOk = bonusIs(bonuses({ "luck_3" }), { Luck = 0.20 })
 		and bonusIs(bonuses({ "money_2", "money_5", "speed_4" }), { Money = 0.30, Speed = 0.15 })
@@ -9542,14 +10570,14 @@ function Scenarios.upgrades()
 
 	-- RollInterval: 3 / (1 + bonus), never below 2.
 	local function interval(ids)
-		local okc, v = call("RollInterval", idSet(ids))
+		local okc, v = call("RollInterval", UPG.idSet(ids))
 		return okc and v or nil
 	end
 	local base = interval({})
 	check(checks, "upgrades_roll_interval_base_3", tonumber(base) or -1, 3, near(base, 3, 0.01))
 	local riOk = true
 	for k = 1, 5 do
-		riOk = near(interval(tierIds("rollspeed", k)), UPGRADE_ROLL_INTERVALS[k], 0.01) and riOk
+		riOk = near(interval(UPG.tierIds("rollspeed", k)), UPG.ROLL_INTERVALS[k], 0.01) and riOk
 	end
 	riOk = near(interval({ "rollspeed_3" }), 2.727, 0.01) and riOk
 	flag("upgrades_roll_interval_tiers", riOk)
@@ -9574,13 +10602,13 @@ function Scenarios.upgrades()
 
 	-- Turbo: highest owned tier wins.
 	local function turboIs(ids, multi, every)
-		local okc, v = call("Turbo", idSet(ids))
+		local okc, v = call("Turbo", UPG.idSet(ids))
 		return okc and type(v) == "table" and v.Multi == multi and v.Every == every
 	end
 	flag("upgrades_turbo_base", turboIs({}, 5, 10))
 	local turboTiersOk = true
-	for k, want in UPGRADE_TURBO do
-		turboTiersOk = turboIs(tierIds("turbo", k), want.Multi, want.Every) and turboTiersOk
+	for k, want in UPG.TURBO do
+		turboTiersOk = turboIs(UPG.tierIds("turbo", k), want.Multi, want.Every) and turboTiersOk
 	end
 	flag("upgrades_turbo_tiers", turboTiersOk)
 	local turboHighOk = turboIs({ "turbo_1" }, 10, 15)
@@ -9592,13 +10620,13 @@ function Scenarios.upgrades()
 
 	-- WalkSpeed: highest owned tier wins.
 	local function walkIs(ids, want)
-		local okc, v = call("WalkSpeed", idSet(ids))
+		local okc, v = call("WalkSpeed", UPG.idSet(ids))
 		return okc and v == want
 	end
 	flag("upgrades_walkspeed_base_16", walkIs({}, 16))
 	local walkTiersOk = true
-	for k, want in UPGRADE_WALKSPEED do
-		walkTiersOk = walkIs(tierIds("walkspeed", k), want) and walkTiersOk
+	for k, want in UPG.WALKSPEED do
+		walkTiersOk = walkIs(UPG.tierIds("walkspeed", k), want) and walkTiersOk
 	end
 	flag("upgrades_walkspeed_tiers", walkTiersOk)
 	flag(
@@ -9607,9 +10635,9 @@ function Scenarios.upgrades()
 	)
 
 	-- Purity: nothing mutates the owned set, the state or the config.
-	local owned = idSet({ "rollspeed_1", "rollspeed_2", "luck_1", "turbo_1", "walkspeed_1", "money_3" })
+	local owned = UPG.idSet({ "rollspeed_1", "rollspeed_2", "luck_1", "turbo_1", "walkspeed_1", "money_3" })
 	local st = { Owned = owned, Money = 5000, BestTrack = 1, TrackCount = 2 }
-	local ownedBefore, stBefore = deepCopy(owned), deepCopy(st)
+	local ownedBefore, stBefore = UPG.deepCopy(owned), UPG.deepCopy(st)
 	call("Bonuses", owned)
 	call("RollInterval", owned)
 	call("Turbo", owned)
@@ -9618,16 +10646,1048 @@ function Scenarios.upgrades()
 	for _, e in expected do
 		call("CanBuy", st, e.Id)
 	end
-	local pureOk = deepEqual(owned, ownedBefore) and deepEqual(st, stBefore) and st.Owned == owned
+	local pureOk = UPG.deepEqual(owned, ownedBefore) and UPG.deepEqual(st, stBefore) and st.Owned == owned
 	flag("upgrades_pure_inputs_unchanged", pureOk)
-	flag("upgrades_config_unchanged", deepEqual(UpgradeConfig, configBefore))
+	flag("upgrades_config_unchanged", UPG.deepEqual(UpgradeConfig, configBefore))
+
+	-- Phase 2: the server (UpgradeService, GachaService effects, turbo count, roll interval, save fields)
+	UPG.upgradesServerChecks(checks, metrics, UpgradeTree)
 
 	metrics.tiles = #tiles
 	metrics.call_errors = errorCount
 	return result("upgrades", checks, metrics)
 end
 
--- name: "static_settle" | "accel" | "brake" | "skidpad" | "car_size" | "economy" | "hud" | "auto_toggle" | "spawn_area" | "gacha" | "index" | "npc" | "bank" | "multiplayer" | "admin" | "roll_anim" | "upgrades" | "lap:<Track>" | "track:<Track>"
+-- Mechanical Workshop, PHASE 1 (docs/WORKSHOP_SPEC.md, owner brief 2026-10-06; numbers Shared/WorkshopConfig).
+-- BRIEF (owner, 2026-10-06): "Start the Mechanical Workshop, with a dedicated area in the spawn area for players'
+-- workshops. Every player in the server has their own plot of land in the spawn area. 7 plots, all in the spawn area;
+-- servers hold at most 7 players. A player's workshop loads when they join. With one player in the server: 1 plot with
+-- their workshop, 6 empty plots. For now everyone gets the starter workshop (level 1)."
+-- Design doc: Speed is earned ONLY while standing inside your own workshop zone, checked on the server on a timer from
+-- the character's position: rate = BASE_RATE x SpeedMulti x LevelMulti x WorkshopPointsMulti / (1 + stat / GAIN_SOFT).
+--
+-- What the checks read:
+--   * pure rules: Shared/Workshop (PlotCFrame, ZoneBounds, InZone, FreePlot, LevelMulti, Rate)
+--   * the LIVE plots: Workspace.Workshops.Plot_1 .. Plot_7, built by WorkshopService.Start (Main, after the spawn area)
+--   * WorkshopService with fake players: Folders with the attributes UserId and DisplayName (the convention of
+--     AdminService; a real Player uses .UserId / .DisplayName). Plot Owner = that UserId.
+--   * Tick seam: WorkshopService.Tick(player, dt, character) - `character` is optional and defaults to
+--     player.Character, so the server loop passes nothing and a test hands in its fake avatar. Tick never throws and
+--     returns the Speed it added (0 when nothing).
+--   * auto racing is read through CarService.IsAutoRacing(player) (looked up at call time) or the AutoRacing player
+--     attribute; the test sets both.
+-- Nothing here may change the live game: every fake player is released and destroyed, and the live plot owners are
+-- compared with the start of the test at the end.
+local WSHOP = {} -- workshop test constants and helpers (one local: the chunk has a 200-local limit)
+WSHOP.PLOTS = { -- spec section 1 table: local (x, z) of Track 1's flattened Start, Front = open side
+	{ Min = Vector2.new(200, -12), Max = Vector2.new(248, 36), Front = Vector2.new(-1, 0) },
+	{ Min = Vector2.new(200, -68), Max = Vector2.new(248, -20), Front = Vector2.new(-1, 0) },
+	{ Min = Vector2.new(200, -124), Max = Vector2.new(248, -76), Front = Vector2.new(-1, 0) },
+	{ Min = Vector2.new(200, -180), Max = Vector2.new(248, -132), Front = Vector2.new(-1, 0) },
+	{ Min = Vector2.new(144, -180), Max = Vector2.new(192, -132), Front = Vector2.new(0, 1) },
+	{ Min = Vector2.new(88, -180), Max = Vector2.new(136, -132), Front = Vector2.new(0, 1) },
+	{ Min = Vector2.new(32, -180), Max = Vector2.new(80, -132), Front = Vector2.new(0, 1) },
+}
+WSHOP.PLOT_COUNT = 7
+WSHOP.PLOT_SIZE = 48
+WSHOP.GAP = 8 -- studs between neighbouring plots
+WSHOP.EDGE_MARGIN = 4 -- studs from the floor's outer sides
+WSHOP.ZONE = Vector3.new(32, 12, 32)
+WSHOP.TICK = 0.5
+WSHOP.BASE_RATE = 1
+WSHOP.EMPTY = "EMPTY PLOT"
+WSHOP.TAG = "WorkshopPlot"
+WSHOP.BASE_RAISE = 0.5 -- the plot Base top is "a hair above the floor": (TOP_Y, TOP_Y + this]
+WSHOP.TOL = 0.5 -- studs: footprints match the spec within this
+-- scratch builds / pure geometry, far from the live world: yawed 90 degrees, and a pitched copy that must flatten
+WSHOP.TEST_START = CFrame.new(30000, 9, 30000) * CFrame.Angles(0, math.rad(90), 0)
+WSHOP.TEST_START_PITCHED = WSHOP.TEST_START * CFrame.Angles(math.rad(8), 0, 0)
+WSHOP.UID = 914400000
+WSHOP.STAT = 1000 -- Speed stat of the Tick player (an integer: SpeedStat rounds to 3 decimals)
+
+function WSHOP.workshopFlatBase(startCF)
+	local look = startCF.LookVector
+	local flat = Vector3.new(look.X, 0, look.Z)
+	flat = flat.Magnitude > 1e-3 and flat.Unit or Vector3.new(0, 0, -1)
+	local p = Vector3.new(startCF.Position.X, 0, startCF.Position.Z)
+	return CFrame.lookAt(p, p + flat)
+end
+
+function WSHOP.workshopCentre(plot)
+	return (plot.Min + plot.Max) / 2
+end
+
+-- Gap between two local rects (> 0 apart, <= 0 overlapping): the larger of the x and z gaps.
+function WSHOP.workshopRectGap(aMin, aMax, bMin, bMax)
+	return math.max(bMin.X - aMax.X, aMin.X - bMax.X, bMin.Y - aMax.Y, aMin.Y - bMax.Y)
+end
+
+function WSHOP.workshopSign(plot)
+	for _, d in plot:GetDescendants() do
+		if d:IsA("BillboardGui") and d.Name == "Sign" then
+			local label = d:FindFirstChildWhichIsA("TextLabel", true)
+			return d, label and label.Text or nil
+		end
+	end
+	return nil, nil
+end
+
+function Scenarios.workshop()
+	local checks = {}
+	local metrics = {}
+	local Players = game:GetService("Players")
+	local WorkshopConfig = sharedModule("WorkshopConfig")
+	local Workshop = sharedModule("Workshop")
+	local SpawnArea = sharedModule("SpawnArea")
+	local RaceConfig = sharedModule("RaceConfig")
+	local GachaConfig = sharedModule("GachaConfig")
+	local WorkshopService = serverModule("WorkshopService")
+	local GachaService = serverModule("GachaService")
+	local UpgradeService = serverModule("UpgradeService")
+	local PlayerData = serverModule("PlayerData")
+	local Money = serverModule("MoneyService")
+	local CarService = serverModule("CarService")
+	local function flag(name, ok)
+		check(checks, name, ok and 1 or 0, 1, ok == true)
+	end
+	local function near(a, b, tol)
+		return type(a) == "number" and a == a and math.abs(a - b) <= (tol or 1e-6) * math.max(1, math.abs(b))
+	end
+	local errorCount = 0
+	local function try(label, fn, ...)
+		if type(fn) ~= "function" then
+			return false, nil, nil
+		end
+		local res = table.pack(pcall(fn, ...))
+		if not res[1] then
+			errorCount += 1
+			if errorCount <= 4 then
+				metrics["error_" .. errorCount] = label .. ": " .. tostring(res[2])
+			end
+			return false, nil, nil
+		end
+		return true, res[2], res[3]
+	end
+
+	-- API
+	local pureFns = { "PlotCFrame", "ZoneBounds", "InZone", "FreePlot", "LevelMulti", "Rate" }
+	local serviceFns = { "BuildPlots", "Assign", "Release", "PlotOf", "Rate", "Tick", "Snapshot", "Apply", "Start" }
+	local pureOk = Workshop ~= nil and WorkshopConfig ~= nil
+	for _, f in pureFns do
+		pureOk = pureOk and type(Workshop[f]) == "function"
+	end
+	local serviceOk = WorkshopService ~= nil
+	for _, f in serviceFns do
+		serviceOk = serviceOk and type(WorkshopService[f]) == "function"
+	end
+	local depsOk = SpawnArea ~= nil
+		and RaceConfig ~= nil
+		and GachaConfig ~= nil
+		and GachaService ~= nil
+		and PlayerData ~= nil
+		and Money ~= nil
+		and CarService ~= nil
+		and type(RaceConfig.GAIN_SOFT) == "number"
+	flag("workshop_module_api_exists", pureOk)
+	flag("workshop_service_api_exists", serviceOk)
+	flag("workshop_dependencies_exist", depsOk)
+	if not (WorkshopConfig and depsOk) then
+		return result("workshop", checks, metrics)
+	end
+	local C = WorkshopConfig
+	local TOP_Y = SPAWN_TOP_Y
+
+	-- 1. Config holds the spec's numbers
+	local plotsOk = type(C.Plots) == "table" and #C.Plots == WSHOP.PLOT_COUNT
+	if plotsOk then
+		for i, want in WSHOP.PLOTS do
+			local got = C.Plots[i]
+			plotsOk = plotsOk
+				and type(got) == "table"
+				and typeof(got.Min) == "Vector2"
+				and typeof(got.Max) == "Vector2"
+				and typeof(got.Front) == "Vector2"
+				and got.Min == want.Min
+				and got.Max == want.Max
+				and got.Front == want.Front
+		end
+	end
+	check(checks, "workshop_config_plots_match_spec", type(C.Plots) == "table" and #C.Plots or -1, 7, plotsOk)
+	local levelsOk = type(C.Levels) == "table"
+		and type(C.Levels[1]) == "table"
+		and C.Levels[1].Multi == 1
+		and C.Levels[1].Price == 0
+		and C.MAX_LEVEL == #C.Levels
+	local cfgOk = C.PLOT_COUNT == WSHOP.PLOT_COUNT
+		and C.PLOT_SIZE == WSHOP.PLOT_SIZE
+		and C.ZONE_SIZE == WSHOP.ZONE
+		and C.TICK == WSHOP.TICK
+		and C.BASE_RATE == WSHOP.BASE_RATE
+		and C.EMPTY_TEXT == WSHOP.EMPTY
+		and C.TAG == WSHOP.TAG
+		and type(C.SIGN_DISTANCE) == "number"
+		and C.SIGN_DISTANCE > 0
+		and C.SIGN_DISTANCE < math.huge
+		and levelsOk
+	flag("workshop_config_numbers_match_spec", cfgOk)
+	local spawnConstOk = typeof(SpawnArea.HUB_MIN) == "Vector2"
+		and SpawnArea.HUB_MIN == SPAWN_LAYOUT.HUB_MIN
+		and SpawnArea.HUB_MAX == SPAWN_LAYOUT.HUB_MAX
+		and SpawnArea.AREA_MIN == SPAWN_AREA_MIN
+		and SpawnArea.AREA_MAX == SPAWN_AREA_MAX
+	flag("workshop_spawn_area_layout_constants", spawnConstOk)
+	local MAXL = type(C.MAX_LEVEL) == "number" and C.MAX_LEVEL or 1
+	local function levelMultiWant(level)
+		if type(level) ~= "number" or level ~= level then
+			level = 1
+		end
+		local i = math.clamp(math.floor(math.clamp(level, -1e9, 1e9)), 1, MAXL)
+		return C.Levels and C.Levels[i] and C.Levels[i].Multi or 1
+	end
+
+	-- 2. Layout rules on the config's plots: 48 x 48, 8-stud gaps, inside the floor 4 studs from its outer sides, clear
+	-- of the hub and the StartPad, and the whole hub lies in front of each plot's open side
+	local plots = plotsOk and C.Plots or WSHOP.PLOTS
+	local squareOk, gapOk, insideOk, hubOk, padOk, frontOk = plotsOk, plotsOk, plotsOk, plotsOk, plotsOk, plotsOk
+	local minGap = math.huge
+	for i, p in plots do
+		local size = p.Max - p.Min
+		squareOk = squareOk and size.X == WSHOP.PLOT_SIZE and size.Y == WSHOP.PLOT_SIZE
+		for j = i + 1, #plots do
+			local g = WSHOP.workshopRectGap(p.Min, p.Max, plots[j].Min, plots[j].Max)
+			minGap = math.min(minGap, g)
+		end
+		insideOk = insideOk
+			and p.Min.X >= SPAWN_AREA_MIN.X
+			and p.Max.X <= SPAWN_AREA_MAX.X - WSHOP.EDGE_MARGIN
+			and p.Min.Y >= SPAWN_AREA_MIN.Y + WSHOP.EDGE_MARGIN
+			and p.Max.Y <= SPAWN_AREA_MAX.Y - WSHOP.EDGE_MARGIN
+		hubOk = hubOk and WSHOP.workshopRectGap(p.Min, p.Max, SPAWN_LAYOUT.HUB_MIN, SPAWN_LAYOUT.HUB_MAX) > 0
+		padOk = padOk and WSHOP.workshopRectGap(p.Min, p.Max, SPAWN_PAD_MIN, SPAWN_PAD_MAX) > 0
+		local f = p.Front
+		local axis = (math.abs(f.X) == 1 and f.Y == 0) or (f.X == 0 and math.abs(f.Y) == 1)
+		local hubInFront
+		if f.X == -1 then
+			hubInFront = SPAWN_LAYOUT.HUB_MAX.X <= p.Min.X
+		elseif f.X == 1 then
+			hubInFront = SPAWN_LAYOUT.HUB_MIN.X >= p.Max.X
+		elseif f.Y == 1 then
+			hubInFront = SPAWN_LAYOUT.HUB_MIN.Y >= p.Max.Y
+		else
+			hubInFront = SPAWN_LAYOUT.HUB_MAX.Y <= p.Min.Y
+		end
+		frontOk = frontOk and axis and hubInFront
+	end
+	gapOk = gapOk and minGap >= WSHOP.GAP
+	flag("workshop_plots_48_square", squareOk)
+	check(checks, "workshop_plots_no_overlap_gap_8", minGap == math.huge and -1 or minGap, WSHOP.GAP, gapOk)
+	flag("workshop_plots_inside_floor", insideOk)
+	flag("workshop_plots_clear_of_hub", hubOk)
+	flag("workshop_plots_clear_of_start_pad", padOk)
+	flag("workshop_plots_open_toward_hub", frontOk)
+
+	-- 3. Pure geometry (Shared/Workshop) at a yawed test start, a pitched copy of it and the live start
+	local trackFolder = Workspace:FindFirstChild("Track")
+	local specs = type(TrackRegistry.Chain) == "function" and TrackRegistry.Chain() or {}
+	local track1 = trackFolder and specs[1] and trackFolder:FindFirstChild(specs[1].Name)
+	local startPart = track1 and track1:FindFirstChild("Start")
+	local liveOk = startPart ~= nil and startPart:IsA("BasePart")
+	flag("workshop_live_chain_present", liveOk)
+	local starts = { WSHOP.TEST_START, WSHOP.TEST_START_PITCHED }
+	if liveOk then
+		table.insert(starts, startPart.CFrame)
+	end
+	local function worldAt(base, x, z, y)
+		local w = base:PointToWorldSpace(Vector3.new(x, 0, z))
+		return Vector3.new(w.X, y, w.Z)
+	end
+	if pureOk then
+		local cfBad, boundsBad, zoneBad = 0, 0, 0
+		for _, start in starts do
+			local base = WSHOP.workshopFlatBase(start)
+			for i, p in WSHOP.PLOTS do
+				local c = WSHOP.workshopCentre(p)
+				local wantPos = worldAt(base, c.X, c.Y, TOP_Y)
+				local wantLook = base:VectorToWorldSpace(Vector3.new(p.Front.X, 0, p.Front.Y))
+				local okc, cf = try("PlotCFrame", Workshop.PlotCFrame, start, i)
+				if
+					not okc
+					or typeof(cf) ~= "CFrame"
+					or (cf.Position - wantPos).Magnitude > 0.01
+					or cf.LookVector:Dot(wantLook) < 0.999
+				then
+					cfBad += 1
+				end
+				-- zone: the centred 32 x 32 rect, from the floor top to ZONE_SIZE.Y above it
+				local hx, hz = WSHOP.ZONE.X / 2, WSHOP.ZONE.Z / 2
+				local lo, hi = Vector3.new(math.huge, 0, math.huge), Vector3.new(-math.huge, 0, -math.huge)
+				for _, dx in { -hx, hx } do
+					for _, dz in { -hz, hz } do
+						local w = worldAt(base, c.X + dx, c.Y + dz, 0)
+						lo = Vector3.new(math.min(lo.X, w.X), 0, math.min(lo.Z, w.Z))
+						hi = Vector3.new(math.max(hi.X, w.X), 0, math.max(hi.Z, w.Z))
+					end
+				end
+				local okb, b = try("ZoneBounds", Workshop.ZoneBounds, start, i)
+				if
+					not okb
+					or type(b) ~= "table"
+					or typeof(b.Min) ~= "Vector3"
+					or typeof(b.Max) ~= "Vector3"
+					or math.abs(b.Min.X - lo.X) > 0.01
+					or math.abs(b.Min.Z - lo.Z) > 0.01
+					or math.abs(b.Max.X - hi.X) > 0.01
+					or math.abs(b.Max.Z - hi.Z) > 0.01
+					or math.abs(b.Min.Y - TOP_Y) > 0.01
+					or math.abs(b.Max.Y - (TOP_Y + WSHOP.ZONE.Y)) > 0.01
+				then
+					boundsBad += 1
+				end
+				-- InZone: inside / just inside / just outside / plot but not zone / above / below / another plot
+				local other = WSHOP.PLOTS[i % #WSHOP.PLOTS + 1]
+				local oc = WSHOP.workshopCentre(other)
+				local cases = {
+					{ worldAt(base, c.X, c.Y, TOP_Y + 3), true },
+					{ worldAt(base, c.X + hx - 0.5, c.Y, TOP_Y + 1), true },
+					{ worldAt(base, c.X, c.Y - hz + 0.5, TOP_Y + WSHOP.ZONE.Y - 0.5), true },
+					{ worldAt(base, c.X + hx + 0.5, c.Y, TOP_Y + 3), false },
+					{ worldAt(base, c.X, c.Y + hz + 0.5, TOP_Y + 3), false },
+					{ worldAt(base, c.X - 20, c.Y, TOP_Y + 3), false }, -- on the plot, outside the zone
+					{ worldAt(base, c.X, c.Y, TOP_Y + WSHOP.ZONE.Y + 0.5), false },
+					{ worldAt(base, c.X, c.Y, TOP_Y - 0.5), false },
+					{ worldAt(base, oc.X, oc.Y, TOP_Y + 3), false },
+				}
+				for _, case in cases do
+					local okz, inside = try("InZone", Workshop.InZone, start, i, case[1])
+					if not okz or inside ~= case[2] then
+						zoneBad += 1
+					end
+				end
+			end
+		end
+		check(checks, "workshop_plot_cframe", cfBad, 0, cfBad == 0)
+		check(checks, "workshop_zone_bounds", boundsBad, 0, boundsBad == 0)
+		check(checks, "workshop_in_zone_points", zoneBad, 0, zoneBad == 0)
+		local badIdx = table.pack(0, 8, -1, 1.5, "1", nil)
+		local nilOk = true
+		for k = 1, badIdx.n do
+			local okc, cf = try("PlotCFrame", Workshop.PlotCFrame, WSHOP.TEST_START, badIdx[k])
+			local okz, inside = try("InZone", Workshop.InZone, WSHOP.TEST_START, badIdx[k], WSHOP.TEST_START.Position)
+			nilOk = nilOk and okc and cf == nil and okz and inside == false
+		end
+		local okJunk, junkIn = try("InZone", Workshop.InZone, WSHOP.TEST_START, 1, "nowhere")
+		flag("workshop_bad_index_nil_and_outside", nilOk and okJunk and junkIn == false)
+
+		-- FreePlot: lowest free index, 0 when all 7 are taken
+		local function taken(list)
+			local s = {}
+			for _, i in list do
+				s[i] = true
+			end
+			return s
+		end
+		local freeOk = true
+		for _, c in
+			{
+				{ {}, 1 },
+				{ { 1 }, 2 },
+				{ { 2 }, 1 },
+				{ { 1, 2, 4 }, 3 },
+				{ { 1, 2, 3, 4, 5, 6 }, 7 },
+				{ { 1, 2, 3, 4, 5, 6, 7 }, 0 },
+				{ { 8, 9 }, 1 },
+			}
+		do
+			local okf, v = try("FreePlot", Workshop.FreePlot, taken(c[1]))
+			freeOk = freeOk and okf and v == c[2]
+		end
+		flag("workshop_free_plot_lowest", freeOk)
+
+		-- LevelMulti: level 1 = 1, everything clamped to 1 .. MAX_LEVEL
+		local lmOk = true
+		local lmCases = table.pack(1, 0, -5, MAXL, MAXL + 3, 1e9, 2.7, 0 / 0, nil, "2")
+		for k = 1, lmCases.n do
+			local okl, v = try("LevelMulti", Workshop.LevelMulti, lmCases[k])
+			lmOk = lmOk and okl and v == levelMultiWant(lmCases[k])
+		end
+		local okOne, one = try("LevelMulti", Workshop.LevelMulti, 1)
+		flag("workshop_level_multi_clamped", lmOk and okOne and one == 1)
+
+		-- Rate = BASE_RATE x speedMulti x LevelMulti(level) x workshopMulti / (1 + stat / GAIN_SOFT); bad inputs 0
+		local soft = RaceConfig.GAIN_SOFT
+		local function rateWant(stat, sm, level, wm)
+			return WSHOP.BASE_RATE * sm * levelMultiWant(level) * wm / (1 + stat / soft)
+		end
+		local rateOk = true
+		for _, c in
+			{
+				{ 0, 1, 1, 1 },
+				{ soft, 1, 1, 1 },
+				{ 1000, 2.4, 1, 1.2 },
+				{ 0, 3, MAXL + 5, 1 },
+				{ 12345.678, 150, 1, 2.6 },
+				{ RaceConfig.MAX_STAT or 1e9, 1000, 1, 1 },
+			}
+		do
+			local okr, v = try("Rate", Workshop.Rate, c[1], c[2], c[3], c[4])
+			rateOk = rateOk and okr and near(v, rateWant(c[1], c[2], c[3], c[4]), 1e-9)
+		end
+		local okBase, vBase = try("Rate", Workshop.Rate, 0, 1, 1, 1)
+		local okHalf, vHalf = try("Rate", Workshop.Rate, soft, 1, 1, 1)
+		check(
+			checks,
+			"workshop_rate_formula",
+			okBase and vBase or -1,
+			WSHOP.BASE_RATE,
+			rateOk and okBase and vBase == 1 and okHalf and near(vHalf, 0.5, 1e-9)
+		)
+		local badRate = table.pack(
+			{ -1, 1, 1, 1 },
+			{ 0 / 0, 1, 1, 1 },
+			{ "5", 1, 1, 1 },
+			{ false, 1, 1, 1 },
+			{ 0, -1, 1, 1 },
+			{ 0, 0 / 0, 1, 1 },
+			{ 0, math.huge, 1, 1 },
+			{ 0, "2", 1, 1 },
+			{ 0, 1, 1, -1 },
+			{ 0, 1, 1, 0 / 0 },
+			{ 0, 1, 1, math.huge },
+			{ 0, 1, 1, {} }
+		)
+		local badOk = true
+		for k = 1, badRate.n do
+			local c = badRate[k]
+			local okr, v = try("Rate", Workshop.Rate, c[1], c[2], c[3], c[4])
+			badOk = badOk and okr and v == 0
+		end
+		local okNil, vNil = try("Rate", Workshop.Rate)
+		flag("workshop_rate_bad_inputs_zero", badOk and okNil and vNil == 0)
+	end
+
+	-- 4. The live plots: Workspace.Workshops built by WorkshopService.Start (Main, after the spawn area)
+	local folder = Workspace:FindFirstChild("Workshops")
+	local folderOk = folder ~= nil and folder:IsA("Folder")
+	flag("workshop_live_folder_exists", folderOk)
+	local livePlots = {}
+	if folderOk then
+		for i = 1, WSHOP.PLOT_COUNT do
+			local m = folder:FindFirstChild("Plot_" .. i)
+			livePlots[i] = (m and m:IsA("Model")) and m or nil
+		end
+	end
+	local liveCount, taggedCount = 0, 0
+	if folderOk then
+		for _, d in folder:GetChildren() do
+			if d:IsA("Model") and string.match(d.Name, "^Plot_%d+$") then
+				liveCount += 1
+				if CollectionService:HasTag(d, WSHOP.TAG) then
+					taggedCount += 1
+				end
+			end
+		end
+	end
+	local allSeven = true
+	for i = 1, WSHOP.PLOT_COUNT do
+		allSeven = allSeven and livePlots[i] ~= nil
+	end
+	check(checks, "workshop_live_seven_plots", liveCount, 7, allSeven and liveCount == WSHOP.PLOT_COUNT)
+	check(checks, "workshop_live_plots_tagged", taggedCount, 7, taggedCount == WSHOP.PLOT_COUNT)
+
+	local function ownerOf(i)
+		local m = livePlots[i]
+		return m and m:GetAttribute("Owner") or nil
+	end
+	-- Checks one plot's static parts (Base, sign, anchoring) against the rect, in the space of `base`
+	local function plotShapeBad(m, i, base)
+		local bad = {}
+		local baseP = m:FindFirstChild("Base")
+		if not (baseP and baseP:IsA("BasePart")) then
+			table.insert(bad, "base")
+		else
+			local bMin, bMax, bTop = spawnLocalBounds(base, baseP)
+			local p = WSHOP.PLOTS[i]
+			if math.max(spawnV2Err(bMin, p.Min), spawnV2Err(bMax, p.Max)) > WSHOP.TOL then
+				table.insert(bad, "base_rect")
+			end
+			if not (bTop > TOP_Y and bTop <= TOP_Y + WSHOP.BASE_RAISE) then
+				table.insert(bad, "base_top")
+			end
+		end
+		for _, d in m:GetDescendants() do
+			if d:IsA("BasePart") and not d.Anchored then
+				table.insert(bad, "unanchored:" .. d.Name)
+				break
+			end
+		end
+		local gui = WSHOP.workshopSign(m)
+		if
+			not gui
+			or not (gui.MaxDistance > 0 and gui.MaxDistance < math.huge)
+			or gui.MaxDistance ~= C.SIGN_DISTANCE
+		then
+			table.insert(bad, "sign")
+		end
+		if type(m:GetAttribute("Owner")) ~= "number" then
+			table.insert(bad, "owner_attr")
+		end
+		return bad
+	end
+	local function expectedSign(owner)
+		if owner == 0 then
+			return WSHOP.EMPTY
+		end
+		local real = Players:GetPlayerByUserId(owner)
+		return real and (real.DisplayName .. "'s Workshop") or nil
+	end
+	local baselineOwners = {}
+	if liveOk and allSeven then
+		local base = WSHOP.workshopFlatBase(startPart.CFrame)
+		local shapeBad, signBad = 0, 0
+		for i = 1, WSHOP.PLOT_COUNT do
+			local bad = plotShapeBad(livePlots[i], i, base)
+			if #bad > 0 then
+				shapeBad += 1
+				metrics["live_plot_" .. i] = table.concat(bad, ",")
+			end
+			local owner = ownerOf(i)
+			baselineOwners[i] = owner
+			local _, text = WSHOP.workshopSign(livePlots[i])
+			local want = type(owner) == "number" and expectedSign(owner) or nil
+			if want == nil or text ~= want then
+				signBad += 1
+			end
+			local hasWorkshop = livePlots[i]:FindFirstChild("Workshop") ~= nil
+			if owner == 0 and hasWorkshop then
+				signBad += 1
+			end
+		end
+		check(checks, "workshop_live_plot_shapes", shapeBad, 0, shapeBad == 0)
+		check(checks, "workshop_live_signs_match_owners", signBad, 0, signBad == 0)
+
+		-- no part of any plot overlaps a road / wall / checkpoint of any chained track, the Spawn, the StartPad or
+		-- the hub, and every part stays on the floor; the spec rects themselves stay clear of the tracks too
+		local trackParts = {}
+		for _, d in trackFolder:GetDescendants() do
+			if d:IsA("BasePart") and d.Name ~= "Ground" and d.Name ~= "Start" then
+				table.insert(trackParts, { Part = d, Poly = spawnPartPoly(d) })
+			end
+		end
+		local area = Workspace:FindFirstChild("SpawnArea")
+		local spawnPart = area and area:FindFirstChild("Spawn")
+		local padPart = area and area:FindFirstChild("StartPad")
+		local hubPoly = spawnRectPoly(base, SPAWN_LAYOUT.HUB_MIN, SPAWN_LAYOUT.HUB_MAX)
+		local trackHits, spawnHits, outside, worst, worstName = 0, 0, 0, math.huge, ""
+		for _, d in folder:GetDescendants() do
+			if d:IsA("BasePart") then
+				local poly = spawnPartPoly(d)
+				for _, t in trackParts do
+					local sep = spawnPolySeparation(poly, t.Poly)
+					if sep < worst then
+						worst, worstName = sep, d:GetFullName() .. "/" .. t.Part:GetFullName()
+					end
+					if sep < -SPAWN_OVERLAP_TOL then
+						trackHits += 1
+					end
+				end
+				for _, other in { spawnPart, padPart } do
+					if other and spawnPolySeparation(poly, spawnPartPoly(other)) < -SPAWN_OVERLAP_TOL then
+						spawnHits += 1
+					end
+				end
+				if spawnPolySeparation(poly, hubPoly) < -SPAWN_OVERLAP_TOL then
+					spawnHits += 1
+				end
+				local lMin, lMax = spawnLocalBounds(base, d)
+				if
+					lMin.X < SPAWN_AREA_MIN.X - WSHOP.TOL
+					or lMin.Y < SPAWN_AREA_MIN.Y - WSHOP.TOL
+					or lMax.X > SPAWN_AREA_MAX.X + WSHOP.TOL
+					or lMax.Y > SPAWN_AREA_MAX.Y + WSHOP.TOL
+				then
+					outside += 1
+				end
+			end
+		end
+		if trackHits > 0 then
+			metrics.worst_track_overlap = worstName
+		end
+		metrics.closest_track_gap = worst == math.huge and -1 or round(worst)
+		check(checks, "workshop_live_no_track_overlap", trackHits, 0, #trackParts > 0 and trackHits == 0)
+		check(
+			checks,
+			"workshop_live_clear_of_spawn_pad_hub",
+			spawnHits,
+			0,
+			spawnPart ~= nil and padPart ~= nil and spawnHits == 0
+		)
+		check(checks, "workshop_live_parts_on_floor", outside, 0, outside == 0)
+		local rectHits = 0
+		for _, p in WSHOP.PLOTS do
+			local rp = spawnRectPoly(base, p.Min, p.Max)
+			for _, t in trackParts do
+				if spawnPolySeparation(rp, t.Poly) < -SPAWN_OVERLAP_TOL then
+					rectHits += 1
+				end
+			end
+		end
+		check(checks, "workshop_rects_no_track_overlap", rectHits, 0, rectHits == 0)
+	end
+
+	if not (serviceOk and pureOk and liveOk and allSeven) then
+		return result("workshop", checks, metrics)
+	end
+
+	-- 5. WorkshopService with fake players on the live plots
+	local cleanup = {}
+	local fakes = {}
+	local base = WSHOP.workshopFlatBase(startPart.CFrame)
+	local origRacing = CarService.IsAutoRacing
+	local racingFakes = {}
+	CarService.IsAutoRacing = function(p, ...)
+		if racingFakes[p] then
+			return true
+		end
+		return origRacing(p, ...)
+	end
+	local function fake(name)
+		WSHOP.UID += 1
+		local p = Instance.new("Folder")
+		p.Name = "CarTestWorkshop" .. name
+		p:SetAttribute("UserId", WSHOP.UID)
+		p:SetAttribute("DisplayName", "WS " .. name)
+		p.Parent = Workspace
+		table.insert(fakes, p)
+		pcall(Money.Setup, p)
+		pcall(PlayerData.Setup, p)
+		pcall(GachaService.Setup, p)
+		if UpgradeService and type(UpgradeService.Setup) == "function" then
+			pcall(UpgradeService.Setup, p)
+		end
+		try("Apply", WorkshopService.Apply, p, {})
+		return p
+	end
+	local function svc(fname, ...)
+		return try(fname, WorkshopService[fname], ...)
+	end
+	local function liveTaken()
+		local t = {}
+		for i = 1, WSHOP.PLOT_COUNT do
+			local o = ownerOf(i)
+			if type(o) == "number" and o ~= 0 then
+				t[i] = true
+			end
+		end
+		return t
+	end
+	local function lowestFree(t)
+		for i = 1, WSHOP.PLOT_COUNT do
+			if not t[i] then
+				return i
+			end
+		end
+		return 0
+	end
+	local function ownedCount()
+		local n = 0
+		for _ in liveTaken() do
+			n += 1
+		end
+		return n
+	end
+	local function speedOf(p)
+		local ls = p:FindFirstChild("leaderstats")
+		local s = ls and ls:FindFirstChild("Speed")
+		return s and s.Value or nil
+	end
+	local function setSpeed(p, v)
+		local ls = p:FindFirstChild("leaderstats")
+		local s = ls and ls:FindFirstChild("Speed")
+		if s then
+			s.Value = v
+		end
+	end
+	local function newAvatar(pos)
+		local model, humanoid, root = newFakeCharacter(CFrame.new(pos))
+		model.Name = "CarTestWorkshopCharacter"
+		for _, d in model:GetDescendants() do
+			if d:IsA("BasePart") then
+				d.Anchored = true
+			end
+		end
+		model:PivotTo(CFrame.new(pos))
+		table.insert(cleanup, model)
+		return model, humanoid, root
+	end
+	local function zoneCentre(i, h)
+		local c = WSHOP.workshopCentre(WSHOP.PLOTS[i])
+		return worldAt(base, c.X, c.Y, TOP_Y + h)
+	end
+
+	local function body()
+		metrics.baseline_owned = ownedCount()
+		-- Save fields: Apply / Snapshot (missing = 1, clamped to 1 .. MAX_LEVEL)
+		local pa = fake("Apply")
+		local saveBad = 0
+		local saveCases = table.pack(
+			{},
+			{ WorkshopLevel = 1 },
+			{ WorkshopLevel = 99 },
+			{ WorkshopLevel = -2 },
+			{ WorkshopLevel = "x" },
+			"junk",
+			nil
+		)
+		for k = 1, saveCases.n do
+			local okA = svc("Apply", pa, saveCases[k])
+			local raw = type(saveCases[k]) == "table" and saveCases[k].WorkshopLevel or nil
+			local want = type(raw) == "number" and math.clamp(math.floor(raw), 1, MAXL) or 1
+			local _, snap = svc("Snapshot", pa)
+			if
+				not okA
+				or pa:GetAttribute("WorkshopLevel") ~= want
+				or type(snap) ~= "table"
+				or snap.WorkshopLevel ~= want
+			then
+				saveBad += 1
+			end
+		end
+		check(checks, "workshop_apply_snapshot_level", saveBad, 0, saveBad == 0)
+
+		-- Assign: the lowest free plot, Plot attribute, PlotOf, Owner, the owner's sign, a Workshop model with its Zone
+		local taken0 = liveTaken()
+		local want1 = lowestFree(taken0)
+		local p1 = fake("One")
+		local _, idx1 = svc("Assign", p1)
+		local uid1 = p1:GetAttribute("UserId")
+		local _, plotOf1 = svc("PlotOf", p1)
+		check(
+			checks,
+			"workshop_assign_lowest_free",
+			tonumber(idx1) or -1,
+			want1,
+			want1 ~= 0 and idx1 == want1 and p1:GetAttribute("Plot") == want1 and plotOf1 == want1
+		)
+		local m1 = type(idx1) == "number" and livePlots[idx1] or nil
+		local text1 = nil
+		if m1 then
+			_, text1 = WSHOP.workshopSign(m1)
+		end
+		flag(
+			"workshop_assign_owner_and_sign",
+			m1 ~= nil and m1:GetAttribute("Owner") == uid1 and text1 == "WS One's Workshop"
+		)
+		local wsModel = m1 and m1:FindFirstChild("Workshop")
+		local zone = wsModel and wsModel:FindFirstChild("Zone", true)
+		local zoneOk = wsModel ~= nil and wsModel:IsA("Model") and zone ~= nil and zone:IsA("BasePart")
+		if zoneOk then
+			local c = WSHOP.workshopCentre(WSHOP.PLOTS[idx1])
+			local wantC = worldAt(base, c.X, c.Y, 0)
+			local sizeOk = math.abs(zone.Size.Y - WSHOP.ZONE.Y) <= 0.05
+				and math.abs(math.min(zone.Size.X, zone.Size.Z) - math.min(WSHOP.ZONE.X, WSHOP.ZONE.Z)) <= 0.05
+				and math.abs(math.max(zone.Size.X, zone.Size.Z) - math.max(WSHOP.ZONE.X, WSHOP.ZONE.Z)) <= 0.05
+			zoneOk = sizeOk
+				and hdist(zone.Position, wantC) <= WSHOP.TOL
+				and zone.CanCollide == false
+				and zone.CanTouch == false
+				and zone.CanQuery == false
+				and zone.Transparency == 1
+				and zone.Anchored == true
+		end
+		flag("workshop_model_with_zone_part", zoneOk)
+		local rateGui = m1 and m1:FindFirstChild("Rate", true)
+		local rateLabel = rateGui and rateGui:IsA("BillboardGui") and rateGui:FindFirstChildWhichIsA("TextLabel", true)
+		flag(
+			"workshop_rate_billboard",
+			rateLabel ~= nil
+				and string.find(rateLabel.Text, "Speed/s", 1, true) ~= nil
+				and rateGui.MaxDistance > 0
+				and rateGui.MaxDistance < math.huge
+		)
+		local anchoredOk = m1 ~= nil
+		if m1 then
+			for _, d in m1:GetDescendants() do
+				if d:IsA("BasePart") and not d.Anchored then
+					anchoredOk = false
+				end
+			end
+		end
+		flag("workshop_owned_plot_all_anchored", anchoredOk)
+		-- one more player in the server = exactly one more owned plot, the rest EMPTY PLOT without a workshop
+		local owned1 = ownedCount()
+		local emptyOk = true
+		for i = 1, WSHOP.PLOT_COUNT do
+			local o = ownerOf(i)
+			local _, t = WSHOP.workshopSign(livePlots[i])
+			if o == 0 and (t ~= WSHOP.EMPTY or livePlots[i]:FindFirstChild("Workshop") ~= nil) then
+				emptyOk = false
+			end
+		end
+		check(
+			checks,
+			"workshop_one_player_one_owned_rest_empty",
+			owned1,
+			metrics.baseline_owned + 1,
+			owned1 == metrics.baseline_owned + 1 and emptyOk
+		)
+		-- assigning again changes nothing (one plot per player)
+		local _, idx1b = svc("Assign", p1)
+		local count1 = 0
+		for i = 1, WSHOP.PLOT_COUNT do
+			if ownerOf(i) == uid1 then
+				count1 += 1
+			end
+		end
+		flag("workshop_assign_idempotent", idx1b == idx1 and count1 == 1 and ownedCount() == owned1)
+
+		-- the next player gets the next lowest free plot
+		local p2 = fake("Two")
+		local want2 = lowestFree(liveTaken())
+		local _, idx2 = svc("Assign", p2)
+		check(checks, "workshop_assign_next_lowest", tonumber(idx2) or -1, want2, want2 ~= 0 and idx2 == want2)
+
+		-- 6. Rate and Tick for p2: go_kart (x2), 1 Speed point, 1 Workshop point, Speed I tile, stat WSHOP.STAT
+		for _, id in UPG.SIX_CARS do
+			pcall(GachaService.Grant, p2, id)
+		end
+		pcall(GachaService.Equip, p2, "go_kart")
+		pcall(GachaService.Allocate, p2, "Speed")
+		pcall(GachaService.Allocate, p2, "Workshop")
+		local treeOk = UpgradeService ~= nil
+			and type(UpgradeService.Apply) == "function"
+			and pcall(UpgradeService.Apply, p2, { Upgrades = { "speed_1" } })
+		setSpeed(p2, WSHOP.STAT)
+		-- SpeedMulti = car x (1 + Speed points + tree Speed) = 2 x 1.2; Workshop points multi = 1 + 0.2
+		local wantSpeedMulti = 2 * (1 + GACHA_PER_POINT.Speed + 0.10)
+		local wantWorkshopMulti = 1 + GACHA_PER_POINT.Workshop
+		local wantRate = WSHOP.BASE_RATE
+			* wantSpeedMulti
+			* levelMultiWant(1)
+			* wantWorkshopMulti
+			/ (1 + WSHOP.STAT / RaceConfig.GAIN_SOFT)
+		metrics.want_rate = wantRate
+		local _, rate2 = svc("Rate", p2)
+		local okSM, sm = try("SpeedMulti", GachaService.SpeedMulti, p2)
+		local okWm, wm = try("Multis", function()
+			return GachaConfig.Multis({ Workshop = p2:GetAttribute("Alloc_Workshop") }).Workshop
+		end)
+		local okPure, pureRate = try("Rate", Workshop.Rate, WSHOP.STAT, sm, 1, wm)
+		check(
+			checks,
+			"workshop_service_rate_formula",
+			tonumber(rate2) or -1,
+			wantRate,
+			treeOk and near(rate2, wantRate, 1e-9)
+		)
+		flag(
+			"workshop_rate_uses_speed_multi_and_workshop_points",
+			okSM and okWm and okPure and near(sm, wantSpeedMulti, 1e-9) and near(rate2, pureRate, 1e-9)
+		)
+
+		-- in the zone: exactly rate x dt added to the Speed stat, InWorkshop true, WorkshopRate = rate
+		local own = type(idx2) == "number" and idx2 or 1
+		local avatar = newAvatar(zoneCentre(own, SpawnArea.WALK_ROOT_HEIGHT or 3))
+		local okT, added = svc("Tick", p2, WSHOP.TICK, avatar)
+		local after = speedOf(p2)
+		check(
+			checks,
+			"workshop_tick_in_zone_gains_rate_dt",
+			tonumber(added) or -1,
+			wantRate * WSHOP.TICK,
+			okT and near(added, wantRate * WSHOP.TICK, 1e-9) and near(after, WSHOP.STAT + wantRate * WSHOP.TICK, 1e-9)
+		)
+		flag(
+			"workshop_tick_attributes_in_zone",
+			p2:GetAttribute("InWorkshop") == true and near(p2:GetAttribute("WorkshopRate"), wantRate, 1e-6)
+		)
+		-- nothing outside the own zone, while auto racing, dead, without an avatar or without a plot
+		local function noGain(label, p, character)
+			local before = speedOf(p)
+			local okc, got = svc("Tick", p, WSHOP.TICK, character)
+			local good = okc
+				and (got == 0 or got == nil)
+				and speedOf(p) == before
+				and p:GetAttribute("InWorkshop") ~= true
+			if not good then
+				metrics["no_gain_" .. label] = tostring(got)
+			end
+			return good
+		end
+		local walkOk, walkCF = try("WalkSpawnCFrame", CarService.WalkSpawnCFrame)
+		avatar:PivotTo(CFrame.new((walkOk and typeof(walkCF) == "CFrame") and walkCF.Position or zoneCentre(own, 30)))
+		local outHub = noGain("hub", p2, avatar)
+		avatar:PivotTo(CFrame.new(zoneCentre(own % WSHOP.PLOT_COUNT + 1, 3)))
+		local outOther = noGain("other_plot", p2, avatar)
+		avatar:PivotTo(CFrame.new(zoneCentre(own, WSHOP.ZONE.Y + 1)))
+		local outAbove = noGain("above", p2, avatar)
+		local c2 = WSHOP.workshopCentre(WSHOP.PLOTS[own])
+		avatar:PivotTo(CFrame.new(worldAt(base, c2.X + WSHOP.ZONE.X / 2 + 2, c2.Y, TOP_Y + 3)))
+		local outEdge = noGain("plot_outside_zone", p2, avatar)
+		flag("workshop_tick_outside_zone_no_gain", outHub and outOther and outAbove and outEdge)
+		avatar:PivotTo(CFrame.new(zoneCentre(own, 3)))
+		racingFakes[p2] = true
+		p2:SetAttribute("AutoRacing", true)
+		local outRacing = noGain("auto_racing", p2, avatar)
+		racingFakes[p2] = nil
+		p2:SetAttribute("AutoRacing", false)
+		flag("workshop_tick_auto_racing_no_gain", outRacing)
+		local deadAvatar, deadHumanoid = newAvatar(zoneCentre(own, 3))
+		deadHumanoid.Health = 0
+		local outDead = noGain("dead", p2, deadAvatar)
+		local outNone = noGain("no_avatar", p2, nil)
+		flag("workshop_tick_dead_or_no_avatar_no_gain", outDead and outNone)
+		local pNo = fake("NoPlot") -- never assigned: standing in p2's zone earns nothing
+		setSpeed(pNo, WSHOP.STAT)
+		local outNoPlot = noGain("no_plot", pNo, avatar)
+		flag("workshop_tick_without_plot_no_gain", outNoPlot)
+		-- back in the zone: the gain resumes (the stat is now higher, so the rate is a little lower)
+		local stat2 = speedOf(p2)
+		local okBack, addedBack = svc("Tick", p2, WSHOP.TICK, avatar)
+		local wantBack = WSHOP.BASE_RATE
+			* wantSpeedMulti
+			* levelMultiWant(1)
+			* wantWorkshopMulti
+			/ (1 + (stat2 or 0) / RaceConfig.GAIN_SOFT)
+			* WSHOP.TICK
+		flag(
+			"workshop_tick_resumes_in_zone",
+			okBack and near(addedBack, wantBack, 1e-6) and p2:GetAttribute("InWorkshop") == true
+		)
+
+		-- 7. Release: the plot goes back to EMPTY PLOT, Owner 0, no workshop; Plot attribute and PlotOf 0
+		svc("Release", p1)
+		local okR2 = svc("Release", p1) -- twice is harmless
+		local _, plotOfR = svc("PlotOf", p1)
+		local _, textR = WSHOP.workshopSign(livePlots[want1])
+		flag(
+			"workshop_release_frees_plot",
+			okR2
+				and ownerOf(want1) == 0
+				and textR == WSHOP.EMPTY
+				and livePlots[want1]:FindFirstChild("Workshop") == nil
+				and p1:GetAttribute("Plot") == 0
+				and plotOfR == 0
+		)
+		local p3 = fake("Three")
+		local _, idx3 = svc("Assign", p3)
+		flag("workshop_released_plot_reused", idx3 == want1)
+		-- a plot whose owner is gone (left without a Release) is freed on the next assignment
+		local p4 = fake("Gone")
+		local _, idx4 = svc("Assign", p4)
+		p4.Parent = nil
+		local wantNext = lowestFree(liveTaken())
+		if type(idx4) == "number" and idx4 > 0 and (wantNext == 0 or idx4 < wantNext) then
+			wantNext = idx4
+		end
+		local p5 = fake("AfterGone")
+		local _, idx5 = svc("Assign", p5)
+		check(
+			checks,
+			"workshop_gone_owner_freed_on_assign",
+			tonumber(idx5) or -1,
+			wantNext,
+			type(idx4) == "number" and idx4 > 0 and idx5 == wantNext
+		)
+
+		-- 8. Full server: fill every free plot, then one more player gets 0 (Plot attribute 0)
+		local fillOk, filled = true, {}
+		for k = 1, WSHOP.PLOT_COUNT do
+			if lowestFree(liveTaken()) == 0 then
+				break
+			end
+			local pf = fake("Fill" .. k)
+			local _, idf = svc("Assign", pf)
+			if type(idf) ~= "number" or idf < 1 or idf > WSHOP.PLOT_COUNT or filled[idf] then
+				fillOk = false
+				break
+			end
+			filled[idf] = true
+		end
+		local allTaken = ownedCount() == WSHOP.PLOT_COUNT
+		local p8 = fake("Eighth")
+		local okE, idx8 = svc("Assign", p8)
+		check(
+			checks,
+			"workshop_full_server_gets_zero",
+			tonumber(idx8) or -1,
+			0,
+			fillOk and allTaken and okE and idx8 == 0 and p8:GetAttribute("Plot") == 0
+		)
+
+		-- release every fake: the live plots are back to how the test found them
+		for _, p in fakes do
+			svc("Release", p)
+		end
+		local restored = true
+		for i = 1, WSHOP.PLOT_COUNT do
+			if ownerOf(i) ~= baselineOwners[i] then
+				restored = false
+			end
+		end
+		flag("workshop_live_plots_restored", restored)
+
+		-- 9. BuildPlots into a scratch folder far away: 7 empty plots with the spec rects, tags, signs, anchored
+		local scratch = Instance.new("Folder")
+		scratch.Name = "CarTestWorkshopScratch"
+		scratch.Parent = Workspace
+		table.insert(cleanup, scratch)
+		local okBuild, built = svc("BuildPlots", WSHOP.TEST_START, scratch)
+		local container = (typeof(built) == "Instance" and built) or scratch:FindFirstChild("Workshops") or scratch
+		local scratchBase = WSHOP.workshopFlatBase(WSHOP.TEST_START)
+		local buildBad = 0
+		for i = 1, WSHOP.PLOT_COUNT do
+			local m = container:FindFirstChild("Plot_" .. i)
+			if not (m and m:IsA("Model")) then
+				buildBad += 1
+			else
+				local bad = plotShapeBad(m, i, scratchBase)
+				local _, t = WSHOP.workshopSign(m)
+				if
+					#bad > 0
+					or m:GetAttribute("Owner") ~= 0
+					or t ~= WSHOP.EMPTY
+					or not CollectionService:HasTag(m, WSHOP.TAG)
+					or m:FindFirstChild("Workshop") ~= nil
+				then
+					buildBad += 1
+					metrics["scratch_plot_" .. i] = table.concat(bad, ",")
+				end
+			end
+		end
+		check(checks, "workshop_build_plots", buildBad, 0, okBuild and buildBad == 0)
+		scratch:Destroy()
+		-- building plots elsewhere never moves the live game's plots: the next assignment is still a live plot
+		local p9 = fake("AfterBuild")
+		local wantLive = lowestFree(liveTaken())
+		local _, idx9 = svc("Assign", p9)
+		local liveAgain = type(idx9) == "number"
+			and idx9 == wantLive
+			and livePlots[idx9] ~= nil
+			and livePlots[idx9].Parent ~= nil
+			and ownerOf(idx9) == p9:GetAttribute("UserId")
+		svc("Release", p9)
+		flag("workshop_build_plots_does_not_rebind_live", liveAgain and ownerOf(wantLive) == baselineOwners[wantLive])
+	end
+
+	local okBody, err = pcall(body)
+	if not okBody then
+		check(checks, "workshop_no_error", 0, tostring(err), false)
+	end
+	CarService.IsAutoRacing = origRacing
+	for _, p in fakes do
+		pcall(WorkshopService.Release, p)
+	end
+	for _, inst in cleanup do
+		inst:Destroy()
+	end
+	for _, p in fakes do
+		p:Destroy()
+	end
+	metrics.call_errors = errorCount
+	return result("workshop", checks, metrics)
+end
+
+-- name: "static_settle" | "accel" | "brake" | "skidpad" | "car_size" | "economy" | "hud" | "auto_toggle" | "spawn_area" | "gacha" | "index" | "npc" | "bank" | "multiplayer" | "admin" | "roll_anim" | "upgrades" | "workshop" | "lap:<Track>" | "track:<Track>"
 function Scenarios.Run(name)
 	local track = string.match(name, "^lap:(.+)$")
 	if track then

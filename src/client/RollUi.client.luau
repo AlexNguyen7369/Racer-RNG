@@ -1,7 +1,7 @@
 --!nonstrict
 -- The TURBO LUCK bar at the bottom centre (docs/SPAWN_AND_ROLLS_SPEC.md): it fills one step per auto roll and every
--- GachaConfig.TURBO_EVERY-th roll gets TURBO_LUCK times the luck; on that roll it flashes and pops "TURBO x5!",
--- then starts empty again. The server decides every roll (Remotes.RollResult); this only displays. The roll toast
+-- N-th roll gets M times the luck (the server's TurboEvery / TurboMulti attributes: x5 every 10 with no Turbo upgrade,
+-- docs/UPGRADE_TREE_SPEC.md section 4); on that roll it flashes and pops "TURBO xM!", then starts empty again. The server decides every roll (Remotes.RollResult); this only displays. The roll toast
 -- above it and the roll showcase live in Client/RollToast.
 
 local Players = game:GetService("Players")
@@ -75,10 +75,20 @@ pop.ZIndex = 3
 
 local popStamp = 0
 
+-- Rolls done towards the next turbo roll and how many it takes: the server's TurboCount / TurboEvery, or the
+-- every-10th-roll rule from Rolls before those attributes arrive.
+local function turboState()
+	local count, every = player:GetAttribute("TurboCount"), player:GetAttribute("TurboEvery")
+	if type(count) == "number" and type(every) == "number" and every >= 1 then
+		return math.clamp(count, 0, every - 1), every
+	end
+	return GachaConfig.TurboProgress(player:GetAttribute("Rolls") or 0), GachaConfig.TURBO_EVERY
+end
+
 local function refresh(animate)
-	local progress = GachaConfig.TurboProgress(player:GetAttribute("Rolls") or 0)
-	label.Text = string.format("TURBO LUCK %d/%d", progress, GachaConfig.TURBO_EVERY)
-	local size = UDim2.fromScale(progress / GachaConfig.TURBO_EVERY, 1)
+	local progress, every = turboState()
+	label.Text = string.format("TURBO LUCK %d/%d", progress, every)
+	local size = UDim2.fromScale(progress / every, 1)
 	if animate then
 		TweenService:Create(fill, TweenInfo.new(0.25), { Size = size }):Play()
 	else
@@ -123,15 +133,14 @@ rollRemote.OnClientEvent:Connect(function(_, _, turboMulti)
 	end
 end)
 
-player:GetAttributeChangedSignal("Rolls"):Connect(function()
+local function onTurboChanged()
 	if not pop.Visible then
 		refresh(true)
 	else
-		label.Text = string.format(
-			"TURBO LUCK %d/%d",
-			GachaConfig.TurboProgress(player:GetAttribute("Rolls") or 0),
-			GachaConfig.TURBO_EVERY
-		)
+		label.Text = string.format("TURBO LUCK %d/%d", turboState())
 	end
-end)
+end
+player:GetAttributeChangedSignal("Rolls"):Connect(onTurboChanged)
+player:GetAttributeChangedSignal("TurboCount"):Connect(onTurboChanged)
+player:GetAttributeChangedSignal("TurboEvery"):Connect(onTurboChanged)
 refresh(false)
