@@ -13,10 +13,13 @@
 - The place file also holds the baked ScreenGuis in StarterGui: RacerHud, RacerIndex, RacerStats, RacerSettings,
   RollShowcase (not exported as files yet).
 
-## Missing (lost on this machine)
-- `Client/Ui/RollShowcase` (generated Build/Bind module) and `Client/Ui/RacerMotion` were deleted by Claude before
-  they were exported and were never saved in the place. Regenerate them from the roblox-ui specs, or recover them
-  from wherever the HUD was built.
+## Latest complete version (2026-10-05, `latest/`)
+Something outside the repo kept editing the place: later the HUD reappeared nested INSIDE RollToast
+(`RollToast/RacerUiController` + `RollToast/Ui/*`). Exported byte-for-byte to `latest/`, mirroring the instance tree:
+`latest/RollToast.client.luau` (35524 bytes) and `latest/RollToast/{RacerUiController, Ui/RacerHud, RacerIndex,
+RacerStats, RacerSettings, RollShowcase, RacerMotion, RacerComponents, RacerRebirth}.luau`. This includes
+RollShowcase and RacerMotion, which were missing before, and a new RacerRebirth panel. Use `latest/` as the source
+of truth; the older files on this branch are earlier snapshots.
 
 ## Before it can ship
 UiSpec targets the old layout (IndexUi/OpenIndex, StatsUi, AutoRaceButton). ui-test-writer must rewrite the UI tests
