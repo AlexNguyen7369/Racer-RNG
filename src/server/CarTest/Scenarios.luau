@@ -7270,25 +7270,39 @@ function Scenarios.spawn_area()
 	local walkSpeed = StarterPlayer.CharacterWalkSpeed
 	local jumpHeight = StarterPlayer.CharacterJumpHeight
 
-	-- Waits until the avatar has landed before its height is sampled: Humanoid.FloorMaterial is not Air and the
-	-- root's |vertical speed| < SPAWN_SETTLE_MAX_VY for SPAWN_SETTLE_FRAMES frames in a row, at most `timeout`
-	-- seconds. On timeout it returns anyway so a character that never lands still FAILS the height check.
+	-- Waits until the avatar is really at rest before its height is sampled: Humanoid.FloorMaterial is not Air,
+	-- the root's |vertical speed| < SPAWN_SETTLE_MAX_VY AND the root's Y has stayed within SPAWN_SETTLE_MAX_DY of
+	-- the previous frame for SPAWN_SETTLE_FRAMES frames in a row spanning at least SPAWN_SETTLE_MIN_S seconds (any
+	-- violation resets the streak), at most `timeout` seconds. A short grounded moment (top of the hip-height
+	-- correction, a small bounce after respawn) is therefore not "landed". On timeout it returns anyway so a
+	-- character that never settles still FAILS the height check.
 	-- Records <pre>_settle_s (seconds waited) and <pre>_settle_landed (1 landed, 0 timed out) in the metrics.
 	local SPAWN_SETTLE_MAX_VY = 1 -- studs/s
-	local SPAWN_SETTLE_FRAMES = 3
-	local SPAWN_SETTLE_TIMEOUT = 3 -- seconds
+	local SPAWN_SETTLE_MAX_DY = 0.05 -- studs of root Y change allowed between consecutive frames
+	local SPAWN_SETTLE_FRAMES = 10
+	local SPAWN_SETTLE_MIN_S = 0.2 -- the stable streak must also last this long
+	local SPAWN_SETTLE_TIMEOUT = 5 -- seconds
 	local function settleOnFloor(pre, c, timeout)
 		local t0 = os.clock()
-		local streak = 0
+		local streak, streakT0, lastY = 0, nil, nil
 		local landed = false
 		while os.clock() - t0 < timeout do
 			local hum, root = c.Humanoid, c.Root
-			local grounded = hum.Parent ~= nil
-				and root.Parent ~= nil
+			local alive = hum.Parent ~= nil and root.Parent ~= nil
+			local y = alive and root.Position.Y or nil
+			local still = alive
 				and hum.FloorMaterial ~= Enum.Material.Air
 				and math.abs(root.AssemblyLinearVelocity.Y) < SPAWN_SETTLE_MAX_VY
-			streak = grounded and streak + 1 or 0
-			if streak >= SPAWN_SETTLE_FRAMES then
+				and lastY ~= nil
+				and math.abs(y - lastY) < SPAWN_SETTLE_MAX_DY
+			lastY = y
+			if still then
+				streak += 1
+				streakT0 = streakT0 or os.clock()
+			else
+				streak, streakT0 = 0, nil
+			end
+			if streak >= SPAWN_SETTLE_FRAMES and os.clock() - streakT0 >= SPAWN_SETTLE_MIN_S then
 				landed = true
 				break
 			end
