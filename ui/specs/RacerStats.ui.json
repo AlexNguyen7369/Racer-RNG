@@ -1,0 +1,336 @@
+{
+  "name": "RacerStats",
+  "reference": {
+    "width": 1280,
+    "height": 720
+  },
+  "theme": {
+    "font": "FredokaOne",
+    "outline": 3,
+    "radius": 10,
+    "shadowOffset": 4,
+    "liftHeight": 6,
+    "gradient": 0.12,
+    "palette": {
+      "index": "#1ED8FF",
+      "stats": "#AC63EE",
+      "rebirth": "#E857C8",
+      "speed": "#FFE81E",
+      "money": "#3CFF3C",
+      "dark": "#202B47",
+      "row": "#293753",
+      "muted": "#686F87"
+    },
+    "reserved": [
+      {
+        "name": "RobloxTopBar",
+        "x": 0,
+        "y": 0,
+        "w": 360,
+        "h": 58
+      }
+    ]
+  },
+  "nodes": [
+    {
+      "id": "Panel",
+      "kind": "panel",
+      "color": "dark",
+      "anchor": [
+        0.5,
+        0.5
+      ],
+      "pos": [
+        [
+          0.55,
+          0
+        ],
+        [
+          0.52,
+          0
+        ]
+      ],
+      "size": [
+        [
+          0,
+          680
+        ],
+        [
+          0,
+          472
+        ]
+      ],
+      "purpose": "STATS modal",
+      "phone": {
+        "pos": [
+          [
+            0.62,
+            0
+          ],
+          [
+            0.56,
+            0
+          ]
+        ],
+        "size": [
+          [
+            0,
+            500
+          ],
+          [
+            0,
+            280
+          ]
+        ]
+      },
+      "children": [
+        {
+          "id": "Header",
+          "kind": "panel",
+          "color": "stats",
+          "pos": [
+            [
+              0,
+              12
+            ],
+            [
+              0,
+              12
+            ]
+          ],
+          "size": [
+            [
+              0,
+              656
+            ],
+            [
+              0,
+              64
+            ]
+          ],
+          "purpose": "STATS title band",
+          "phone": {
+            "pos": [
+              [
+                0,
+                8
+              ],
+              [
+                0,
+                8
+              ]
+            ],
+            "size": [
+              [
+                0,
+                484
+              ],
+              [
+                0,
+                48
+              ]
+            ]
+          },
+          "children": [
+            {
+              "id": "Title",
+              "kind": "text",
+              "text": "STATS",
+              "pos": [
+                [
+                  0,
+                  12
+                ],
+                [
+                  0,
+                  0
+                ]
+              ],
+              "size": [
+                [
+                  0,
+                  230
+                ],
+                [
+                  0,
+                  64
+                ]
+              ],
+              "textSize": 34,
+              "phone": {
+                "pos": [
+                  [
+                    0,
+                    8
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ],
+                "size": [
+                  [
+                    0,
+                    200
+                  ],
+                  [
+                    0,
+                    48
+                  ]
+                ],
+                "textSize": 25
+              }
+            },
+            {
+              "id": "Close",
+              "kind": "button",
+              "text": "X",
+              "pos": [
+                [
+                  0,
+                  592
+                ],
+                [
+                  0,
+                  6
+                ]
+              ],
+              "size": [
+                [
+                  0,
+                  52
+                ],
+                [
+                  0,
+                  52
+                ]
+              ],
+              "textSize": 26,
+              "color": "danger",
+              "action": "ClosePanel",
+              "phone": {
+                "pos": [
+                  [
+                    0,
+                    428
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ],
+                "size": [
+                  [
+                    0,
+                    48
+                  ],
+                  [
+                    0,
+                    48
+                  ]
+                ],
+                "textSize": 24
+              }
+            },
+            {
+              "id": "Points",
+              "kind": "text",
+              "text": "1 FREE POINT",
+              "pos": [
+                [
+                  0,
+                  258
+                ],
+                [
+                  0,
+                  20
+                ]
+              ],
+              "size": [
+                [
+                  0,
+                  310
+                ],
+                [
+                  0,
+                  26
+                ]
+              ],
+              "textSize": 22,
+              "textColor": "speed",
+              "phone": {
+                "pos": [
+                  [
+                    0,
+                    220
+                  ],
+                  [
+                    0,
+                    15
+                  ]
+                ],
+                "size": [
+                  [
+                    0,
+                    184
+                  ],
+                  [
+                    0,
+                    22
+                  ]
+                ],
+                "textSize": 18
+              }
+            }
+          ]
+        },
+        {
+          "id": "StatsHost",
+          "kind": "spacer",
+          "pos": [
+            [
+              0,
+              16
+            ],
+            [
+              0,
+              98
+            ]
+          ],
+          "size": [
+            [
+              0,
+              648
+            ],
+            [
+              0,
+              358
+            ]
+          ],
+          "phone": {
+            "pos": [
+              [
+                0,
+                12
+              ],
+              [
+                0,
+                76
+              ]
+            ],
+            "size": [
+              [
+                0,
+                476
+              ],
+              [
+                0,
+                192
+              ]
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

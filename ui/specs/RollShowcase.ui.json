@@ -1,0 +1,461 @@
+{
+  "name": "RollShowcase",
+  "reference": {
+    "width": 1280,
+    "height": 720
+  },
+  "theme": {
+    "font": "FredokaOne",
+    "outline": 3,
+    "radius": 10,
+    "shadowOffset": 4,
+    "liftHeight": 6,
+    "gradient": 0.12,
+    "palette": {
+      "index": "#1ED8FF",
+      "stats": "#AC63EE",
+      "rebirth": "#E857C8",
+      "speed": "#FFE81E",
+      "money": "#3CFF3C",
+      "dark": "#202B47",
+      "row": "#293753",
+      "muted": "#686F87"
+    },
+    "reserved": [
+      {
+        "name": "RobloxTopBar",
+        "x": 0,
+        "y": 0,
+        "w": 360,
+        "h": 58
+      }
+    ]
+  },
+  "nodes": [
+    {
+      "id": "Card",
+      "kind": "spacer",
+      "pos": [
+        [
+          0.5,
+          0
+        ],
+        [
+          0.46,
+          0
+        ]
+      ],
+      "anchor": [
+        0.5,
+        0.5
+      ],
+      "size": [
+        [
+          0,
+          760
+        ],
+        [
+          0,
+          320
+        ]
+      ],
+      "center": "x",
+      "phone": {
+        "size": [
+          [
+            0,
+            540
+          ],
+          [
+            0,
+            224
+          ]
+        ]
+      },
+      "children": [
+        {
+          "id": "CardBody",
+          "kind": "panel",
+          "color": "dark",
+          "pos": [
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ]
+          ],
+          "size": [
+            [
+              0,
+              760
+            ],
+            [
+              0,
+              320
+            ]
+          ],
+          "purpose": "Server-confirmed animated car roll result",
+          "phone": {
+            "size": [
+              [
+                0,
+                540
+              ],
+              [
+                0,
+                224
+              ]
+            ]
+          },
+          "children": [
+            {
+              "id": "RollHeader",
+              "kind": "panel",
+              "color": "index",
+              "pos": [
+                [
+                  0,
+                  12
+                ],
+                [
+                  0,
+                  12
+                ]
+              ],
+              "size": [
+                [
+                  0,
+                  736
+                ],
+                [
+                  0,
+                  54
+                ]
+              ],
+              "purpose": "Roll result heading",
+              "phone": {
+                "pos": [
+                  [
+                    0,
+                    10
+                  ],
+                  [
+                    0,
+                    10
+                  ]
+                ],
+                "size": [
+                  [
+                    0,
+                    520
+                  ],
+                  [
+                    0,
+                    44
+                  ]
+                ]
+              },
+              "children": [
+                {
+                  "id": "RollTitle",
+                  "kind": "text",
+                  "text": "ROLL RESULT",
+                  "pos": [
+                    [
+                      0,
+                      12
+                    ],
+                    [
+                      0,
+                      5
+                    ]
+                  ],
+                  "size": [
+                    [
+                      0,
+                      330
+                    ],
+                    [
+                      0,
+                      44
+                    ]
+                  ],
+                  "textSize": 28,
+                  "phone": {
+                    "pos": [
+                      [
+                        0,
+                        8
+                      ],
+                      [
+                        0,
+                        2
+                      ]
+                    ],
+                    "size": [
+                      [
+                        0,
+                        280
+                      ],
+                      [
+                        0,
+                        38
+                      ]
+                    ],
+                    "textSize": 24
+                  }
+                }
+              ]
+            },
+            {
+              "id": "PreviewCar",
+              "kind": "icon",
+              "icon": "rusty_hatchback",
+              "pos": [
+                [
+                  0,
+                  18
+                ],
+                [
+                  0,
+                  84
+                ]
+              ],
+              "size": [
+                [
+                  0,
+                  300
+                ],
+                [
+                  0,
+                  220
+                ]
+              ],
+              "phone": {
+                "pos": [
+                  [
+                    0,
+                    8
+                  ],
+                  [
+                    0,
+                68
+                  ]
+                ],
+                "size": [
+                  [
+                    0,
+                    220
+                  ],
+                  [
+                    0,
+                    144
+                  ]
+                ]
+              }
+            },
+            {
+              "id": "ResultName",
+              "kind": "text",
+              "text": "Rusty Hatchback",
+              "pos": [
+                [
+                  0,
+                  334
+                ],
+                [
+                  0,
+                  88
+                ]
+              ],
+              "size": [
+                [
+                  0,
+                  406
+                ],
+                [
+                  0,
+                  46
+                ]
+              ],
+              "textSize": 32,
+              "phone": {
+                "pos": [
+                  [
+                    0,
+                    236
+                  ],
+                  [
+                    0,
+                    72
+                  ]
+                ],
+                "size": [
+                  [
+                    0,
+                    294
+                  ],
+                  [
+                    0,
+                30
+                  ]
+                ],
+                "textSize": 26
+              }
+            },
+            {
+              "id": "ResultSpeed",
+              "kind": "text",
+              "text": "x1.1 SPEED MULTIPLIER",
+              "pos": [
+                [
+                  0,
+                  334
+                ],
+                [
+                  0,
+                  150
+                ]
+              ],
+              "size": [
+                [
+                  0,
+                  406
+                ],
+                [
+                  0,
+                  32
+                ]
+              ],
+              "textSize": 23,
+              "phone": {
+                "pos": [
+                  [
+                    0,
+                    236
+                  ],
+                  [
+                    0,
+                    112
+                  ]
+                ],
+                "size": [
+                  [
+                    0,
+                    294
+                  ],
+                  [
+                    0,
+                    26
+                  ]
+                ],
+                "textSize": 18
+              }
+            },
+            {
+              "id": "ResultRarity",
+              "kind": "text",
+              "text": "COMMON",
+              "pos": [
+                [
+                  0,
+                  334
+                ],
+                [
+                  0,
+                  198
+                ]
+              ],
+              "size": [
+                [
+                  0,
+                  406
+                ],
+                [
+                  0,
+                  32
+                ]
+              ],
+              "textSize": 25,
+              "phone": {
+                "pos": [
+                  [
+                    0,
+                    236
+                  ],
+                  [
+                    0,
+                    150
+                  ]
+                ],
+                "size": [
+                  [
+                    0,
+                    294
+                  ],
+                  [
+                    0,
+                    26
+                  ]
+                ],
+                "textSize": 20
+              }
+            },
+            {
+              "id": "ResultOdds",
+              "kind": "text",
+              "text": "COMMON DROP",
+              "pos": [
+                [
+                  0,
+                  334
+                ],
+                [
+                  0,
+                  242
+                ]
+              ],
+              "size": [
+                [
+                  0,
+                  406
+                ],
+                [
+                  0,
+                  26
+                ]
+              ],
+              "textSize": 19,
+              "phone": {
+                "pos": [
+                  [
+                    0,
+                    236
+                  ],
+                  [
+                    0,
+                    184
+                  ]
+                ],
+                "size": [
+                  [
+                    0,
+                    294
+                  ],
+                  [
+                    0,
+                    24
+                  ]
+                ],
+                "textSize": 17
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

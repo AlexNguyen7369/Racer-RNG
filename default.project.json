@@ -5,6 +5,9 @@
     "ReplicatedStorage": {
       "Shared": {
         "$path": "src/shared"
+      },
+      "CarModels": {
+        "$path": "assets/studio/CarModels.rbxm"
       }
     },
     "ServerScriptService": {
@@ -21,6 +24,9 @@
           "$path": "src/client"
         }
       }
+    },
+    "StarterGui": {
+      "$path": "assets/studio/StarterGui.rbxm"
     },
     "Workspace": {
       "$className": "Workspace",

@@ -1,0 +1,690 @@
+{
+  "name": "RacerSettings",
+  "reference": {
+    "width": 1280,
+    "height": 720
+  },
+  "theme": {
+    "font": "FredokaOne",
+    "outline": 3,
+    "radius": 10,
+    "shadowOffset": 4,
+    "liftHeight": 6,
+    "gradient": 0.12,
+    "palette": {
+      "index": "#1ED8FF",
+      "stats": "#AC63EE",
+      "rebirth": "#E857C8",
+      "speed": "#FFE81E",
+      "money": "#3CFF3C",
+      "dark": "#202B47",
+      "row": "#293753",
+      "muted": "#686F87"
+    },
+    "reserved": [
+      {
+        "name": "RobloxTopBar",
+        "x": 0,
+        "y": 0,
+        "w": 360,
+        "h": 58
+      }
+    ]
+  },
+  "nodes": [
+    {
+      "id": "Panel",
+      "kind": "panel",
+      "color": "dark",
+      "anchor": [
+        0.5,
+        0.5
+      ],
+      "pos": [
+        [
+          0.55,
+          0
+        ],
+        [
+          0.52,
+          0
+        ]
+      ],
+      "size": [
+        [
+          0,
+          600
+        ],
+        [
+          0,
+          362
+        ]
+      ],
+      "purpose": "SETTINGS modal",
+      "phone": {
+        "pos": [
+          [
+            0.62,
+            0
+          ],
+          [
+            0.56,
+            0
+          ]
+        ],
+        "size": [
+          [
+            0,
+            500
+          ],
+          [
+            0,
+            280
+          ]
+        ]
+      },
+      "children": [
+        {
+          "id": "Header",
+          "kind": "panel",
+          "color": "dark",
+          "pos": [
+            [
+              0,
+              12
+            ],
+            [
+              0,
+              12
+            ]
+          ],
+          "size": [
+            [
+              0,
+              576
+            ],
+            [
+              0,
+              64
+            ]
+          ],
+          "purpose": "SETTINGS title band",
+          "phone": {
+            "pos": [
+              [
+                0,
+                8
+              ],
+              [
+                0,
+                8
+              ]
+            ],
+            "size": [
+              [
+                0,
+                484
+              ],
+              [
+                0,
+                48
+              ]
+            ]
+          },
+          "children": [
+            {
+              "id": "Title",
+              "kind": "text",
+              "text": "SETTINGS",
+              "pos": [
+                [
+                  0,
+                  12
+                ],
+                [
+                  0,
+                  0
+                ]
+              ],
+              "size": [
+                [
+                  0,
+                  470
+                ],
+                [
+                  0,
+                  64
+                ]
+              ],
+              "textSize": 34,
+              "phone": {
+                "pos": [
+                  [
+                    0,
+                    8
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ],
+                "size": [
+                  [
+                    0,
+                    382
+                  ],
+                  [
+                    0,
+                    48
+                  ]
+                ],
+                "textSize": 25
+              }
+            },
+            {
+              "id": "Close",
+              "kind": "button",
+              "text": "X",
+              "pos": [
+                [
+                  0,
+                  512
+                ],
+                [
+                  0,
+                  6
+                ]
+              ],
+              "size": [
+                [
+                  0,
+                  52
+                ],
+                [
+                  0,
+                  52
+                ]
+              ],
+              "textSize": 26,
+              "color": "danger",
+              "action": "ClosePanel",
+              "phone": {
+                "pos": [
+                  [
+                    0,
+                    428
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ],
+                "size": [
+                  [
+                    0,
+                    48
+                  ],
+                  [
+                    0,
+                    48
+                  ]
+                ],
+                "textSize": 24
+              }
+            }
+          ]
+        },
+        {
+          "id": "SoundRow",
+          "kind": "panel",
+          "color": "row",
+          "pos": [
+            [
+              0,
+              16
+            ],
+            [
+              0,
+              100
+            ]
+          ],
+          "size": [
+            [
+              0,
+              568
+            ],
+            [
+              0,
+              60
+            ]
+          ],
+          "purpose": "Local Sound preference",
+          "phone": {
+            "pos": [
+              [
+                0,
+                12
+              ],
+              [
+                0,
+                74
+              ]
+            ],
+            "size": [
+              [
+                0,
+                476
+              ],
+              [
+                0,
+                50
+              ]
+            ]
+          },
+          "children": [
+            {
+              "id": "SoundName",
+              "kind": "text",
+              "text": "SOUND",
+              "pos": [
+                [
+                  0,
+                  12
+                ],
+                [
+                  0,
+                  0
+                ]
+              ],
+              "size": [
+                [
+                  0,
+                  400
+                ],
+                [
+                  0,
+                  60
+                ]
+              ],
+              "textSize": 25,
+              "phone": {
+                "pos": [
+                  [
+                    0,
+                    8
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ],
+                "size": [
+                  [
+                    0,
+                    338
+                  ],
+                  [
+                    0,
+                    50
+                  ]
+                ],
+                "textSize": 20
+              }
+            },
+            {
+              "id": "SoundToggle",
+              "kind": "button",
+              "text": "ON",
+              "pos": [
+                [
+                  0,
+                  436
+                ],
+                [
+                  0,
+                  6
+                ]
+              ],
+              "size": [
+                [
+                  0,
+                  116
+                ],
+                [
+                  0,
+                  48
+                ]
+              ],
+              "textSize": 23,
+              "color": "success",
+              "action": "ToggleSound",
+              "phone": {
+                "pos": [
+                  [
+                    0,
+                    356
+                  ],
+                  [
+                    0,
+                    1
+                  ]
+                ],
+                "size": [
+                  [
+                    0,
+                    108
+                  ],
+                  [
+                    0,
+                    48
+                  ]
+                ],
+                "textSize": 21
+              }
+            }
+          ]
+        },
+        {
+          "id": "EffectsRow",
+          "kind": "panel",
+          "color": "row",
+          "pos": [
+            [
+              0,
+              16
+            ],
+            [
+              0,
+              178
+            ]
+          ],
+          "size": [
+            [
+              0,
+              568
+            ],
+            [
+              0,
+              60
+            ]
+          ],
+          "purpose": "Local Effects preference",
+          "phone": {
+            "pos": [
+              [
+                0,
+                12
+              ],
+              [
+                0,
+                142
+              ]
+            ],
+            "size": [
+              [
+                0,
+                476
+              ],
+              [
+                0,
+                50
+              ]
+            ]
+          },
+          "children": [
+            {
+              "id": "EffectsName",
+              "kind": "text",
+              "text": "REDUCED EFFECTS",
+              "pos": [
+                [
+                  0,
+                  12
+                ],
+                [
+                  0,
+                  0
+                ]
+              ],
+              "size": [
+                [
+                  0,
+                  400
+                ],
+                [
+                  0,
+                  60
+                ]
+              ],
+              "textSize": 25,
+              "phone": {
+                "pos": [
+                  [
+                    0,
+                    8
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ],
+                "size": [
+                  [
+                    0,
+                    338
+                  ],
+                  [
+                    0,
+                    50
+                  ]
+                ],
+                "textSize": 20
+              }
+            },
+            {
+              "id": "EffectsToggle",
+              "kind": "button",
+              "text": "OFF",
+              "pos": [
+                [
+                  0,
+                  436
+                ],
+                [
+                  0,
+                  6
+                ]
+              ],
+              "size": [
+                [
+                  0,
+                  116
+                ],
+                [
+                  0,
+                  48
+                ]
+              ],
+              "textSize": 23,
+              "color": "success",
+              "action": "ToggleEffects",
+              "phone": {
+                "pos": [
+                  [
+                    0,
+                    356
+                  ],
+                  [
+                    0,
+                    1
+                  ]
+                ],
+                "size": [
+                  [
+                    0,
+                    108
+                  ],
+                  [
+                    0,
+                    48
+                  ]
+                ],
+                "textSize": 21
+              }
+            }
+          ]
+        },
+        {
+          "id": "AutoRow",
+          "kind": "panel",
+          "color": "row",
+          "pos": [
+            [
+              0,
+              16
+            ],
+            [
+              0,
+              256
+            ]
+          ],
+          "size": [
+            [
+              0,
+              568
+            ],
+            [
+              0,
+              60
+            ]
+          ],
+          "purpose": "Local Auto preference",
+          "phone": {
+            "pos": [
+              [
+                0,
+                12
+              ],
+              [
+                0,
+                210
+              ]
+            ],
+            "size": [
+              [
+                0,
+                476
+              ],
+              [
+                0,
+                50
+              ]
+            ]
+          },
+          "children": [
+            {
+              "id": "AutoName",
+              "kind": "text",
+              "text": "AUTO ROLL",
+              "pos": [
+                [
+                  0,
+                  12
+                ],
+                [
+                  0,
+                  0
+                ]
+              ],
+              "size": [
+                [
+                  0,
+                  400
+                ],
+                [
+                  0,
+                  60
+                ]
+              ],
+              "textSize": 25,
+              "phone": {
+                "pos": [
+                  [
+                    0,
+                    8
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ],
+                "size": [
+                  [
+                    0,
+                    338
+                  ],
+                  [
+                    0,
+                    50
+                  ]
+                ],
+                "textSize": 20
+              }
+            },
+            {
+              "id": "AutoToggle",
+              "kind": "button",
+              "text": "ON",
+              "pos": [
+                [
+                  0,
+                  436
+                ],
+                [
+                  0,
+                  6
+                ]
+              ],
+              "size": [
+                [
+                  0,
+                  116
+                ],
+                [
+                  0,
+                  48
+                ]
+              ],
+              "textSize": 23,
+              "color": "success",
+              "action": "ToggleAuto",
+              "phone": {
+                "pos": [
+                  [
+                    0,
+                    356
+                  ],
+                  [
+                    0,
+                    1
+                  ]
+                ],
+                "size": [
+                  [
+                    0,
+                    108
+                  ],
+                  [
+                    0,
+                    48
+                  ]
+                ],
+                "textSize": 21
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,44 @@
+[
+  {
+    "id": "rusty_hatchback",
+    "triangles": 1365,
+    "meshes": 7,
+    "largest_mesh": 396
+  },
+  {
+    "id": "wooden_car",
+    "triangles": 1670,
+    "meshes": 7,
+    "largest_mesh": 660
+  },
+  {
+    "id": "go_kart",
+    "triangles": 1052,
+    "meshes": 4,
+    "largest_mesh": 460
+  },
+  {
+    "id": "street_racer",
+    "triangles": 1494,
+    "meshes": 7,
+    "largest_mesh": 464
+  },
+  {
+    "id": "rocket_car",
+    "triangles": 1650,
+    "meshes": 5,
+    "largest_mesh": 636
+  },
+  {
+    "id": "hover_car",
+    "triangles": 1442,
+    "meshes": 6,
+    "largest_mesh": 396
+  },
+  {
+    "id": "void_racer",
+    "triangles": 1486,
+    "meshes": 6,
+    "largest_mesh": 788
+  }
+]

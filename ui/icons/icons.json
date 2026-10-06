@@ -1,0 +1,138 @@
+{
+  "settings": {
+    "image": "rbxassetid://81490848854515",
+    "file": "settings-gear.png"
+  },
+  "cash": {
+    "runtimeRect": [0, 0, 256, 256] ,
+    "image": "rbxassetid://121915283083474",
+    "file": "racer-atlas-v2.png",
+    "rect": [
+      0,
+      0,
+      362,
+      362
+    ]
+  },
+  "speed": {
+    "runtimeRect": [256, 0, 256, 256] ,
+    "image": "rbxassetid://121915283083474",
+    "file": "racer-atlas-v2.png",
+    "rect": [
+      362,
+      0,
+      362,
+      362
+    ]
+  },
+  "luck": {
+    "runtimeRect": [512, 0, 256, 256] ,
+    "image": "rbxassetid://121915283083474",
+    "file": "racer-atlas-v2.png",
+    "rect": [
+      724,
+      0,
+      362,
+      362
+    ]
+  },
+  "workshop": {
+    "runtimeRect": [768, 0, 256, 256] ,
+    "image": "rbxassetid://121915283083474",
+    "file": "racer-atlas-v2.png",
+    "rect": [
+      1086,
+      0,
+      362,
+      362
+    ]
+  },
+  "rusty_hatchback": {
+    "runtimeRect": [0, 256, 256, 256] ,
+    "image": "rbxassetid://121915283083474",
+    "file": "racer-atlas-v2.png",
+    "rect": [
+      0,
+      362,
+      362,
+      362
+    ]
+  },
+  "wooden_car": {
+    "runtimeRect": [256, 256, 256, 256] ,
+    "image": "rbxassetid://121915283083474",
+    "file": "racer-atlas-v2.png",
+    "rect": [
+      362,
+      362,
+      362,
+      362
+    ]
+  },
+  "go_kart": {
+    "runtimeRect": [512, 256, 256, 256] ,
+    "image": "rbxassetid://121915283083474",
+    "file": "racer-atlas-v2.png",
+    "rect": [
+      724,
+      362,
+      362,
+      362
+    ]
+  },
+  "street_racer": {
+    "runtimeRect": [768, 256, 256, 256] ,
+    "image": "rbxassetid://121915283083474",
+    "file": "racer-atlas-v2.png",
+    "rect": [
+      1086,
+      362,
+      362,
+      362
+    ]
+  },
+  "rocket_car": {
+    "runtimeRect": [0, 512, 256, 256] ,
+    "image": "rbxassetid://121915283083474",
+    "file": "racer-atlas-v2.png",
+    "rect": [
+      0,
+      724,
+      362,
+      362
+    ]
+  },
+  "hover_car": {
+    "runtimeRect": [256, 512, 256, 256] ,
+    "image": "rbxassetid://121915283083474",
+    "file": "racer-atlas-v2.png",
+    "rect": [
+      362,
+      724,
+      362,
+      362
+    ]
+  },
+  "void_racer": {
+    "runtimeRect": [512, 512, 256, 256] ,
+    "image": "rbxassetid://121915283083474",
+    "file": "racer-atlas-v2.png",
+    "rect": [
+      724,
+      724,
+      362,
+      362
+    ]
+  },
+  "rebirth": {
+    "runtimeRect": [768, 512, 256, 256] ,
+    "image": "rbxassetid://121915283083474",
+    "file": "racer-atlas-v2.png",
+    "rect": [
+      1086,
+      724,
+      362,
+      362
+    ]
+  }
+}

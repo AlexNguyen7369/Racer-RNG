@@ -35,6 +35,10 @@ Auto race / workshop ──Speed/sec──▶ SPEED ──▶ Race the NPC ladde
 
 ## Features implemented
 
+### Draft05 UI and car handoff
+
+The redesigned Racer UI, original car icon atlas, seven rounded Blender car models, uploaded Studio templates, and local place snapshot are included in this branch. See [the handoff notes](docs/DRAFT05_HANDOFF.md) for synchronization and validation limitations before merging or publishing.
+
 ### Racing
 - **Auto race:** the player's avatar becomes a small blocky car that the server drives along a chain of
   point-to-point tracks (Track 1 Oval, Track 2 Hill), looping back to Track 1 after the last finish. Real
@@ -106,14 +110,13 @@ updates automatically whenever the board changes; do not edit this block by hand
 ### In progress (2)
 
 - **Money upgrade tree**: Design: docs/UPGRADE_TREE_DESIGN.md. Phase 1 GREEN 2026-10-05: UpgradeConfig + UpgradeTree implemented, `upgrades` 49/49 after a red run, audit OK. Next: phase 2 (UpgradeService, effects in Gacha/Car/RaceService, TurboCount, PlayerData v4) test-first; then UI (phase 3) and /compat-check.
-- **Import the Rusty Hatchback into Studio**: Blender export DONE 2026-10-05 (blender/exports/rusty_hatchback/RustyHatchback.fbx, baked textures, 6.6 studs long). Next: Studio Import 3D (owner), then Claude finishes the model, Rojo mapping and Model = "RustyHatchback". Steps: drafts/cars/rusty-hatchback/DRAFT.md.
+- **Bring the Racer HUD into the repo**: Finalized source, UI specs, generator, atlas, settings icon and Studio UI snapshots added on studio/draft05-cars-ui. Rojo build and structural checks passed. Next: revise UiSpec for this layout, live-check and run full compat before merging.
 
-### Up next (4)
+### Up next (3)
 
-- **Bottom HUD rework**: Builds on the roll UI; starts once the roll animation is green.
-- **Vehicle skins on a shared physics body**: Any model welded on a shared invisible physics body; physics and tests never depend on the model. docs/VEHICLE_SKINS_SPEC.md.
+- **Bottom HUD rework**: Draft05 HUD source and authored UI snapshots added on studio/draft05-cars-ui. Compile/build checks passed; full new-layout compatibility remains pending.
+- **Vehicle skins on a shared physics body**: Draft05 cosmetic equipment source and seven imported templates added on studio/draft05-cars-ui; original physics chassis and seat retained. Full branch integration/compatibility remains pending.
 - **Fix static_settle vertical jitter at rest**: Fails ~1 in 3 cold starts (up to 1.375 vs 0.5): the parked chassis gets periodic ~0.8 stud/s vertical kicks on its suspension. RollingDrag 1.0 did not fix it (it acts on the look axis). physics-tuner: spring/contact at rest in CarPhysics, through /car-loop.
-- **Bring the Racer HUD into the repo**: Saved on branch studio/racer-hud-ui (drafts/ui/racer-hud/latest, complete incl. RollShowcase, RacerMotion, RacerRebirth). Find its .ui.json specs/generator owner, then ui-test-writer rewrites UiSpec for the new layout first, then build + /compat-check.
 
 ### Backlog (future work) (6)
 
@@ -124,8 +127,9 @@ updates automatically whenever the board changes; do not edit this block by hand
 - **Slack bot setup for test results**: Revoke the exposed token, install the app with bot scopes, re-add the MCP, post results after each green run.
 - **Hill supports poke above the road**: world-tester: some Hill upslope support tops are up to 0.17 studs above the road surface (Support12 under right-lane waypoint 20). Small suspension bumps; track-designer via /build-track.
 
-### Recently done (1)
+### Recently done (2)
 
+- ~~Import the Rusty Hatchback into Studio~~ (2026-10-06)
 - ~~Verify the roll animation (UI suite, harness, /compat-check)~~ (2026-10-05)
 
 <!-- TODO:END -->

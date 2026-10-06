@@ -1,0 +1,28 @@
+{
+  "name": "RacerHudConcept",
+  "reference": {"width": 1280, "height": 720},
+  "theme": {
+    "font": "FredokaOne", "outline": 3, "radius": 8,
+    "shadowOffset": 4, "liftHeight": 8, "gradient": 0.12,
+    "palette": {"index": "#1ED8FF", "stats": "#AC63EE", "rebirth": "#A36C93", "speed": "#FFE81E", "money": "#3CFF3C"}
+  },
+  "nodes": [
+    {"id":"AutoRace","kind":"button","color":"success","anchor":[0.5,0],"pos":[[0.5,0],[0,72]],"size":[[0,180],[0,52]],"text":"AUTO RACE","textSize":24,"center":"x","action":"ToggleAutoRace","phone":{"size":[[0,160],[0,48]],"textSize":20}},
+    {"id":"Navigation","kind":"spacer","anchor":[0,0.5],"pos":[[0,22],[0.5,0]],"size":[[0,160],[0,236]],"phone":{"pos":[[0,12],[0.5,0]],"size":[[0,118],[0,212]]},"children":[
+      {"id":"Index","kind":"button","color":"index","pos":[[0,0],[0,0]],"size":[[0,160],[0,54]],"text":"INDEX","textSize":27,"action":"OpenIndex","phone":{"size":[[0,118],[0,48]],"textSize":23}},
+      {"id":"Stats","kind":"button","color":"stats","pos":[[0,0],[0,74]],"size":[[0,160],[0,54]],"text":"STATS","textSize":27,"action":"OpenStats","phone":{"pos":[[0,0],[0,66]],"size":[[0,118],[0,48]],"textSize":23}},
+      {"id":"Rebirth","kind":"button","color":"rebirth","pos":[[0,0],[0,148]],"size":[[0,160],[0,54]],"text":"REBIRTH","textSize":24,"action":"ShowComingSoon","phone":{"pos":[[0,0],[0,132]],"size":[[0,118],[0,48]],"textSize":20}},
+      {"id":"RebirthSoon","kind":"text","pos":[[0,0],[0,210]],"size":[[0,160],[0,26]],"text":"COMING SOON","textSize":18,"phone":{"pos":[[0,0],[0,188]],"size":[[0,118],[0,24]],"textSize":16}}
+    ]},
+    {"id":"Speed","kind":"spacer","anchor":[0.5,0.5],"pos":[[0.5,0],[0.65,0]],"size":[[0,240],[0,84]],"center":"x","children":[
+      {"id":"SpeedValue","kind":"text","pos":[[0,0],[0,0]],"size":[[0,240],[0,48]],"text":"59 SPEED","textSize":36,"textColor":"speed"},
+      {"id":"SpeedRate","kind":"text","pos":[[0,0],[0,58]],"size":[[0,240],[0,26]],"text":"33 studs/s","textSize":20}
+    ]},
+    {"id":"Money","kind":"spacer","anchor":[0,1],"pos":[[0,22],[1,-24]],"size":[[0,220],[0,88]],"phone":{"pos":[[0,12],[1,-16]],"size":[[0,180],[0,74]]},"children":[
+      {"id":"MoneyValue","kind":"text","pos":[[0,0],[0,0]],"size":[[0,220],[0,50]],"text":"$100","textSize":42,"textColor":"money","phone":{"size":[[0,180],[0,42]],"textSize":34}},
+      {"id":"Unbanked","kind":"text","pos":[[0,0],[0,62]],"size":[[0,220],[0,26]],"text":"UNBANKED $0","textSize":20,"textColor":"accent","phone":{"pos":[[0,0],[0,50]],"size":[[0,180],[0,24]],"textSize":18}}
+    ]},
+    {"id":"Turbo","kind":"panel","color":"accent","anchor":[0.5,1],"pos":[[0.5,0],[1,-24]],"size":[[0,238],[0,36]],"text":"TURBO LUCK 6/10","textSize":20,"center":"x","phone":{"size":[[0,218],[0,32]],"pos":[[0.5,0],[1,-16]],"textSize":18}},
+    {"id":"Roll","kind":"button","color":"accent","anchor":[1,1],"pos":[[1,-22],[1,-24]],"size":[[0,154],[0,54]],"text":"ROLL","textSize":28,"action":"RequestRoll","phone":{"pos":[[1,-12],[1,-16]],"size":[[0,112],[0,48]],"textSize":24}}
+  ]
+}

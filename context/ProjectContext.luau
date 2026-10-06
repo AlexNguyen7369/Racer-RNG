@@ -1,4 +1,8 @@
 --!nonstrict
+-- 2026-10-06 handoff: finalized Racer UI and cosmetic car sources, Draft05 Blender exports,
+-- authored UI and CarModels snapshots are included. See docs/DRAFT05_HANDOFF.md.
+-- Saved place retains older active scripts; this branch preserves finalized local source.
+-- Full current-branch compatibility has not been certified. Do not bypass main's gate.
 --[=[
 PROJECT CONTEXT - Idle Vehicle Simulator (read me first)
 Shown in Studio at: ServerScriptService > ProjectContext   (source file: context/ProjectContext.luau)
