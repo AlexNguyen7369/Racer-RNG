@@ -22,8 +22,10 @@
 19. 2026-10-05 — Alex Nguyen — Re-enabled the five repo UI scripts in the place, passed /compat-check ALL GREEN for fingerprint f11ddc2d32ad (harness 24/24, UI 16/16 with 25 clicks, multiplayer and world green on a live race) and pushed `initial-import` to `main`, verifying the roll animation and upgrade tree phase 1.
 20. 2026-10-05 — Alex Nguyen — Added a README with the project vision, implemented and planned features, and a TODO section regenerated from the dashboard board by tools/readme_sync.py (run by the dashboard, a Claude Code hook and a pre-commit hook).
 21. 2026-10-05 — Alex Nguyen — Pushed the README commit (4181a9a) from `initial-import` to `main` through the compat gate.
+22. 2026-10-06 — Isaac Li — Added the finalized Racer UI, seven Draft05 Blender cars and imported templates, cosmetic equipment source, authored UI snapshots, saved place, and Rojo integration on a review branch with compile/build checks but without full compatibility certification.
+23. 2026-10-06 — Isaac Li — Restored and live-checked Studio UI handlers and revision-5 car equipment, improved the continuous roll reel, updated ProjectContext, and saved the shared experience with a source-matched native place snapshot.
 
 ## What's next
-**Build upgrade tree phase 2 test-first: UpgradeService (validated BuyUpgrade, BestTrack, TurboCount), its effects in GachaService, CarService and RaceService, and PlayerData VERSION 4, per docs/UPGRADE_TREE_DESIGN.md.**
+**Run the full compatibility check on the restored Draft05 UI/car branch before merging it into main.**
 
-**Why this is next:** `main` now matches `initial-import` including the README, phase 1's pure rules are green, and the upgrade UI (phase 3) and every upgrade effect players will see depend on the server side existing first.
+**Why this is next:** the source discrepancy is repaired and targeted live checks passed, but the new layout, continuous reel and cosmetic equipment still need current-branch UI, harness, multiplayer and world certification before main can accept them.

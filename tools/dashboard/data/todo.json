@@ -48,7 +48,7 @@
     {
       "id": "hud-rework",
       "title": "Bottom HUD rework",
-      "detail": "Builds on the roll UI; starts once the roll animation is green.",
+      "detail": "Draft05 HUD source and authored UI snapshots added on studio/draft05-cars-ui. Compile/build checks passed; full new-layout compatibility remains pending.",
       "status": "next",
       "source": "current_progress.md",
       "by": "Alex Nguyen",
@@ -58,7 +58,7 @@
     {
       "id": "vehicle-skins",
       "title": "Vehicle skins on a shared physics body",
-      "detail": "Any model welded on a shared invisible physics body; physics and tests never depend on the model. docs/VEHICLE_SKINS_SPEC.md.",
+      "detail": "Draft05 cosmetic equipment source and seven imported templates added on studio/draft05-cars-ui; original physics chassis and seat retained. Full branch integration/compatibility remains pending.",
       "status": "next",
       "source": "ProjectContext TODO 8",
       "by": "Alex Nguyen",
@@ -68,12 +68,13 @@
     {
       "id": "rusty-hatchback",
       "title": "Import the Rusty Hatchback into Studio",
-      "detail": "Blender export DONE 2026-10-05 (blender/exports/rusty_hatchback/RustyHatchback.fbx, baked textures, 6.6 studs long). Next: Studio Import 3D (owner), then Claude finishes the model, Rojo mapping and Model = \"RustyHatchback\". Steps: drafts/cars/rusty-hatchback/DRAFT.md.",
-      "status": "doing",
+      "detail": "All seven Draft05 cars uploaded/imported and included with Blender source, FBX/GLB exports and CarModels.rbxm on studio/draft05-cars-ui. Decorative headlamps and two-sided surfaces preserved; branch compatibility pending.",
+      "status": "done",
+      "done": "2026-10-06",
       "source": "ProjectContext TODO 8",
       "by": "Alex Nguyen",
       "added": "2026-10-05T00:00:00-07:00",
-      "updated": "2026-10-05T03:20:00-07:00",
+      "updated": "2026-10-06T02:40:00-07:00",
       "updatedBy": "Alex Nguyen"
     },
     {
@@ -139,8 +140,8 @@
     {
       "id": "racer-hud",
       "title": "Bring the Racer HUD into the repo",
-      "detail": "Saved on branch studio/racer-hud-ui (drafts/ui/racer-hud/latest, complete incl. RollShowcase, RacerMotion, RacerRebirth). Find its .ui.json specs/generator owner, then ui-test-writer rewrites UiSpec for the new layout first, then build + /compat-check.",
-      "status": "next",
+      "detail": "Finalized source, UI specs, generator, atlas, settings icon and Studio UI snapshots added on studio/draft05-cars-ui. Rojo build and structural checks passed. Next: revise UiSpec for this layout, live-check and run full compat before merging.",
+      "status": "doing",
       "source": "compat-check 2026-10-05",
       "by": "Alex Nguyen",
       "added": "2026-10-05T21:00:00-07:00",
@@ -171,12 +172,12 @@
     {
       "id": "isaac-draft05",
       "title": "Review and merge Isaac's studio/draft05-cars-ui (Draft05 cars + Racer UI)",
-      "detail": "Isaac Li (@issacli), 2 commits on 2026-10-06, 2 ahead / 0 behind main. Adds 7 Blender cars (assets/studio/CarModels.rbxm), redesigned Racer UI under RollToast (8 UI modules + StarterGui.rbxm), Shared/CarAppearance (cosmetic model welded on the physics chassis; CarService applies it on spawn and on EquippedCar change), and default.project.json maps CarModels + StarterGui and disables 5 legacy client scripts. Not compat-checked (his handoff says so). Overlaps our uncommitted CarService, ProjectContext, README, todo.json; git conflict with current_progress.md. His branch does not touch src/client/UiTest, and UiSpec still expects the IndexUi / StatsUi / AutoRaceButton ScreenGuis whose scripts he disables, so the UI suite will likely fail until ui-test-writer updates it. Handoff: docs/DRAFT05_HANDOFF.md on his branch.",
-      "status": "next",
+      "detail": "Isaac Li (@issacli), 2 commits on 2026-10-06, 2 ahead / 0 behind main. Adds 7 Blender cars (assets/studio/CarModels.rbxm), redesigned Racer UI under RollToast (8 UI modules + StarterGui.rbxm), Shared/CarAppearance (cosmetic model welded on the physics chassis; CarService applies it on spawn and on EquippedCar change), and default.project.json maps CarModels + StarterGui and disables 5 legacy client scripts. Not compat-checked (his handoff says so). Overlaps our uncommitted CarService, ProjectContext, README, todo.json; git conflict with current_progress.md. His branch does not touch src/client/UiTest, and UiSpec still expects the IndexUi / StatsUi / AutoRaceButton ScreenGuis whose scripts he disables, so the UI suite will likely fail until ui-test-writer updates it. Handoff: docs/DRAFT05_HANDOFF.md on his branch. MERGED into initial-import 2026-10-06 (conflicts only in notes files). Fixed on merge: Racer HUD turbo bar now reads the upgrade tree's TurboCount / TurboEvery. Next: ui-test-writer rewrites UiSpec for the Racer UI, then full /compat-check.",
+      "status": "doing",
       "source": "Team tab overview",
       "by": "Alex Nguyen",
       "added": "2026-10-06T02:05:00-07:00",
-      "updated": "2026-10-06T02:05:00-07:00"
+      "updated": "2026-10-06T02:30:00-07:00"
     }
   ]
 }

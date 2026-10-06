@@ -19,6 +19,7 @@ local Workspace = game:GetService("Workspace")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local CarConfig = require(Shared.CarConfig)
 local CarFactory = require(Shared.CarFactory)
+local CarAppearance = require(Shared.CarAppearance)
 local SpawnArea = require(Shared.SpawnArea)
 local PlayerData = require(script.Parent.PlayerData)
 local RaceService = require(script.Parent.RaceService)
@@ -270,6 +271,7 @@ local function spawnCar(player, character, gen)
 	-- 1. The car waits at the start line, held in place
 	local start = spawnCFrame(index)
 	local car = CarFactory.build(CarConfig)
+	CarAppearance.Apply(car, player:GetAttribute("EquippedCar"), CarConfig)
 	car:PivotTo(start)
 	local chassis = car.PrimaryPart
 	chassis.Anchored = true
@@ -521,6 +523,12 @@ function CarService.Start()
 		watchPad(pad)
 	end
 	local function onPlayer(player)
+		player:GetAttributeChangedSignal("EquippedCar"):Connect(function()
+			local car = cars[player]
+			if car and car.Parent then
+				CarAppearance.Apply(car, player:GetAttribute("EquippedCar"), CarConfig)
+			end
+		end)
 		player.CameraMinZoomDistance = 10
 		player.CameraMaxZoomDistance = 40
 		player.CharacterAdded:Connect(function(character)

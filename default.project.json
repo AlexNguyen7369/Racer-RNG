@@ -25,6 +25,9 @@
         }
       }
     },
+    "StarterGui": {
+      "$path": "assets/studio/StarterGui.rbxm"
+    },
     "Workspace": {
       "$className": "Workspace",
       "$properties": {

@@ -3,7 +3,112 @@
 PROJECT CONTEXT - Idle Vehicle Simulator (read me first)
 Shown in Studio at: ServerScriptService > ProjectContext   (source file: context/ProjectContext.luau)
 Do NOT edit this in Studio: edit the file on disk, Rojo syncs it. Claude updates it at the end of every loop.
-Last updated: 2026-10-06 (upgrade tree phase 2 + Mechanical Workshop phase 1 implemented, not yet run in Studio)
+Last updated: 2026-10-06 (merged Isaac's Draft05 cars + Racer UI with upgrade tree phase 2 + Mechanical Workshop phase 1; compat-check pending)
+
+
+DRAFT05 CARS + RACER UI (Isaac Li, branch studio/draft05-cars-ui, merged into initial-import 2026-10-06)
+RESTORATION AND CONTINUOUS REEL - 2026-10-06
+- Restored Shared.CarAppearance, Server.CarService, Client.RollToast, its nested
+  RacerUiController and eight Ui modules from the finalized handoff source.
+  Legacy AutoRaceButton/SpeedHud/IndexUi/StatsUi/RollUi remain disabled intentionally.
+- Live checks: RacerUiReady=true; Index, Stats, Settings and Rebirth opened via real
+  mouse clicks. Starter raced using the revision-5 Rusty visual. All seven car IDs plus
+  starter swapped revision-5 visuals while retaining the same chassis and DriverSeat.
+- Improved rolling: continuous decelerating six-icon strip, centre emphasis, larger
+  compact car area, outlined odds, edge fades, winner settling before reveal and landing pop.
+  Genuine filler odds and server-selected result/timings unchanged. Reduce-effects respected.
+- Animation live samples verified Spin -> Land -> Hold and six reel sprites; no new
+  runtime errors observed. Pre-existing Studio DataStore/Avatar warnings remain.
+- Backup before restoring: ServerStorage.BeforeRacerRestore_1791272871.
+  Previous roll source also backed up under RollToastBeforeContinuousReel_*.
+- The earlier source-discrepancy section below describes the diagnosed state BEFORE
+  restoration. It is retained as history and no longer describes the active implementation.
+- Roblox Open Cloud: ROBLOX_API_KEY read-only Get Universe returned HTTP 200 for
+  Racer RNG, universe 10767692874, place 126725530984268; secret never printed/stored in repo.
+- Shared Studio save and updated GitHub commit are being verified as separate destinations.
+  No live publication or main merge authorized. Full compatibility is still pending.
+- Updated personal roblox-code skill requires verified shared Studio + GitHub delivery
+  when requested; a local .rbxl or local commit alone is not shared completion.
+
+ISAAC'S HANDOFF - 2026-10-06
+Project: Racer RNG. This summary supersedes obsolete TODO/status statements below.
+Owner requested this documentation update in Studio. Only ProjectContext is changed by this update.
+
+UI WORK COMPLETED IN THIS CHAT
+- Cyan Index, purple Stats, matching Settings, red text-only REBIRTH and coming-soon menu.
+  Rebirth matches the other navigation button sizes; no rebirth icon. Workshop remains coming soon.
+- Index displays discovered cars with their original illustrated icons and EQUIP action;
+  undiscovered cars use black silhouettes / ???. Car art was enlarged.
+- Stats presents Speed, Money, Luck and Workshop multiplier rows with allocation buttons,
+  free-point count and centered upgrade rows. Economy and ownership remain server-authoritative.
+- Money at bottom-left, icon raised to align with the main number; UNBANKED directly below it.
+- Speed icon and number grouped centrally below the character; studs/s secondary line removed.
+  Turbo Luck centered under the combined icon+number group, with rounded edges.
+- Hover pop animation on buttons; improved rolling-card/showcase interface, larger car art,
+  fading edges on both sides of the rolling reel, clearer AUTO OFF positioning/text outline.
+- Settings at upper-right uses an uploaded illustrated gear, not an emoji. Secret rarity is black,
+  not Epic purple. Original car icon atlas remains the UI art: imported models are for racing.
+- Sources/specs/assets are included on the GitHub handoff branch described below.
+  Some older UI scripts are deliberately disabled by Rojo metadata to avoid duplicate HUDs.
+
+CAR ART / BLENDER / STUDIO IMPORT
+- Blender MCP configured and used for successive car drafts. Owner approved Draft03;
+  subsequent iterations made the fleet cute, smooth, clean and more rounded while low-poly.
+- Draft05 is the actual Blender mesh import, not a primitive-part recreation of the render.
+  Fleet: rusty_hatchback, wooden_car, go_kart, street_racer, rocket_car, hover_car, void_racer.
+- Seven revision-5 templates currently exist in ReplicatedStorage.CarModels: 42 MeshParts total.
+  Counts by order above: 7, 7, 4, 7, 5, 6, 6. Import batches cars_A.fbx and cars_B.fbx uploaded
+  with the owner's explicit permission. Blender source and individual FBX/GLB exports retained.
+- Triangle totals: Rusty 1365, Wooden 1670, Kart 1052, Street 1494, Rocket 1650,
+  Hover 1442, Void 1486; largest material-group mesh 788 triangles.
+- More dimensional kart with seat, steering and raised body details; beveled car body edges,
+  tapered cabin, windows, bumpers, wheel hubs, mirrors, grille and visible round headlamp faces.
+- Restrained toy-paint palette and small rust-colored chips; heavy corrosion textures rejected.
+- Imported FBX 100x unit conversion corrected with ScaleTo(0.01), Blender base-centered pivots
+  retained; Roblox forward is -Z. Material groups use SmoothPlastic, no external texture required.
+- DoubleSided=true preserves glass and lamp polygons whose backfaces were visible in Blender
+  but culled in Roblox. Decorative headlights stay visible; no working beams are intended.
+- SpotLight headlight implementation was removed after owner clarification; HeadlightConfig
+  moved out of active Shared. No Light descendants in the seven current car templates.
+- Cosmetic skin code keeps the original physics chassis, seat and race run. Starter appearance
+  defaults to Rusty Hatchback without granting ownership or changing its starter multiplier.
+  Equipping changes the visible racing car, not the Index icons or physics/economy.
+- Earlier templates, UI source and raw imports remain in ServerStorage backups, including
+  BeforeEquippedRaceVisuals_1791261685, BeforeDraft05Import_1791263383 and
+  Draft05InstallationBackup_1791263467. Do not delete those casually.
+
+GITHUB / LOCAL SAVE
+- Repository: https://github.com/AlexNguyen7369/Racer-RNG
+- GitHub authentication succeeded. Pushed and verified branch studio/draft05-cars-ui.
+- Commit 81cbeafb288a251f02e15e7c1b444e350486e8cc (81cbeaf), author Isaac Li,
+  authorized email 527isaac@gmail.com. main was not changed; no PR or game publish performed.
+- Branch includes finalized source, UI specs/generator/icons, .blend/FBX/GLB assets, imported
+  CarModels and StarterGui snapshots, integration metadata, handoff notes and progress record.
+- Checkout: C:/Users/theha/.codex/visualizations/2026/10/05/01a10e5c-0555-7db1-814f-d593c4dd6a8d/Racer-RNG
+- Prior local save: C:/Users/theha/OneDrive/Documents/codex racer rng/RacerRNG_Draft05_Imported.rbxl
+  Verified 474051 bytes on 2026-10-06. That snapshot predates this context update and retains
+  older active scripts; it is not proof that all finalized integration source is currently active.
+- Original working folder: C:/Users/theha/OneDrive/Documents/codex racer rng
+- See repository docs/DRAFT05_HANDOFF.md. Blender helper output paths are session-local and
+  must be adjusted on other computers; use included validated exports where appropriate.
+
+CHECKS / LIMITATIONS / NEXT ACTION
+- During Draft05 work, all seven equipment visuals plus starter were checked in live racing:
+  shared chassis/seat retained, visual meshes massless/noncolliding, no artificial unlock saved.
+  Front-view inspection confirmed beveled Rusty shape, glass and decorative headlamp surfaces.
+- GitHub handoff: all 70 Luau sources compiled with Lune; Rojo 7.7.0 built the project.
+  Structural checks passed for seven cars / 42 double-sided meshes, decorative-only lamps,
+  six ScreenGuis, nested controller/modules and disabled superseded UI scripts; whitespace passed.
+- Standard format/lint gate did not pass: StyLua was missing; Selene not run. No claim of a
+  current-branch ALL GREEN compatibility stamp. Earlier main's f11ddc2d32ad result is historical.
+- Next: reconcile finalized source with Studio, then run new-layout UI, full harness,
+  multiplayer and world compatibility before merge/publish. Do not bypass main's gate.
+- Existing limitations remain: real DataStore access/testing disabled, static_settle cold-start
+  flake, old Circuit/Serpentine rule work, and money upgrade tree phase 2 not implemented here.
+- Rebirth is a coming-soon panel. Workshop gameplay exists (phase 1, TODO item 9 below, docs/WORKSHOP_SPEC.md) but the new Stats panel still shows Workshop points as coming soon.
+
+HISTORICAL PROJECT DETAILS AND LOG (PRESERVED BELOW)
+
 
 WHAT IT IS
 A baby-blue mini car auto-races a chain of tracks (Oval -> Hill -> ...). No steering: the car drives itself,
@@ -233,8 +338,9 @@ TODO (in order)
    invisible physics body; physics and tests never depend on the model. docs/VEHICLE_SKINS_SPEC.md. Car model drafts follow it
    Rusty Hatchback Blender draft DONE 2026-10-02 (drafts/cars/rusty-hatchback, CC0 "Car Hatchback" by Kay Lousberg, rusty
    restyle, Wheel_FL/FR/RL/RR). 2026-10-05: baked + exported headless (blender/scenes/export_rusty_hatchback.py -> blender/exports/rusty_hatchback/
-   RustyHatchback.fbx, 6.6 studs long). Next: owner does Studio File > Import 3D, then Claude finishes it as CarModels.RustyHatchback
-   (steps in drafts/cars/rusty-hatchback/DRAFT.md), maps CarModels to assets/CarModels in Rojo, sets Model in Cars/rusty_hatchback.luau. Blender MCP add-on updated to protocol 13; Poly Pizza on.
+   RustyHatchback.fbx, 6.6 studs long). DONE 2026-10-06: Isaac's Draft05 import was used instead of the textured
+   blender/exports FBX (owner's choice): ReplicatedStorage.CarModels = assets/studio/CarModels.rbxm (Rojo), Cars/rusty_hatchback.luau
+   Model = "rusty_hatchback"; live check: rolls clone CarModels.rusty_hatchback into the RollToast viewport, "?" hidden. Blender MCP add-on updated to protocol 13; Poly Pizza on.
 9. STARTED 2026-10-06 (owner brief): Mechanical Workshop. Spec: docs/WORKSHOP_SPEC.md. 7 plots in the spawn area, max 7 players
    (server size set by hand: dashboard "Needs you"). The spawn floor grew to (24,-188)..(252,44) = 228 x 232; the old floor is
    SpawnArea.HUB_MIN/MAX and keeps the spawn (same position). Shared/WorkshopConfig (plots, zone 32x12x32, BASE_RATE 1/s, levels),

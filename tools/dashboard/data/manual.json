@@ -142,9 +142,12 @@
         "Keep it importing as ONE model, then click Import. Leave it wherever Studio puts it.",
         "Tell Claude \"hatchback imported\". Claude renames and orients it, makes it non-colliding and massless, checks the mesh and texture ids uploaded, and moves it to ReplicatedStorage.CarModels."
       ],
-      "status": "open",
+      "status": "done",
       "added": "2026-10-05T04:20:00-07:00",
-      "by": "Claude"
+      "by": "Claude",
+      "doneBy": "Alex Nguyen",
+      "doneAt": "2026-10-06T02:40:00-07:00",
+      "verified": "Isaac's Draft05 import was used instead of the textured blender/exports FBX (owner chose this 2026-10-06); CarModels.rbxm mapped; rolls show the model"
     },
     {
       "id": "hatchback-rbxm",
@@ -158,9 +161,12 @@
         "Choose Save to File... and save it as `~/Documents/RobloxGames/assets/CarModels/RustyHatchback.rbxm` (create the CarModels folder if asked).",
         "Tell Claude \"rbxm saved\". Claude maps ReplicatedStorage.CarModels to assets/CarModels in default.project.json and sets Model = \"RustyHatchback\" in Cars/rusty_hatchback.luau."
       ],
-      "status": "open",
+      "status": "done",
       "added": "2026-10-05T04:20:00-07:00",
-      "by": "Claude"
+      "by": "Claude",
+      "doneBy": "Alex Nguyen",
+      "doneAt": "2026-10-06T02:40:00-07:00",
+      "verified": "Isaac's Draft05 import was used instead of the textured blender/exports FBX (owner chose this 2026-10-06); CarModels.rbxm mapped; rolls show the model"
     },
     {
       "id": "upgrade-decisions",
