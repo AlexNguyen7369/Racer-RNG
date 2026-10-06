@@ -33,7 +33,6 @@ local autoRollRemote = remotes:WaitForChild("SetAutoRoll")
 local PanelSwitch = require(script.Parent:WaitForChild("PanelSwitch"))
 
 local A = RollAnimConfig
-local AUTO_RACE_BOTTOM = 12 + 48 -- Client/AutoRaceButton: Toggle at y = 12, 48 px tall (same GUI inset)
 local SHOWCASE_ORDER = 5 -- above the HUD, below the loser screen (10)
 local BLUR_SIZE = 14
 local AUTO_BUTTON_SIZE = Vector2.new(180, 44)
@@ -48,6 +47,14 @@ local BOLD = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeigh
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
+
+local function autoRaceBottom()
+	local hud = playerGui:FindFirstChild("RacerHud")
+	local outer = hud and hud:FindFirstChild("Race")
+	local button = outer and outer:FindFirstChild("Face")
+	local inset = GuiService:GetGuiInset()
+	return button and (button.AbsolutePosition.Y + button.AbsoluteSize.Y - inset.Y) or 60
+end
 local rng = Random.new()
 
 local function make(class, props, parent)
@@ -431,7 +438,7 @@ gui:SetAttribute("View", "Compact")
 local toast = make("TextButton", {
 	Name = "Toast",
 	AnchorPoint = Vector2.new(0.5, 0),
-	Position = UDim2.new(0.5, 0, 0, AUTO_RACE_BOTTOM + A.COMPACT_GAP),
+	Position = UDim2.new(0.5, 0, 0, autoRaceBottom() + A.COMPACT_GAP),
 	Size = UDim2.new(A.COMPACT_WIDTH, 0, 0, A.COMPACT_HEIGHT),
 	BackgroundTransparency = 1,
 	AutoButtonColor = false,
@@ -721,6 +728,7 @@ local function openEnlarged(auto)
 	autoOpened = auto == true
 	PanelSwitch.Close("Index")
 	PanelSwitch.Close("Stats")
+	PanelSwitch.Close("Settings")
 	gui:SetAttribute("View", "Enlarged")
 	backdrop.Visible = true
 	autoButton.Visible = true
@@ -752,7 +760,7 @@ local function closeEnlarged()
 	local inset = GuiService:GetGuiInset()
 	local to = Vector2.new(
 		card.AbsolutePosition.X + card.AbsoluteSize.X / 2,
-		AUTO_RACE_BOTTOM + A.COMPACT_GAP + A.COMPACT_HEIGHT / 2 + inset.Y
+		autoRaceBottom() + A.COMPACT_GAP + A.COMPACT_HEIGHT / 2 + inset.Y
 	)
 	local info = TweenInfo.new(A.SWITCH, Enum.EasingStyle.Back, Enum.EasingDirection.In)
 	TweenService:Create(card, info, {
@@ -863,8 +871,10 @@ local function landEffects(b, roll, mySerial)
 end
 
 local function flyToIndex(spec)
-	local indexGui = playerGui:FindFirstChild("IndexUi")
-	local target = indexGui and indexGui:FindFirstChild("OpenIndex")
+	local indexGui = playerGui:FindFirstChild("RacerHud")
+	local navigation = indexGui and indexGui:FindFirstChild("Navigation")
+	local wrapper = navigation and navigation:FindFirstChild("Index")
+	local target = wrapper and wrapper:FindFirstChild("Face")
 	if not target or not target.Visible then
 		return
 	end
@@ -878,16 +888,15 @@ local function flyToIndex(spec)
 	icon.Size = UDim2.fromScale(1, 1)
 	flyIcon.Position = UDim2.fromOffset(from.X, from.Y)
 	flyIcon.Visible = true
-	local t = tween(
+	-- Lands inside Exit and rests on the button until Phase "Idle" hides it (contract: flies to OpenIndex, then
+	-- Idle), easing out so the player sees it arrive instead of vanishing on the way.
+	tween(
 		flyIcon,
-		A.EXIT + 0.25,
+		A.EXIT * 0.7,
 		{ Position = UDim2.fromOffset(to.X, to.Y) },
 		Enum.EasingStyle.Quad,
-		Enum.EasingDirection.In
+		Enum.EasingDirection.Out
 	)
-	t.Completed:Connect(function()
-		flyIcon.Visible = false
-	end)
 end
 
 local function play(roll)
@@ -1004,6 +1013,7 @@ local function play(roll)
 	if not after(A.EXIT) then
 		return
 	end
+	flyIcon.Visible = false
 	setPhase("Idle")
 	if roll.Emphasized and autoOpened then
 		closeEnlarged()
@@ -1070,3 +1080,16 @@ rollRemote.OnClientEvent:Connect(function(id, isNew, turboMulti, emphasized)
 		Emphasized = emphasized == true,
 	})
 end)
+
+-- Shared entry point for the bottom-right ROLLS button; it opens the existing view, not a free roll.
+local openRollView = make("BindableEvent", { Name = "OpenRollView" }, gui)
+openRollView.Event:Connect(function() openEnlarged(false) end)
+local function fitCompact()
+	toast.Position = UDim2.new(0.5, 0, 0, autoRaceBottom() + A.COMPACT_GAP)
+end
+if workspace.CurrentCamera then workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(fitCompact) end
+local hud = playerGui:WaitForChild("RacerHud")
+local race = hud:WaitForChild("Race"):WaitForChild("Face")
+race:GetPropertyChangedSignal("AbsolutePosition"):Connect(fitCompact)
+race:GetPropertyChangedSignal("AbsoluteSize"):Connect(fitCompact)
+fitCompact()
