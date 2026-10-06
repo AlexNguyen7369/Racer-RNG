@@ -14,6 +14,7 @@ Tabs (`#manual`, `#agents`, `#changes`, `#todo`, `#tests` in the URL open one di
 
 | Tab | Shows | Source |
 |---|---|---|
+| Team & branches | who is on the team; every unmerged branch with who started it (`Initiated-By` trailer, else the first commit's author) and who commits on it, systems touched, ahead/behind main, files that overlap your uncommitted or branch work, real merge conflicts (`git merge-tree`) with your branch and with main, Rojo/Studio warnings, handoff notes, compare-on-GitHub link; Sync with GitHub, Push my branch, Switch to it, and a form that starts a labelled feature branch | git (fetched from origin every 2 min), `tools/collab.py`, `data/team.json` |
 | Needs you | tasks only the developer can do by hand (Studio imports, settings, accounts, decisions), each with why, what it unblocks, when, and numbered steps (click a `code` path to copy it); Mark done / Reopen. The header pill shows how many are open | `data/manual.json` (Claude adds and closes items) |
 | Agents | subagent cards (colour per agent, running / passed / failed), every message between main and the agents, one agent's full timeline (prompt, tool calls, results, report), Need to know | Claude Code transcripts in `~/.claude/projects/<this repo>/`, `context/ProjectContext.luau`, `current_progress.md` |
 | Changes & history | uncommitted files with diffs; commits on all branches with developer, date and time, files, `green` (that commit's game code passed /compat-check) and `local` (not pushed) | git, `tools/compat.py` |
@@ -21,6 +22,9 @@ Tabs (`#manual`, `#agents`, `#changes`, `#todo`, `#tests` in the URL open one di
 | Tests | how testing works, latest tester runs, the four compat suites, every scenario with its last status and what it checks | `src/server/CarTest/`, `src/client/UiTest/`, tester reports, `.compat/`, `data/tests_explained.json` |
 
 Top bar: the gate light. Green = this exact code passed `/compat-check`, you can commit and push to `main`. Amber = code changed since the last green run. Red = a suite failed.
+
+## Feature branches
+Starting a feature (Team tab form, a TODO card's Branch button, moving a card to Doing, `/feature`, or `python3 tools/collab.py start "Title"`) creates `feature/<handle>/<slug>` from `origin/main` without touching your working tree. Its first commit is empty and carries `Feature-Title` / `Initiated-By` trailers, so GitHub itself records who started what. It is pushed to origin and the TODO card shows the owner and the branch. Git actions (start, push, switch, sync) only run for the browser on the machine that runs the server, never from `--lan`, because they use that machine's git identity. `--no-auto-branch` stops cards moved to Doing from starting branches; `--no-fetch` stops the background fetch.
 
 ## Shared vs per machine
 - `data/*.json` is checked in: commit it so the team shares the TODO list and suggestion decisions. Each change records who (`git config user.name`) and when.

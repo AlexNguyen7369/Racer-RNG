@@ -6,7 +6,7 @@ const AGENTS = ["main", "test-writer", "ui-test-writer", "physics-tester", "ui-t
 const STATUS_COLS = [["doing", "Doing"], ["next", "Up next"], ["backlog", "Backlog"], ["done", "Done"]];
 
 const $ = (id) => document.getElementById(id);
-const state = { session: "", agent: null, tab: "agents", canWrite: true, last: {}, open: new Set() };
+const state = { session: "", agent: null, tab: "agents", canWrite: true, local: true, last: {}, open: new Set() };
 
 function esc(s) {
   return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -77,6 +77,8 @@ function fail(el, e) {
 async function loadMeta() {
   const m = await api("/api/meta");
   state.canWrite = m.canWrite;
+  state.local = m.local;
+  $("team-actions").hidden = $("feature-form").hidden = !m.local;
   $("who").textContent = `${m.developer}${m.canWrite ? "" : " · read-only"}`;
   $("todo-form").hidden = !m.canWrite;
   if (!state.session) state.session = m.session;
@@ -249,7 +251,9 @@ async function loadHistory() {
 
 async function todo(body) {
   try {
-    await api("/api/todo", body);
+    const r = await api("/api/todo", body);
+    if (r.started) toast(`Started ${r.started.branch}${r.started.pushed ? " on GitHub" : " (local only: " + (r.started.pushError || "not pushed") + ")"}`);
+    else if (r.branchError) toast(`No branch: ${r.branchError}`);
     await loadTodo();
   } catch (e) { toast(e.message); }
 }
@@ -264,13 +268,16 @@ async function loadTodo() {
     return `<div class="col ${s}"><h3>${label}<span class="muted">${items.length}</span></h3>${items.map((i) => `
       <div class="card" data-id="${esc(i.id)}">
         <div class="title">${esc(i.title)}</div>
+        ${i.branch ? `<div class="tags"><span class="badge owner" title="Initiated by">${esc(i.owner || i.by || "")}${i.ownerGithub ? ` · @${esc(i.ownerGithub)}` : ""}</span><span class="badge branch" title="Feature branch">${esc(i.branch)}</span></div>` : ""}
         ${i.detail ? `<div class="detail">${esc(i.detail)}</div>` : ""}
         <div class="foot"><span>${esc(i.by || "")}${i.done ? ` · done ${when(i.done)}` : ""}</span><span class="sp"></span>
+          ${state.local && !i.branch && i.status !== "done" ? `<button data-branch="${esc(i.id)}" title="Start a labelled feature branch for this task">Branch</button>` : ""}
           ${state.canWrite ? moves(i) + `<button data-del="${esc(i.id)}" title="Delete">✕</button>` : ""}</div>
       </div>`).join("")}</div>`;
   }).join("");
   $("board").querySelectorAll(".card .title").forEach((el) => el.addEventListener("click", () => el.parentElement.classList.toggle("open")));
   $("board").querySelectorAll("[data-move]").forEach((b) => b.addEventListener("click", () => todo({ action: "move", id: b.dataset.id, status: b.dataset.move })));
+  $("board").querySelectorAll("[data-branch]").forEach((b) => b.addEventListener("click", () => teamAction("start", { todo: b.dataset.branch })));
   $("board").querySelectorAll("[data-del]").forEach((b) => b.addEventListener("click", () => {
     if (confirm("Delete this task?")) todo({ action: "delete", id: b.dataset.del });
   }));
@@ -307,6 +314,88 @@ async function loadSuggestions() {
     } catch (e) { toast(e.message); }
   }));
   keepOpen($("tab-todo"));
+}
+
+// ------------------------------------------------------------------------------------------------ team + branches
+
+async function teamAction(action, body = {}) {
+  const labels = { sync: "Fetching from GitHub…", push: "Pushing…", start: "Creating the branch…", switch: "Switching…" };
+  toast(labels[action]);
+  try {
+    const r = await api(`/api/team/${action}`, body);
+    if (action === "start") {
+      const s = r.started;
+      toast(`${s.branch} started by ${s.initiatedBy.name}${s.pushed ? ", pushed to GitHub" : " (local only: " + (s.pushError || "not pushed") + ")"}`);
+    } else if (action === "push") toast(`Pushed ${r.branch}`);
+    else if (action === "switch") toast(`Now on ${r.branch}: Rojo syncs it into Studio`);
+    else toast("Up to date with GitHub");
+    state.last.team = state.last.todo = null;
+    await Promise.all([loadTeam(), state.tab === "todo" ? loadTodo() : null]);
+  } catch (e) { toast(e.message); }
+}
+
+function person(p) {
+  return `<div class="person"><div class="pname">${esc(p.name)}${p.github ? ` <span class="muted">@${esc(p.github)}</span>` : ""}</div>
+    ${p.role ? `<div class="small muted">${esc(p.role)}</div>` : ""}
+    <div class="small">started ${p.started.length} · committing on ${p.working.length} · active ${ago(p.last)}</div></div>`;
+}
+
+function fileList(files) {
+  const st = { A: "new", M: "mod", D: "del", R: "ren" };
+  return files.map((f) => `<div class="bfile"><span class="badge">${st[f.status] || f.status}</span><span class="path">${esc(f.path)}</span>
+    <span class="small muted">${esc(f.area)}</span><span class="plus">+${esc(f.add)}</span><span class="minus">-${esc(f.del)}</span></div>`).join("");
+}
+
+function branchHtml(b) {
+  const who = b.initiator;
+  const imp = b.implementers.map((i) => `${esc(i.name)} (${i.commits})`).join(", ") || "no commits yet";
+  const conflicts = (list, whom) => list && list.length
+    ? `<div class="warn fail">Merge conflicts with ${whom}: ${list.map(esc).join(", ")}</div>` : "";
+  const badges = [
+    b.current ? `<span class="badge running">you are here</span>` : "",
+    b.merged ? `<span class="badge pass">merged</span>` : "",
+    b.onRemote ? "" : `<span class="badge stale">not pushed</span>`,
+    b.green ? `<span class="badge pass">compat green</span>` : b.touchesGame && !b.merged ? `<span class="badge">not compat-checked</span>` : "",
+  ].join("");
+  const actions = !state.local ? "" : `${b.current ? "" : `<button data-switch="${esc(b.name)}">Switch to it</button>`}`;
+  return `<details class="branch" data-key="b-${esc(b.name)}">
+    <summary>
+      <div class="bhead"><span class="btitle">${esc(b.title)}</span>${badges}</div>
+      <div class="bmeta"><span class="who" style="--c:var(--a-other)">Started by <b>${esc(who.name)}</b>${who.github ? ` @${esc(who.github)}` : ""}</span>
+        <code>${esc(b.name)}</code><span>${b.ahead} ahead · ${b.behind} behind main</span><span>last ${ago(b.lastDate)}</span></div>
+      <div class="chips">${b.areas.map((a) => `<span class="chip" title="+${a.add} -${a.del}">${esc(a.name)} <b>${a.files}</b></span>`).join("")}</div>
+      ${b.overlapWithMe.length ? `<div class="warn stale">Also changed in your work: ${b.overlapWithMe.map(esc).join(", ")}</div>` : ""}
+      ${conflicts(b.conflictsWithMe, "your branch")}${conflicts(b.conflictsWithMain, "main")}
+      ${b.studio.map((s) => `<div class="warn">${esc(s)}</div>`).join("")}
+    </summary>
+    <div class="inner">
+      <p><b>Started by:</b> ${esc(who.name)}${who.role ? ` (${esc(who.role)})` : ""} <span class="muted small">from the ${esc(who.how)}</span><br>
+        <b>Commits by:</b> ${imp}</p>
+      <div class="actions">${actions}${b.compare ? `<a class="btn" href="${esc(b.compare)}" target="_blank" rel="noopener">Compare / open PR on GitHub</a>` : ""}</div>
+      ${b.notes.map((n) => `<h4>${esc(n.path)}</h4><pre class="note">${esc(n.text)}</pre>`).join("")}
+      <h4>Commits (${b.commitCount})</h4>
+      ${b.commits.map((c) => `<div class="bcommit"><span class="sha">${esc(c.short)}</span><span>${esc(c.subject)}</span><span class="small muted">${esc(c.author)} · ${when(c.date)}</span></div>`).join("")}
+      <h4>Files (${b.files.length})</h4>${fileList(b.files)}
+    </div></details>`;
+}
+
+async function loadTeam() {
+  const t = await api("/api/team");
+  const open = t.branches.filter((b) => !b.merged);
+  const others = open.filter((b) => !b.current && b.initiator.name !== t.me.name).length;
+  $("team-count").hidden = others === 0;
+  $("team-count").textContent = others;
+  if (!changed("team", t)) return;
+  $("team-note").innerHTML = `${esc(t.me.name)} on <code>${esc(t.current)}</code> · ${t.fetch.error ? `<span class="minus">fetch failed: ${esc(t.fetch.error)}</span>` : t.fetch.at ? `synced ${ago(t.fetch.at)}` : "not synced yet"}` +
+    (t.repo ? ` · <a href="${esc(t.repo)}" target="_blank" rel="noopener">GitHub repo</a>` : "");
+  $("people").innerHTML = t.people.map(person).join("");
+  $("branches").innerHTML = open.map(branchHtml).join("") || `<p class="muted">Every branch is merged into main.</p>`;
+  $("branches-merged").innerHTML = t.branches.filter((b) => b.merged).map(branchHtml).join("") || `<p class="muted small">None.</p>`;
+  $("tab-team").querySelectorAll("[data-switch]").forEach((b) => b.addEventListener("click", (e) => {
+    e.preventDefault();
+    if (confirm(`Switch your working tree to ${b.dataset.switch}? Rojo will sync that branch into Studio.`)) teamAction("switch", { branch: b.dataset.switch });
+  }));
+  keepOpen($("tab-team"));
 }
 
 // ------------------------------------------------------------------------------------------------ needs you
@@ -394,6 +483,7 @@ async function loadTests() {
 
 const LOADERS = {
   manual: [loadManual],
+  team: [loadTeam],
   agents: [loadAgents, loadTimeline, loadNeedToKnow],
   changes: [loadChanges, loadHistory],
   todo: [loadTodo, loadSuggestions],
@@ -431,6 +521,13 @@ $("show-all").addEventListener("click", () => {
   state.jump = true;
   document.querySelectorAll(".agent").forEach((a) => a.classList.remove("sel"));
   loadTimeline();
+});
+$("team-sync").addEventListener("click", () => teamAction("sync"));
+$("team-push").addEventListener("click", () => teamAction("push"));
+$("feature-form").addEventListener("submit", (e) => {
+  e.preventDefault();
+  teamAction("start", { title: $("feature-title").value, detail: $("feature-detail").value });
+  $("feature-title").value = $("feature-detail").value = "";
 });
 $("f-author").addEventListener("change", loadHistory);
 $("f-branch").addEventListener("change", loadHistory);

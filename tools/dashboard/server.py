@@ -10,6 +10,9 @@ commit history, the compat gate, the TODO list, feature suggestions and the test
 Stdlib only. Reads Claude Code transcripts from ~/.claude/projects/<this repo>/, git, .compat/ and the repo files.
 Writes only tools/dashboard/data/todo.json, suggestions.json and manual.json (checked in, so the team shares them),
 plus the generated TODO section of README.md after every TODO change (tools/readme_sync.py).
+Team tab (tools/collab.py): fetches origin every FETCH_SECONDS, lists everyone's branches, and from this machine only
+(never from the network) starts labelled feature branches, pushes the current branch and switches branches.
+Moving a TODO card to Doing starts its feature branch automatically (--no-auto-branch turns that off).
 """
 import argparse
 import datetime
@@ -36,12 +39,16 @@ EXPLAIN_FILE = os.path.join(DATA, "tests_explained.json")
 TRANSCRIPTS = os.path.join(os.path.expanduser("~"), ".claude", "projects", re.sub(r"[^A-Za-z0-9]", "-", ROOT))
 
 sys.path.insert(0, os.path.join(ROOT, "tools"))
+import collab  # noqa: E402  (feature branches, GitHub sync, everyone's branches)
 import compat  # noqa: E402  (fingerprints and the green stamp)
 import readme_sync  # noqa: E402  (README.md TODO section mirrors todo.json)
 
 RUNNING_SECONDS = 120  # a transcript written to this recently, without a final report, counts as running
 WRITE_LOCK = threading.RLock()  # re-entrant: adding a suggestion writes the TODO inside the same lock
 SUITES = ["harness", "ui", "multiplayer", "world"]
+FETCH_SECONDS = 120  # background `git fetch origin`, so collaborators' pushes show up without anyone clicking
+FETCH = {"at": None, "error": None, "running": False}
+AUTO_BRANCH = True  # moving a TODO card to Doing (or adding one there) starts its feature branch
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -536,6 +543,67 @@ def manual_action(mid, body):
 
 
 # ---------------------------------------------------------------------------------------------------------------
+# team: GitHub sync and feature branches (tools/collab.py)
+
+
+def do_fetch():
+    if FETCH["running"]:
+        return
+    FETCH["running"] = True
+    try:
+        collab.fetch()
+        FETCH["at"], FETCH["error"] = now_iso(), None
+    except collab.GitError as e:
+        FETCH["error"] = str(e)
+    finally:
+        FETCH["running"] = False
+
+
+def fetch_loop():
+    while True:
+        do_fetch()
+        time.sleep(FETCH_SECONDS)
+
+
+def team_view():
+    return {**collab.overview(), "fetch": dict(FETCH)}
+
+
+def start_branch(todo_id, title=None, detail=""):
+    """Start a labelled feature branch and link it to its TODO item (a new Doing item when todo_id is None)."""
+    with WRITE_LOCK:
+        if todo_id:
+            item = next((i for i in read_json(TODO_FILE, {"items": []})["items"] if i["id"] == todo_id), None)
+            if not item:
+                return {"error": "no such TODO item"}
+            if item.get("branch"):
+                return {"error": f"already on {item['branch']}"}
+            title, detail = item["title"], item.get("detail", "")
+        try:
+            info = collab.start_feature(title, detail, todo_id)
+        except collab.GitError as e:
+            return {"error": str(e)}
+        collab.link_todo(info, todo_id, detail)
+        return {"started": info, "todo": read_json(TODO_FILE, {"items": []})}
+
+
+def team_action(action, body):
+    try:
+        if action == "sync":
+            do_fetch()
+            return {"error": FETCH["error"]} if FETCH["error"] else {"ok": True, "fetch": dict(FETCH)}
+        if action == "start":
+            return start_branch(body.get("todo"), (body.get("title") or "").strip()[:120], (body.get("detail") or "")[:4000])
+        if action == "push":
+            return collab.push_current()
+        if action == "switch":
+            return collab.switch(body.get("branch") or "")
+    except collab.GitError as e:
+        return {"error": str(e)}
+    return {"error": "bad action"}
+
+
+# ---------------------------------------------------------------------------------------------------------------
 # HTTP
 
 CONTENT_TYPES = {".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8"}
@@ -574,7 +642,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send(400, {"error": "bad session"})
             routes = {
                 "/api/meta": lambda: {"developer": developer(), "root": ROOT, "sessions": ss, "session": sid,
-                    "canWrite": self.can_write(), "transcripts": TRANSCRIPTS},
+                    "canWrite": self.can_write(), "local": self.is_local(), "autoBranch": AUTO_BRANCH, "transcripts": TRANSCRIPTS},
+                "/api/team": team_view,
                 "/api/agents": lambda: agents(sid) if sid else [],
                 "/api/messages": lambda: messages(sid) if sid else [],
                 "/api/changes": changes,
@@ -601,8 +670,11 @@ class Handler(BaseHTTPRequestHandler):
         except Exception as e:  # keep the page alive; show the error in the panel
             self.send(500, {"error": str(e)})
 
+    def is_local(self):
+        return self.client_address[0] in ("127.0.0.1", "::1")
+
     def can_write(self):
-        return self.client_address[0] in ("127.0.0.1", "::1") or self.lan_write
+        return self.is_local() or self.lan_write
 
     def do_POST(self):
         if not self.can_write():
@@ -613,8 +685,20 @@ class Handler(BaseHTTPRequestHandler):
         except ValueError:
             return self.send(400, {"error": "bad json"})
         p = urlparse(self.path).path
-        if p == "/api/todo":
+        if p.startswith("/api/team/"):
+            # git actions run as this machine's git identity, so only its own developer may trigger them
+            if not self.is_local():
+                return self.send(403, {"error": "git actions only from the machine running the dashboard"})
+            r = team_action(p.rsplit("/", 1)[1], body)
+        elif p == "/api/todo":
             r = todo_action(body)
+            if "error" not in r and AUTO_BRANCH and self.is_local() and body.get("status") == "doing" \
+                    and body.get("action") in ("add", "move"):
+                tid = body.get("id") if body.get("action") == "move" else r["items"][-1]["id"]
+                item = next((i for i in r["items"] if i["id"] == tid), {})
+                if not item.get("branch"):
+                    started = start_branch(tid)
+                    r = {**(started.get("todo") or r), "started": started.get("started"), "branchError": started.get("error")}
         elif p.startswith("/api/manual/"):
             r = manual_action(p.rsplit("/", 1)[1], body)
         elif p.startswith("/api/suggestions/"):
@@ -629,8 +713,14 @@ def main():
     ap.add_argument("--port", type=int, default=8765)
     ap.add_argument("--lan", action="store_true", help="listen on all interfaces (others can view)")
     ap.add_argument("--lan-write", action="store_true", help="with --lan: others may also edit TODO / suggestions")
+    ap.add_argument("--no-fetch", action="store_true", help="never fetch origin in the background")
+    ap.add_argument("--no-auto-branch", action="store_true", help="moving a TODO card to Doing does not start a branch")
     a = ap.parse_args()
+    global AUTO_BRANCH
+    AUTO_BRANCH = not a.no_auto_branch
     Handler.lan_write = a.lan and a.lan_write
+    if not a.no_fetch:
+        threading.Thread(target=fetch_loop, daemon=True).start()
     host = "0.0.0.0" if a.lan else "127.0.0.1"
     srv = ThreadingHTTPServer((host, a.port), Handler)
     print(f"Agent dashboard on http://127.0.0.1:{a.port}" + ("  (also on your LAN)" if a.lan else ""))

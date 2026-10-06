@@ -1,0 +1,19 @@
+{
+  "_about": "Who is who on this repo. tools/collab.py and the dashboard's Team tab match git commit emails (then names) to these entries; 'handle' names feature branches feature/<handle>/<slug>. Add yourself when you join.",
+  "members": [
+    {
+      "name": "Alex Nguyen",
+      "emails": ["alexnguyen7369@gmail.com"],
+      "github": "AlexNguyen7369",
+      "handle": "alex",
+      "role": "Owner: game systems, tests, tooling"
+    },
+    {
+      "name": "Isaac Li",
+      "emails": ["527isaac@gmail.com"],
+      "github": "issacli",
+      "handle": "isaac",
+      "role": "Collaborator: Studio UI, Blender cars"
+    }
+  ]
+}

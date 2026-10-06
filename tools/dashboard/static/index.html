@@ -36,6 +36,7 @@
 
 <nav class="tabs" id="tabs">
   <button data-tab="manual">Needs you <span class="count" id="manual-count" hidden></span></button>
+  <button data-tab="team">Team &amp; branches <span class="count" id="team-count" hidden></span></button>
   <button data-tab="agents" class="on">Agents</button>
   <button data-tab="changes">Changes &amp; history</button>
   <button data-tab="todo">TODO &amp; ideas</button>
@@ -49,6 +50,31 @@
       <h2>Needs you <span class="muted small">tasks only you can do, with directions; tell Claude when one is done</span></h2>
       <div id="manual"></div>
       <details class="dismissed"><summary>Done</summary><div id="manual-done"></div></details>
+    </div>
+  </section>
+
+  <!-- TEAM + BRANCHES -->
+  <section id="tab-team" class="tab">
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Team &amp; branches <span class="muted small" id="team-note"></span></h2>
+        <div class="filters" id="team-actions">
+          <button id="team-sync" title="git fetch origin: pick up everyone's pushes">Sync with GitHub</button>
+          <button id="team-push" title="Push your current branch to GitHub (main still needs /compat-check ALL GREEN)">Push my branch</button>
+        </div>
+      </div>
+      <form id="feature-form" class="feature-form">
+        <input id="feature-title" placeholder="New feature, e.g. Rebirth system" maxlength="120" required>
+        <input id="feature-detail" placeholder="What it is (optional)" maxlength="4000">
+        <button class="primary">Start feature branch</button>
+      </form>
+      <p class="muted small">A new feature gets its own branch <code>feature/&lt;you&gt;/&lt;name&gt;</code> from <code>origin/main</code>, labelled with who started it and pushed to GitHub. Your working tree is not touched; switch to it when you are ready. Moving a TODO card to Doing does the same.</p>
+      <div id="people" class="people"></div>
+    </div>
+    <div class="panel">
+      <h2>Work in progress <span class="muted small">every branch not merged into main, compared with main and with your work</span></h2>
+      <div id="branches"></div>
+      <details class="dismissed"><summary>Already merged into main</summary><div id="branches-merged"></div></details>
     </div>
   </section>
 
