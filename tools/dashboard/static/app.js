@@ -1,7 +1,7 @@
 // Agent dashboard client: polls the local server (tools/dashboard/server.py) and renders each tab.
 "use strict";
 
-const AGENTS = ["main", "test-writer", "ui-test-writer", "physics-tester", "ui-tester", "multiplayer-tester",
+const AGENTS = ["main", "codex", "test-writer", "ui-test-writer", "physics-tester", "ui-tester", "multiplayer-tester",
   "world-tester", "physics-tuner", "track-designer"];
 const STATUS_COLS = [["doing", "Doing"], ["next", "Up next"], ["backlog", "Backlog"], ["done", "Done"]];
 
@@ -12,7 +12,7 @@ function esc(s) {
   return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 function colorVar(type) {
-  return AGENTS.includes(type) ? `var(--a-${type})` : "var(--a-other)";
+  return type === "codex" ? "var(--a-main)" : AGENTS.includes(type) ? `var(--a-${type})` : "var(--a-other)";
 }
 function when(ts) {
   if (!ts) return "";
@@ -84,7 +84,7 @@ async function loadMeta() {
   if (!state.session) state.session = m.session;
   if (changed("sessions", m.sessions)) {
     $("session").innerHTML = m.sessions.map((s) =>
-      `<option value="${esc(s.id)}">${esc(s.title || s.id.slice(0, 8))} · ${s.agents} agents · ${ago(s.updated * 1000)}</option>`).join("");
+      `<option value="${esc(s.id)}">${esc(s.source === "codex" ? "Codex" : "Claude")} · ${esc(s.title || s.id.slice(0, 8))} · ${s.agents} agents · ${ago(s.updated * 1000)}</option>`).join("");
     $("session").value = state.session;
   }
 }

@@ -24,8 +24,9 @@
 21. 2026-10-05 — Alex Nguyen — Pushed the README commit (4181a9a) from `initial-import` to `main` through the compat gate.
 22. 2026-10-06 — Isaac Li — Added the finalized Racer UI, seven Draft05 Blender cars and imported templates, cosmetic equipment source, authored UI snapshots, saved place, and Rojo integration on a review branch with compile/build checks but without full compatibility certification.
 23. 2026-10-06 — Isaac Li — Restored and live-checked Studio UI handlers and revision-5 car equipment, improved the continuous roll reel, updated ProjectContext, and saved the shared experience with a source-matched native place snapshot.
+24. 2026-10-06 — Alex Nguyen — Added Codex dashboard session/timeline integration, a local read/write client, shared AGENTS.md instructions and a Claude handoff on feature/alex/codex-dashboard, verified seven integration tests and live board edits, and reviewed the change for sensitive information.
 
 ## What's next
-**Run the full compatibility check on the restored Draft05 UI/car branch before merging it into main.**
+**Complete the updated Racer UI tests and full compatibility check on the merged Draft05 UI/car work before merging gameplay into main.**
 
-**Why this is next:** the source discrepancy is repaired and targeted live checks passed, but the new layout, continuous reel and cosmetic equipment still need current-branch UI, harness, multiplayer and world certification before main can accept them.
+**Why this is next:** the dashboard integration is independently verified, but the merged Racer UI and pending workshop/upgrade changes still need current-layout UI, harness, multiplayer and world certification before main can accept the gameplay changes.

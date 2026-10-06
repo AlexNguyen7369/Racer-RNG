@@ -126,6 +126,11 @@ ReplicatedStorage.Remotes  SetAutoRace (RemoteEvent, client fires a boolean; cre
 Workspace.Baseplate (green studs, Rojo-owned) and Workspace.Track (Oval, Hill built at run time, chained)
 
 DASHBOARD (2026-10-05)
+CODEX INTEGRATION (2026-10-06): standalone dashboard supports Claude + workspace-filtered Codex sessions,
+including Codex main/subagent cards and message/tool timelines. python3 tools/dashboard/client.py reads the
+local API and performs requested board edits with --json. Start server.py --no-fetch --no-auto-branch for
+board upkeep without automatic GitHub actions. Codex instructions: AGENTS.md; details: tools/dashboard/README.md.
+Claude handoff and verification: docs/CODEX_DASHBOARD_HANDOFF.md; branch feature/alex/codex-dashboard.
 Agent dashboard for every collaborator: python3 tools/dashboard/server.py (or /dashboard), http://127.0.0.1:8765.
 Shows subagent progress and messages, uncommitted changes, commit history (developer, date, green/local), the compat
 gate light, the shared TODO board (tools/dashboard/data/todo.json, Claude keeps it current) and suggested features

@@ -7,7 +7,7 @@ commit history, the compat gate, the TODO list, feature suggestions and the test
   python3 tools/dashboard/server.py --lan           also reachable from your network (read-only for others)
   python3 tools/dashboard/server.py --lan --lan-write   others on the network may also edit TODO / suggestions
 
-Stdlib only. Reads Claude Code transcripts from ~/.claude/projects/<this repo>/, git, .compat/ and the repo files.
+Stdlib only. Reads Claude Code transcripts, workspace-filtered Codex rollouts, git, .compat/ and the repo files.
 Writes only tools/dashboard/data/todo.json, suggestions.json and manual.json (checked in, so the team shares them),
 plus the generated TODO section of README.md after every TODO change (tools/readme_sync.py).
 Team tab (tools/collab.py): fetches origin every FETCH_SECONDS, lists everyone's branches, and from this machine only
@@ -42,6 +42,9 @@ sys.path.insert(0, os.path.join(ROOT, "tools"))
 import collab  # noqa: E402  (feature branches, GitHub sync, everyone's branches)
 import compat  # noqa: E402  (fingerprints and the green stamp)
 import readme_sync  # noqa: E402  (README.md TODO section mirrors todo.json)
+from codex_activity import CodexActivity
+
+CODEX = CodexActivity(ROOT)
 
 RUNNING_SECONDS = 120  # a transcript written to this recently, without a final report, counts as running
 WRITE_LOCK = threading.RLock()  # re-entrant: adding a suggestion writes the TODO inside the same lock
@@ -162,8 +165,8 @@ def sessions():
             if e.get("type") == "ai-title":
                 title = e.get("aiTitle") or e.get("title") or title
         n = len(glob.glob(os.path.join(TRANSCRIPTS, sid, "subagents", "*.jsonl")))
-        out.append({"id": sid, "title": title, "agents": n, "updated": os.path.getmtime(path)})
-    return out
+        out.append({"id": sid, "title": title, "source": "claude", "agents": n, "updated": os.path.getmtime(path)})
+    return sorted(out + CODEX.sessions(), key=lambda s: s["updated"], reverse=True)[:30]
 
 
 def verdict_of(text):
@@ -218,6 +221,8 @@ def agent_info(session, path):
 
 
 def agents(session):
+    if session.startswith("codex-"):
+        return CODEX.agents(session)
     paths = glob.glob(os.path.join(TRANSCRIPTS, session, "subagents", "agent-*.jsonl"))
     out = [agent_info(session, p) for p in paths]
     out.sort(key=lambda a: a["start"] or "", reverse=True)
@@ -225,6 +230,8 @@ def agents(session):
 
 
 def agent_timeline(session, aid):
+    if session.startswith("codex-"):
+        return CODEX.agent_timeline(session, aid)
     path = os.path.join(TRANSCRIPTS, session, "subagents", f"agent-{aid}.jsonl")
     if not re.fullmatch(r"[A-Za-z0-9]+", aid) or not os.path.isfile(path):
         return None
@@ -252,6 +259,8 @@ def agent_timeline(session, aid):
 
 def messages(session):
     """Messages between agents: the main thread's Agent / SendMessage calls and what came back."""
+    if session.startswith("codex-"):
+        return CODEX.messages(session)
     path = os.path.join(TRANSCRIPTS, f"{session}.jsonl")
     calls, out = {}, []
     for e in load_lines(path):
@@ -638,11 +647,12 @@ class Handler(BaseHTTPRequestHandler):
                     return self.send(200, f.read(), CONTENT_TYPES.get(os.path.splitext(name)[1], "application/octet-stream"))
             ss = sessions()
             sid = q.get("session") or (ss[0]["id"] if ss else "")
-            if sid and not re.fullmatch(r"[0-9a-f-]{36}", sid):
+            if sid and not re.fullmatch(r"(?:codex-)?[0-9a-f-]{36}", sid):
                 return self.send(400, {"error": "bad session"})
             routes = {
                 "/api/meta": lambda: {"developer": developer(), "root": ROOT, "sessions": ss, "session": sid,
-                    "canWrite": self.can_write(), "local": self.is_local(), "autoBranch": AUTO_BRANCH, "transcripts": TRANSCRIPTS},
+                    "canWrite": self.can_write(), "local": self.is_local(), "autoBranch": AUTO_BRANCH,
+                    "transcripts": TRANSCRIPTS, "codexTranscripts": os.path.join(CODEX.home, "sessions")},
                 "/api/team": team_view,
                 "/api/agents": lambda: agents(sid) if sid else [],
                 "/api/messages": lambda: messages(sid) if sid else [],

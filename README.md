@@ -81,7 +81,8 @@ The redesigned Racer UI, original car icon atlas, seven rounded Blender car mode
 - **Main-branch gate:** `.githooks/pre-push` refuses a push to `main` unless `/compat-check` was ALL GREEN for
   exactly that code.
 - **Agent dashboard** (`/dashboard`): subagent progress, changes, commits, compat light, TODO board, feature
-  suggestions, "Needs you" tasks and every test explained.
+  suggestions, "Needs you" tasks and every test explained. Supports workspace-filtered Codex sessions
+  alongside Claude, plus a local read/write client (`python3 tools/dashboard/client.py`).
 - **Car art pipeline** in Blender (`CAR_MODELING_WORKFLOW.md`); the Rusty Hatchback and the six other Draft05 cars are in the game (`assets/studio/CarModels.rbxm`, shown in rolls and as the racing car's look).
 
 ## Future features
@@ -130,8 +131,9 @@ updates automatically whenever the board changes; do not edit this block by hand
 - **Slack bot setup for test results**: Revoke the exposed token, install the app with bot scopes, re-add the MCP, post results after each green run.
 - **Hill supports poke above the road**: world-tester: some Hill upslope support tops are up to 0.17 studs above the road surface (Support12 under right-lane waypoint 20). Small suspension bumps; track-designer via /build-track.
 
-### Recently done (3)
+### Recently done (4)
 
+- ~~Codex dashboard integration~~ (2026-10-06)
 - ~~Dashboard Team tab: GitHub sync, labelled feature branches, collaborator overview~~ (2026-10-06)
 - ~~Import the Rusty Hatchback into Studio~~ (2026-10-06)
 - ~~Verify the roll animation (UI suite, harness, /compat-check)~~ (2026-10-05)

@@ -178,6 +178,20 @@
       "by": "Alex Nguyen",
       "added": "2026-10-06T02:05:00-07:00",
       "updated": "2026-10-06T02:30:00-07:00"
+    },
+    {
+      "id": "0e1c0f5c",
+      "branch": "feature/alex/codex-dashboard",
+      "owner": "Alex Nguyen",
+      "title": "Codex dashboard integration",
+      "detail": "Workspace-filtered Codex sessions, main/subagent timelines, local read/write API client and AGENTS.md. Seven integration tests passed; live Codex feed and board API verified. Claude handoff: docs/CODEX_DASHBOARD_HANDOFF.md.",
+      "status": "done",
+      "source": "codex",
+      "by": "Alex Nguyen",
+      "added": "2026-10-06T15:59:40-07:00",
+      "updated": "2026-10-06T15:59:40-07:00",
+      "done": "2026-10-06T15:59:40-07:00",
+      "updatedBy": "Alex Nguyen"
     }
   ]
 }
