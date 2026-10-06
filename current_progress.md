@@ -19,8 +19,9 @@
 16. 2026-10-05 — Alex Nguyen — Baked and exported the Rusty Hatchback for Studio headlessly (blender/exports/rusty_hatchback/RustyHatchback.fbx, 6.6 studs long); the Studio import is pending.
 17. 2026-10-05 — Alex Nguyen — Added a "Needs you" tab to the agent dashboard listing hand-done tasks with step-by-step directions.
 18. 2026-10-05 — Alex Nguyen — Fixed compat-check findings (fly icon now lands on INDEX, harness isolation from the real Studio player, spawn landing wait, coast drag) to a full harness of 24/24, and saved the Studio-built Racer HUD scripts on branch `studio/racer-hud-ui`; UI, multiplayer and world suites not completed, so `main` was not pushed.
+19. 2026-10-05 — Alex Nguyen — Re-enabled the five repo UI scripts in the place, passed /compat-check ALL GREEN for fingerprint f11ddc2d32ad (harness 24/24, UI 16/16 with 25 clicks, multiplayer and world green on a live race) and pushed `initial-import` to `main`, verifying the roll animation and upgrade tree phase 1.
 
 ## What's next
-**Make the Studio place run exactly the repo client (decide the Racer HUD: re-enable SpeedHud, AutoRaceButton, IndexUi, StatsUi and RollUi and stash the HUD ScreenGuis, after confirming nobody else edits this Studio), then finish /compat-check for `initial-import` (harness, UI, multiplayer with one auto race, world) and push it to `main`.**
+**Build upgrade tree phase 2 test-first: UpgradeService (validated BuyUpgrade, BestTrack, TurboCount), its effects in GachaService, CarService and RaceService, and PlayerData VERSION 4, per docs/UPGRADE_TREE_DESIGN.md.**
 
-**Why this is next:** the harness is green (24/24) for this code but the live suites could not run because the place diverged from the repo, so `main` still carries the unverified roll animation, and upgrade tree phase 2, the hatchback hookup and the Racer HUD all build on a verified `main`.
+**Why this is next:** `main` is now verified, phase 1's pure rules are green, and the upgrade UI (phase 3) and every upgrade effect players will see depend on the server side existing first.

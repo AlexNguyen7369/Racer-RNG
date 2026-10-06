@@ -3,12 +3,14 @@
     {
       "id": "roll-verify",
       "title": "Verify the roll animation (UI suite, harness, /compat-check)",
-      "detail": "main carries the roll animation unverified. Run the full UI suite on the final design (decisions 4 and 6), fix RollToast and the Index/Stats panels until green, then the full harness and an ALL GREEN /compat-check.",
-      "status": "doing",
+      "detail": "main carries the roll animation unverified. Run the full UI suite on the final design (decisions 4 and 6), fix RollToast and the Index/Stats panels until green, then the full harness and an ALL GREEN /compat-check. DONE 2026-10-05: /compat-check ALL GREEN (f11ddc2d32ad), pushed to main.",
+      "status": "done",
       "source": "current_progress.md What's next",
       "by": "Alex Nguyen",
       "added": "2026-10-05T00:00:00-07:00",
-      "updated": "2026-10-05T00:00:00-07:00"
+      "updated": "2026-10-05T21:00:00-07:00",
+      "done": "2026-10-05T21:00:00-07:00",
+      "updatedBy": "Alex Nguyen"
     },
     {
       "id": "upgrade-tree",
@@ -101,6 +103,36 @@
       "by": "Alex Nguyen",
       "added": "2026-10-05T00:00:00-07:00",
       "updated": "2026-10-05T00:00:00-07:00"
+    },
+    {
+      "id": "static-settle-jitter",
+      "title": "Fix static_settle vertical jitter at rest",
+      "detail": "Fails ~1 in 3 cold starts (up to 1.375 vs 0.5): the parked chassis gets periodic ~0.8 stud/s vertical kicks on its suspension. RollingDrag 1.0 did not fix it (it acts on the look axis). physics-tuner: spring/contact at rest in CarPhysics, through /car-loop.",
+      "status": "next",
+      "source": "compat-check 2026-10-05",
+      "by": "Alex Nguyen",
+      "added": "2026-10-05T21:00:00-07:00",
+      "updated": "2026-10-05T21:00:00-07:00"
+    },
+    {
+      "id": "racer-hud",
+      "title": "Bring the Racer HUD into the repo",
+      "detail": "Saved on branch studio/racer-hud-ui (drafts/ui/racer-hud/latest, complete incl. RollShowcase, RacerMotion, RacerRebirth). Find its .ui.json specs/generator owner, then ui-test-writer rewrites UiSpec for the new layout first, then build + /compat-check.",
+      "status": "next",
+      "source": "compat-check 2026-10-05",
+      "by": "Alex Nguyen",
+      "added": "2026-10-05T21:00:00-07:00",
+      "updated": "2026-10-05T21:00:00-07:00"
+    },
+    {
+      "id": "hill-supports",
+      "title": "Hill supports poke above the road",
+      "detail": "world-tester: some Hill upslope support tops are up to 0.17 studs above the road surface (Support12 under right-lane waypoint 20). Small suspension bumps; track-designer via /build-track.",
+      "status": "backlog",
+      "source": "compat-check 2026-10-05",
+      "by": "Alex Nguyen",
+      "added": "2026-10-05T21:00:00-07:00",
+      "updated": "2026-10-05T21:00:00-07:00"
     }
   ]
 }
