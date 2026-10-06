@@ -23,8 +23,9 @@
 20. 2026-10-05 — Alex Nguyen — Added a README with the project vision, implemented and planned features, and a TODO section regenerated from the dashboard board by tools/readme_sync.py (run by the dashboard, a Claude Code hook and a pre-commit hook).
 
 21. 2026-10-06 — Isaac Li — Added the finalized Racer UI, seven Draft05 Blender cars and imported templates, cosmetic equipment source, authored UI snapshots, saved place, and Rojo integration on a review branch with compile/build checks but without full compatibility certification.
+22. 2026-10-06 — Isaac Li — Restored and live-checked Studio UI handlers and revision-5 car equipment, improved the continuous roll reel, updated ProjectContext, and saved the shared experience with a source-matched native place snapshot.
 
 ## What's next
-**Run a fresh Studio integration and full compatibility check on the Draft05 UI/car branch before merging it into main.**
+**Run the full compatibility check on the restored Draft05 UI/car branch before merging it into main.**
 
-**Why this is next:** the finalized source differs from the saved place's older active scripts, and the new layout and cosmetic equipment need current-branch UI, harness, multiplayer and world certification before main can accept them.
+**Why this is next:** the source discrepancy is repaired and targeted live checks passed, but the new layout, continuous reel and cosmetic equipment still need current-branch UI, harness, multiplayer and world certification before main can accept them.

@@ -1,5 +1,6 @@
 *.rbxl
 !places/RacerRNG_Draft05_Imported.rbxl
+!places/RacerRNG_Draft05_Restored.rbxl
 *.rbxlx
 *.rbxl.lock
 sourcemap.json

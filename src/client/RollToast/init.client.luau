@@ -343,7 +343,7 @@ local function buildBare(parent, z)
 		BackgroundTransparency = 1,
 		ZIndex = z,
 	}, parent)
-	local artSize = UDim2.new(1, 0, 0, A.COMPACT_HEIGHT * 0.7)
+	local artSize = UDim2.new(1, 0, 0, A.COMPACT_HEIGHT)
 	local reel = make("Frame", {
 		Name = "Reel",
 		Size = artSize,
@@ -401,8 +401,10 @@ local function buildBare(parent, z)
 	placeholder.Text = "?"
 	placeholder.ZIndex = z + 6
 	placeholder.TextStrokeTransparency = 0.3
-	local odds = label("Odds", UDim2.fromOffset(0, 24 + A.COMPACT_HEIGHT * 0.7), UDim2.new(1, 0, 0, A.COMPACT_HEIGHT * 0.3), body, ITALIC)
-	odds.TextStrokeTransparency = 0.2
+	local odds = label("Odds", UDim2.fromOffset(0, 24 + A.COMPACT_HEIGHT), UDim2.new(1, 0, 0, 20), body)
+	odds.Font = Enum.Font.FredokaOne
+	odds.TextStrokeTransparency = 1
+	make("UIStroke", { Color = BLACK, Thickness = 3, ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual }, odds)
 	local autoOff = label("AutoOff", UDim2.new(), UDim2.new(1, 0, 0, 20), body)
 	autoOff.Text = "AUTO OFF"
 	autoOff.Font = Enum.Font.FredokaOne
@@ -444,15 +446,15 @@ local toast = make("TextButton", {
 	Name = "Toast",
 	AnchorPoint = Vector2.new(0.5, 0),
 	Position = UDim2.new(0.5, 0, 0, autoRaceBottom() + A.COMPACT_GAP),
-	Size = UDim2.new(A.COMPACT_WIDTH, 0, 0, A.COMPACT_HEIGHT + 24),
+	Size = UDim2.new(A.COMPACT_WIDTH, 0, 0, A.COMPACT_HEIGHT + 44),
 	BackgroundTransparency = 1,
 	AutoButtonColor = false,
 	Text = "",
 	Visible = false,
 }, gui)
 make("UISizeConstraint", {
-	MinSize = Vector2.new(A.COMPACT_MIN, A.COMPACT_HEIGHT + 24),
-	MaxSize = Vector2.new(A.COMPACT_MAX, A.COMPACT_HEIGHT + 24),
+	MinSize = Vector2.new(A.COMPACT_MIN, A.COMPACT_HEIGHT + 44),
+	MaxSize = Vector2.new(A.COMPACT_MAX, A.COMPACT_HEIGHT + 44),
 }, toast)
 local compact = buildBare(toast, 2)
 
@@ -650,6 +652,7 @@ local function showModel(b, spec)
     local art = carTile(spec, b.Viewport, b.Z + 4)
     art.Position = UDim2.fromScale(0.5, 0.5)
     art.Size = UDim2.fromScale(1, 1)
+    if not b.Full then art.Size = UDim2.fromScale(1.35, 1.35) end
     b.Model = art
     b.Placeholder.Visible = false
     return true
@@ -781,19 +784,6 @@ local function closeEnlarged()
 end
 
 -- The roll sequence -----------------------------------------------------------------------------------------------
-
--- Splits the spin between the filler cars, each slower than the last (slot-reel slow-down)
-local function spinTimes(count)
-	local weights, sum = {}, 0
-	for i = 1, count do
-		weights[i] = 1.2 ^ (i - 1)
-		sum += weights[i]
-	end
-	for i = 1, count do
-		weights[i] = weights[i] / sum * A.SPIN
-	end
-	return weights
-end
 
 local function shake(b, mySerial)
 	if reduceEffects() then
@@ -940,14 +930,16 @@ local function play(roll)
 		return
 	end
 
-	-- Spin: the filler cars drive through left to right, each slower than the last; streaks rush past
+	-- One continuous reel, not separate sprites teleporting between passes.
+	-- Fillers still use genuine catalog rolls; the server result is always last.
 	setPhase("Spin")
-	local times = spinTimes(#reelIds - 1)
 	local tiles = {}
 	for _, b in bodies do
 		tiles[b] = {}
 		for i, id in reelIds do
-			tiles[b][i] = carTile(CarCatalog.Get(id) or spec, b.Reel, b.Z + 4)
+			local tile = carTile(CarCatalog.Get(id) or spec, b.Reel, b.Z + 4)
+			tile.Position = UDim2.fromScale(0.5 + (i - 1) * 0.86, 0.5)
+			tiles[b][i] = tile
 		end
 		for _, s in b.Streaks:GetChildren() do
 			s.BackgroundTransparency = 0.4
@@ -961,32 +953,43 @@ local function play(roll)
 			loop:Play()
 		end
 	end
-	for i = 1, #reelIds - 1 do
-		local passing = CarCatalog.Get(reelIds[i])
+	local started = os.clock()
+	local distance = (#reelIds - 1) * 0.86 - 0.18
+	while alive() do
+		local alpha = math.clamp((os.clock() - started) / A.SPIN, 0, 1)
+		local travel = distance * (1 - (1 - alpha) ^ 3)
 		for _, b in bodies do
-			if b.Full then
-				b.CarName.Text = passing and passing.Name or ""
+			for i, tile in ipairs(tiles[b]) do
+				local x = 0.5 + (i - 1) * 0.86 - travel
+				local focus = math.clamp(1 - math.abs(x - 0.5) / 0.8, 0, 1)
+				tile.Position = UDim2.fromScale(x, 0.5)
+				local size = 0.72 + focus * (b.Full and 0.24 or 0.5)
+				tile.Size = UDim2.fromScale(size, size)
+				tile.Rotation = reduceEffects() and 0 or math.sin(alpha * math.pi) * -5 * focus
 			end
-			tween(tiles[b][i], times[i], { Position = UDim2.fromScale(1.6, 0.55) }, Enum.EasingStyle.Linear)
 		end
-		if not after(times[i]) then
-			return
-		end
+		if alpha >= 1 then break end
+		RunService.RenderStepped:Wait()
 	end
+	if not alive() then return end
 
 	-- Land: the result brakes into the centre with a small skid, the card pops to LAND_POP and settles
 	setPhase("Land")
 	for _, b in bodies do
 		b.Streaks.Visible = false
 		local tile = tiles[b][#reelIds]
-		tween(tile, A.LAND, { Position = UDim2.fromScale(0.5, 0.55) }, Enum.EasingStyle.Quart)
-		fillResult(b, roll)
-		b.Body.Size = UDim2.fromScale(A.LAND_POP, A.LAND_POP)
-		tween(b.Body, A.LAND, { Size = UDim2.fromScale(1, 1) }, Enum.EasingStyle.Back)
-		landEffects(b, roll, mySerial)
+		tween(tile, A.LAND, { Position = UDim2.fromScale(0.5, 0.5), Rotation = 0 }, Enum.EasingStyle.Back)
 	end
 	if not after(A.LAND) then
 		return
+	end
+	-- Reveal only after the winning sprite reaches the centre. Previously fillResult
+	-- hid that sprite immediately, so the visible car never actually finished landing.
+	for _, b in bodies do
+		fillResult(b, roll)
+		b.Body.Size = UDim2.fromScale(reduceEffects() and 1 or A.LAND_POP, reduceEffects() and 1 or A.LAND_POP)
+		tween(b.Body, math.min(A.Hold(spec.Rarity), 0.22), { Size = UDim2.fromScale(1, 1) }, Enum.EasingStyle.Back)
+		landEffects(b, roll, mySerial)
 	end
 
 	-- Hold: the result stays, longer for rarer cars
