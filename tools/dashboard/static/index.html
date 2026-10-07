@@ -122,7 +122,12 @@
         <span class="muted small" id="analytics-updated"></span>
       </div>
       <div id="analytics-summary" class="analytics-summary"></div>
-      <p class="muted small">Task state is inferred from local provider logs. Paused means a task stopped without a completion event; token totals can include cached input.</p>
+      <p class="muted small" id="analytics-scope"></p>
+    </div>
+    <div class="analytics-visuals">
+      <div class="panel"><div class="panel-head"><h2>Output trend</h2><span class="muted small">last 14 days</span></div><div id="analytics-trend" class="analytics-chart"></div><div class="chart-legend"><span class="claude-dot">Claude</span><span class="codex-dot">Codex</span></div><div id="analytics-quotas" class="quota-grid"></div></div>
+      <div class="panel"><div class="panel-head"><h2>Task state</h2><span class="muted small">sessions by provider</span></div><div id="analytics-state" class="state-chart"></div></div>
+      <div class="panel"><div class="panel-head"><h2>Model mix</h2><span class="muted small">task share</span></div><div id="analytics-model-mix" class="model-mix"></div></div>
     </div>
     <div id="analytics-cards" class="analytics-cards"></div>
   </section>

@@ -21,7 +21,7 @@ Tabs (`#manual`, `#agents`, `#analytics`, `#changes`, `#todo`, `#tests` in the U
 | Team & branches | who is on the team; every unmerged branch with who started it (`Initiated-By` trailer, else the first commit's author) and who commits on it, systems touched, ahead/behind main, files that overlap your uncommitted or branch work, real merge conflicts (`git merge-tree`) with your branch and with main, Rojo/Studio warnings, handoff notes, compare-on-GitHub link; Sync with GitHub, Push my branch, Switch to it, and a form that starts a labelled feature branch | git (fetched from origin every 2 min), `tools/collab.py`, `data/team.json` |
 | Needs you | tasks only the developer can do by hand (Studio imports, settings, accounts, decisions), each with why, what it unblocks, when, and numbered steps (click a `code` path to copy it); Mark done / Reopen. The header pill shows how many are open | `data/manual.json` (Claude adds and closes items) |
 | Agents | Claude subagent cards and Codex main/subagent activity; prompts, messages, tool calls, results, final reports, Need to know; sessions labelled Claude or Codex | Claude transcripts in `~/.claude/projects/<this repo>/`, Codex rollouts in `$CODEX_HOME/sessions` (default `~/.codex/sessions`), `context/ProjectContext.luau`, `current_progress.md` |
-| Analytics | Claude/Codex model usage, token and tool-call totals, live tasks, inferred paused tasks, and recently completed tasks; scoped to this workspace and local provider logs | `GET /api/analytics`, Claude transcripts, workspace-filtered Codex rollouts |
+| Analytics | graphical Claude/Codex model usage: 14-day output trend, provider task-state bars, model mix, token and tool-call totals, live tasks, inferred paused tasks, recently completed tasks, and authenticated current-window/weekly quota percentages with reset times; scoped to this terminal's workspace and local provider logs | `GET /api/analytics`, Claude transcripts, Claude `/usage`, workspace-filtered Codex rollouts, Codex `account/rateLimits/read` |
 | Changes & history | uncommitted files with diffs; commits on all branches with developer, date and time, files, `green` (that commit's game code passed /compat-check) and `local` (not pushed) | git, `tools/compat.py` |
 | TODO & ideas | Doing / Up next / Backlog / Done board; suggested features that expand and can be added to the backlog or dismissed | `data/todo.json`, `data/suggestions.json` |
 | Tests | how testing works, latest tester runs, the five compat suites (including the final regression pass), every scenario with its last status and what it checks | `src/server/CarTest/`, `src/client/UiTest/`, tester reports, `.compat/`, `data/tests_explained.json` |
@@ -35,6 +35,17 @@ Starting a feature (Team tab form, a TODO card's Branch button, moving a card to
 - `data/*.json` is checked in: commit it so the team shares the TODO list and suggestion decisions. Each change records who (`git config user.name`) and when.
 - The Agents tab reads your own Claude and Codex transcripts, so each developer sees their own sessions. Codex logs are filtered to this workspace (including its subdirectories); system/developer instructions and reasoning records are excluded. Local rollout formats are internal and may change. Unsupported records are ignored. Use `--lan` to show your activity to a teammate.
 - Nothing here is under `src/`, so the dashboard never changes the compat fingerprint.
+
+## Context for future sessions
+
+The Agents tab's **Need to know** panel is rendered from `context/ProjectContext.luau` and
+`current_progress.md`; it is the dashboard view of project context, not a guaranteed automatic
+prompt injection for every LLM. Claude receives the Claude↔Codex bus hook at session start and
+prompt submission. Codex should run `python3 tools/dashboard/agent_bus.py context --agent codex`
+at the start and end of a task, and both agents should read `AGENTS.md`/`CLAUDE.md` and the
+project context when beginning game work. The Analytics tab is local to the terminal that runs
+the server: Claude quota comes from authenticated `/usage`, and Codex quota comes from its local
+authenticated app-server rate-limit endpoint. Those account values are never written to Git.
 
 ## Upkeep
 - Claude moves TODO items at the end of every loop (see CLAUDE.md).

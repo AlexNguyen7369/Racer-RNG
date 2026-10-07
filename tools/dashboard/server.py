@@ -20,6 +20,7 @@ import glob
 import json
 import os
 import re
+import select
 import subprocess
 import sys
 import threading
@@ -50,6 +51,7 @@ EDIT_TOOLS = ("Edit", "Write", "MultiEdit", "NotebookEdit")
 COMMIT_OUT = re.compile(r"^\[[^\]\s]+(?: \(root-commit\))? ([0-9a-f]{7,40})\] ", re.M)
 
 RUNNING_SECONDS = 120  # a transcript written to this recently, without a final report, counts as running
+USAGE_CACHE_SECONDS = 60
 WRITE_LOCK = threading.RLock()  # re-entrant: adding a suggestion writes the TODO inside the same lock
 SUITES = ["harness", "ui", "multiplayer", "world", "regression"]
 FETCH_SECONDS = 120  # background `git fetch origin`, so collaborators' pushes show up without anyone clicking
@@ -401,14 +403,120 @@ def _codex_analytics():
     return rows
 
 
+_usage_cache = {"at": 0, "data": None}
+
+
+def _claude_quota():
+    try:
+        result = subprocess.run(["claude", "-p", "/usage", "--no-session-persistence", "--output-format", "text"],
+                                cwd=ROOT, capture_output=True, text=True, timeout=20)
+        text = result.stdout or ""
+    except (OSError, subprocess.SubprocessError):
+        return {"provider": "claude", "available": False, "windows": [], "source": "claude /usage"}
+    windows = []
+    patterns = (("Current window", r"Current session:\s*(\d+)% used\s*[·•]\s*resets\s*(.+)"),
+                ("Weekly", r"Current week \(all models\):\s*(\d+)% used\s*[·•]\s*resets\s*(.+)"))
+    for label, pattern in patterns:
+        match = re.search(pattern, text)
+        if match:
+            windows.append({"label": label, "usedPercent": int(match.group(1)), "reset": match.group(2).strip()})
+    return {"provider": "claude", "available": bool(windows), "windows": windows, "source": "claude /usage",
+            "note": "Claude reports a current session window and a weekly window."}
+
+
+def _codex_quota():
+    initialize = json.dumps({"method": "initialize", "id": 1, "params": {"clientInfo": {"name": "dashboard", "version": "1"}, "capabilities": {}}}) + "\n"
+    rate_limits = json.dumps({"method": "account/rateLimits/read", "id": 2, "params": {}}) + "\n"
+    try:
+        process = subprocess.Popen(["codex", "app-server", "--listen", "stdio://"], cwd=ROOT, stdin=subprocess.PIPE,
+                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        process.stdin.write(initialize)
+        process.stdin.flush()
+        stdout = ""
+        initialized = False
+        deadline = time.time() + 20
+        while time.time() < deadline:
+            ready, _, _ = select.select([process.stdout], [], [], max(0, deadline - time.time()))
+            if not ready:
+                break
+            line = process.stdout.readline()
+            stdout += line
+            try:
+                if json.loads(line).get("id") == 1:
+                    initialized = True
+                    break
+            except (ValueError, AttributeError):
+                continue
+        if initialized:
+            process.stdin.write(rate_limits)
+            process.stdin.flush()
+            while time.time() < deadline:
+                ready, _, _ = select.select([process.stdout], [], [], max(0, deadline - time.time()))
+                if not ready:
+                    break
+                line = process.stdout.readline()
+                stdout += line
+                try:
+                    if json.loads(line).get("id") == 2:
+                        break
+                except (ValueError, AttributeError):
+                    continue
+        process.terminate()
+        process.wait(timeout=2)
+    except (OSError, subprocess.SubprocessError):
+        return {"provider": "codex", "available": False, "windows": [], "source": "Codex account/rateLimits/read"}
+    reply = None
+    for line in stdout.splitlines():
+        if not line.strip() or not line.lstrip().startswith("{"):
+            continue
+        try:
+            value = json.loads(line)
+        except ValueError:
+            continue
+        if value.get("id") == 2:
+            reply = value
+            break
+    limits = (reply or {}).get("result", {}).get("rateLimits", {})
+    windows = []
+    for key, fallback in (("primary", "Current window"), ("secondary", "Weekly")):
+        window = limits.get(key) or {}
+        if "usedPercent" in window:
+            minutes = window.get("windowDurationMins")
+            label = "Weekly" if minutes and minutes >= 10080 else fallback
+            windows.append({"label": label, "usedPercent": window["usedPercent"],
+                            "resetAt": window.get("resetsAt"), "windowMinutes": minutes})
+    return {"provider": "codex", "available": bool(windows), "windows": windows,
+            "source": "Codex account/rateLimits/read", "plan": limits.get("planType")}
+
+
+def provider_quotas():
+    if _usage_cache["data"] is not None and time.time() - _usage_cache["at"] < USAGE_CACHE_SECONDS:
+        return _usage_cache["data"]
+    data = {"claude": _claude_quota(), "codex": _codex_quota()}
+    _usage_cache.update(at=time.time(), data=data)
+    return data
+
+
 def model_analytics():
     """Workspace-scoped, user-task-level telemetry for the Analytics tab."""
     providers = {"claude": _claude_analytics(), "codex": _codex_analytics()}
     cards, totals = [], {"sessions": 0, "tasks": 0, "completed": 0, "running": 0, "paused": 0,
                          "tools": 0, "input": 0, "output": 0, "cached": 0, "reasoning": 0}
+    trend = {}
+    for offset in range(13, -1, -1):
+        day = datetime.date.today() - datetime.timedelta(days=offset)
+        trend[day.isoformat()] = {"claude": {"tasks": 0, "completed": 0, "paused": 0, "running": 0, "output": 0},
+                                  "codex": {"tasks": 0, "completed": 0, "paused": 0, "running": 0, "output": 0}}
     for provider, rows in providers.items():
         by_model = {}
         for row in rows:
+            day = datetime.datetime.fromtimestamp(row["updated"]).date().isoformat()
+            if day in trend:
+                point = trend[day]
+                point[provider]["tasks"] += bool(row["task"])
+                point[provider][row["status"] if row["status"] in ("completed", "running", "paused") else
+                                 {"done": "completed", "stopped": "paused"}.get(row["status"], "paused")] += 1
+                point[provider]["output"] += row["usage"]["output"]
             model = row["model"] or "model unknown"
             stats = by_model.setdefault(model, {"sessions": 0, "tasks": 0, "completed": 0, "running": 0, "paused": 0,
                                                   "tools": 0, "input": 0, "output": 0, "cached": 0, "reasoning": 0})
@@ -438,7 +546,9 @@ def model_analytics():
         cards.append(card)
         for key in ("sessions", "tasks", "completed", "running", "paused", "tools"):
             totals[key] += card["stats"][key]
-    return {"generated": now_iso(), "cards": cards, "totals": totals,
+    return {"generated": now_iso(), "scope": {"developer": developer(), "workspace": os.path.basename(ROOT)},
+            "quotas": provider_quotas(),
+            "trend": [{"date": day, **values} for day, values in trend.items()], "cards": cards, "totals": totals,
             "note": "Task state is inferred from local provider logs. Paused means a task stopped without a completion event; token totals are reported by each provider and may include cached input."}
 
 

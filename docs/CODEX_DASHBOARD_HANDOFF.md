@@ -58,3 +58,20 @@ No credentials or local transcripts are included in this change. Existing
 gameplay/UI edits in the shared workspace were left untouched. The pending Racer
 UI and game compatibility work remains the next game task; do not interpret this
 dashboard commit as certification for pushing gameplay to `main`.
+
+## Current analytics and context contract
+
+The Analytics tab is a graphical local view of Claude and Codex activity: a 14-day
+output trend, provider task-state bars, model mix, token/tool totals, live/paused/
+completed task cards, and current-window/weekly quota bars. `GET /api/analytics`
+reads only the terminal's local workspace logs. Claude quota data is read from the
+authenticated `claude -p /usage --no-session-persistence` command; Codex quota data
+is read from the authenticated local app-server `account/rateLimits/read` method.
+Quota data is cached briefly in memory and is never committed.
+
+The Agents tab's Need to know panel is a rendered view of
+`context/ProjectContext.luau` and `current_progress.md`. It is not automatically
+injected into every LLM prompt. Claude receives the agent-bus hook from
+`.claude/settings.json`; Codex follows `AGENTS.md` and should run
+`agent_bus.py context --agent codex` at task start and end. Both agents should
+read `AGENTS.md`, `CLAUDE.md`, and the project context before game work.

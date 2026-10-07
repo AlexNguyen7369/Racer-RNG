@@ -535,6 +535,32 @@ async function loadTests() {
 // ------------------------------------------------------------------------------------------------ model analytics
 
 function num(n) { return Number(n || 0).toLocaleString(); }
+function compact(n) {
+  n = Number(n || 0);
+  return n >= 1000000 ? `${(n / 1000000).toFixed(1)}M` : n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(Math.round(n));
+}
+function analyticsTrend(points) {
+  const max = Math.max(1, ...points.map((p) => (p.claude.output || 0) + (p.codex.output || 0)));
+  return points.map((p) => {
+    const c = p.claude.output || 0, x = p.codex.output || 0;
+    return `<div class="trend-column" title="${esc(p.date)} · Claude ${compact(c)} · Codex ${compact(x)}">
+      <div class="trend-stack"><span class="trend-bar claude" style="height:${Math.max(c ? 3 : 0, c / max * 100)}%"></span><span class="trend-bar codex" style="height:${Math.max(x ? 3 : 0, x / max * 100)}%"></span></div>
+      <span>${esc(p.date.slice(5))}</span></div>`;
+  }).join("");
+}
+function analyticsState(cards) {
+  return cards.map((c) => {
+    const s = c.stats, total = Math.max(1, s.completed + s.running + s.paused);
+    return `<div class="state-row"><div class="row"><b style="color:${colorVar(c.provider)}">${esc(c.label)}</b><span class="small muted">${num(total)} sessions</span></div>
+      <div class="state-track"><span class="state-segment completed" style="width:${s.completed / total * 100}%"></span><span class="state-segment running" style="width:${s.running / total * 100}%"></span><span class="state-segment paused" style="width:${s.paused / total * 100}%"></span></div>
+      <div class="small muted">${num(s.completed)} completed · ${num(s.running)} live · ${num(s.paused)} paused</div></div>`;
+  }).join("") + `<div class="chart-legend state-legend"><span class="completed-dot">completed</span><span class="running-dot">live</span><span class="paused-dot">paused</span></div>`;
+}
+function analyticsModelMix(cards) {
+  const models = cards.flatMap((c) => c.models.map((m) => ({ ...m, provider: c.provider })));
+  const max = Math.max(1, ...models.map((m) => m.tasks));
+  return models.length ? models.map((m) => `<div class="mix-row"><div class="row"><b>${esc(m.model)}</b><span class="badge" style="color:${colorVar(m.provider)}">${esc(m.provider)}</span></div><div class="mix-track"><span style="width:${m.tasks / max * 100}%;background:${colorVar(m.provider)}"></span></div><div class="small muted">${num(m.tasks)} tasks · ${num(m.output)} output tokens</div></div>`).join("") : `<p class="muted small">No model telemetry yet.</p>`;
+}
 function statLine(s) {
   return `<span class="analytics-stat"><b>${num(s)}</b></span>`;
 }
@@ -565,15 +591,32 @@ function analyticsCard(c) {
     <h3>Previously completed</h3>${taskRows(c.completedRecent, "No completed tasks recorded.", true)}
   </div>`;
 }
+function quotaTime(q) {
+  if (q.reset) return q.reset;
+  if (q.resetAt) return new Date(q.resetAt * 1000).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+  return "reset unavailable";
+}
+function analyticsQuotas(quotas) {
+  return ["claude", "codex"].map((provider) => {
+    const q = quotas[provider], label = provider === "claude" ? "Claude" : "Codex";
+    if (!q || !q.available) return `<div class="quota-card"><div class="row"><b>${label}</b><span class="badge">quota unavailable</span></div><p class="small muted">Provider limits were not returned. Local token totals remain below.</p></div>`;
+    return `<div class="quota-card" style="--c:${colorVar(provider)}"><div class="row"><b>${label}</b>${q.plan ? `<span class="badge">${esc(q.plan)}</span>` : ""}</div>${q.windows.map((w) => `<div class="quota-window"><div class="row"><span>${esc(w.label)}</span><b>${num(w.usedPercent)}%</b></div><div class="quota-track"><span style="width:${Math.min(100, Math.max(0, w.usedPercent))}%"></span></div><div class="small muted">resets ${esc(quotaTime(w))}</div></div>`).join("")}<div class="small muted quota-source">${esc(q.note || "Provider rate-limit data")}</div></div>`;
+  }).join("");
+}
 async function loadAnalytics() {
   const a = await api("/api/analytics");
   if (!changed("analytics", a)) return;
   $("analytics-updated").textContent = `updated ${when(a.generated)}`;
+  $("analytics-scope").textContent = `Local view for ${a.scope.developer} · ${a.scope.workspace}. Task state is inferred from provider logs; paused means stopped without a completion event. Token totals can include cached input.`;
   const t = a.totals;
   $("analytics-summary").innerHTML = [
     ["Tasks", t.tasks], ["Completed", t.completed], ["Live", t.running], ["Paused", t.paused],
     ["Input tokens", t.input], ["Output tokens", t.output], ["Tool calls", t.tools],
   ].map(([label, value]) => `<div class="summary-metric"><b>${num(value)}</b><span>${label}</span></div>`).join("");
+  $("analytics-trend").innerHTML = analyticsTrend(a.trend);
+  $("analytics-quotas").innerHTML = analyticsQuotas(a.quotas || {});
+  $("analytics-state").innerHTML = analyticsState(a.cards);
+  $("analytics-model-mix").innerHTML = analyticsModelMix(a.cards);
   $("analytics-cards").innerHTML = a.cards.map(analyticsCard).join("");
 }
 
