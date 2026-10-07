@@ -1,6 +1,17 @@
 {
   "items": [
     {
+      "id": "racer-ui-tests",
+      "title": "UI tests for Isaac's Racer UI",
+      "detail": "Owner decision 2026-10-06: the merged Racer UI (RacerHud/Index/Stats/Settings/Rebirth, new RollShowcase) is the UI spec. ui-test-writer rewrites UiSpec/UiScenarios for it (old SpeedHud/AutoRaceButton/IndexUi/StatsUi/RollUi tests are obsolete). Then update CLAUDE.md HUD rules (Speed now bottom centre) and docs/ROLL_ANIMATION_CONTRACT.md, and run /compat-check. Blocks the green stamp for the money tree + workshop round.",
+      "status": "doing",
+      "source": "compat-check round 3 (ui RED)",
+      "by": "Claude",
+      "added": "2026-10-06T11:30:00-07:00",
+      "updated": "2026-10-06T11:30:00-07:00",
+      "updatedBy": "Claude"
+    },
+    {
       "id": "roll-verify",
       "title": "Verify the roll animation (UI suite, harness, /compat-check)",
       "detail": "main carries the roll animation unverified. Run the full UI suite on the final design (decisions 4 and 6), fix RollToast and the Index/Stats panels until green, then the full harness and an ALL GREEN /compat-check. DONE 2026-10-05: /compat-check ALL GREEN (f11ddc2d32ad), pushed to main.",
@@ -178,6 +189,42 @@
       "by": "Alex Nguyen",
       "added": "2026-10-06T02:05:00-07:00",
       "updated": "2026-10-06T02:30:00-07:00"
+    },
+    {
+      "id": "0e1c0f5c",
+      "branch": "feature/alex/codex-dashboard",
+      "owner": "Alex Nguyen",
+      "title": "Codex dashboard integration",
+      "detail": "Workspace-filtered Codex sessions, main/subagent timelines, local read/write API client and AGENTS.md. Seven integration tests passed; live Codex feed and board API verified.",
+      "status": "done",
+      "source": "codex",
+      "by": "Alex Nguyen",
+      "added": "2026-10-06T15:59:40-07:00",
+      "updated": "2026-10-06T15:59:40-07:00",
+      "done": "2026-10-06T15:59:40-07:00",
+      "updatedBy": "Alex Nguyen"
+    },
+    {
+      "id": "6ce4c9cb",
+      "title": "Claude <-> Codex bus and per-change agent/model labels",
+      "detail": "Reviewed the Codex dashboard merge. Added tools/dashboard/agent_bus.py (messages, status, context, Claude hook), presence panel and message thread on the Agents tab, agent+model chips on uncommitted files and commits (+ agent filter), Codex model/edits/commits in codex_activity.py, AGENTS.md/CLAUDE.md/README docs. 13 dashboard tests pass; live API checked on port 8799.",
+      "status": "done",
+      "source": "claude",
+      "by": "Claude",
+      "added": "2026-10-06T17:44:01-07:00",
+      "updated": "2026-10-06T17:44:01-07:00",
+      "done": "2026-10-06T17:44:01-07:00",
+      "updatedBy": "Claude"
+    },
+    {
+      "id": "178d5653",
+      "title": "Automatic bus delivery for Codex",
+      "detail": "Claude receives bus messages via a hook; Codex only when it follows AGENTS.md and runs agent_bus.py context. If the Codex CLI's hook support covers session start / prompt submit, wire `agent_bus.py hook --agent codex` there. Also: edits made via shell commands (sed, heredoc, python rewrites) are not attributed; consider attributing via git diff snapshots per tool call.",
+      "status": "backlog",
+      "source": "claude",
+      "by": "Claude",
+      "added": "2026-10-06T17:44:01-07:00",
+      "updated": "2026-10-06T17:44:01-07:00"
     }
   ]
 }

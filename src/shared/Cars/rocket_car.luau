@@ -1,5 +1,5 @@
 --!nonstrict
--- Rocket Car. Id "rocket_car" is permanent: saves refer to it, never rename or reuse it. Model = nil shows the "?" placeholder.
+-- Rocket Car. Id "rocket_car" is permanent: saves refer to it, never rename or reuse it. Model = nil would show the "?" placeholder.
 return {
 	Id = "rocket_car",
 	Name = "Rocket Car",
@@ -7,5 +7,5 @@ return {
 	Chance = 1000, -- 1 in N
 	SpeedMulti = 25,
 	Order = 5,
-	Model = nil,
+	Model = "rocket_car", -- ReplicatedStorage.CarModels.rocket_car (assets/studio/CarModels.rbxm, Draft05 import)
 }

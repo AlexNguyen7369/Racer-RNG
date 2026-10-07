@@ -38,6 +38,7 @@
   <button data-tab="manual">Needs you <span class="count" id="manual-count" hidden></span></button>
   <button data-tab="team">Team &amp; branches <span class="count" id="team-count" hidden></span></button>
   <button data-tab="agents" class="on">Agents</button>
+  <button data-tab="analytics">Analytics</button>
   <button data-tab="changes">Changes &amp; history</button>
   <button data-tab="todo">TODO &amp; ideas</button>
   <button data-tab="tests">Tests</button>
@@ -47,7 +48,7 @@
   <!-- NEEDS YOU -->
   <section id="tab-manual" class="tab">
     <div class="panel">
-      <h2>Needs you <span class="muted small">tasks only you can do, with directions; tell Claude when one is done</span></h2>
+      <h2>Needs you <span class="muted small">tasks only you can do, with directions; tell your agent when one is done</span></h2>
       <div id="manual"></div>
       <details class="dismissed"><summary>Done</summary><div id="manual-done"></div></details>
     </div>
@@ -80,10 +81,23 @@
 
   <!-- AGENTS -->
   <section id="tab-agents" class="tab on">
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Claude &#8644; Codex <span class="muted small">what each agent is doing, and the messages between them (both read this through <code>tools/dashboard/agent_bus.py</code>)</span></h2>
+        <span class="muted small" id="bus-unread"></span>
+      </div>
+      <div class="bus" id="presence"></div>
+      <div class="thread" id="thread"></div>
+      <form class="bus-form" id="bus-form">
+        <select id="bus-to" aria-label="Send to"><option value="all">to both agents</option><option value="claude">to Claude</option><option value="codex">to Codex</option></select>
+        <textarea id="bus-text" placeholder="Message the agents (they see it at their next turn)…" maxlength="8000" required></textarea>
+        <button class="primary">Send</button>
+      </form>
+    </div>
     <div class="legend" id="legend"></div>
     <div class="cols">
       <div class="panel">
-        <h2>Subagents <span class="muted" id="agent-count"></span></h2>
+        <h2>Agents in this session <span class="muted" id="agent-count"></span></h2>
         <div id="agents" class="list"></div>
       </div>
       <div class="panel wide">
@@ -98,6 +112,19 @@
       <h2>Need to know</h2>
       <div id="ntk"></div>
     </div>
+  </section>
+
+  <!-- MODEL ANALYTICS -->
+  <section id="tab-analytics" class="tab">
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Model analytics <span class="muted small">live workspace telemetry from Claude and Codex</span></h2>
+        <span class="muted small" id="analytics-updated"></span>
+      </div>
+      <div id="analytics-summary" class="analytics-summary"></div>
+      <p class="muted small">Task state is inferred from local provider logs. Paused means a task stopped without a completion event; token totals can include cached input.</p>
+    </div>
+    <div id="analytics-cards" class="analytics-cards"></div>
   </section>
 
   <!-- CHANGES + HISTORY -->
@@ -116,11 +143,12 @@
       <div class="panel-head">
         <h2>Commit history</h2>
         <div class="filters">
+          <select id="f-agent"><option value="">All agents</option><option value="claude">Claude</option><option value="codex">Codex</option><option value="none">No agent</option></select>
           <select id="f-author"><option value="">All developers</option></select>
           <select id="f-branch"><option value="">All branches</option></select>
         </div>
       </div>
-      <p class="muted small"><span class="badge pass">green</span> this commit's game code passed /compat-check &nbsp; <span class="badge">local</span> not pushed yet</p>
+      <p class="muted small"><span class="badge pass">green</span> this commit's game code passed /compat-check &nbsp; <span class="badge">local</span> not pushed yet &nbsp; <span class="achip" style="--c:var(--a-claude)">Claude · model</span> <span class="achip" style="--c:var(--a-codex)">Codex · model</span> the agent behind a change (commit trailers and the agents' own logs)</p>
       <div id="history" class="history"></div>
     </div>
   </section>

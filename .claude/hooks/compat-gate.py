@@ -77,7 +77,7 @@ def main():
                         "permissionDecision": "deny",
                         "permissionDecisionReason": msg
                         + ". Pushing/merging to main requires an ALL GREEN /compat-check for exactly this code "
-                        "(harness, ui, multiplayer, world). Run /compat-check first.",
+                        "(harness, ui, multiplayer, world, regression). Run /compat-check first.",
                     }
                 }
             )
@@ -114,7 +114,7 @@ def main():
                 {
                     "decision": "block",
                     "reason": "Shipped code (src/) changed and has no ALL GREEN compatibility run. Run /compat-check "
-                    "(harness + ui-tester + multiplayer-tester + world-tester) until it is green, or tell the user "
+                    "(harness + ui-tester + multiplayer-tester + world-tester + regression-tester) until it is green, or tell the user "
                     "why it cannot run now (e.g. Studio closed) and that the code is NOT cleared for main.",
                 }
             )

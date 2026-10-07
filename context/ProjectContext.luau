@@ -126,6 +126,19 @@ ReplicatedStorage.Remotes  SetAutoRace (RemoteEvent, client fires a boolean; cre
 Workspace.Baseplate (green studs, Rojo-owned) and Workspace.Track (Oval, Hill built at run time, chained)
 
 DASHBOARD (2026-10-05)
+CODEX INTEGRATION (2026-10-06): standalone dashboard supports Claude + workspace-filtered Codex sessions,
+including Codex main/subagent cards and message/tool timelines. python3 tools/dashboard/client.py reads the
+local API and performs requested board edits with --json. Start server.py --no-fetch --no-auto-branch for
+board upkeep without automatic GitHub actions. Codex instructions: AGENTS.md; details: tools/dashboard/README.md.
+Claude handoff and verification: docs/CODEX_DASHBOARD_HANDOFF.md; branch feature/alex/codex-dashboard.
+CLAUDE <-> CODEX BUS (2026-10-06, Claude review of the Codex merge): tools/dashboard/agent_bus.py (git-ignored
+.agents/, works without the server): messages between the agents (and the developer), what each SAYS it works on,
+and `context --agent X` = the other agent's live activity (model, status, task, last tool, uncommitted files it
+changed) + unread mail. Claude gets it via SessionStart/UserPromptSubmit hook; Codex via AGENTS.md. Dashboard:
+Agents tab presence + thread + send form; Changes & history label each file/commit with agent + model
+(Claude Edit/Write, Codex FileChange, commit trailers Co-Authored-By: Claude / Agent: Codex (<model>)).
+NOT VERIFIED: shell-command edits (sed, heredocs) are unattributed ("no agent"); Codex only reads the bus when
+it follows AGENTS.md (no automatic Codex hook yet).
 Agent dashboard for every collaborator: python3 tools/dashboard/server.py (or /dashboard), http://127.0.0.1:8765.
 Shows subagent progress and messages, uncommitted changes, commit history (developer, date, green/local), the compat
 gate light, the shared TODO board (tools/dashboard/data/todo.json, Claude keeps it current) and suggested features
@@ -340,7 +353,7 @@ TODO (in order)
    restyle, Wheel_FL/FR/RL/RR). 2026-10-05: baked + exported headless (blender/scenes/export_rusty_hatchback.py -> blender/exports/rusty_hatchback/
    RustyHatchback.fbx, 6.6 studs long). DONE 2026-10-06: Isaac's Draft05 import was used instead of the textured
    blender/exports FBX (owner's choice): ReplicatedStorage.CarModels = assets/studio/CarModels.rbxm (Rojo), Cars/rusty_hatchback.luau
-   Model = "rusty_hatchback"; live check: rolls clone CarModels.rusty_hatchback into the RollToast viewport, "?" hidden. Blender MCP add-on updated to protocol 13; Poly Pizza on.
+   Model = "rusty_hatchback"; live check: rolls clone CarModels.rusty_hatchback into the RollToast viewport, "?" hidden. 2026-10-06: the other six Cars/*.luau also set Model = their id (all seven CarModels templates wired). Blender MCP add-on updated to protocol 13; Poly Pizza on.
 9. STARTED 2026-10-06 (owner brief): Mechanical Workshop. Spec: docs/WORKSHOP_SPEC.md. 7 plots in the spawn area, max 7 players
    (server size set by hand: dashboard "Needs you"). The spawn floor grew to (24,-188)..(252,44) = 228 x 232; the old floor is
    SpawnArea.HUB_MIN/MAX and keeps the spawn (same position). Shared/WorkshopConfig (plots, zone 32x12x32, BASE_RATE 1/s, levels),
@@ -358,6 +371,14 @@ KNOWN ISSUES / NOT VERIFIED
   scenario green; spawn_area respawn_on_foot_standing_height 5.034 (band 1.5..5), green in round 1, avatar rests at ~3.8
   afterwards: probably measured while still settling (unproven flake). ui / multiplayer / world suites NOT run (stopped by
   the owner). The phase 2 / workshop tests were never seen red (written while the implementation was being written).
+  round 3 (8c0a2290ce41, after the merge of Isaac's Draft05 cars + Racer UI): harness `[CARTEST] END pass=24 fail=1` (spawn_area
+  green with the stricter settle wait; only gacha catalog_matches_design_doc failed: test still required Model = nil; test now
+  accepts a Model that exists in ReplicatedStorage.CarModels and equals the Id; plus new upgrades_buy_isolated_between_players;
+  neither re-run yet). world GREEN (walk spawn -> workshop zone pays, StartPad starts a race, all plots anchored, no overlaps).
+  multiplayer RED (no code failure: no live race to inspect, starting one from a tool was blocked by permissions). ui RED: the
+  UI tests (UiSpec/UiScenarios) still describe the old SpeedHud/AutoRaceButton/IndexUi/StatsUi/RollUi, which the Racer UI
+  replaced (those scripts are disabled); all 25 clicks fail on missing targets; Racer HUD puts Speed at bottom centre (spec:
+  left) and the showcase card does not match docs/ROLL_ANIMATION_CONTRACT.md. Needs an owner decision + ui-test-writer.
 - 2026-10-01: another session is building gacha/index (scenarios gacha, index in TestConfig, red) and shares the same Studio; runs
   collide. Nothing can be ALL GREEN (so nothing can go to main) until gacha/index are implemented and one run has Studio to itself.
 - NPC client view and LoserScreen are untested live (ui-tester / multiplayer-tester not run yet).

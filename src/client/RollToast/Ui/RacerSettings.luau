@@ -36,13 +36,13 @@ function Ui.Build(playerGui)
 	local v1 = new("Frame", {
 		Name = "Panel",
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.new(0.55, 0, 0.52, 0),
-		Size = UDim2.new(0, 600, 0, 362),
+		Position = UDim2.fromScale(0.55, 0.52),
+		Size = UDim2.fromOffset(600, 362),
 		BackgroundTransparency = 1,
 	}, gui)
 	local v1s = new("Frame", {
 		Name = "Shadow",
-		Position = UDim2.new(0, 0, 0, 4),
+		Position = UDim2.fromOffset(0, 4),
 		Size = UDim2.fromScale(1, 1),
 		BackgroundColor3 = Color3.fromRGB(18, 26, 65),
 		BackgroundTransparency = 0.4,
@@ -76,7 +76,7 @@ function Ui.Build(playerGui)
 	)
 	local v1l = new("Frame", {
 		Name = "Lift",
-		Position = UDim2.new(0, 4, 0, 2),
+		Position = UDim2.fromOffset(4, 2),
 		Size = UDim2.new(1, -8, 0, 6),
 		BackgroundColor3 = Color3.new(1, 1, 1),
 		BackgroundTransparency = 0.7,
@@ -89,25 +89,25 @@ function Ui.Build(playerGui)
 		v1,
 		{
 			AnchorPoint = Vector2.new(0.5, 0.5),
-			Position = UDim2.new(0.55, 0, 0.52, 0),
-			Size = UDim2.new(0, 600, 0, 362),
+			Position = UDim2.fromScale(0.55, 0.52),
+			Size = UDim2.fromOffset(600, 362),
 		},
 		{
 			AnchorPoint = Vector2.new(0.5, 0.5),
-			Position = UDim2.new(0.62, 0, 0.56, 0),
-			Size = UDim2.new(0, 500, 0, 280),
+			Position = UDim2.fromScale(0.62, 0.56),
+			Size = UDim2.fromOffset(500, 280),
 		},
 	})
 	local v2 = new("Frame", {
 		Name = "Header",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 12, 0, 12),
-		Size = UDim2.new(0, 576, 0, 64),
+		Position = UDim2.fromOffset(12, 12),
+		Size = UDim2.fromOffset(576, 64),
 		BackgroundTransparency = 1,
 	}, v1f)
 	local v2s = new("Frame", {
 		Name = "Shadow",
-		Position = UDim2.new(0, 0, 0, 4),
+		Position = UDim2.fromOffset(0, 4),
 		Size = UDim2.fromScale(1, 1),
 		BackgroundColor3 = Color3.fromRGB(18, 26, 65),
 		BackgroundTransparency = 0.4,
@@ -141,7 +141,7 @@ function Ui.Build(playerGui)
 	)
 	local v2l = new("Frame", {
 		Name = "Lift",
-		Position = UDim2.new(0, 4, 0, 2),
+		Position = UDim2.fromOffset(4, 2),
 		Size = UDim2.new(1, -8, 0, 6),
 		BackgroundColor3 = Color3.new(1, 1, 1),
 		BackgroundTransparency = 0.7,
@@ -151,14 +151,14 @@ function Ui.Build(playerGui)
 	refs["Header"] = v2f
 	table.insert(layouts, {
 		v2,
-		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 12, 0, 12), Size = UDim2.new(0, 576, 0, 64) },
-		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 8, 0, 8), Size = UDim2.new(0, 484, 0, 48) },
+		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.fromOffset(12, 12), Size = UDim2.fromOffset(576, 64) },
+		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.fromOffset(8, 8), Size = UDim2.fromOffset(484, 48) },
 	})
 	local v3 = new("TextLabel", {
 		Name = "Title",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 12, 0, 0),
-		Size = UDim2.new(0, 470, 0, 64),
+		Position = UDim2.fromOffset(12, 0),
+		Size = UDim2.fromOffset(470, 64),
 		BackgroundTransparency = 1,
 		Text = "SETTINGS",
 		TextSize = 34,
@@ -177,27 +177,27 @@ function Ui.Build(playerGui)
 		v3,
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 12, 0, 0),
-			Size = UDim2.new(0, 470, 0, 64),
+			Position = UDim2.fromOffset(12, 0),
+			Size = UDim2.fromOffset(470, 64),
 			TextSize = 34,
 		},
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 8, 0, 0),
-			Size = UDim2.new(0, 382, 0, 48),
+			Position = UDim2.fromOffset(8, 0),
+			Size = UDim2.fromOffset(382, 48),
 			TextSize = 25,
 		},
 	})
 	local v4 = new("Frame", {
 		Name = "Close",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 512, 0, 6),
-		Size = UDim2.new(0, 52, 0, 52),
+		Position = UDim2.fromOffset(512, 6),
+		Size = UDim2.fromOffset(52, 52),
 		BackgroundTransparency = 1,
 	}, v2f)
 	local v4s = new("Frame", {
 		Name = "Shadow",
-		Position = UDim2.new(0, 0, 0, 4),
+		Position = UDim2.fromOffset(0, 4),
 		Size = UDim2.fromScale(1, 1),
 		BackgroundColor3 = Color3.fromRGB(88, 37, 73),
 		BackgroundTransparency = 0.4,
@@ -233,7 +233,7 @@ function Ui.Build(playerGui)
 	)
 	local v4l = new("Frame", {
 		Name = "Lift",
-		Position = UDim2.new(0, 4, 0, 2),
+		Position = UDim2.fromOffset(4, 2),
 		Size = UDim2.new(1, -8, 0, 6),
 		BackgroundColor3 = Color3.new(1, 1, 1),
 		BackgroundTransparency = 0.7,
@@ -243,14 +243,14 @@ function Ui.Build(playerGui)
 	refs["Close"] = v4f
 	table.insert(layouts, {
 		v4,
-		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 512, 0, 6), Size = UDim2.new(0, 52, 0, 52) },
-		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 428, 0, 0), Size = UDim2.new(0, 48, 0, 48) },
+		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.fromOffset(512, 6), Size = UDim2.fromOffset(52, 52) },
+		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.fromOffset(428, 0), Size = UDim2.fromOffset(48, 48) },
 	})
 	local v5 = new("TextLabel", {
 		Name = "CloseLabel",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 0, 0, 0),
-		Size = UDim2.new(1, 0, 1, 0),
+		Position = UDim2.fromOffset(0, 0),
+		Size = UDim2.fromScale(1, 1),
 		BackgroundTransparency = 1,
 		Text = "X",
 		TextSize = 26,
@@ -269,27 +269,27 @@ function Ui.Build(playerGui)
 		v5,
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 0, 0, 0),
-			Size = UDim2.new(1, 0, 1, 0),
+			Position = UDim2.fromOffset(0, 0),
+			Size = UDim2.fromScale(1, 1),
 			TextSize = 26,
 		},
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 0, 0, 0),
-			Size = UDim2.new(1, 0, 1, 0),
+			Position = UDim2.fromOffset(0, 0),
+			Size = UDim2.fromScale(1, 1),
 			TextSize = 24,
 		},
 	})
 	local v6 = new("Frame", {
 		Name = "SoundRow",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 16, 0, 100),
-		Size = UDim2.new(0, 568, 0, 60),
+		Position = UDim2.fromOffset(16, 100),
+		Size = UDim2.fromOffset(568, 60),
 		BackgroundTransparency = 1,
 	}, v1f)
 	local v6s = new("Frame", {
 		Name = "Shadow",
-		Position = UDim2.new(0, 0, 0, 4),
+		Position = UDim2.fromOffset(0, 4),
 		Size = UDim2.fromScale(1, 1),
 		BackgroundColor3 = Color3.fromRGB(21, 30, 69),
 		BackgroundTransparency = 0.4,
@@ -323,7 +323,7 @@ function Ui.Build(playerGui)
 	)
 	local v6l = new("Frame", {
 		Name = "Lift",
-		Position = UDim2.new(0, 4, 0, 2),
+		Position = UDim2.fromOffset(4, 2),
 		Size = UDim2.new(1, -8, 0, 6),
 		BackgroundColor3 = Color3.new(1, 1, 1),
 		BackgroundTransparency = 0.7,
@@ -333,14 +333,14 @@ function Ui.Build(playerGui)
 	refs["SoundRow"] = v6f
 	table.insert(layouts, {
 		v6,
-		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 16, 0, 100), Size = UDim2.new(0, 568, 0, 60) },
-		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 12, 0, 74), Size = UDim2.new(0, 476, 0, 50) },
+		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.fromOffset(16, 100), Size = UDim2.fromOffset(568, 60) },
+		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.fromOffset(12, 74), Size = UDim2.fromOffset(476, 50) },
 	})
 	local v7 = new("TextLabel", {
 		Name = "SoundName",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 12, 0, 0),
-		Size = UDim2.new(0, 400, 0, 60),
+		Position = UDim2.fromOffset(12, 0),
+		Size = UDim2.fromOffset(400, 60),
 		BackgroundTransparency = 1,
 		Text = "SOUND",
 		TextSize = 25,
@@ -359,27 +359,27 @@ function Ui.Build(playerGui)
 		v7,
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 12, 0, 0),
-			Size = UDim2.new(0, 400, 0, 60),
+			Position = UDim2.fromOffset(12, 0),
+			Size = UDim2.fromOffset(400, 60),
 			TextSize = 25,
 		},
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 8, 0, 0),
-			Size = UDim2.new(0, 338, 0, 50),
+			Position = UDim2.fromOffset(8, 0),
+			Size = UDim2.fromOffset(338, 50),
 			TextSize = 20,
 		},
 	})
 	local v8 = new("Frame", {
 		Name = "SoundToggle",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 436, 0, 6),
-		Size = UDim2.new(0, 116, 0, 48),
+		Position = UDim2.fromOffset(436, 6),
+		Size = UDim2.fromOffset(116, 48),
 		BackgroundTransparency = 1,
 	}, v6f)
 	local v8s = new("Frame", {
 		Name = "Shadow",
-		Position = UDim2.new(0, 0, 0, 4),
+		Position = UDim2.fromOffset(0, 4),
 		Size = UDim2.fromScale(1, 1),
 		BackgroundColor3 = Color3.fromRGB(27, 82, 74),
 		BackgroundTransparency = 0.4,
@@ -415,7 +415,7 @@ function Ui.Build(playerGui)
 	)
 	local v8l = new("Frame", {
 		Name = "Lift",
-		Position = UDim2.new(0, 4, 0, 2),
+		Position = UDim2.fromOffset(4, 2),
 		Size = UDim2.new(1, -8, 0, 6),
 		BackgroundColor3 = Color3.new(1, 1, 1),
 		BackgroundTransparency = 0.7,
@@ -425,14 +425,14 @@ function Ui.Build(playerGui)
 	refs["SoundToggle"] = v8f
 	table.insert(layouts, {
 		v8,
-		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 436, 0, 6), Size = UDim2.new(0, 116, 0, 48) },
-		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 356, 0, 1), Size = UDim2.new(0, 108, 0, 48) },
+		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.fromOffset(436, 6), Size = UDim2.fromOffset(116, 48) },
+		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.fromOffset(356, 1), Size = UDim2.fromOffset(108, 48) },
 	})
 	local v9 = new("TextLabel", {
 		Name = "SoundToggleLabel",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 0, 0, 0),
-		Size = UDim2.new(1, 0, 1, 0),
+		Position = UDim2.fromOffset(0, 0),
+		Size = UDim2.fromScale(1, 1),
 		BackgroundTransparency = 1,
 		Text = "ON",
 		TextSize = 23,
@@ -451,27 +451,27 @@ function Ui.Build(playerGui)
 		v9,
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 0, 0, 0),
-			Size = UDim2.new(1, 0, 1, 0),
+			Position = UDim2.fromOffset(0, 0),
+			Size = UDim2.fromScale(1, 1),
 			TextSize = 23,
 		},
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 0, 0, 0),
-			Size = UDim2.new(1, 0, 1, 0),
+			Position = UDim2.fromOffset(0, 0),
+			Size = UDim2.fromScale(1, 1),
 			TextSize = 21,
 		},
 	})
 	local v10 = new("Frame", {
 		Name = "EffectsRow",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 16, 0, 178),
-		Size = UDim2.new(0, 568, 0, 60),
+		Position = UDim2.fromOffset(16, 178),
+		Size = UDim2.fromOffset(568, 60),
 		BackgroundTransparency = 1,
 	}, v1f)
 	local v10s = new("Frame", {
 		Name = "Shadow",
-		Position = UDim2.new(0, 0, 0, 4),
+		Position = UDim2.fromOffset(0, 4),
 		Size = UDim2.fromScale(1, 1),
 		BackgroundColor3 = Color3.fromRGB(21, 30, 69),
 		BackgroundTransparency = 0.4,
@@ -505,7 +505,7 @@ function Ui.Build(playerGui)
 	)
 	local v10l = new("Frame", {
 		Name = "Lift",
-		Position = UDim2.new(0, 4, 0, 2),
+		Position = UDim2.fromOffset(4, 2),
 		Size = UDim2.new(1, -8, 0, 6),
 		BackgroundColor3 = Color3.new(1, 1, 1),
 		BackgroundTransparency = 0.7,
@@ -515,14 +515,14 @@ function Ui.Build(playerGui)
 	refs["EffectsRow"] = v10f
 	table.insert(layouts, {
 		v10,
-		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 16, 0, 178), Size = UDim2.new(0, 568, 0, 60) },
-		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 12, 0, 142), Size = UDim2.new(0, 476, 0, 50) },
+		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.fromOffset(16, 178), Size = UDim2.fromOffset(568, 60) },
+		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.fromOffset(12, 142), Size = UDim2.fromOffset(476, 50) },
 	})
 	local v11 = new("TextLabel", {
 		Name = "EffectsName",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 12, 0, 0),
-		Size = UDim2.new(0, 400, 0, 60),
+		Position = UDim2.fromOffset(12, 0),
+		Size = UDim2.fromOffset(400, 60),
 		BackgroundTransparency = 1,
 		Text = "REDUCED EFFECTS",
 		TextSize = 25,
@@ -541,27 +541,27 @@ function Ui.Build(playerGui)
 		v11,
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 12, 0, 0),
-			Size = UDim2.new(0, 400, 0, 60),
+			Position = UDim2.fromOffset(12, 0),
+			Size = UDim2.fromOffset(400, 60),
 			TextSize = 25,
 		},
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 8, 0, 0),
-			Size = UDim2.new(0, 338, 0, 50),
+			Position = UDim2.fromOffset(8, 0),
+			Size = UDim2.fromOffset(338, 50),
 			TextSize = 20,
 		},
 	})
 	local v12 = new("Frame", {
 		Name = "EffectsToggle",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 436, 0, 6),
-		Size = UDim2.new(0, 116, 0, 48),
+		Position = UDim2.fromOffset(436, 6),
+		Size = UDim2.fromOffset(116, 48),
 		BackgroundTransparency = 1,
 	}, v10f)
 	local v12s = new("Frame", {
 		Name = "Shadow",
-		Position = UDim2.new(0, 0, 0, 4),
+		Position = UDim2.fromOffset(0, 4),
 		Size = UDim2.fromScale(1, 1),
 		BackgroundColor3 = Color3.fromRGB(27, 82, 74),
 		BackgroundTransparency = 0.4,
@@ -597,7 +597,7 @@ function Ui.Build(playerGui)
 	)
 	local v12l = new("Frame", {
 		Name = "Lift",
-		Position = UDim2.new(0, 4, 0, 2),
+		Position = UDim2.fromOffset(4, 2),
 		Size = UDim2.new(1, -8, 0, 6),
 		BackgroundColor3 = Color3.new(1, 1, 1),
 		BackgroundTransparency = 0.7,
@@ -607,14 +607,14 @@ function Ui.Build(playerGui)
 	refs["EffectsToggle"] = v12f
 	table.insert(layouts, {
 		v12,
-		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 436, 0, 6), Size = UDim2.new(0, 116, 0, 48) },
-		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 356, 0, 1), Size = UDim2.new(0, 108, 0, 48) },
+		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.fromOffset(436, 6), Size = UDim2.fromOffset(116, 48) },
+		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.fromOffset(356, 1), Size = UDim2.fromOffset(108, 48) },
 	})
 	local v13 = new("TextLabel", {
 		Name = "EffectsToggleLabel",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 0, 0, 0),
-		Size = UDim2.new(1, 0, 1, 0),
+		Position = UDim2.fromOffset(0, 0),
+		Size = UDim2.fromScale(1, 1),
 		BackgroundTransparency = 1,
 		Text = "OFF",
 		TextSize = 23,
@@ -633,27 +633,27 @@ function Ui.Build(playerGui)
 		v13,
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 0, 0, 0),
-			Size = UDim2.new(1, 0, 1, 0),
+			Position = UDim2.fromOffset(0, 0),
+			Size = UDim2.fromScale(1, 1),
 			TextSize = 23,
 		},
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 0, 0, 0),
-			Size = UDim2.new(1, 0, 1, 0),
+			Position = UDim2.fromOffset(0, 0),
+			Size = UDim2.fromScale(1, 1),
 			TextSize = 21,
 		},
 	})
 	local v14 = new("Frame", {
 		Name = "AutoRow",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 16, 0, 256),
-		Size = UDim2.new(0, 568, 0, 60),
+		Position = UDim2.fromOffset(16, 256),
+		Size = UDim2.fromOffset(568, 60),
 		BackgroundTransparency = 1,
 	}, v1f)
 	local v14s = new("Frame", {
 		Name = "Shadow",
-		Position = UDim2.new(0, 0, 0, 4),
+		Position = UDim2.fromOffset(0, 4),
 		Size = UDim2.fromScale(1, 1),
 		BackgroundColor3 = Color3.fromRGB(21, 30, 69),
 		BackgroundTransparency = 0.4,
@@ -687,7 +687,7 @@ function Ui.Build(playerGui)
 	)
 	local v14l = new("Frame", {
 		Name = "Lift",
-		Position = UDim2.new(0, 4, 0, 2),
+		Position = UDim2.fromOffset(4, 2),
 		Size = UDim2.new(1, -8, 0, 6),
 		BackgroundColor3 = Color3.new(1, 1, 1),
 		BackgroundTransparency = 0.7,
@@ -697,14 +697,14 @@ function Ui.Build(playerGui)
 	refs["AutoRow"] = v14f
 	table.insert(layouts, {
 		v14,
-		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 16, 0, 256), Size = UDim2.new(0, 568, 0, 60) },
-		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 12, 0, 210), Size = UDim2.new(0, 476, 0, 50) },
+		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.fromOffset(16, 256), Size = UDim2.fromOffset(568, 60) },
+		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.fromOffset(12, 210), Size = UDim2.fromOffset(476, 50) },
 	})
 	local v15 = new("TextLabel", {
 		Name = "AutoName",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 12, 0, 0),
-		Size = UDim2.new(0, 400, 0, 60),
+		Position = UDim2.fromOffset(12, 0),
+		Size = UDim2.fromOffset(400, 60),
 		BackgroundTransparency = 1,
 		Text = "AUTO ROLL",
 		TextSize = 25,
@@ -723,27 +723,27 @@ function Ui.Build(playerGui)
 		v15,
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 12, 0, 0),
-			Size = UDim2.new(0, 400, 0, 60),
+			Position = UDim2.fromOffset(12, 0),
+			Size = UDim2.fromOffset(400, 60),
 			TextSize = 25,
 		},
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 8, 0, 0),
-			Size = UDim2.new(0, 338, 0, 50),
+			Position = UDim2.fromOffset(8, 0),
+			Size = UDim2.fromOffset(338, 50),
 			TextSize = 20,
 		},
 	})
 	local v16 = new("Frame", {
 		Name = "AutoToggle",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 436, 0, 6),
-		Size = UDim2.new(0, 116, 0, 48),
+		Position = UDim2.fromOffset(436, 6),
+		Size = UDim2.fromOffset(116, 48),
 		BackgroundTransparency = 1,
 	}, v14f)
 	local v16s = new("Frame", {
 		Name = "Shadow",
-		Position = UDim2.new(0, 0, 0, 4),
+		Position = UDim2.fromOffset(0, 4),
 		Size = UDim2.fromScale(1, 1),
 		BackgroundColor3 = Color3.fromRGB(27, 82, 74),
 		BackgroundTransparency = 0.4,
@@ -779,7 +779,7 @@ function Ui.Build(playerGui)
 	)
 	local v16l = new("Frame", {
 		Name = "Lift",
-		Position = UDim2.new(0, 4, 0, 2),
+		Position = UDim2.fromOffset(4, 2),
 		Size = UDim2.new(1, -8, 0, 6),
 		BackgroundColor3 = Color3.new(1, 1, 1),
 		BackgroundTransparency = 0.7,
@@ -789,14 +789,14 @@ function Ui.Build(playerGui)
 	refs["AutoToggle"] = v16f
 	table.insert(layouts, {
 		v16,
-		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 436, 0, 6), Size = UDim2.new(0, 116, 0, 48) },
-		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 356, 0, 1), Size = UDim2.new(0, 108, 0, 48) },
+		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.fromOffset(436, 6), Size = UDim2.fromOffset(116, 48) },
+		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.fromOffset(356, 1), Size = UDim2.fromOffset(108, 48) },
 	})
 	local v17 = new("TextLabel", {
 		Name = "AutoToggleLabel",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 0, 0, 0),
-		Size = UDim2.new(1, 0, 1, 0),
+		Position = UDim2.fromOffset(0, 0),
+		Size = UDim2.fromScale(1, 1),
 		BackgroundTransparency = 1,
 		Text = "ON",
 		TextSize = 23,
@@ -815,14 +815,14 @@ function Ui.Build(playerGui)
 		v17,
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 0, 0, 0),
-			Size = UDim2.new(1, 0, 1, 0),
+			Position = UDim2.fromOffset(0, 0),
+			Size = UDim2.fromScale(1, 1),
 			TextSize = 23,
 		},
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 0, 0, 0),
-			Size = UDim2.new(1, 0, 1, 0),
+			Position = UDim2.fromOffset(0, 0),
+			Size = UDim2.fromScale(1, 1),
 			TextSize = 21,
 		},
 	})
@@ -856,11 +856,14 @@ function Ui.Bind(playerGui)
 		saved:IsA("ScreenGui") and saved:GetAttribute("SpecHash") == "f7eec9b472c5",
 		"Saved UI is stale; regenerate and bake it in Edit mode"
 	)
+	-- Bind looks up the baked instances under the same names the builder above creates them with.
+	-- selene: allow(shadowing)
 	local function new(className, props, parent)
 		local inst = parent:FindFirstChild(props.Name or className)
 		assert(inst and inst:IsA(className), "Saved UI is missing " .. (props.Name or className))
 		return inst
 	end
+	-- selene: allow(shadowing)
 	local function corner(parent, _radius)
 		assert(parent:FindFirstChildOfClass("UICorner"), "Saved UI corner is missing")
 	end
@@ -878,13 +881,13 @@ function Ui.Bind(playerGui)
 	local v1 = new("Frame", {
 		Name = "Panel",
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.new(0.55, 0, 0.52, 0),
-		Size = UDim2.new(0, 600, 0, 362),
+		Position = UDim2.fromScale(0.55, 0.52),
+		Size = UDim2.fromOffset(600, 362),
 		BackgroundTransparency = 1,
 	}, gui)
 	local v1s = new("Frame", {
 		Name = "Shadow",
-		Position = UDim2.new(0, 0, 0, 4),
+		Position = UDim2.fromOffset(0, 4),
 		Size = UDim2.fromScale(1, 1),
 		BackgroundColor3 = Color3.fromRGB(18, 26, 65),
 		BackgroundTransparency = 0.4,
@@ -918,7 +921,7 @@ function Ui.Bind(playerGui)
 	)
 	local v1l = new("Frame", {
 		Name = "Lift",
-		Position = UDim2.new(0, 4, 0, 2),
+		Position = UDim2.fromOffset(4, 2),
 		Size = UDim2.new(1, -8, 0, 6),
 		BackgroundColor3 = Color3.new(1, 1, 1),
 		BackgroundTransparency = 0.7,
@@ -931,25 +934,25 @@ function Ui.Bind(playerGui)
 		v1,
 		{
 			AnchorPoint = Vector2.new(0.5, 0.5),
-			Position = UDim2.new(0.55, 0, 0.52, 0),
-			Size = UDim2.new(0, 600, 0, 362),
+			Position = UDim2.fromScale(0.55, 0.52),
+			Size = UDim2.fromOffset(600, 362),
 		},
 		{
 			AnchorPoint = Vector2.new(0.5, 0.5),
-			Position = UDim2.new(0.62, 0, 0.56, 0),
-			Size = UDim2.new(0, 500, 0, 280),
+			Position = UDim2.fromScale(0.62, 0.56),
+			Size = UDim2.fromOffset(500, 280),
 		},
 	})
 	local v2 = new("Frame", {
 		Name = "Header",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 12, 0, 12),
-		Size = UDim2.new(0, 576, 0, 64),
+		Position = UDim2.fromOffset(12, 12),
+		Size = UDim2.fromOffset(576, 64),
 		BackgroundTransparency = 1,
 	}, v1f)
 	local v2s = new("Frame", {
 		Name = "Shadow",
-		Position = UDim2.new(0, 0, 0, 4),
+		Position = UDim2.fromOffset(0, 4),
 		Size = UDim2.fromScale(1, 1),
 		BackgroundColor3 = Color3.fromRGB(18, 26, 65),
 		BackgroundTransparency = 0.4,
@@ -983,7 +986,7 @@ function Ui.Bind(playerGui)
 	)
 	local v2l = new("Frame", {
 		Name = "Lift",
-		Position = UDim2.new(0, 4, 0, 2),
+		Position = UDim2.fromOffset(4, 2),
 		Size = UDim2.new(1, -8, 0, 6),
 		BackgroundColor3 = Color3.new(1, 1, 1),
 		BackgroundTransparency = 0.7,
@@ -993,14 +996,14 @@ function Ui.Bind(playerGui)
 	refs["Header"] = v2f
 	table.insert(layouts, {
 		v2,
-		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 12, 0, 12), Size = UDim2.new(0, 576, 0, 64) },
-		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 8, 0, 8), Size = UDim2.new(0, 484, 0, 48) },
+		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.fromOffset(12, 12), Size = UDim2.fromOffset(576, 64) },
+		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.fromOffset(8, 8), Size = UDim2.fromOffset(484, 48) },
 	})
 	local v3 = new("TextLabel", {
 		Name = "Title",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 12, 0, 0),
-		Size = UDim2.new(0, 470, 0, 64),
+		Position = UDim2.fromOffset(12, 0),
+		Size = UDim2.fromOffset(470, 64),
 		BackgroundTransparency = 1,
 		Text = "SETTINGS",
 		TextSize = 34,
@@ -1019,27 +1022,27 @@ function Ui.Bind(playerGui)
 		v3,
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 12, 0, 0),
-			Size = UDim2.new(0, 470, 0, 64),
+			Position = UDim2.fromOffset(12, 0),
+			Size = UDim2.fromOffset(470, 64),
 			TextSize = 34,
 		},
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 8, 0, 0),
-			Size = UDim2.new(0, 382, 0, 48),
+			Position = UDim2.fromOffset(8, 0),
+			Size = UDim2.fromOffset(382, 48),
 			TextSize = 25,
 		},
 	})
 	local v4 = new("Frame", {
 		Name = "Close",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 512, 0, 6),
-		Size = UDim2.new(0, 52, 0, 52),
+		Position = UDim2.fromOffset(512, 6),
+		Size = UDim2.fromOffset(52, 52),
 		BackgroundTransparency = 1,
 	}, v2f)
 	local v4s = new("Frame", {
 		Name = "Shadow",
-		Position = UDim2.new(0, 0, 0, 4),
+		Position = UDim2.fromOffset(0, 4),
 		Size = UDim2.fromScale(1, 1),
 		BackgroundColor3 = Color3.fromRGB(88, 37, 73),
 		BackgroundTransparency = 0.4,
@@ -1075,7 +1078,7 @@ function Ui.Bind(playerGui)
 	)
 	local v4l = new("Frame", {
 		Name = "Lift",
-		Position = UDim2.new(0, 4, 0, 2),
+		Position = UDim2.fromOffset(4, 2),
 		Size = UDim2.new(1, -8, 0, 6),
 		BackgroundColor3 = Color3.new(1, 1, 1),
 		BackgroundTransparency = 0.7,
@@ -1085,14 +1088,14 @@ function Ui.Bind(playerGui)
 	refs["Close"] = v4f
 	table.insert(layouts, {
 		v4,
-		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 512, 0, 6), Size = UDim2.new(0, 52, 0, 52) },
-		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 428, 0, 0), Size = UDim2.new(0, 48, 0, 48) },
+		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.fromOffset(512, 6), Size = UDim2.fromOffset(52, 52) },
+		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.fromOffset(428, 0), Size = UDim2.fromOffset(48, 48) },
 	})
 	local v5 = new("TextLabel", {
 		Name = "CloseLabel",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 0, 0, 0),
-		Size = UDim2.new(1, 0, 1, 0),
+		Position = UDim2.fromOffset(0, 0),
+		Size = UDim2.fromScale(1, 1),
 		BackgroundTransparency = 1,
 		Text = "X",
 		TextSize = 26,
@@ -1111,27 +1114,27 @@ function Ui.Bind(playerGui)
 		v5,
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 0, 0, 0),
-			Size = UDim2.new(1, 0, 1, 0),
+			Position = UDim2.fromOffset(0, 0),
+			Size = UDim2.fromScale(1, 1),
 			TextSize = 26,
 		},
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 0, 0, 0),
-			Size = UDim2.new(1, 0, 1, 0),
+			Position = UDim2.fromOffset(0, 0),
+			Size = UDim2.fromScale(1, 1),
 			TextSize = 24,
 		},
 	})
 	local v6 = new("Frame", {
 		Name = "SoundRow",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 16, 0, 100),
-		Size = UDim2.new(0, 568, 0, 60),
+		Position = UDim2.fromOffset(16, 100),
+		Size = UDim2.fromOffset(568, 60),
 		BackgroundTransparency = 1,
 	}, v1f)
 	local v6s = new("Frame", {
 		Name = "Shadow",
-		Position = UDim2.new(0, 0, 0, 4),
+		Position = UDim2.fromOffset(0, 4),
 		Size = UDim2.fromScale(1, 1),
 		BackgroundColor3 = Color3.fromRGB(21, 30, 69),
 		BackgroundTransparency = 0.4,
@@ -1165,7 +1168,7 @@ function Ui.Bind(playerGui)
 	)
 	local v6l = new("Frame", {
 		Name = "Lift",
-		Position = UDim2.new(0, 4, 0, 2),
+		Position = UDim2.fromOffset(4, 2),
 		Size = UDim2.new(1, -8, 0, 6),
 		BackgroundColor3 = Color3.new(1, 1, 1),
 		BackgroundTransparency = 0.7,
@@ -1175,14 +1178,14 @@ function Ui.Bind(playerGui)
 	refs["SoundRow"] = v6f
 	table.insert(layouts, {
 		v6,
-		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 16, 0, 100), Size = UDim2.new(0, 568, 0, 60) },
-		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 12, 0, 74), Size = UDim2.new(0, 476, 0, 50) },
+		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.fromOffset(16, 100), Size = UDim2.fromOffset(568, 60) },
+		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.fromOffset(12, 74), Size = UDim2.fromOffset(476, 50) },
 	})
 	local v7 = new("TextLabel", {
 		Name = "SoundName",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 12, 0, 0),
-		Size = UDim2.new(0, 400, 0, 60),
+		Position = UDim2.fromOffset(12, 0),
+		Size = UDim2.fromOffset(400, 60),
 		BackgroundTransparency = 1,
 		Text = "SOUND",
 		TextSize = 25,
@@ -1201,27 +1204,27 @@ function Ui.Bind(playerGui)
 		v7,
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 12, 0, 0),
-			Size = UDim2.new(0, 400, 0, 60),
+			Position = UDim2.fromOffset(12, 0),
+			Size = UDim2.fromOffset(400, 60),
 			TextSize = 25,
 		},
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 8, 0, 0),
-			Size = UDim2.new(0, 338, 0, 50),
+			Position = UDim2.fromOffset(8, 0),
+			Size = UDim2.fromOffset(338, 50),
 			TextSize = 20,
 		},
 	})
 	local v8 = new("Frame", {
 		Name = "SoundToggle",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 436, 0, 6),
-		Size = UDim2.new(0, 116, 0, 48),
+		Position = UDim2.fromOffset(436, 6),
+		Size = UDim2.fromOffset(116, 48),
 		BackgroundTransparency = 1,
 	}, v6f)
 	local v8s = new("Frame", {
 		Name = "Shadow",
-		Position = UDim2.new(0, 0, 0, 4),
+		Position = UDim2.fromOffset(0, 4),
 		Size = UDim2.fromScale(1, 1),
 		BackgroundColor3 = Color3.fromRGB(27, 82, 74),
 		BackgroundTransparency = 0.4,
@@ -1257,7 +1260,7 @@ function Ui.Bind(playerGui)
 	)
 	local v8l = new("Frame", {
 		Name = "Lift",
-		Position = UDim2.new(0, 4, 0, 2),
+		Position = UDim2.fromOffset(4, 2),
 		Size = UDim2.new(1, -8, 0, 6),
 		BackgroundColor3 = Color3.new(1, 1, 1),
 		BackgroundTransparency = 0.7,
@@ -1267,14 +1270,14 @@ function Ui.Bind(playerGui)
 	refs["SoundToggle"] = v8f
 	table.insert(layouts, {
 		v8,
-		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 436, 0, 6), Size = UDim2.new(0, 116, 0, 48) },
-		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 356, 0, 1), Size = UDim2.new(0, 108, 0, 48) },
+		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.fromOffset(436, 6), Size = UDim2.fromOffset(116, 48) },
+		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.fromOffset(356, 1), Size = UDim2.fromOffset(108, 48) },
 	})
 	local v9 = new("TextLabel", {
 		Name = "SoundToggleLabel",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 0, 0, 0),
-		Size = UDim2.new(1, 0, 1, 0),
+		Position = UDim2.fromOffset(0, 0),
+		Size = UDim2.fromScale(1, 1),
 		BackgroundTransparency = 1,
 		Text = "ON",
 		TextSize = 23,
@@ -1293,27 +1296,27 @@ function Ui.Bind(playerGui)
 		v9,
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 0, 0, 0),
-			Size = UDim2.new(1, 0, 1, 0),
+			Position = UDim2.fromOffset(0, 0),
+			Size = UDim2.fromScale(1, 1),
 			TextSize = 23,
 		},
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 0, 0, 0),
-			Size = UDim2.new(1, 0, 1, 0),
+			Position = UDim2.fromOffset(0, 0),
+			Size = UDim2.fromScale(1, 1),
 			TextSize = 21,
 		},
 	})
 	local v10 = new("Frame", {
 		Name = "EffectsRow",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 16, 0, 178),
-		Size = UDim2.new(0, 568, 0, 60),
+		Position = UDim2.fromOffset(16, 178),
+		Size = UDim2.fromOffset(568, 60),
 		BackgroundTransparency = 1,
 	}, v1f)
 	local v10s = new("Frame", {
 		Name = "Shadow",
-		Position = UDim2.new(0, 0, 0, 4),
+		Position = UDim2.fromOffset(0, 4),
 		Size = UDim2.fromScale(1, 1),
 		BackgroundColor3 = Color3.fromRGB(21, 30, 69),
 		BackgroundTransparency = 0.4,
@@ -1347,7 +1350,7 @@ function Ui.Bind(playerGui)
 	)
 	local v10l = new("Frame", {
 		Name = "Lift",
-		Position = UDim2.new(0, 4, 0, 2),
+		Position = UDim2.fromOffset(4, 2),
 		Size = UDim2.new(1, -8, 0, 6),
 		BackgroundColor3 = Color3.new(1, 1, 1),
 		BackgroundTransparency = 0.7,
@@ -1357,14 +1360,14 @@ function Ui.Bind(playerGui)
 	refs["EffectsRow"] = v10f
 	table.insert(layouts, {
 		v10,
-		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 16, 0, 178), Size = UDim2.new(0, 568, 0, 60) },
-		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 12, 0, 142), Size = UDim2.new(0, 476, 0, 50) },
+		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.fromOffset(16, 178), Size = UDim2.fromOffset(568, 60) },
+		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.fromOffset(12, 142), Size = UDim2.fromOffset(476, 50) },
 	})
 	local v11 = new("TextLabel", {
 		Name = "EffectsName",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 12, 0, 0),
-		Size = UDim2.new(0, 400, 0, 60),
+		Position = UDim2.fromOffset(12, 0),
+		Size = UDim2.fromOffset(400, 60),
 		BackgroundTransparency = 1,
 		Text = "REDUCED EFFECTS",
 		TextSize = 25,
@@ -1383,27 +1386,27 @@ function Ui.Bind(playerGui)
 		v11,
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 12, 0, 0),
-			Size = UDim2.new(0, 400, 0, 60),
+			Position = UDim2.fromOffset(12, 0),
+			Size = UDim2.fromOffset(400, 60),
 			TextSize = 25,
 		},
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 8, 0, 0),
-			Size = UDim2.new(0, 338, 0, 50),
+			Position = UDim2.fromOffset(8, 0),
+			Size = UDim2.fromOffset(338, 50),
 			TextSize = 20,
 		},
 	})
 	local v12 = new("Frame", {
 		Name = "EffectsToggle",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 436, 0, 6),
-		Size = UDim2.new(0, 116, 0, 48),
+		Position = UDim2.fromOffset(436, 6),
+		Size = UDim2.fromOffset(116, 48),
 		BackgroundTransparency = 1,
 	}, v10f)
 	local v12s = new("Frame", {
 		Name = "Shadow",
-		Position = UDim2.new(0, 0, 0, 4),
+		Position = UDim2.fromOffset(0, 4),
 		Size = UDim2.fromScale(1, 1),
 		BackgroundColor3 = Color3.fromRGB(27, 82, 74),
 		BackgroundTransparency = 0.4,
@@ -1439,7 +1442,7 @@ function Ui.Bind(playerGui)
 	)
 	local v12l = new("Frame", {
 		Name = "Lift",
-		Position = UDim2.new(0, 4, 0, 2),
+		Position = UDim2.fromOffset(4, 2),
 		Size = UDim2.new(1, -8, 0, 6),
 		BackgroundColor3 = Color3.new(1, 1, 1),
 		BackgroundTransparency = 0.7,
@@ -1449,14 +1452,14 @@ function Ui.Bind(playerGui)
 	refs["EffectsToggle"] = v12f
 	table.insert(layouts, {
 		v12,
-		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 436, 0, 6), Size = UDim2.new(0, 116, 0, 48) },
-		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 356, 0, 1), Size = UDim2.new(0, 108, 0, 48) },
+		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.fromOffset(436, 6), Size = UDim2.fromOffset(116, 48) },
+		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.fromOffset(356, 1), Size = UDim2.fromOffset(108, 48) },
 	})
 	local v13 = new("TextLabel", {
 		Name = "EffectsToggleLabel",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 0, 0, 0),
-		Size = UDim2.new(1, 0, 1, 0),
+		Position = UDim2.fromOffset(0, 0),
+		Size = UDim2.fromScale(1, 1),
 		BackgroundTransparency = 1,
 		Text = "OFF",
 		TextSize = 23,
@@ -1475,27 +1478,27 @@ function Ui.Bind(playerGui)
 		v13,
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 0, 0, 0),
-			Size = UDim2.new(1, 0, 1, 0),
+			Position = UDim2.fromOffset(0, 0),
+			Size = UDim2.fromScale(1, 1),
 			TextSize = 23,
 		},
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 0, 0, 0),
-			Size = UDim2.new(1, 0, 1, 0),
+			Position = UDim2.fromOffset(0, 0),
+			Size = UDim2.fromScale(1, 1),
 			TextSize = 21,
 		},
 	})
 	local v14 = new("Frame", {
 		Name = "AutoRow",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 16, 0, 256),
-		Size = UDim2.new(0, 568, 0, 60),
+		Position = UDim2.fromOffset(16, 256),
+		Size = UDim2.fromOffset(568, 60),
 		BackgroundTransparency = 1,
 	}, v1f)
 	local v14s = new("Frame", {
 		Name = "Shadow",
-		Position = UDim2.new(0, 0, 0, 4),
+		Position = UDim2.fromOffset(0, 4),
 		Size = UDim2.fromScale(1, 1),
 		BackgroundColor3 = Color3.fromRGB(21, 30, 69),
 		BackgroundTransparency = 0.4,
@@ -1529,7 +1532,7 @@ function Ui.Bind(playerGui)
 	)
 	local v14l = new("Frame", {
 		Name = "Lift",
-		Position = UDim2.new(0, 4, 0, 2),
+		Position = UDim2.fromOffset(4, 2),
 		Size = UDim2.new(1, -8, 0, 6),
 		BackgroundColor3 = Color3.new(1, 1, 1),
 		BackgroundTransparency = 0.7,
@@ -1539,14 +1542,14 @@ function Ui.Bind(playerGui)
 	refs["AutoRow"] = v14f
 	table.insert(layouts, {
 		v14,
-		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 16, 0, 256), Size = UDim2.new(0, 568, 0, 60) },
-		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 12, 0, 210), Size = UDim2.new(0, 476, 0, 50) },
+		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.fromOffset(16, 256), Size = UDim2.fromOffset(568, 60) },
+		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.fromOffset(12, 210), Size = UDim2.fromOffset(476, 50) },
 	})
 	local v15 = new("TextLabel", {
 		Name = "AutoName",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 12, 0, 0),
-		Size = UDim2.new(0, 400, 0, 60),
+		Position = UDim2.fromOffset(12, 0),
+		Size = UDim2.fromOffset(400, 60),
 		BackgroundTransparency = 1,
 		Text = "AUTO ROLL",
 		TextSize = 25,
@@ -1565,27 +1568,27 @@ function Ui.Bind(playerGui)
 		v15,
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 12, 0, 0),
-			Size = UDim2.new(0, 400, 0, 60),
+			Position = UDim2.fromOffset(12, 0),
+			Size = UDim2.fromOffset(400, 60),
 			TextSize = 25,
 		},
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 8, 0, 0),
-			Size = UDim2.new(0, 338, 0, 50),
+			Position = UDim2.fromOffset(8, 0),
+			Size = UDim2.fromOffset(338, 50),
 			TextSize = 20,
 		},
 	})
 	local v16 = new("Frame", {
 		Name = "AutoToggle",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 436, 0, 6),
-		Size = UDim2.new(0, 116, 0, 48),
+		Position = UDim2.fromOffset(436, 6),
+		Size = UDim2.fromOffset(116, 48),
 		BackgroundTransparency = 1,
 	}, v14f)
 	local v16s = new("Frame", {
 		Name = "Shadow",
-		Position = UDim2.new(0, 0, 0, 4),
+		Position = UDim2.fromOffset(0, 4),
 		Size = UDim2.fromScale(1, 1),
 		BackgroundColor3 = Color3.fromRGB(27, 82, 74),
 		BackgroundTransparency = 0.4,
@@ -1621,7 +1624,7 @@ function Ui.Bind(playerGui)
 	)
 	local v16l = new("Frame", {
 		Name = "Lift",
-		Position = UDim2.new(0, 4, 0, 2),
+		Position = UDim2.fromOffset(4, 2),
 		Size = UDim2.new(1, -8, 0, 6),
 		BackgroundColor3 = Color3.new(1, 1, 1),
 		BackgroundTransparency = 0.7,
@@ -1631,14 +1634,14 @@ function Ui.Bind(playerGui)
 	refs["AutoToggle"] = v16f
 	table.insert(layouts, {
 		v16,
-		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 436, 0, 6), Size = UDim2.new(0, 116, 0, 48) },
-		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 356, 0, 1), Size = UDim2.new(0, 108, 0, 48) },
+		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.fromOffset(436, 6), Size = UDim2.fromOffset(116, 48) },
+		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.fromOffset(356, 1), Size = UDim2.fromOffset(108, 48) },
 	})
 	local v17 = new("TextLabel", {
 		Name = "AutoToggleLabel",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 0, 0, 0),
-		Size = UDim2.new(1, 0, 1, 0),
+		Position = UDim2.fromOffset(0, 0),
+		Size = UDim2.fromScale(1, 1),
 		BackgroundTransparency = 1,
 		Text = "ON",
 		TextSize = 23,
@@ -1657,14 +1660,14 @@ function Ui.Bind(playerGui)
 		v17,
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 0, 0, 0),
-			Size = UDim2.new(1, 0, 1, 0),
+			Position = UDim2.fromOffset(0, 0),
+			Size = UDim2.fromScale(1, 1),
 			TextSize = 23,
 		},
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 0, 0, 0),
-			Size = UDim2.new(1, 0, 1, 0),
+			Position = UDim2.fromOffset(0, 0),
+			Size = UDim2.fromScale(1, 1),
 			TextSize = 21,
 		},
 	})

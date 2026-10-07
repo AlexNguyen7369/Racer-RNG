@@ -7,7 +7,7 @@ commit history, the compat gate, the TODO list, feature suggestions and the test
   python3 tools/dashboard/server.py --lan           also reachable from your network (read-only for others)
   python3 tools/dashboard/server.py --lan --lan-write   others on the network may also edit TODO / suggestions
 
-Stdlib only. Reads Claude Code transcripts from ~/.claude/projects/<this repo>/, git, .compat/ and the repo files.
+Stdlib only. Reads Claude Code transcripts, workspace-filtered Codex rollouts, git, .compat/ and the repo files.
 Writes only tools/dashboard/data/todo.json, suggestions.json and manual.json (checked in, so the team shares them),
 plus the generated TODO section of README.md after every TODO change (tools/readme_sync.py).
 Team tab (tools/collab.py): fetches origin every FETCH_SECONDS, lists everyone's branches, and from this machine only
@@ -42,10 +42,16 @@ sys.path.insert(0, os.path.join(ROOT, "tools"))
 import collab  # noqa: E402  (feature branches, GitHub sync, everyone's branches)
 import compat  # noqa: E402  (fingerprints and the green stamp)
 import readme_sync  # noqa: E402  (README.md TODO section mirrors todo.json)
+import agent_bus  # noqa: E402  (Claude <-> Codex messages and status, .agents/)
+from codex_activity import CodexActivity  # noqa: E402
+
+CODEX = CodexActivity(ROOT)
+EDIT_TOOLS = ("Edit", "Write", "MultiEdit", "NotebookEdit")
+COMMIT_OUT = re.compile(r"^\[[^\]\s]+(?: \(root-commit\))? ([0-9a-f]{7,40})\] ", re.M)
 
 RUNNING_SECONDS = 120  # a transcript written to this recently, without a final report, counts as running
 WRITE_LOCK = threading.RLock()  # re-entrant: adding a suggestion writes the TODO inside the same lock
-SUITES = ["harness", "ui", "multiplayer", "world"]
+SUITES = ["harness", "ui", "multiplayer", "world", "regression"]
 FETCH_SECONDS = 120  # background `git fetch origin`, so collaborators' pushes show up without anyone clicking
 FETCH = {"at": None, "error": None, "running": False}
 AUTO_BRANCH = True  # moving a TODO card to Doing (or adding one there) starts its feature branch
@@ -162,8 +168,295 @@ def sessions():
             if e.get("type") == "ai-title":
                 title = e.get("aiTitle") or e.get("title") or title
         n = len(glob.glob(os.path.join(TRANSCRIPTS, sid, "subagents", "*.jsonl")))
-        out.append({"id": sid, "title": title, "agents": n, "updated": os.path.getmtime(path)})
+        out.append({"id": sid, "title": title, "source": "claude", "model": claude_model(path), "agents": n,
+            "updated": os.path.getmtime(path)})
+    out = sorted(out + CODEX.sessions(), key=lambda s: s["updated"], reverse=True)[:30]
+    return [{**s, "model": agent_bus.model_label(s.get("model"))} for s in out]
+
+
+def claude_model(path):
+    """The model of the newest assistant turn in a Claude transcript ("" if none)."""
+    for e in reversed(load_lines(path)):
+        model = (e.get("message") or {}).get("model") if e.get("type") == "assistant" else None
+        if model and not model.startswith("<"):
+            return model
+    return ""
+
+
+def claude_paths(limit=15):
+    """(path, session id, agent type) for the newest main transcripts and all their subagents."""
+    files = sorted(glob.glob(os.path.join(TRANSCRIPTS, "*.jsonl")), key=os.path.getmtime, reverse=True)[:limit]
+    for path in files:
+        sid = os.path.basename(path)[:-6]
+        yield path, sid, "main"
+        for sub in glob.glob(os.path.join(TRANSCRIPTS, sid, "subagents", "agent-*.jsonl")):
+            yield sub, sid, read_json(sub[: -len(".jsonl")] + ".meta.json", {}).get("agentType") or "agent"
+
+
+def claude_edits_and_commits():
+    """Files Claude (main or subagent) changed with Edit/Write, and commits it made (from `git commit` output)."""
+    edits, commits = [], {}
+    for path, sid, kind in claude_paths():
+        model = claude_model(path)
+        for e in load_lines(path):
+            for b in blocks(e):
+                if b.get("type") == "tool_use" and b.get("name") in EDIT_TOOLS:
+                    fp = (b.get("input") or {}).get("file_path") or (b.get("input") or {}).get("notebook_path") or ""
+                    real = os.path.realpath(fp) if fp else ""
+                    if real and os.path.commonpath([ROOT, real]) == ROOT:
+                        edits.append((os.path.relpath(real, ROOT), e.get("timestamp"), model, kind, sid))
+                elif b.get("type") == "tool_result":
+                    for sha in COMMIT_OUT.findall(result_text(b)):
+                        commits[sha[:7]] = (model, kind)
+    return edits, commits
+
+
+_attr = {"at": 0, "data": None}
+
+
+def attribution():
+    """Who changed what: {"files": {path: [label...]}, "commits": {short sha: label}} from both agents' logs (5 s cache)."""
+    if _attr["data"] and time.time() - _attr["at"] < 5:
+        return _attr["data"]
+    c_edits, c_commits = claude_edits_and_commits()
+    x_edits = CODEX.edits()
+    files = {}
+    for agent, rows in (("claude", c_edits), ("codex", x_edits)):
+        for path, ts, model, kind, sid in rows:
+            files.setdefault(path, []).append({"agent": agent, "model": agent_bus.model_label(model), "role": kind,
+                "session": sid, "ts": ts})
+    commits = {sha: {"agent": "claude", "model": agent_bus.model_label(m), "role": k} for sha, (m, k) in c_commits.items()}
+    commits.update({sha: {"agent": "codex", "model": agent_bus.model_label(m), "role": k} for sha, (m, k) in CODEX.commits().items()})
+    _attr.update(at=time.time(), data={"files": files, "commits": commits})
+    return _attr["data"]
+
+
+def label_edits(rows, since):
+    """Newest first, one per (agent, model, role), only edits after `since` (ISO) when given."""
+    seen, out = set(), []
+    for r in sorted(rows, key=lambda r: r["ts"] or "", reverse=True):
+        if since and r["ts"] and iso_epoch(r["ts"]) <= since:
+            continue
+        key = (r["agent"], r["model"], r["role"])
+        if key not in seen:
+            seen.add(key)
+            out.append(r)
     return out
+
+
+def iso_epoch(ts):
+    try:
+        return datetime.datetime.fromisoformat(ts.replace("Z", "+00:00")).timestamp()
+    except (ValueError, AttributeError):
+        return 0
+
+
+def last_committed():
+    """{path: epoch of the newest commit on HEAD that touched it} (one git call)."""
+    out, when_ = {}, 0
+    for line in git("log", "-n400", "--format=%x1e%ct", "--name-only", check=False).splitlines():
+        if line.startswith("\x1e"):
+            when_ = int(line[1:] or 0)
+        elif line.strip() and line not in out:
+            out[line] = when_
+    return out
+
+
+def claude_presence():
+    files = sorted(glob.glob(os.path.join(TRANSCRIPTS, "*.jsonl")), key=os.path.getmtime, reverse=True)
+    if not files:
+        return None
+    path = files[0]
+    sid = os.path.basename(path)[:-6]
+    title, prompt, report, last_tool, ended = "", "", "", "", False
+    for e in load_lines(path):
+        if e.get("type") == "ai-title":
+            title = e.get("aiTitle") or e.get("title") or title
+        for b in blocks(e):
+            if e.get("type") == "user" and b.get("type") == "text" and not e.get("isMeta"):
+                text = b.get("text", "")
+                if text.strip() and not text.lstrip().startswith(("<", "Caveat:")):
+                    prompt, report, ended = text, "", False
+            elif e.get("type") == "assistant" and b.get("type") == "text" and b.get("text", "").strip():
+                report = b["text"]
+                ended = (e.get("message") or {}).get("stop_reason") == "end_turn"
+            elif b.get("type") == "tool_use":
+                last_tool, ended = f"{b.get('name')}: {tool_summary(b.get('name'), b.get('input'))}", False
+    updated = os.path.getmtime(path)
+    running = time.time() - updated < RUNNING_SECONDS and not ended
+    return {"agent": "claude", "session": sid, "title": title, "model": agent_bus.model_label(claude_model(path)),
+        "status": "running" if running else "done" if ended else "stopped", "prompt": prompt, "report": report,
+        "lastTool": last_tool, "updated": updated,
+        "subagents": sum(1 for a in agents(sid) if a["status"] == "running")}
+
+
+def presence():
+    """Both agents side by side: what each is doing (from its logs), what it says it is doing, its uncommitted files."""
+    dirty = {c["path"] for c in changes(plain=True)}
+    attr = attribution()["files"]
+    out = {}
+    for agent, p in (("claude", claude_presence()), ("codex", CODEX.presence())):
+        if not p:
+            out[agent] = None
+            continue
+        p = dict(p)
+        p["model"] = agent_bus.model_label(p.get("model"))
+        p["files"] = sorted(f for f in dirty if any(r["agent"] == agent for r in attr.get(f, [])))
+        p["updatedIso"] = datetime.datetime.fromtimestamp(p["updated"]).astimezone().isoformat(timespec="seconds")
+        out[agent] = p
+    return out
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# model analytics
+
+
+def _visible_prompt(text):
+    """Keep analytics task labels user-facing; never include setup/context records."""
+    if not isinstance(text, str):
+        return ""
+    text = text.strip()
+    if not text or text.startswith(("<", "Caveat:")):
+        return ""
+    return clip(" ".join(text.split()), 220)
+
+
+def _claude_analytics():
+    rows = []
+    paths = list(claude_paths(limit=10_000))
+    for path, sid, role in paths:
+        lines = load_lines(path)
+        prompt, model, started, last_report, ended = "", "", None, None, False
+        usage = {"input": 0, "output": 0, "cached": 0, "reasoning": 0}
+        tools = 0
+        for e in lines:
+            ts = e.get("timestamp")
+            if e.get("type") == "assistant":
+                msg = e.get("message") or {}
+                model = msg.get("model") or model
+                u = msg.get("usage") or {}
+                usage["input"] += int(u.get("input_tokens") or 0)
+                usage["output"] += int(u.get("output_tokens") or 0)
+                usage["cached"] += int(u.get("cache_read_input_tokens") or 0)
+                usage["cached"] += int(u.get("cache_creation_input_tokens") or 0)
+            for b in blocks(e):
+                if e.get("type") == "user" and b.get("type") == "text" and not e.get("isMeta"):
+                    candidate = _visible_prompt(b.get("text"))
+                    if candidate:
+                        prompt, started, last_report, ended = candidate, started or ts, None, False
+                elif e.get("type") == "assistant":
+                    msg = e.get("message") or {}
+                    if b.get("type") == "text" and b.get("text", "").strip():
+                        last_report = clip(b["text"], 500)
+                    if msg.get("stop_reason") == "end_turn":
+                        ended = True
+                elif b.get("type") == "tool_use":
+                    tools += 1
+                    ended = False
+        status = "done" if ended else "stopped"
+        if not ended and time.time() - os.path.getmtime(path) < RUNNING_SECONDS:
+            status = "running"
+        rows.append({"id": sid, "role": role, "model": agent_bus.model_label(model), "task": prompt,
+                     "status": status, "started": started, "updated": os.path.getmtime(path),
+                     "report": last_report or "", "tools": tools, "usage": usage})
+    return rows
+
+
+def _codex_analytics():
+    rows = []
+    for sid, record in CODEX.catalog().items():
+        items = CODEX.timeline(record)
+        prompt = next((i["text"] for i in reversed(items) if i.get("kind") == "prompt"), "")
+        tools = sum(1 for i in items if i.get("kind") == "tool")
+        status, report = "stopped", ""
+        usage = {"input": 0, "output": 0, "cached": 0, "reasoning": 0}
+        last_total = None
+        for e in CODEX.lines(record["path"]):
+            p = e.get("payload") or {}
+            if e.get("type") == "event_msg":
+                if p.get("type") == "task_started":
+                    status, report = "running", ""
+                elif p.get("type") == "task_complete":
+                    status, report = "done", clip(p.get("last_agent_message") or "", 500)
+                elif p.get("type") == "turn_aborted":
+                    status = "stopped"
+                if p.get("type") == "token_count":
+                    total = p.get("info", {}).get("total_token_usage", {})
+                    if total:
+                        last_total = total
+            elif e.get("type") == "response_item":
+                if p.get("type") == "message" and p.get("role") == "assistant" and p.get("phase") == "final_answer":
+                    report = clip(" ".join(b.get("text", "") for b in p.get("content", []) if b.get("type") == "output_text"), 500)
+                    status = "done"
+        if last_total:
+            usage = {"input": int(last_total.get("input_tokens") or 0),
+                     "output": int(last_total.get("output_tokens") or 0),
+                     "cached": int(last_total.get("cached_input_tokens") or 0),
+                     "reasoning": int(last_total.get("reasoning_output_tokens") or 0)}
+        if status == "running" and time.time() - record["updated"] >= RUNNING_SECONDS:
+            status = "stopped"
+        rows.append({"id": sid, "role": record["type"], "model": agent_bus.model_label(CODEX.model(record)),
+                     "task": clip(prompt, 220), "status": status, "started": items[0].get("ts") if items else None,
+                     "updated": record["updated"], "report": report, "tools": tools, "usage": usage})
+    return rows
+
+
+def model_analytics():
+    """Workspace-scoped, user-task-level telemetry for the Analytics tab."""
+    providers = {"claude": _claude_analytics(), "codex": _codex_analytics()}
+    cards, totals = [], {"sessions": 0, "tasks": 0, "completed": 0, "running": 0, "paused": 0,
+                         "tools": 0, "input": 0, "output": 0, "cached": 0, "reasoning": 0}
+    for provider, rows in providers.items():
+        by_model = {}
+        for row in rows:
+            model = row["model"] or "model unknown"
+            stats = by_model.setdefault(model, {"sessions": 0, "tasks": 0, "completed": 0, "running": 0, "paused": 0,
+                                                  "tools": 0, "input": 0, "output": 0, "cached": 0, "reasoning": 0})
+            stats["sessions"] += 1
+            stats["tasks"] += bool(row["task"])
+            stats["completed"] += row["status"] == "done"
+            stats["running"] += row["status"] == "running"
+            stats["paused"] += row["status"] == "stopped"
+            stats["tools"] += row["tools"]
+            for key in ("input", "output", "cached", "reasoning"):
+                stats[key] += row["usage"][key]
+                totals[key] += row["usage"][key]
+        active = sorted((r for r in rows if r["status"] == "running"), key=lambda r: r["updated"], reverse=True)
+        paused = sorted((r for r in rows if r["status"] == "stopped"), key=lambda r: r["updated"], reverse=True)
+        completed = sorted((r for r in rows if r["status"] == "done"), key=lambda r: r["updated"], reverse=True)
+        card = {"provider": provider, "label": {"claude": "Claude", "codex": "Codex"}.get(provider, provider.title()),
+                "models": [{"model": model, **stats} for model, stats in sorted(by_model.items())],
+                "current": [{"task": r["task"] or "No task label", "model": r["model"], "updated": r["updated"],
+                              "tools": r["tools"]} for r in active],
+                "paused": [{"task": r["task"] or "Unlabelled task", "model": r["model"], "updated": r["updated"]} for r in paused[:20]],
+                "completedRecent": [{"task": r["task"] or "Unlabelled task", "model": r["model"], "updated": r["updated"],
+                                     "report": r["report"]} for r in completed[:20]],
+                "stats": {"sessions": len(rows), "tasks": sum(bool(r["task"]) for r in rows),
+                          "completed": len(completed), "running": len(active), "paused": len(paused),
+                          "tools": sum(r["tools"] for r in rows),
+                          **{key: sum(r["usage"][key] for r in rows) for key in ("input", "output", "cached", "reasoning")}}}
+        cards.append(card)
+        for key in ("sessions", "tasks", "completed", "running", "paused", "tools"):
+            totals[key] += card["stats"][key]
+    return {"generated": now_iso(), "cards": cards, "totals": totals,
+            "note": "Task state is inferred from local provider logs. Paused means a task stopped without a completion event; token totals are reported by each provider and may include cached input."}
+
+
+def bus_view():
+    return {"messages": agent_bus.messages(200), "status": agent_bus.statuses(), "presence": presence(),
+        "unread": {a: len(agent_bus.unread(a)) for a in agent_bus.AGENTS}}
+
+
+def bus_action(body):
+    act = body.get("action")
+    if act == "send":
+        # from the page it is always the developer; agents use agent_bus.py directly
+        return agent_bus.send(body.get("from") or "user", body.get("to"), body.get("text"), body.get("re"), body.get("model"))
+    if act == "status":
+        files = body.get("files")
+        return agent_bus.set_status(body.get("agent"), body.get("task"), files if isinstance(files, list) else None,
+            body.get("note"), bool(body.get("clear")), body.get("model"))
+    return {"error": "bad action"}
 
 
 def verdict_of(text):
@@ -207,6 +500,8 @@ def agent_info(session, path):
         "type": meta.get("agentType") or "agent",
         "description": meta.get("description") or clip(prompt, 60),
         "toolUseId": meta.get("toolUseId"),
+        "source": "claude",
+        "model": claude_model(path),
         "status": status,
         "verdict": verdict_of(report) if report else None,
         "start": start,
@@ -218,13 +513,19 @@ def agent_info(session, path):
 
 
 def agents(session):
+    if session.startswith("codex-"):
+        return [{**a, "model": agent_bus.model_label(a.get("model"))} for a in CODEX.agents(session)]
     paths = glob.glob(os.path.join(TRANSCRIPTS, session, "subagents", "agent-*.jsonl"))
     out = [agent_info(session, p) for p in paths]
+    for a in out:
+        a["model"] = agent_bus.model_label(a["model"])
     out.sort(key=lambda a: a["start"] or "", reverse=True)
     return out
 
 
 def agent_timeline(session, aid):
+    if session.startswith("codex-"):
+        return CODEX.agent_timeline(session, aid)
     path = os.path.join(TRANSCRIPTS, session, "subagents", f"agent-{aid}.jsonl")
     if not re.fullmatch(r"[A-Za-z0-9]+", aid) or not os.path.isfile(path):
         return None
@@ -252,6 +553,8 @@ def agent_timeline(session, aid):
 
 def messages(session):
     """Messages between agents: the main thread's Agent / SendMessage calls and what came back."""
+    if session.startswith("codex-"):
+        return CODEX.messages(session)
     path = os.path.join(TRANSCRIPTS, f"{session}.jsonl")
     calls, out = {}, []
     for e in load_lines(path):
@@ -285,7 +588,7 @@ def messages(session):
 # git: changes, history, gate
 
 
-def changes():
+def changes(plain=False):
     out = []
     for line in git("status", "--porcelain=v1", "-uall").splitlines():
         code, path = line[:2], line[3:]
@@ -302,6 +605,12 @@ def changes():
             c["add"], c["del"] = (int(a) if a.isdigit() else 0), (int(d) if d.isdigit() else 0)
         elif c["status"] == "??":
             c["add"] = read_text(os.path.join(ROOT, c["path"])).count("\n")
+    if plain:
+        return out
+    # which agent (and model) changed each file since it was last committed; none = a person or an untracked tool
+    attr, committed = attribution()["files"], last_committed()
+    for c in out:
+        c["agents"] = label_edits(attr.get(c["path"], []), committed.get(c["path"]))
     return out
 
 
@@ -329,7 +638,7 @@ def commit_green(sha, stamp_fp):
 
 
 def history(limit, author=None, branch=None):
-    fmt = "%x1e%H%x1f%h%x1f%an%x1f%aI%x1f%D%x1f%s"
+    fmt = "%x1e%H%x1f%h%x1f%an%x1f%aI%x1f%D%x1f%s%x1f%(trailers:key=Co-authored-by,key=Agent,valueonly,separator=%x1d)"
     args = ["log", f"-n{limit}", f"--format={fmt}", "--numstat"]
     args += [branch] if branch else ["--all"]
     if author:
@@ -337,20 +646,40 @@ def history(limit, author=None, branch=None):
     raw = git(*args, check=False)
     pushed = set(git("rev-list", "--remotes", "-n", "2000", check=False).split())
     stamp = compat.load_stamp() or {}
+    logged = attribution()["commits"]
     out = []
     for rec in raw.split("\x1e")[1:]:
         head, _, rest = rec.partition("\n")
-        sha, short, name, date, refs, subject = head.split("\x1f")
+        sha, short, name, date, refs, subject, trailers = head.split("\x1f")
         files = []
         for l in rest.strip().splitlines():
             parts = l.split("\t", 2)
             if len(parts) == 3:
                 files.append({"path": parts[2], "add": parts[0], "del": parts[1]})
         out.append({"sha": sha, "short": short, "author": name, "date": date, "refs": refs, "subject": subject,
-            "files": files, "pushed": sha in pushed, "green": commit_green(sha, stamp.get("fingerprint"))})
+            "files": files, "pushed": sha in pushed, "green": commit_green(sha, stamp.get("fingerprint")),
+            "agents": commit_agents(sha, trailers, logged)})
     authors = sorted(set(git("log", "--all", "--format=%an", check=False).split("\n")) - {""})
     branches = [b.strip() for b in git("branch", "-a", "--format=%(refname:short)", check=False).splitlines() if b.strip()]
     return {"commits": out, "authors": authors, "branches": branches}
+
+
+def commit_agents(sha, trailers, logged):
+    """Agents behind a commit: its trailers (Co-Authored-By: Claude <model>, Agent: Codex) plus the agent logs."""
+    out = []
+    for value in trailers.split("\x1d"):
+        hit = agent_bus.agent_of_trailer(value) if value.strip() else None
+        if hit and hit[0] not in {a["agent"] for a in out}:
+            out.append({"agent": hit[0], "model": hit[1], "role": "main"})
+    log = logged.get(sha[:7])
+    if log:
+        known = next((a for a in out if a["agent"] == log["agent"]), None)
+        if known:
+            known["model"] = known["model"] or log["model"]
+            known["role"] = log["role"]
+        else:
+            out.append(dict(log))
+    return out
 
 
 def show_commit(sha):
@@ -638,15 +967,18 @@ class Handler(BaseHTTPRequestHandler):
                     return self.send(200, f.read(), CONTENT_TYPES.get(os.path.splitext(name)[1], "application/octet-stream"))
             ss = sessions()
             sid = q.get("session") or (ss[0]["id"] if ss else "")
-            if sid and not re.fullmatch(r"[0-9a-f-]{36}", sid):
+            if sid and not re.fullmatch(r"(?:codex-)?[0-9a-f-]{36}", sid):
                 return self.send(400, {"error": "bad session"})
             routes = {
                 "/api/meta": lambda: {"developer": developer(), "root": ROOT, "sessions": ss, "session": sid,
-                    "canWrite": self.can_write(), "local": self.is_local(), "autoBranch": AUTO_BRANCH, "transcripts": TRANSCRIPTS},
+                    "canWrite": self.can_write(), "local": self.is_local(), "autoBranch": AUTO_BRANCH,
+                    "transcripts": TRANSCRIPTS, "codexTranscripts": os.path.join(CODEX.home, "sessions")},
                 "/api/team": team_view,
                 "/api/agents": lambda: agents(sid) if sid else [],
                 "/api/messages": lambda: messages(sid) if sid else [],
                 "/api/changes": changes,
+                "/api/bus": bus_view,
+                "/api/analytics": model_analytics,
                 "/api/gate": gate,
                 "/api/needtoknow": need_to_know,
                 "/api/todo": lambda: read_json(TODO_FILE, {"items": []}),
@@ -699,6 +1031,8 @@ class Handler(BaseHTTPRequestHandler):
                 if not item.get("branch"):
                     started = start_branch(tid)
                     r = {**(started.get("todo") or r), "started": started.get("started"), "branchError": started.get("error")}
+        elif p == "/api/bus":
+            r = bus_action(body)
         elif p.startswith("/api/manual/"):
             r = manual_action(p.rsplit("/", 1)[1], body)
         elif p.startswith("/api/suggestions/"):

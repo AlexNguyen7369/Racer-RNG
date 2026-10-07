@@ -1,8 +1,8 @@
 // Agent dashboard client: polls the local server (tools/dashboard/server.py) and renders each tab.
 "use strict";
 
-const AGENTS = ["main", "test-writer", "ui-test-writer", "physics-tester", "ui-tester", "multiplayer-tester",
-  "world-tester", "physics-tuner", "track-designer"];
+const AGENTS = ["main", "claude", "codex", "test-writer", "ui-test-writer", "physics-tester", "ui-tester", "multiplayer-tester",
+  "world-tester", "regression-tester", "physics-tuner", "track-designer"];
 const STATUS_COLS = [["doing", "Doing"], ["next", "Up next"], ["backlog", "Backlog"], ["done", "Done"]];
 
 const $ = (id) => document.getElementById(id);
@@ -13,6 +13,15 @@ function esc(s) {
 }
 function colorVar(type) {
   return AGENTS.includes(type) ? `var(--a-${type})` : "var(--a-other)";
+}
+const AGENT_NAME = { claude: "Claude", codex: "Codex", user: "You", all: "both" };
+// "Claude · Opus 5.5 · physics-tuner": which agent, which model, which role (subagent) made a change
+function agentChip(a) {
+  const role = a.role && !["main", a.agent].includes(a.role) ? ` · ${a.role}` : "";
+  return `<span class="achip" style="--c:${colorVar(a.agent)}" title="${esc(a.ts ? `last edit ${when(a.ts)}` : "")}">${esc(AGENT_NAME[a.agent] || a.agent)}${a.model ? ` · ${esc(a.model)}` : ""}${esc(role)}</span>`;
+}
+function agentChips(list, none = "") {
+  return `<span class="achips">${(list || []).length ? list.map(agentChip).join("") : none ? `<span class="achip none" title="No agent log touched it: a person, or an agent edit made through a shell command">${none}</span>` : ""}</span>`;
 }
 function when(ts) {
   if (!ts) return "";
@@ -81,10 +90,11 @@ async function loadMeta() {
   $("team-actions").hidden = $("feature-form").hidden = !m.local;
   $("who").textContent = `${m.developer}${m.canWrite ? "" : " · read-only"}`;
   $("todo-form").hidden = !m.canWrite;
+  $("bus-form").hidden = !m.canWrite;
   if (!state.session) state.session = m.session;
   if (changed("sessions", m.sessions)) {
     $("session").innerHTML = m.sessions.map((s) =>
-      `<option value="${esc(s.id)}">${esc(s.title || s.id.slice(0, 8))} · ${s.agents} agents · ${ago(s.updated * 1000)}</option>`).join("");
+      `<option value="${esc(s.id)}">${esc(s.source === "codex" ? "Codex" : "Claude")}${s.model ? ` (${esc(s.model)})` : ""} · ${esc(s.title || s.id.slice(0, 8))} · ${s.agents} agents · ${ago(s.updated * 1000)}</option>`).join("");
     $("session").value = state.session;
   }
 }
@@ -114,11 +124,52 @@ async function loadAgents() {
   $("agents").innerHTML = list.length ? list.map((a) => `
     <div class="agent ${state.agent === a.id ? "sel" : ""}" data-id="${esc(a.id)}" style="--c:${colorVar(a.type)}">
       <div class="row"><span class="type">${esc(a.type)}</span>${statusBadge(a.status, a.verdict)}</div>
+      <div class="small">${agentChip({ agent: a.source || "claude", model: a.model, role: "main" })}</div>
       <div class="desc">${esc(a.description)}</div>
       <div class="row small muted"><span>${when(a.start)}</span><span>${duration(a.start, a.end)} · ${a.steps} steps</span></div>
       ${a.status === "running" ? `<div class="last">${esc(a.lastTool)}</div>` : ""}
     </div>`).join("") : `<p class="muted">No subagents in this session yet. Pick an earlier session in the Session menu to see past runs.</p>`;
   $("agents").querySelectorAll(".agent").forEach((el) => el.addEventListener("click", () => selectAgent(el.dataset.id)));
+}
+
+// ------------------------------------------------------------------------------------------------ Claude <-> Codex bus
+
+function presenceHtml(name, p, st) {
+  const c = colorVar(name);
+  const said = st && st.task ? `<p class="said small"><b>Says:</b> ${esc(st.task)}${st.files && st.files.length ? ` · <span class="muted">${st.files.map(esc).join(", ")}</span>` : ""}${st.note ? `<br>${esc(st.note)}` : ""} <span class="muted">${ago(st.updated)}</span></p>` : "";
+  if (!p) return `<div class="presence" style="--c:${c}"><div class="row"><span class="name">${AGENT_NAME[name]}</span><span class="badge">no sessions here</span></div>${said}</div>`;
+  return `<div class="presence" style="--c:${c}">
+    <div class="row"><span class="name">${AGENT_NAME[name]}${p.model ? ` · ${esc(p.model)}` : ""}</span>${statusBadge(p.status)}</div>
+    <div class="small muted">${esc(p.title || p.session.slice(0, 14))} · active ${ago(p.updated * 1000)}${p.subagents ? ` · ${p.subagents} subagents running` : ""}</div>
+    ${said}
+    ${p.prompt ? `<p class="small clamp" title="${esc(p.prompt)}"><b>Task:</b> ${esc(p.prompt)}</p>` : ""}
+    ${p.status === "running" && p.lastTool ? `<p class="small muted clamp">⚙ ${esc(p.lastTool)}</p>` : p.report ? `<p class="small muted clamp" title="${esc(p.report)}"><b>Latest:</b> ${esc(p.report)}</p>` : ""}
+    <p class="small"><b>Uncommitted files it changed:</b> ${p.files.length ? p.files.map((f) => `<code>${esc(f)}</code>`).join(" ") : `<span class="muted">none</span>`}</p>
+  </div>`;
+}
+
+function busMsgHtml(m, byId) {
+  const parent = m.re && byId[m.re];
+  return `<div class="msg" style="--c:${colorVar(m.from === "user" ? "other" : m.from)}">
+    <div class="meta"><b>${esc(AGENT_NAME[m.from] || m.from)}${m.model ? ` · ${esc(m.model)}` : ""}</b><span class="arrow">→</span>
+      <span class="to" style="--t:${colorVar(m.to)}">${esc(AGENT_NAME[m.to] || m.to)}</span>
+      ${parent ? `<span class="small" title="${esc(parent.text)}">re ${esc(AGENT_NAME[parent.from] || parent.from)}: ${esc(parent.text.slice(0, 50))}</span>` : ""}
+      <span>${when(m.ts)}</span><span class="muted">#${esc(m.id)}</span></div>
+    <div class="body">${esc(m.text)}</div></div>`;
+}
+
+async function loadBus() {
+  const b = await api("/api/bus");
+  if (!changed("bus", b)) return;
+  $("presence").innerHTML = ["claude", "codex"].map((a) => presenceHtml(a, b.presence[a], b.status[a])).join("");
+  $("bus-unread").textContent = `unread: Claude ${b.unread.claude} · Codex ${b.unread.codex}`;
+  const el = $("thread");
+  const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+  const byId = Object.fromEntries(b.messages.map((m) => [m.id, m]));
+  el.innerHTML = b.messages.length ? b.messages.map((m) => busMsgHtml(m, byId)).join("")
+    : `<p class="muted small">No messages yet. Agents send with <code>python3 tools/dashboard/agent_bus.py send --from claude --to codex "…"</code>; Claude gets new ones automatically at its next prompt, Codex when it runs <code>agent_bus.py context --agent codex</code>.</p>`;
+  if (atBottom || state.busJump) el.scrollTop = el.scrollHeight;
+  state.busJump = false;
 }
 
 function msgHtml(m) {
@@ -197,7 +248,7 @@ async function loadChanges() {
   const label = { M: "modified", A: "added", D: "deleted", R: "renamed", "??": "new" };
   $("changes").innerHTML = list.length ? list.map((c) => `
     <div class="file" data-path="${esc(c.path)}" title="${esc(c.path)}">
-      <span class="badge">${esc(label[c.status] || c.status)}</span><span class="path">${esc(c.path)}</span>
+      <span class="badge">${esc(label[c.status] || c.status)}</span><span class="path">${esc(c.path)}</span>${agentChips(c.agents, "no agent")}
       <span class="plus">+${c.add}</span><span class="minus">-${c.del}</span></div>`).join("") : `<p class="muted">Working tree is clean.</p>`;
   $("changes").querySelectorAll(".file").forEach((el) => el.addEventListener("click", async () => {
     document.querySelectorAll(".file").forEach((f) => f.classList.toggle("sel", f === el));
@@ -224,14 +275,16 @@ async function loadHistory() {
     fill($("f-author"), "All developers", h.authors);
     fill($("f-branch"), "All branches", h.branches);
   }
-  if (!changed("history", h.commits)) return;
-  $("history").innerHTML = h.commits.map((c) => {
+  const fa = $("f-agent").value;
+  const commits = h.commits.filter((c) => !fa || (fa === "none" ? !c.agents.length : c.agents.some((a) => a.agent === fa)));
+  if (!changed("history", commits)) return;
+  $("history").innerHTML = commits.map((c) => {
     const add = c.files.reduce((n, f) => n + (+f.add || 0), 0);
     const del = c.files.reduce((n, f) => n + (+f.del || 0), 0);
     return `<div class="commit" data-sha="${esc(c.sha)}">
       <span class="sha">${esc(c.short)}</span><span class="subj">${esc(c.subject)}</span>
       <span class="when">${esc(new Date(c.date).toLocaleString())}</span>
-      <div class="sub"><span class="who" style="--c:var(--a-other)">${esc(c.author)}</span>
+      <div class="sub"><span class="who" style="--c:var(--a-other)">${esc(c.author)}</span>${agentChips(c.agents)}
         ${c.green ? `<span class="badge pass">green</span>` : ""}${c.pushed ? "" : `<span class="badge">local</span>`}
         ${c.refs ? `<span class="badge">${esc(c.refs)}</span>` : ""}
         <span>${c.files.length} files</span><span class="plus">+${add}</span><span class="minus">-${del}</span></div></div>`;
@@ -442,7 +495,7 @@ async function loadManual() {
   document.querySelectorAll("#tab-manual [data-ma]").forEach((b) => b.addEventListener("click", async () => {
     try {
       await api(`/api/manual/${b.dataset.m}`, { action: b.dataset.ma });
-      toast(b.dataset.ma === "done" ? "Marked done: tell Claude so it can pick it up" : "Reopened");
+      toast(b.dataset.ma === "done" ? "Marked done: tell your agent so it can pick it up" : "Reopened");
       state.last.manual = null;
       await loadManual();
     } catch (e) { toast(e.message); }
@@ -479,12 +532,58 @@ async function loadTests() {
   keepOpen($("tab-tests"));
 }
 
+// ------------------------------------------------------------------------------------------------ model analytics
+
+function num(n) { return Number(n || 0).toLocaleString(); }
+function statLine(s) {
+  return `<span class="analytics-stat"><b>${num(s)}</b></span>`;
+}
+function taskRows(rows, empty, completed = false) {
+  return rows.length ? rows.map((r) => `<div class="analytics-task">
+    <div><span class="task-text">${esc(r.task)}</span>${r.model ? ` <span class="badge">${esc(r.model)}</span>` : ""}</div>
+    <span class="small muted">${when(r.updated * 1000)}${r.tools != null ? ` · ${num(r.tools)} tool calls` : ""}</span>
+    ${completed && r.report ? `<div class="small muted clamp">${esc(r.report)}</div>` : ""}
+  </div>`).join("") : `<p class="muted small">${empty}</p>`;
+}
+function analyticsCard(c) {
+  const s = c.stats;
+  const models = c.models.map((m) => `<div class="analytics-model"><b>${esc(m.model)}</b>
+    <span>${num(m.tasks)} tasks · ${num(m.completed)} completed · ${num(m.tools)} tools</span>
+    <span class="small muted">${num(m.input)} in · ${num(m.output)} out · ${num(m.cached)} cached${m.reasoning ? ` · ${num(m.reasoning)} reasoning` : ""}</span>
+  </div>`).join("");
+  return `<div class="panel analytics-card" style="--c:${colorVar(c.provider)}">
+    <div class="panel-head"><h2>${esc(c.label)}</h2><span class="badge ${s.running ? "running" : ""}">${s.running ? `${s.running} live` : "idle"}</span></div>
+    <div class="analytics-metrics">
+      <div><b>${num(s.tasks)}</b><span>tasks</span></div><div><b>${num(s.completed)}</b><span>completed</span></div>
+      <div><b>${num(s.paused)}</b><span>paused</span></div><div><b>${num(s.sessions)}</b><span>sessions</span></div>
+    </div>
+    <h3>Models used</h3>${models || `<p class="muted small">No model telemetry yet.</p>`}
+    <div class="analytics-columns">
+      <div><h3>Working live <span class="muted">(${num(s.running)})</span></h3>${taskRows(c.current, "No live tasks.")}</div>
+      <div><h3>Paused / stopped <span class="muted">(${num(s.paused)})</span></h3>${taskRows(c.paused, "No paused tasks.")}</div>
+    </div>
+    <h3>Previously completed</h3>${taskRows(c.completedRecent, "No completed tasks recorded.", true)}
+  </div>`;
+}
+async function loadAnalytics() {
+  const a = await api("/api/analytics");
+  if (!changed("analytics", a)) return;
+  $("analytics-updated").textContent = `updated ${when(a.generated)}`;
+  const t = a.totals;
+  $("analytics-summary").innerHTML = [
+    ["Tasks", t.tasks], ["Completed", t.completed], ["Live", t.running], ["Paused", t.paused],
+    ["Input tokens", t.input], ["Output tokens", t.output], ["Tool calls", t.tools],
+  ].map(([label, value]) => `<div class="summary-metric"><b>${num(value)}</b><span>${label}</span></div>`).join("");
+  $("analytics-cards").innerHTML = a.cards.map(analyticsCard).join("");
+}
+
 // ------------------------------------------------------------------------------------------------ wiring + polling
 
 const LOADERS = {
   manual: [loadManual],
   team: [loadTeam],
-  agents: [loadAgents, loadTimeline, loadNeedToKnow],
+  agents: [loadBus, loadAgents, loadTimeline, loadNeedToKnow],
+  analytics: [loadAnalytics],
   changes: [loadChanges, loadHistory],
   todo: [loadTodo, loadSuggestions],
   tests: [loadTests],
@@ -530,6 +629,16 @@ $("feature-form").addEventListener("submit", (e) => {
   $("feature-title").value = $("feature-detail").value = "";
 });
 $("f-author").addEventListener("change", loadHistory);
+$("f-agent").addEventListener("change", loadHistory);
+$("bus-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  try {
+    await api("/api/bus", { action: "send", from: "user", to: $("bus-to").value, text: $("bus-text").value });
+    $("bus-text").value = "";
+    state.busJump = true;
+    await loadBus();
+  } catch (err) { toast(err.message); }
+});
 $("f-branch").addEventListener("change", loadHistory);
 $("todo-form").addEventListener("submit", (e) => {
   e.preventDefault();

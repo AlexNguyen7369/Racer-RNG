@@ -9,6 +9,10 @@ return {
 		MinCompression = 0.15, -- fraction of suspension travel, every wheel
 		MaxCompression = 0.65,
 		MaxTiltDeg = 3,
+		-- Parked hold (added for the at-rest vertical jitter): sampled every frame for 6 s after the
+		-- 3 s settle, over 4 fresh drops plus server frame hitches. The jitter kicks were ~0.8 studs/s.
+		MaxRestVerticalSpeed = 0.3, -- studs/s, peak |vy| of the parked chassis
+		MaxRestBobStuds = 0.03, -- peak-to-peak chassis Y while parked (a 0.8 studs/s kick is ~0.07)
 	},
 	accel = {
 		MaxTimeTo40 = 2.5, -- seconds from standstill to 40 studs/s

@@ -36,13 +36,13 @@ function Ui.Build(playerGui)
 	local v1 = new("Frame", {
 		Name = "Panel",
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.new(0.55, 0, 0.52, 0),
-		Size = UDim2.new(0, 780, 0, 524),
+		Position = UDim2.fromScale(0.55, 0.52),
+		Size = UDim2.fromOffset(780, 524),
 		BackgroundTransparency = 1,
 	}, gui)
 	local v1s = new("Frame", {
 		Name = "Shadow",
-		Position = UDim2.new(0, 0, 0, 4),
+		Position = UDim2.fromOffset(0, 4),
 		Size = UDim2.fromScale(1, 1),
 		BackgroundColor3 = Color3.fromRGB(18, 26, 65),
 		BackgroundTransparency = 0.4,
@@ -76,7 +76,7 @@ function Ui.Build(playerGui)
 	)
 	local v1l = new("Frame", {
 		Name = "Lift",
-		Position = UDim2.new(0, 4, 0, 2),
+		Position = UDim2.fromOffset(4, 2),
 		Size = UDim2.new(1, -8, 0, 6),
 		BackgroundColor3 = Color3.new(1, 1, 1),
 		BackgroundTransparency = 0.7,
@@ -89,25 +89,25 @@ function Ui.Build(playerGui)
 		v1,
 		{
 			AnchorPoint = Vector2.new(0.5, 0.5),
-			Position = UDim2.new(0.55, 0, 0.52, 0),
-			Size = UDim2.new(0, 780, 0, 524),
+			Position = UDim2.fromScale(0.55, 0.52),
+			Size = UDim2.fromOffset(780, 524),
 		},
 		{
 			AnchorPoint = Vector2.new(0.5, 0.5),
-			Position = UDim2.new(0.62, 0, 0.56, 0),
-			Size = UDim2.new(0, 500, 0, 280),
+			Position = UDim2.fromScale(0.62, 0.56),
+			Size = UDim2.fromOffset(500, 280),
 		},
 	})
 	local v2 = new("Frame", {
 		Name = "Header",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 12, 0, 12),
-		Size = UDim2.new(0, 756, 0, 64),
+		Position = UDim2.fromOffset(12, 12),
+		Size = UDim2.fromOffset(756, 64),
 		BackgroundTransparency = 1,
 	}, v1f)
 	local v2s = new("Frame", {
 		Name = "Shadow",
-		Position = UDim2.new(0, 0, 0, 4),
+		Position = UDim2.fromOffset(0, 4),
 		Size = UDim2.fromScale(1, 1),
 		BackgroundColor3 = Color3.fromRGB(18, 81, 123),
 		BackgroundTransparency = 0.4,
@@ -141,7 +141,7 @@ function Ui.Build(playerGui)
 	)
 	local v2l = new("Frame", {
 		Name = "Lift",
-		Position = UDim2.new(0, 4, 0, 2),
+		Position = UDim2.fromOffset(4, 2),
 		Size = UDim2.new(1, -8, 0, 6),
 		BackgroundColor3 = Color3.new(1, 1, 1),
 		BackgroundTransparency = 0.7,
@@ -151,14 +151,14 @@ function Ui.Build(playerGui)
 	refs["Header"] = v2f
 	table.insert(layouts, {
 		v2,
-		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 12, 0, 12), Size = UDim2.new(0, 756, 0, 64) },
-		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 8, 0, 8), Size = UDim2.new(0, 484, 0, 48) },
+		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.fromOffset(12, 12), Size = UDim2.fromOffset(756, 64) },
+		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.fromOffset(8, 8), Size = UDim2.fromOffset(484, 48) },
 	})
 	local v3 = new("TextLabel", {
 		Name = "Title",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 12, 0, 0),
-		Size = UDim2.new(0, 650, 0, 64),
+		Position = UDim2.fromOffset(12, 0),
+		Size = UDim2.fromOffset(650, 64),
 		BackgroundTransparency = 1,
 		Text = "CAR INDEX",
 		TextSize = 34,
@@ -177,27 +177,27 @@ function Ui.Build(playerGui)
 		v3,
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 12, 0, 0),
-			Size = UDim2.new(0, 650, 0, 64),
+			Position = UDim2.fromOffset(12, 0),
+			Size = UDim2.fromOffset(650, 64),
 			TextSize = 34,
 		},
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 8, 0, 0),
-			Size = UDim2.new(0, 382, 0, 48),
+			Position = UDim2.fromOffset(8, 0),
+			Size = UDim2.fromOffset(382, 48),
 			TextSize = 25,
 		},
 	})
 	local v4 = new("Frame", {
 		Name = "Close",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 692, 0, 6),
-		Size = UDim2.new(0, 52, 0, 52),
+		Position = UDim2.fromOffset(692, 6),
+		Size = UDim2.fromOffset(52, 52),
 		BackgroundTransparency = 1,
 	}, v2f)
 	local v4s = new("Frame", {
 		Name = "Shadow",
-		Position = UDim2.new(0, 0, 0, 4),
+		Position = UDim2.fromOffset(0, 4),
 		Size = UDim2.fromScale(1, 1),
 		BackgroundColor3 = Color3.fromRGB(88, 37, 73),
 		BackgroundTransparency = 0.4,
@@ -233,7 +233,7 @@ function Ui.Build(playerGui)
 	)
 	local v4l = new("Frame", {
 		Name = "Lift",
-		Position = UDim2.new(0, 4, 0, 2),
+		Position = UDim2.fromOffset(4, 2),
 		Size = UDim2.new(1, -8, 0, 6),
 		BackgroundColor3 = Color3.new(1, 1, 1),
 		BackgroundTransparency = 0.7,
@@ -243,14 +243,14 @@ function Ui.Build(playerGui)
 	refs["Close"] = v4f
 	table.insert(layouts, {
 		v4,
-		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 692, 0, 6), Size = UDim2.new(0, 52, 0, 52) },
-		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 428, 0, 0), Size = UDim2.new(0, 48, 0, 48) },
+		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.fromOffset(692, 6), Size = UDim2.fromOffset(52, 52) },
+		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.fromOffset(428, 0), Size = UDim2.fromOffset(48, 48) },
 	})
 	local v5 = new("TextLabel", {
 		Name = "CloseLabel",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 0, 0, 0),
-		Size = UDim2.new(1, 0, 1, 0),
+		Position = UDim2.fromOffset(0, 0),
+		Size = UDim2.fromScale(1, 1),
 		BackgroundTransparency = 1,
 		Text = "X",
 		TextSize = 26,
@@ -269,22 +269,22 @@ function Ui.Build(playerGui)
 		v5,
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 0, 0, 0),
-			Size = UDim2.new(1, 0, 1, 0),
+			Position = UDim2.fromOffset(0, 0),
+			Size = UDim2.fromScale(1, 1),
 			TextSize = 26,
 		},
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 0, 0, 0),
-			Size = UDim2.new(1, 0, 1, 0),
+			Position = UDim2.fromOffset(0, 0),
+			Size = UDim2.fromScale(1, 1),
 			TextSize = 24,
 		},
 	})
 	local v6 = new("TextLabel", {
 		Name = "IndexProgress",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 16, 0, 92),
-		Size = UDim2.new(0, 748, 0, 26),
+		Position = UDim2.fromOffset(16, 92),
+		Size = UDim2.fromOffset(748, 26),
 		BackgroundTransparency = 1,
 		Text = "3 / 7 DISCOVERED",
 		TextSize = 21,
@@ -303,29 +303,29 @@ function Ui.Build(playerGui)
 		v6,
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 16, 0, 92),
-			Size = UDim2.new(0, 748, 0, 26),
+			Position = UDim2.fromOffset(16, 92),
+			Size = UDim2.fromOffset(748, 26),
 			TextSize = 21,
 		},
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 12, 0, 72),
-			Size = UDim2.new(0, 476, 0, 22),
+			Position = UDim2.fromOffset(12, 72),
+			Size = UDim2.fromOffset(476, 22),
 			TextSize = 18,
 		},
 	})
 	local v7 = new("Frame", {
 		Name = "GridHost",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 16, 0, 134),
-		Size = UDim2.new(0, 748, 0, 374),
+		Position = UDim2.fromOffset(16, 134),
+		Size = UDim2.fromOffset(748, 374),
 		BackgroundTransparency = 1,
 	}, v1f)
 	refs["GridHost"] = v7
 	table.insert(layouts, {
 		v7,
-		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 16, 0, 134), Size = UDim2.new(0, 748, 0, 374) },
-		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 12, 0, 100), Size = UDim2.new(0, 476, 0, 168) },
+		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.fromOffset(16, 134), Size = UDim2.fromOffset(748, 374) },
+		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.fromOffset(12, 100), Size = UDim2.fromOffset(476, 168) },
 	})
 	local function fit()
 		local camera = workspace.CurrentCamera
@@ -357,11 +357,14 @@ function Ui.Bind(playerGui)
 		saved:IsA("ScreenGui") and saved:GetAttribute("SpecHash") == "ab7f1fe08591",
 		"Saved UI is stale; regenerate and bake it in Edit mode"
 	)
+	-- Bind looks up the baked instances under the same names the builder above creates them with.
+	-- selene: allow(shadowing)
 	local function new(className, props, parent)
 		local inst = parent:FindFirstChild(props.Name or className)
 		assert(inst and inst:IsA(className), "Saved UI is missing " .. (props.Name or className))
 		return inst
 	end
+	-- selene: allow(shadowing)
 	local function corner(parent, _radius)
 		assert(parent:FindFirstChildOfClass("UICorner"), "Saved UI corner is missing")
 	end
@@ -379,13 +382,13 @@ function Ui.Bind(playerGui)
 	local v1 = new("Frame", {
 		Name = "Panel",
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.new(0.55, 0, 0.52, 0),
-		Size = UDim2.new(0, 780, 0, 524),
+		Position = UDim2.fromScale(0.55, 0.52),
+		Size = UDim2.fromOffset(780, 524),
 		BackgroundTransparency = 1,
 	}, gui)
 	local v1s = new("Frame", {
 		Name = "Shadow",
-		Position = UDim2.new(0, 0, 0, 4),
+		Position = UDim2.fromOffset(0, 4),
 		Size = UDim2.fromScale(1, 1),
 		BackgroundColor3 = Color3.fromRGB(18, 26, 65),
 		BackgroundTransparency = 0.4,
@@ -419,7 +422,7 @@ function Ui.Bind(playerGui)
 	)
 	local v1l = new("Frame", {
 		Name = "Lift",
-		Position = UDim2.new(0, 4, 0, 2),
+		Position = UDim2.fromOffset(4, 2),
 		Size = UDim2.new(1, -8, 0, 6),
 		BackgroundColor3 = Color3.new(1, 1, 1),
 		BackgroundTransparency = 0.7,
@@ -432,25 +435,25 @@ function Ui.Bind(playerGui)
 		v1,
 		{
 			AnchorPoint = Vector2.new(0.5, 0.5),
-			Position = UDim2.new(0.55, 0, 0.52, 0),
-			Size = UDim2.new(0, 780, 0, 524),
+			Position = UDim2.fromScale(0.55, 0.52),
+			Size = UDim2.fromOffset(780, 524),
 		},
 		{
 			AnchorPoint = Vector2.new(0.5, 0.5),
-			Position = UDim2.new(0.62, 0, 0.56, 0),
-			Size = UDim2.new(0, 500, 0, 280),
+			Position = UDim2.fromScale(0.62, 0.56),
+			Size = UDim2.fromOffset(500, 280),
 		},
 	})
 	local v2 = new("Frame", {
 		Name = "Header",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 12, 0, 12),
-		Size = UDim2.new(0, 756, 0, 64),
+		Position = UDim2.fromOffset(12, 12),
+		Size = UDim2.fromOffset(756, 64),
 		BackgroundTransparency = 1,
 	}, v1f)
 	local v2s = new("Frame", {
 		Name = "Shadow",
-		Position = UDim2.new(0, 0, 0, 4),
+		Position = UDim2.fromOffset(0, 4),
 		Size = UDim2.fromScale(1, 1),
 		BackgroundColor3 = Color3.fromRGB(18, 81, 123),
 		BackgroundTransparency = 0.4,
@@ -484,7 +487,7 @@ function Ui.Bind(playerGui)
 	)
 	local v2l = new("Frame", {
 		Name = "Lift",
-		Position = UDim2.new(0, 4, 0, 2),
+		Position = UDim2.fromOffset(4, 2),
 		Size = UDim2.new(1, -8, 0, 6),
 		BackgroundColor3 = Color3.new(1, 1, 1),
 		BackgroundTransparency = 0.7,
@@ -494,14 +497,14 @@ function Ui.Bind(playerGui)
 	refs["Header"] = v2f
 	table.insert(layouts, {
 		v2,
-		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 12, 0, 12), Size = UDim2.new(0, 756, 0, 64) },
-		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 8, 0, 8), Size = UDim2.new(0, 484, 0, 48) },
+		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.fromOffset(12, 12), Size = UDim2.fromOffset(756, 64) },
+		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.fromOffset(8, 8), Size = UDim2.fromOffset(484, 48) },
 	})
 	local v3 = new("TextLabel", {
 		Name = "Title",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 12, 0, 0),
-		Size = UDim2.new(0, 650, 0, 64),
+		Position = UDim2.fromOffset(12, 0),
+		Size = UDim2.fromOffset(650, 64),
 		BackgroundTransparency = 1,
 		Text = "CAR INDEX",
 		TextSize = 34,
@@ -520,27 +523,27 @@ function Ui.Bind(playerGui)
 		v3,
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 12, 0, 0),
-			Size = UDim2.new(0, 650, 0, 64),
+			Position = UDim2.fromOffset(12, 0),
+			Size = UDim2.fromOffset(650, 64),
 			TextSize = 34,
 		},
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 8, 0, 0),
-			Size = UDim2.new(0, 382, 0, 48),
+			Position = UDim2.fromOffset(8, 0),
+			Size = UDim2.fromOffset(382, 48),
 			TextSize = 25,
 		},
 	})
 	local v4 = new("Frame", {
 		Name = "Close",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 692, 0, 6),
-		Size = UDim2.new(0, 52, 0, 52),
+		Position = UDim2.fromOffset(692, 6),
+		Size = UDim2.fromOffset(52, 52),
 		BackgroundTransparency = 1,
 	}, v2f)
 	local v4s = new("Frame", {
 		Name = "Shadow",
-		Position = UDim2.new(0, 0, 0, 4),
+		Position = UDim2.fromOffset(0, 4),
 		Size = UDim2.fromScale(1, 1),
 		BackgroundColor3 = Color3.fromRGB(88, 37, 73),
 		BackgroundTransparency = 0.4,
@@ -576,7 +579,7 @@ function Ui.Bind(playerGui)
 	)
 	local v4l = new("Frame", {
 		Name = "Lift",
-		Position = UDim2.new(0, 4, 0, 2),
+		Position = UDim2.fromOffset(4, 2),
 		Size = UDim2.new(1, -8, 0, 6),
 		BackgroundColor3 = Color3.new(1, 1, 1),
 		BackgroundTransparency = 0.7,
@@ -586,14 +589,14 @@ function Ui.Bind(playerGui)
 	refs["Close"] = v4f
 	table.insert(layouts, {
 		v4,
-		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 692, 0, 6), Size = UDim2.new(0, 52, 0, 52) },
-		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 428, 0, 0), Size = UDim2.new(0, 48, 0, 48) },
+		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.fromOffset(692, 6), Size = UDim2.fromOffset(52, 52) },
+		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.fromOffset(428, 0), Size = UDim2.fromOffset(48, 48) },
 	})
 	local v5 = new("TextLabel", {
 		Name = "CloseLabel",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 0, 0, 0),
-		Size = UDim2.new(1, 0, 1, 0),
+		Position = UDim2.fromOffset(0, 0),
+		Size = UDim2.fromScale(1, 1),
 		BackgroundTransparency = 1,
 		Text = "X",
 		TextSize = 26,
@@ -612,22 +615,22 @@ function Ui.Bind(playerGui)
 		v5,
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 0, 0, 0),
-			Size = UDim2.new(1, 0, 1, 0),
+			Position = UDim2.fromOffset(0, 0),
+			Size = UDim2.fromScale(1, 1),
 			TextSize = 26,
 		},
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 0, 0, 0),
-			Size = UDim2.new(1, 0, 1, 0),
+			Position = UDim2.fromOffset(0, 0),
+			Size = UDim2.fromScale(1, 1),
 			TextSize = 24,
 		},
 	})
 	local v6 = new("TextLabel", {
 		Name = "IndexProgress",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 16, 0, 92),
-		Size = UDim2.new(0, 748, 0, 26),
+		Position = UDim2.fromOffset(16, 92),
+		Size = UDim2.fromOffset(748, 26),
 		BackgroundTransparency = 1,
 		Text = "3 / 7 DISCOVERED",
 		TextSize = 21,
@@ -646,29 +649,29 @@ function Ui.Bind(playerGui)
 		v6,
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 16, 0, 92),
-			Size = UDim2.new(0, 748, 0, 26),
+			Position = UDim2.fromOffset(16, 92),
+			Size = UDim2.fromOffset(748, 26),
 			TextSize = 21,
 		},
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 12, 0, 72),
-			Size = UDim2.new(0, 476, 0, 22),
+			Position = UDim2.fromOffset(12, 72),
+			Size = UDim2.fromOffset(476, 22),
 			TextSize = 18,
 		},
 	})
 	local v7 = new("Frame", {
 		Name = "GridHost",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 16, 0, 134),
-		Size = UDim2.new(0, 748, 0, 374),
+		Position = UDim2.fromOffset(16, 134),
+		Size = UDim2.fromOffset(748, 374),
 		BackgroundTransparency = 1,
 	}, v1f)
 	refs["GridHost"] = v7
 	table.insert(layouts, {
 		v7,
-		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 16, 0, 134), Size = UDim2.new(0, 748, 0, 374) },
-		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 12, 0, 100), Size = UDim2.new(0, 476, 0, 168) },
+		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.fromOffset(16, 134), Size = UDim2.fromOffset(748, 374) },
+		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.fromOffset(12, 100), Size = UDim2.fromOffset(476, 168) },
 	})
 	local function fit()
 		local camera = workspace.CurrentCamera

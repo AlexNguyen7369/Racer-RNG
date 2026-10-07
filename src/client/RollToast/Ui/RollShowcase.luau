@@ -36,8 +36,8 @@ function Ui.Build(playerGui)
 	local v1 = new("Frame", {
 		Name = "Card",
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.new(0.5, 0, 0.46, 0),
-		Size = UDim2.new(0, 760, 0, 320),
+		Position = UDim2.fromScale(0.5, 0.46),
+		Size = UDim2.fromOffset(760, 320),
 		BackgroundTransparency = 1,
 	}, gui)
 	refs["Card"] = v1
@@ -46,25 +46,25 @@ function Ui.Build(playerGui)
 		v1,
 		{
 			AnchorPoint = Vector2.new(0.5, 0.5),
-			Position = UDim2.new(0.5, 0, 0.46, 0),
-			Size = UDim2.new(0, 760, 0, 320),
+			Position = UDim2.fromScale(0.5, 0.46),
+			Size = UDim2.fromOffset(760, 320),
 		},
 		{
 			AnchorPoint = Vector2.new(0.5, 0.5),
-			Position = UDim2.new(0.5, 0, 0.46, 0),
-			Size = UDim2.new(0, 540, 0, 224),
+			Position = UDim2.fromScale(0.5, 0.46),
+			Size = UDim2.fromOffset(540, 224),
 		},
 	})
 	local v2 = new("Frame", {
 		Name = "CardBody",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 0, 0, 0),
-		Size = UDim2.new(0, 760, 0, 320),
+		Position = UDim2.fromOffset(0, 0),
+		Size = UDim2.fromOffset(760, 320),
 		BackgroundTransparency = 1,
 	}, v1)
 	local v2s = new("Frame", {
 		Name = "Shadow",
-		Position = UDim2.new(0, 0, 0, 4),
+		Position = UDim2.fromOffset(0, 4),
 		Size = UDim2.fromScale(1, 1),
 		BackgroundColor3 = Color3.fromRGB(18, 26, 65),
 		BackgroundTransparency = 0.4,
@@ -98,7 +98,7 @@ function Ui.Build(playerGui)
 	)
 	local v2l = new("Frame", {
 		Name = "Lift",
-		Position = UDim2.new(0, 4, 0, 2),
+		Position = UDim2.fromOffset(4, 2),
 		Size = UDim2.new(1, -8, 0, 6),
 		BackgroundColor3 = Color3.new(1, 1, 1),
 		BackgroundTransparency = 0.7,
@@ -108,19 +108,19 @@ function Ui.Build(playerGui)
 	refs["CardBody"] = v2f
 	table.insert(layouts, {
 		v2,
-		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 0, 0, 0), Size = UDim2.new(0, 760, 0, 320) },
-		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 0, 0, 0), Size = UDim2.new(0, 540, 0, 224) },
+		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.fromOffset(0, 0), Size = UDim2.fromOffset(760, 320) },
+		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.fromOffset(0, 0), Size = UDim2.fromOffset(540, 224) },
 	})
 	local v3 = new("Frame", {
 		Name = "RollHeader",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 12, 0, 12),
-		Size = UDim2.new(0, 736, 0, 54),
+		Position = UDim2.fromOffset(12, 12),
+		Size = UDim2.fromOffset(736, 54),
 		BackgroundTransparency = 1,
 	}, v2f)
 	local v3s = new("Frame", {
 		Name = "Shadow",
-		Position = UDim2.new(0, 0, 0, 4),
+		Position = UDim2.fromOffset(0, 4),
 		Size = UDim2.fromScale(1, 1),
 		BackgroundColor3 = Color3.fromRGB(18, 81, 123),
 		BackgroundTransparency = 0.4,
@@ -154,7 +154,7 @@ function Ui.Build(playerGui)
 	)
 	local v3l = new("Frame", {
 		Name = "Lift",
-		Position = UDim2.new(0, 4, 0, 2),
+		Position = UDim2.fromOffset(4, 2),
 		Size = UDim2.new(1, -8, 0, 6),
 		BackgroundColor3 = Color3.new(1, 1, 1),
 		BackgroundTransparency = 0.7,
@@ -164,14 +164,14 @@ function Ui.Build(playerGui)
 	refs["RollHeader"] = v3f
 	table.insert(layouts, {
 		v3,
-		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 12, 0, 12), Size = UDim2.new(0, 736, 0, 54) },
-		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 10, 0, 10), Size = UDim2.new(0, 520, 0, 44) },
+		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.fromOffset(12, 12), Size = UDim2.fromOffset(736, 54) },
+		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.fromOffset(10, 10), Size = UDim2.fromOffset(520, 44) },
 	})
 	local v4 = new("TextLabel", {
 		Name = "RollTitle",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 12, 0, 5),
-		Size = UDim2.new(0, 330, 0, 44),
+		Position = UDim2.fromOffset(12, 5),
+		Size = UDim2.fromOffset(330, 44),
 		BackgroundTransparency = 1,
 		Text = "ROLL RESULT",
 		TextSize = 28,
@@ -190,22 +190,22 @@ function Ui.Build(playerGui)
 		v4,
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 12, 0, 5),
-			Size = UDim2.new(0, 330, 0, 44),
+			Position = UDim2.fromOffset(12, 5),
+			Size = UDim2.fromOffset(330, 44),
 			TextSize = 28,
 		},
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 8, 0, 2),
-			Size = UDim2.new(0, 280, 0, 38),
+			Position = UDim2.fromOffset(8, 2),
+			Size = UDim2.fromOffset(280, 38),
 			TextSize = 24,
 		},
 	})
 	local v5 = new("ImageLabel", {
 		Name = "PreviewCar",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 18, 0, 84),
-		Size = UDim2.new(0, 300, 0, 220),
+		Position = UDim2.fromOffset(18, 84),
+		Size = UDim2.fromOffset(300, 220),
 		BackgroundTransparency = 1,
 		Image = "rbxassetid://121915283083474",
 		ScaleType = Enum.ScaleType.Fit,
@@ -216,14 +216,14 @@ function Ui.Build(playerGui)
 	refs["PreviewCar"] = v5
 	table.insert(layouts, {
 		v5,
-		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 18, 0, 84), Size = UDim2.new(0, 300, 0, 220) },
-		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 8, 0, 68), Size = UDim2.new(0, 220, 0, 144) },
+		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.fromOffset(18, 84), Size = UDim2.fromOffset(300, 220) },
+		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.fromOffset(8, 68), Size = UDim2.fromOffset(220, 144) },
 	})
 	local v6 = new("TextLabel", {
 		Name = "ResultName",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 334, 0, 88),
-		Size = UDim2.new(0, 406, 0, 46),
+		Position = UDim2.fromOffset(334, 88),
+		Size = UDim2.fromOffset(406, 46),
 		BackgroundTransparency = 1,
 		Text = "Rusty Hatchback",
 		TextSize = 32,
@@ -242,22 +242,22 @@ function Ui.Build(playerGui)
 		v6,
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 334, 0, 88),
-			Size = UDim2.new(0, 406, 0, 46),
+			Position = UDim2.fromOffset(334, 88),
+			Size = UDim2.fromOffset(406, 46),
 			TextSize = 32,
 		},
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 236, 0, 72),
-			Size = UDim2.new(0, 294, 0, 30),
+			Position = UDim2.fromOffset(236, 72),
+			Size = UDim2.fromOffset(294, 30),
 			TextSize = 26,
 		},
 	})
 	local v7 = new("TextLabel", {
 		Name = "ResultSpeed",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 334, 0, 150),
-		Size = UDim2.new(0, 406, 0, 32),
+		Position = UDim2.fromOffset(334, 150),
+		Size = UDim2.fromOffset(406, 32),
 		BackgroundTransparency = 1,
 		Text = "x1.1 SPEED MULTIPLIER",
 		TextSize = 23,
@@ -276,22 +276,22 @@ function Ui.Build(playerGui)
 		v7,
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 334, 0, 150),
-			Size = UDim2.new(0, 406, 0, 32),
+			Position = UDim2.fromOffset(334, 150),
+			Size = UDim2.fromOffset(406, 32),
 			TextSize = 23,
 		},
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 236, 0, 112),
-			Size = UDim2.new(0, 294, 0, 26),
+			Position = UDim2.fromOffset(236, 112),
+			Size = UDim2.fromOffset(294, 26),
 			TextSize = 18,
 		},
 	})
 	local v8 = new("TextLabel", {
 		Name = "ResultRarity",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 334, 0, 198),
-		Size = UDim2.new(0, 406, 0, 32),
+		Position = UDim2.fromOffset(334, 198),
+		Size = UDim2.fromOffset(406, 32),
 		BackgroundTransparency = 1,
 		Text = "COMMON",
 		TextSize = 25,
@@ -310,22 +310,22 @@ function Ui.Build(playerGui)
 		v8,
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 334, 0, 198),
-			Size = UDim2.new(0, 406, 0, 32),
+			Position = UDim2.fromOffset(334, 198),
+			Size = UDim2.fromOffset(406, 32),
 			TextSize = 25,
 		},
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 236, 0, 150),
-			Size = UDim2.new(0, 294, 0, 26),
+			Position = UDim2.fromOffset(236, 150),
+			Size = UDim2.fromOffset(294, 26),
 			TextSize = 20,
 		},
 	})
 	local v9 = new("TextLabel", {
 		Name = "ResultOdds",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 334, 0, 242),
-		Size = UDim2.new(0, 406, 0, 26),
+		Position = UDim2.fromOffset(334, 242),
+		Size = UDim2.fromOffset(406, 26),
 		BackgroundTransparency = 1,
 		Text = "COMMON DROP",
 		TextSize = 19,
@@ -344,14 +344,14 @@ function Ui.Build(playerGui)
 		v9,
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 334, 0, 242),
-			Size = UDim2.new(0, 406, 0, 26),
+			Position = UDim2.fromOffset(334, 242),
+			Size = UDim2.fromOffset(406, 26),
 			TextSize = 19,
 		},
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 236, 0, 184),
-			Size = UDim2.new(0, 294, 0, 24),
+			Position = UDim2.fromOffset(236, 184),
+			Size = UDim2.fromOffset(294, 24),
 			TextSize = 17,
 		},
 	})
@@ -385,11 +385,14 @@ function Ui.Bind(playerGui)
 		saved:IsA("ScreenGui") and saved:GetAttribute("SpecHash") == "1039b947bbd9",
 		"Saved UI is stale; regenerate and bake it in Edit mode"
 	)
+	-- Bind looks up the baked instances under the same names the builder above creates them with.
+	-- selene: allow(shadowing)
 	local function new(className, props, parent)
 		local inst = parent:FindFirstChild(props.Name or className)
 		assert(inst and inst:IsA(className), "Saved UI is missing " .. (props.Name or className))
 		return inst
 	end
+	-- selene: allow(shadowing)
 	local function corner(parent, _radius)
 		assert(parent:FindFirstChildOfClass("UICorner"), "Saved UI corner is missing")
 	end
@@ -407,8 +410,8 @@ function Ui.Bind(playerGui)
 	local v1 = new("Frame", {
 		Name = "Card",
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.new(0.5, 0, 0.46, 0),
-		Size = UDim2.new(0, 760, 0, 320),
+		Position = UDim2.fromScale(0.5, 0.46),
+		Size = UDim2.fromOffset(760, 320),
 		BackgroundTransparency = 1,
 	}, gui)
 	refs["Card"] = v1
@@ -417,25 +420,25 @@ function Ui.Bind(playerGui)
 		v1,
 		{
 			AnchorPoint = Vector2.new(0.5, 0.5),
-			Position = UDim2.new(0.5, 0, 0.46, 0),
-			Size = UDim2.new(0, 760, 0, 320),
+			Position = UDim2.fromScale(0.5, 0.46),
+			Size = UDim2.fromOffset(760, 320),
 		},
 		{
 			AnchorPoint = Vector2.new(0.5, 0.5),
-			Position = UDim2.new(0.5, 0, 0.46, 0),
-			Size = UDim2.new(0, 540, 0, 224),
+			Position = UDim2.fromScale(0.5, 0.46),
+			Size = UDim2.fromOffset(540, 224),
 		},
 	})
 	local v2 = new("Frame", {
 		Name = "CardBody",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 0, 0, 0),
-		Size = UDim2.new(0, 760, 0, 320),
+		Position = UDim2.fromOffset(0, 0),
+		Size = UDim2.fromOffset(760, 320),
 		BackgroundTransparency = 1,
 	}, v1)
 	local v2s = new("Frame", {
 		Name = "Shadow",
-		Position = UDim2.new(0, 0, 0, 4),
+		Position = UDim2.fromOffset(0, 4),
 		Size = UDim2.fromScale(1, 1),
 		BackgroundColor3 = Color3.fromRGB(18, 26, 65),
 		BackgroundTransparency = 0.4,
@@ -469,7 +472,7 @@ function Ui.Bind(playerGui)
 	)
 	local v2l = new("Frame", {
 		Name = "Lift",
-		Position = UDim2.new(0, 4, 0, 2),
+		Position = UDim2.fromOffset(4, 2),
 		Size = UDim2.new(1, -8, 0, 6),
 		BackgroundColor3 = Color3.new(1, 1, 1),
 		BackgroundTransparency = 0.7,
@@ -479,19 +482,19 @@ function Ui.Bind(playerGui)
 	refs["CardBody"] = v2f
 	table.insert(layouts, {
 		v2,
-		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 0, 0, 0), Size = UDim2.new(0, 760, 0, 320) },
-		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 0, 0, 0), Size = UDim2.new(0, 540, 0, 224) },
+		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.fromOffset(0, 0), Size = UDim2.fromOffset(760, 320) },
+		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.fromOffset(0, 0), Size = UDim2.fromOffset(540, 224) },
 	})
 	local v3 = new("Frame", {
 		Name = "RollHeader",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 12, 0, 12),
-		Size = UDim2.new(0, 736, 0, 54),
+		Position = UDim2.fromOffset(12, 12),
+		Size = UDim2.fromOffset(736, 54),
 		BackgroundTransparency = 1,
 	}, v2f)
 	local v3s = new("Frame", {
 		Name = "Shadow",
-		Position = UDim2.new(0, 0, 0, 4),
+		Position = UDim2.fromOffset(0, 4),
 		Size = UDim2.fromScale(1, 1),
 		BackgroundColor3 = Color3.fromRGB(18, 81, 123),
 		BackgroundTransparency = 0.4,
@@ -525,7 +528,7 @@ function Ui.Bind(playerGui)
 	)
 	local v3l = new("Frame", {
 		Name = "Lift",
-		Position = UDim2.new(0, 4, 0, 2),
+		Position = UDim2.fromOffset(4, 2),
 		Size = UDim2.new(1, -8, 0, 6),
 		BackgroundColor3 = Color3.new(1, 1, 1),
 		BackgroundTransparency = 0.7,
@@ -535,14 +538,14 @@ function Ui.Bind(playerGui)
 	refs["RollHeader"] = v3f
 	table.insert(layouts, {
 		v3,
-		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 12, 0, 12), Size = UDim2.new(0, 736, 0, 54) },
-		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 10, 0, 10), Size = UDim2.new(0, 520, 0, 44) },
+		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.fromOffset(12, 12), Size = UDim2.fromOffset(736, 54) },
+		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.fromOffset(10, 10), Size = UDim2.fromOffset(520, 44) },
 	})
 	local v4 = new("TextLabel", {
 		Name = "RollTitle",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 12, 0, 5),
-		Size = UDim2.new(0, 330, 0, 44),
+		Position = UDim2.fromOffset(12, 5),
+		Size = UDim2.fromOffset(330, 44),
 		BackgroundTransparency = 1,
 		Text = "ROLL RESULT",
 		TextSize = 28,
@@ -561,22 +564,22 @@ function Ui.Bind(playerGui)
 		v4,
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 12, 0, 5),
-			Size = UDim2.new(0, 330, 0, 44),
+			Position = UDim2.fromOffset(12, 5),
+			Size = UDim2.fromOffset(330, 44),
 			TextSize = 28,
 		},
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 8, 0, 2),
-			Size = UDim2.new(0, 280, 0, 38),
+			Position = UDim2.fromOffset(8, 2),
+			Size = UDim2.fromOffset(280, 38),
 			TextSize = 24,
 		},
 	})
 	local v5 = new("ImageLabel", {
 		Name = "PreviewCar",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 18, 0, 84),
-		Size = UDim2.new(0, 300, 0, 220),
+		Position = UDim2.fromOffset(18, 84),
+		Size = UDim2.fromOffset(300, 220),
 		BackgroundTransparency = 1,
 		Image = "rbxassetid://121915283083474",
 		ScaleType = Enum.ScaleType.Fit,
@@ -587,14 +590,14 @@ function Ui.Bind(playerGui)
 	refs["PreviewCar"] = v5
 	table.insert(layouts, {
 		v5,
-		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 18, 0, 84), Size = UDim2.new(0, 300, 0, 220) },
-		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 8, 0, 68), Size = UDim2.new(0, 220, 0, 144) },
+		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.fromOffset(18, 84), Size = UDim2.fromOffset(300, 220) },
+		{ AnchorPoint = Vector2.new(0, 0), Position = UDim2.fromOffset(8, 68), Size = UDim2.fromOffset(220, 144) },
 	})
 	local v6 = new("TextLabel", {
 		Name = "ResultName",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 334, 0, 88),
-		Size = UDim2.new(0, 406, 0, 46),
+		Position = UDim2.fromOffset(334, 88),
+		Size = UDim2.fromOffset(406, 46),
 		BackgroundTransparency = 1,
 		Text = "Rusty Hatchback",
 		TextSize = 32,
@@ -613,22 +616,22 @@ function Ui.Bind(playerGui)
 		v6,
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 334, 0, 88),
-			Size = UDim2.new(0, 406, 0, 46),
+			Position = UDim2.fromOffset(334, 88),
+			Size = UDim2.fromOffset(406, 46),
 			TextSize = 32,
 		},
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 236, 0, 72),
-			Size = UDim2.new(0, 294, 0, 30),
+			Position = UDim2.fromOffset(236, 72),
+			Size = UDim2.fromOffset(294, 30),
 			TextSize = 26,
 		},
 	})
 	local v7 = new("TextLabel", {
 		Name = "ResultSpeed",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 334, 0, 150),
-		Size = UDim2.new(0, 406, 0, 32),
+		Position = UDim2.fromOffset(334, 150),
+		Size = UDim2.fromOffset(406, 32),
 		BackgroundTransparency = 1,
 		Text = "x1.1 SPEED MULTIPLIER",
 		TextSize = 23,
@@ -647,22 +650,22 @@ function Ui.Bind(playerGui)
 		v7,
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 334, 0, 150),
-			Size = UDim2.new(0, 406, 0, 32),
+			Position = UDim2.fromOffset(334, 150),
+			Size = UDim2.fromOffset(406, 32),
 			TextSize = 23,
 		},
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 236, 0, 112),
-			Size = UDim2.new(0, 294, 0, 26),
+			Position = UDim2.fromOffset(236, 112),
+			Size = UDim2.fromOffset(294, 26),
 			TextSize = 18,
 		},
 	})
 	local v8 = new("TextLabel", {
 		Name = "ResultRarity",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 334, 0, 198),
-		Size = UDim2.new(0, 406, 0, 32),
+		Position = UDim2.fromOffset(334, 198),
+		Size = UDim2.fromOffset(406, 32),
 		BackgroundTransparency = 1,
 		Text = "COMMON",
 		TextSize = 25,
@@ -681,22 +684,22 @@ function Ui.Bind(playerGui)
 		v8,
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 334, 0, 198),
-			Size = UDim2.new(0, 406, 0, 32),
+			Position = UDim2.fromOffset(334, 198),
+			Size = UDim2.fromOffset(406, 32),
 			TextSize = 25,
 		},
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 236, 0, 150),
-			Size = UDim2.new(0, 294, 0, 26),
+			Position = UDim2.fromOffset(236, 150),
+			Size = UDim2.fromOffset(294, 26),
 			TextSize = 20,
 		},
 	})
 	local v9 = new("TextLabel", {
 		Name = "ResultOdds",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 334, 0, 242),
-		Size = UDim2.new(0, 406, 0, 26),
+		Position = UDim2.fromOffset(334, 242),
+		Size = UDim2.fromOffset(406, 26),
 		BackgroundTransparency = 1,
 		Text = "COMMON DROP",
 		TextSize = 19,
@@ -715,14 +718,14 @@ function Ui.Bind(playerGui)
 		v9,
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 334, 0, 242),
-			Size = UDim2.new(0, 406, 0, 26),
+			Position = UDim2.fromOffset(334, 242),
+			Size = UDim2.fromOffset(406, 26),
 			TextSize = 19,
 		},
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 236, 0, 184),
-			Size = UDim2.new(0, 294, 0, 24),
+			Position = UDim2.fromOffset(236, 184),
+			Size = UDim2.fromOffset(294, 24),
 			TextSize = 17,
 		},
 	})

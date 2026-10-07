@@ -1,9 +1,18 @@
 # Roll animation: build contract (2026-10-02)
 
-> **STATUS (URGENT, 2026-10-02): implemented, pushed to main WITHOUT a green /compat-check (owner exception).**
-> Harness roll tests were green before owner decision 6 (constants changed since, not re-run). The UI tests for the final
-> design (decisions 4 and 6) have never completed a run. Resume: UI suite -> fix -> full harness -> `/compat-check`.
-> Details: `context/ProjectContext.luau` (URGENT block at the top).
+> **Racer UI amendments (2026-10-06, owner decision: Isaac Li's merged Racer UI is THE UI spec).** Where this
+> contract and the Racer UI disagree, the Racer UI wins and `src/client/UiTest/UiSpec.luau` holds the exact values:
+> - The old ScreenGuis named below (`AutoRaceButton`, `IndexUi`, `StatsUi`, `RollUi`, `SpeedHud`) are gone: their roles
+>   are `RacerHud/Race`, `RacerIndex`, `RacerStats`, `RacerHud/Turbo` and `RacerHud/Speed`. The fly icon lands on
+>   `RacerHud/Navigation/Index`.
+> - The TURBO LUCK bar is `RacerHud/Turbo`, still bottom centre, and follows the server's `TurboCount` / `TurboEvery`
+>   (upgrade tree), so turbo is no longer fixed at x5 every 10th roll.
+> - The compact roll is a continuous reel of car icons that eases onto the server's result; its toast is the AUTO OFF
+>   caption band + the car art (`COMPACT_HEIGHT`) + the odds band (UiSpec `Compact.ExtraHeight`).
+> - The enlarged card shows `x<multi> SPEED MULTIPLIER` (was "25x Speed"); the HUD hides while the showcase is open.
+> - Settings (sound, reduce effects, auto roll) and a Rebirth "coming soon" panel exist; Index / Stats / Settings /
+>   Rebirth are mutually exclusive through `Client/PanelSwitch`.
+> History: built 2026-10-02 and pushed to main on an owner exception; verified ALL GREEN 2026-10-05 (f11ddc2d32ad).
 
 The names, numbers and behaviour the tests and the code share for the roll animation. The look and the owner's
 decisions are in `docs/ROLL_ANIMATION_SPEC.md` and the design doc's "Roll animation" section; this file fixes what

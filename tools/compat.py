@@ -13,7 +13,7 @@ give the same fingerprint for the same content.
 
 RESULTS.json (written by /compat-check from the testers' reports):
   { "suites": { "<suite>": { "pass": true, "end_line": "[CARTEST] END pass=N fail=0" | null, "summary": "..." } } }
-Required suites: harness, ui, multiplayer, world. The harness suite must quote an END line with fail=0.
+Required suites: harness, ui, multiplayer, world, regression. The harness suite must quote an END line with fail=0.
 """
 import hashlib
 import json
@@ -26,7 +26,7 @@ import time
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STAMP = os.path.join(ROOT, ".compat", "green.json")
 PATHS = ["src", "default.project.json"]
-REQUIRED = ["harness", "ui", "multiplayer", "world"]
+REQUIRED = ["harness", "ui", "multiplayer", "world", "regression"]
 
 
 def git(*args, stdin=None):

@@ -99,29 +99,111 @@ local function spawnPose()
 	return CFrame.new(TEST_ORIGIN + Vector3.new(0, CarConfig.RestHeight + 0.5, 0))
 end
 
+-- static_settle: a parked car must come to rest and STAY at rest. One instant sample at 3 s caught the
+-- vertical jitter only ~1 in 3 cold starts, so every drop is now watched frame by frame for a long hold
+-- window, from several fresh drops (new rig each time, different deterministic drop heights so the
+-- contact phase differs), and the last drop runs with short server stalls like a busy cold start.
+local SETTLE_DROP_HEIGHTS = { 0, 0.25, 0.5, 1 } -- extra studs above the normal spawn pose, per drop
+local SETTLE_SECONDS = 3 -- the original settle time; the instant checks are taken here
+local SETTLE_HOLD_SECONDS = 6 -- then the parked car is sampled every frame for this long
+local SETTLE_HITCH_EVERY = 0.5 -- hitch drop: a server stall every this many seconds of the hold
+local SETTLE_HITCH_MS = 20 -- length of each stall (below CarPhysics' 1/30 s dt clamp)
+
+local function settleDrop(T, height, hitch)
+	local rig = newRig(spawnPose() + Vector3.new(0, height, 0))
+	frames(SETTLE_SECONDS)
+	local d = { height = height, hitch = hitch }
+	d.speed = rig.Chassis.AssemblyLinearVelocity.Magnitude
+	d.minC, d.maxC = math.huge, 0
+	for _, w in rig.Physics.Wheels do
+		local comp = (CarConfig.SuspensionRest - w.SpringLen) / CarConfig.SuspensionRest
+		d.minC, d.maxC = math.min(d.minC, comp), math.max(d.maxC, comp)
+	end
+	d.tilt = tiltDeg(rig.Chassis)
+	-- Hold: peak speed, peak |vy|, chassis Y range, worst tilt, every Heartbeat
+	local peakSpeed, peakVy, worstTilt = 0, 0, d.tilt
+	local minY, maxY = math.huge, -math.huge
+	local kicks, nextHitch, spin = 0, SETTLE_HITCH_EVERY, 0
+	frames(SETTLE_HOLD_SECONDS, function(t)
+		if hitch and t >= nextHitch then
+			nextHitch += SETTLE_HITCH_EVERY
+			local stop = os.clock() + SETTLE_HITCH_MS / 1000
+			-- deliberate busy wait: a deterministic server frame hitch
+			repeat
+				spin += 1
+			until os.clock() >= stop
+		end
+		local v = rig.Chassis.AssemblyLinearVelocity
+		local vy = math.abs(v.Y)
+		if vy > T.MaxRestVerticalSpeed then
+			kicks += 1
+		end
+		peakSpeed = math.max(peakSpeed, v.Magnitude)
+		peakVy = math.max(peakVy, vy)
+		local y = rig.Chassis.Position.Y
+		minY, maxY = math.min(minY, y), math.max(maxY, y)
+		worstTilt = math.max(worstTilt, tiltDeg(rig.Chassis))
+	end)
+	d.peakSpeed, d.peakVy, d.bob, d.holdTilt, d.kicks = peakSpeed, peakVy, maxY - minY, worstTilt, kicks
+	rig:Destroy()
+	return d
+end
+
 function Scenarios.static_settle()
 	local T = PhysicsTargets.static_settle
 	local ground = newFlatGround()
-	local rig = newRig(spawnPose())
-	frames(3)
-	local speed = rig.Chassis.AssemblyLinearVelocity.Magnitude
-	local minC, maxC = math.huge, 0
-	for _, w in rig.Physics.Wheels do
-		local comp = (CarConfig.SuspensionRest - w.SpringLen) / CarConfig.SuspensionRest
-		minC, maxC = math.min(minC, comp), math.max(maxC, comp)
+	local drops = {}
+	for i, height in SETTLE_DROP_HEIGHTS do
+		table.insert(drops, settleDrop(T, height, i == #SETTLE_DROP_HEIGHTS))
 	end
-	local tilt = tiltDeg(rig.Chassis)
+	-- Worst case over every drop (the instant checks used to see only one drop)
+	local speed, minC, maxC, tilt = 0, math.huge, 0, 0
+	local calm = { speed = 0, vy = 0, bob = 0, tilt = 0, kicks = 0 }
+	local hitch = { speed = 0, vy = 0, bob = 0, tilt = 0, kicks = 0 }
+	local perDrop = {}
+	for _, d in drops do
+		speed = math.max(speed, d.speed)
+		minC, maxC = math.min(minC, d.minC), math.max(maxC, d.maxC)
+		tilt = math.max(tilt, d.tilt)
+		local agg = d.hitch and hitch or calm
+		agg.speed = math.max(agg.speed, d.peakSpeed)
+		agg.vy = math.max(agg.vy, d.peakVy)
+		agg.bob = math.max(agg.bob, d.bob)
+		agg.tilt = math.max(agg.tilt, d.holdTilt)
+		agg.kicks += d.kicks
+		table.insert(perDrop, {
+			height = d.height,
+			hitch = d.hitch,
+			speedAt3s = round(d.speed),
+			peakSpeed = round(d.peakSpeed),
+			peakVy = round(d.peakVy),
+			bob = round(d.bob),
+			kicks = d.kicks,
+		})
+	end
 	local checks = {}
 	check(checks, "settle_speed", speed, T.MaxSettleSpeed, speed <= T.MaxSettleSpeed)
 	check(checks, "min_compression", minC, T.MinCompression, minC >= T.MinCompression)
 	check(checks, "max_compression", maxC, T.MaxCompression, maxC <= T.MaxCompression)
 	check(checks, "tilt_deg", tilt, T.MaxTiltDeg, tilt <= T.MaxTiltDeg)
-	local out = result(
-		"static_settle",
-		checks,
-		{ minCompression = round(minC), maxCompression = round(maxC), tiltDeg = round(tilt) }
-	)
-	rig:Destroy()
+	-- Parked hold, normal frames
+	check(checks, "rest_peak_speed", calm.speed, T.MaxSettleSpeed, calm.speed <= T.MaxSettleSpeed)
+	check(checks, "rest_peak_vertical_speed", calm.vy, T.MaxRestVerticalSpeed, calm.vy <= T.MaxRestVerticalSpeed)
+	check(checks, "rest_bob_studs", calm.bob, T.MaxRestBobStuds, calm.bob <= T.MaxRestBobStuds)
+	check(checks, "rest_tilt_deg", calm.tilt, T.MaxTiltDeg, calm.tilt <= T.MaxTiltDeg)
+	-- Parked hold with server frame hitches (cold-start load)
+	check(checks, "hitch_peak_speed", hitch.speed, T.MaxSettleSpeed, hitch.speed <= T.MaxSettleSpeed)
+	check(checks, "hitch_peak_vertical_speed", hitch.vy, T.MaxRestVerticalSpeed, hitch.vy <= T.MaxRestVerticalSpeed)
+	check(checks, "hitch_bob_studs", hitch.bob, T.MaxRestBobStuds, hitch.bob <= T.MaxRestBobStuds)
+	local out = result("static_settle", checks, {
+		minCompression = round(minC),
+		maxCompression = round(maxC),
+		tiltDeg = round(tilt),
+		restKicks = calm.kicks,
+		hitchKicks = hitch.kicks,
+		holdSeconds = SETTLE_HOLD_SECONDS,
+		drops = perDrop,
+	})
 	ground:Destroy()
 	return out
 end
@@ -4673,9 +4755,23 @@ function Scenarios.gacha()
 			or got.Chance ~= want.Chance
 			or not nearly(got.SpeedMulti, want.SpeedMulti)
 			or type(got.Name) ~= "string"
-			or got.Model ~= nil
 		then
 			seedOk = false
+		elseif got.Model ~= nil then
+			-- Model is optional (nil = "?" placeholder). When set it must be a non-empty string that
+			-- resolves to ReplicatedStorage.CarModels[Model] (a Model) now. RollShowcase/Index look up
+			-- CarModels[spec.Model] but CarAppearance skins the car via CarModels[id], so the two
+			-- must agree: Model == Id.
+			local folder = ReplicatedStorage:FindFirstChild("CarModels")
+			local template = type(got.Model) == "string" and folder and folder:FindFirstChild(got.Model)
+			if
+				type(got.Model) ~= "string"
+				or got.Model == ""
+				or got.Model ~= got.Id
+				or not (template and template:IsA("Model"))
+			then
+				seedOk = false
+			end
 		end
 	end
 	check(checks, "catalog_matches_design_doc", seedOk and 1 or 0, 1, seedOk)
@@ -10127,6 +10223,63 @@ function UPG.upgradesServerChecks(checks, metrics, UpgradeTree)
 			end
 		end
 		check(checks, "upgrades_apply_junk_is_defaults", junkBad, 0, junkBad == 0)
+
+		-- Regression (multiplayer): a Buy changes only the buyer. Two players with the same Money and applied state;
+		-- A buys money_1, B must be untouched; then B buys luck_1 at once (the cooldown is per player, so A's buy
+		-- must not block B) and A must be untouched. Buy is called directly: Remotes.BuyUpgrade.OnServerInvoke
+		-- forwards to UpgradeService.Buy and can not be invoked server-side without a real client.
+		local function isolationCheck()
+			local applied = { Upgrades = { "rollspeed_1" }, BestTrack = 1, TurboCount = 3 }
+			local pA = fake("IsoA", UPG.RICH)
+			local pB = fake("IsoB", UPG.RICH)
+			apply(pA, applied)
+			apply(pB, applied)
+			task.wait(0.2)
+			local function stateOf(p)
+				return {
+					Money = moneyOf(p),
+					Tiles = joined(folderIds(p)),
+					BestTrack = p:GetAttribute("BestTrack"),
+					TurboCount = p:GetAttribute("TurboCount"),
+					Buyable = p:GetAttribute("UpgradesBuyable"),
+				}
+			end
+			local isoB0 = stateOf(pB)
+			local _, rA = svc("Buy", pA, "money_1")
+			task.wait(0.2)
+			local isoB1 = stateOf(pB)
+			local aOk = rA == true
+				and moneyOf(pA) == UPG.RICH - 150
+				and ownedSet(pA).money_1 == true
+				and joined(folderIds(pA)) == "money_1,rollspeed_1"
+			local bUntouched = UPG.deepEqual(isoB0, isoB1) and ownedSet(pB).money_1 ~= true
+			local isoA0 = stateOf(pA)
+			local _, rB = svc("Buy", pB, "luck_1")
+			task.wait(0.2)
+			local isoA1 = stateOf(pA)
+			local okP, luckPrice = pcall(UpgradeTree.Price, "luck_1")
+			local bOk = rB == true
+				and okP
+				and moneyOf(pB) == UPG.RICH - luckPrice
+				and joined(folderIds(pB)) == "luck_1,rollspeed_1"
+			local aUntouched = UPG.deepEqual(isoA0, isoA1) and ownedSet(pA).luck_1 ~= true
+			if not (bUntouched and aUntouched) then
+				local function show(st)
+					return string.format(
+						"money=%s tiles=%s best=%s turbo=%s buyable=%s",
+						tostring(st.Money),
+						st.Tiles,
+						tostring(st.BestTrack),
+						tostring(st.TurboCount),
+						tostring(st.Buyable)
+					)
+				end
+				metrics.iso_b_before, metrics.iso_b_after = show(isoB0), show(isoB1)
+				metrics.iso_a_before, metrics.iso_a_after = show(isoA0), show(isoA1)
+			end
+			flag("upgrades_buy_isolated_between_players", aOk and bUntouched and bOk and aUntouched)
+		end
+		isolationCheck()
 
 		-- Remotes.BuyUpgrade (RemoteFunction, made by UpgradeService.Start, which Main calls at boot)
 		local remotes = ReplicatedStorage:FindFirstChild("Remotes")

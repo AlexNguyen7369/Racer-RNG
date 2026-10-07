@@ -181,9 +181,12 @@
         "Decision 2: prices round halves UP (Roll Speed I $230, Walkspeed II $170).",
         "Tell Claude \"keep both\", or what to change. Changing a price means test-writer updates the test first."
       ],
-      "status": "open",
+      "status": "done",
       "added": "2026-10-05T04:20:00-07:00",
-      "by": "Claude"
+      "by": "Claude",
+      "doneBy": "Alex Nguyen",
+      "doneAt": "2026-10-06T13:10:00-07:00",
+      "verified": "Owner: keep both (Turbo forks off Roll Speed I; prices round halves up). No change needed."
     },
     {
       "id": "studio-api-access",

@@ -60,7 +60,6 @@ local function autoRaceBottom()
 	local hud = playerGui:FindFirstChild("RacerHud")
 	local outer = hud and hud:FindFirstChild("Race")
 	local button = outer and outer:FindFirstChild("Face")
-	local inset = GuiService:GetGuiInset()
 	return button and (button.AbsolutePosition.Y + button.AbsoluteSize.Y) or 60
 end
 local rng = Random.new()
@@ -149,7 +148,7 @@ local function updateReelFade(object, binding)
 	binding.Gradient.Transparency = NumberSequence.new(keys)
 end
 
-local function buildBody(parent, z)
+local function buildBody(_parent, z)
 	local body = rollRefs.CardBody
 	body.AnchorPoint = Vector2.new(0.5, 0.5)
 	body.Position = UDim2.fromScale(0.5, 0.5)
