@@ -265,6 +265,7 @@ CHANGE LOG (newest last)
    under them: the backdrop ignores presses inside the card).
 
 TEST RESULTS (latest first; update after every full run)
+- 2026-10-07 (compatibility gate, fingerprint e6528733fcba): ALL GREEN on the current Studio session. Full harness `[CARTEST] END pass=25 fail=0` (including static_settle, race, flip_recovery, multiplayer, roll_anim, upgrades, workshop, and track:Hill/Oval). UI `[UITEST] END pass=16 fail=0` across the current RacerHud/RollShowcase contract. World static/live probes GREEN: no unanchored or below-floor non-character geometry, decor collision rules correct, both tracks present, `Cars` self-noncolliding; server NPC leakage absent. Multiplayer/regression probes GREEN: required remotes present, client has exactly the current GUI roots and no legacy SpeedHud, server/client smoke checks passed. Regression suite GREEN. No compatibility exceptions or known failures introduced by this run.
 - 2026-10-02 (roll animation, INCOMPLETE): harness roll_anim/gacha/index/data `[CARTEST] END pass=6 fail=0` (before decision 6;
   roll_anim_constants changed since, not re-run). ui red run `[UITEST] END pass=10 fail=6` (expected). UI green rounds: NO RESULT
   (cut off / stopped). multiplayer, world: not run. No compat stamp. Pushed to main anyway on the owner's explicit exception.

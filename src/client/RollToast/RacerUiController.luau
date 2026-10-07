@@ -36,6 +36,13 @@ local GREEN = Color3.fromRGB(60, 255, 60)
 local RED = Color3.fromRGB(255, 77, 94)
 local GRAY = Color3.fromRGB(104, 111, 135)
 
+-- Roll entry is the compact animation at the top centre of the screen.  The old
+-- bottom roll controls and the Settings auto-roll row are intentionally hidden:
+-- clicking the compact animation is the single entry point for the showcase and
+-- its AUTO toggle.
+hud.RollControls.Visible = false
+settings.AutoRow.Visible = false
+
 hud.Gui.DisplayOrder = 1
 for name, refs in pairs({ Index = index, Stats = stats, Settings = settings, Rebirth = rebirth }) do
 	refs.Gui.DisplayOrder = 2
@@ -172,26 +179,8 @@ end)
 player:GetAttributeChangedSignal("AutoRacing"):Connect(refreshRace)
 refreshRace()
 
-local function refreshAuto()
-	local on = player:GetAttribute("AutoRoll") ~= false
-	label(hud.AutoRoll, on and "AUTO ON" or "AUTO OFF")
-	Components.Tint(hud.AutoRoll, on and GREEN or GRAY)
-	label(settings.AutoToggle, on and "ON" or "OFF")
-	Components.Tint(settings.AutoToggle, on and GREEN or GRAY)
-end
-local function toggleAuto()
-	remotes.SetAutoRoll:FireServer(player:GetAttribute("AutoRoll") == false)
-end
-hud.AutoRoll.Activated:Connect(toggleAuto)
-settings.AutoToggle.Activated:Connect(toggleAuto)
-player:GetAttributeChangedSignal("AutoRoll"):Connect(refreshAuto)
-refreshAuto()
 task.spawn(function()
-	local toast = playerGui:WaitForChild("RollToast")
-	local openRollView = toast:WaitForChild("OpenRollView")
-	hud.RollView.Activated:Connect(function()
-		openRollView:Fire()
-	end)
+	playerGui:WaitForChild("RollToast")
 	local showcase = playerGui:WaitForChild("RollShowcase")
 	local function refreshShowcase()
 		hud.Gui.Enabled = not showcase.Enabled

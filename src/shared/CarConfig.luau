@@ -37,7 +37,7 @@ local Config = {
 	SuspensionRest = SUSPENSION_REST,
 	StaticCompression = STATIC_COMPRESSION,
 	MountY = MOUNT_Y,
-	DampingRatio = 0.6,
+	DampingRatio = 2.0,
 	Wheels = {
 		wheel("FL", -HALF_TRACK, -HALF_WHEELBASE, true),
 		wheel("FR", HALF_TRACK, -HALF_WHEELBASE, true),

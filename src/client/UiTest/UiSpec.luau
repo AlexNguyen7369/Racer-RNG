@@ -58,8 +58,8 @@ UiSpec.TopBar = { Reserved = { X = 0, Y = 0, W = 360, H = 58 } }
 --   NonInteractive  nothing inside may be Active or a GuiButton (must never swallow clicks)
 --   NonInteractiveParts  paths (from the gui) of parts of an otherwise interactive gui that must not swallow clicks
 UiSpec.Guis = {
-	-- The HUD (ui/specs/RacerHud.ui.json). Disabled while the enlarged roll view is open (design doc: in the enlarged
-	-- view the bottom HUD shrinks to an AUTO toggle; RollShowcase/AutoButton is that toggle).
+	-- The HUD (ui/specs/RacerHud.ui.json). Roll entry is the top-centre compact
+	-- animation; its enlarged showcase owns the AUTO toggle.
 	RacerHud = {
 		Source = "Client/RollToast/RacerUiController (Ui/RacerHud)",
 		AlwaysOn = {
@@ -69,8 +69,6 @@ UiSpec.Guis = {
 			"Navigation/Stats/Face/PointsBadge",
 			"Navigation/Rebirth/Face",
 			"Settings/Face",
-			"RollControls/RollView/Face",
-			"RollControls/AutoRoll/Face",
 			"Speed",
 			"Money",
 			"Turbo",
@@ -89,19 +87,6 @@ UiSpec.Guis = {
 			{ Path = "Navigation/Stats/Face", Does = "toggle_panel", Panel = "RacerStats/Panel", Text = "STATS" },
 			{ Path = "Navigation/Rebirth/Face", Does = "toggle_panel", Panel = "RacerRebirth/Panel", Text = "REBIRTH" },
 			{ Path = "Settings/Face", Does = "toggle_panel", Panel = "RacerSettings/Panel" }, -- gear icon, no text
-			{
-				Path = "RollControls/RollView/Face",
-				Does = "open_overlay", -- opens the enlarged roll view; NOT a free roll (fires nothing)
-				Overlay = "RollShowcase",
-				Text = "ROLLS",
-			},
-			{
-				Path = "RollControls/AutoRoll/Face",
-				Does = "remote",
-				Remote = "SetAutoRoll",
-				Arg = "not_attr:AutoRoll",
-				Label = "UiSpec.AutoRollText.Hud[AutoRoll]",
-			},
 		},
 	},
 	-- CAR INDEX modal (ui/specs/RacerIndex.ui.json; tiles built by Components.BakeIndex)
@@ -148,7 +133,7 @@ UiSpec.Guis = {
 		},
 		DisabledStats = { Workshop = true }, -- the Racer UI shows the Workshop row as "COMING SOON": it fires nothing
 	},
-	-- SETTINGS modal (ui/specs/RacerSettings.ui.json): local preferences + the auto-roll toggle
+	-- SETTINGS modal (ui/specs/RacerSettings.ui.json): local preferences only.
 	RacerSettings = {
 		Source = "Client/RollToast/RacerUiController (Ui/RacerSettings)",
 		Panels = { "Panel" },
@@ -172,13 +157,6 @@ UiSpec.Guis = {
 				Does = "local",
 				Effect = "attr:ReduceEffects",
 				Label = "UiSpec.Settings.EffectsText[ReduceEffects]",
-			},
-			{
-				Path = "Panel/Face/AutoRow/Face/AutoToggle/Face",
-				Does = "remote",
-				Remote = "SetAutoRoll",
-				Arg = "not_attr:AutoRoll",
-				Label = "UiSpec.AutoRollText.Settings[AutoRoll]",
 			},
 		},
 	},
@@ -242,8 +220,6 @@ UiSpec.RemovedGuis = { "SpeedHud", "AutoRaceButton", "IndexUi", "StatsUi", "Roll
 
 -- Labels whose text follows a server attribute (each button names what it shows).
 UiSpec.AutoRollText = {
-	Hud = { [true] = "AUTO ON", [false] = "AUTO OFF" }, -- RacerHud/RollControls/AutoRoll
-	Settings = { [true] = "ON", [false] = "OFF" }, -- RacerSettings AutoToggle
 	Showcase = { [true] = "AUTO: ON", [false] = "AUTO: OFF" }, -- RollShowcase/AutoButton
 }
 UiSpec.Settings = {
@@ -279,9 +255,6 @@ UiSpec.Hud = {
 	TurboFill = "RacerHud/Turbo/Face/TurboFill",
 	TurboLabel = "RacerHud/Turbo/Face/TurboLabel",
 	TurboBottomGap = { Desktop = 22, Phone = 16 }, -- px from the screen bottom to the TURBO LUCK bar's bottom edge
-	RollControls = "RacerHud/RollControls",
-	RollsButton = "RacerHud/RollControls/RollView/Face",
-	AutoRollButton = "RacerHud/RollControls/AutoRoll/Face",
 	Settings = "RacerHud/Settings/Face",
 	PointsBadge = "RacerHud/Navigation/Stats/Face/PointsBadge",
 	BottomGap = { Desktop = 22, Phone = 16 }, -- px: Money (bottom left) and RollControls (bottom right) bottom edges
@@ -330,6 +303,7 @@ UiSpec.Showcase = {
 	BackdropMaxLuminance = 0.3,
 	Card = "Card", -- Frame, Active (a click on it does NOT close)
 	Body = "Card/CardBody/Face", -- the animated card body (PopIn grows it, LAND_POP pops it)
+	CardCentreScale = 0.46, -- RollShowcase.ui.json positions the card centre at 46% of the viewport height
 	-- Every part the enlarged card must have (presence; Racer UI names)...
 	CardParts = {
 		"Glow",
@@ -391,6 +365,8 @@ UiSpec.Compact = {
 	},
 	AutoOff = "AutoOff", -- caption part, shown only while AutoRoll is false
 	ExtraHeight = 44, -- caption band (24) + odds band (20)
+	ModelShare = 90 / 110, -- 24 px caption + 66 px art in the 110 px compact toast
+	SplitTolerance = 0.02, -- proportional tolerance for Roblox's layout rounding
 }
 
 -- The roll animation (docs/ROLL_ANIMATION_CONTRACT.md). Numbers are read from Shared/RollAnimConfig; Fallback is the
@@ -935,66 +911,8 @@ UiSpec.Clicks = {
 		NeedSetup = { "spy" },
 		Expect = { Remote = false, After = { "reduce_effects_flipped", "effects_label_follows_attr" } },
 	},
-	-- Auto roll: the HUD AUTO button and the Settings toggle fire SetAutoRoll(not AutoRoll); every AUTO label
-	-- (HUD, Settings, showcase) follows the server. Each pair ends with AutoRoll back on.
-	{
-		Id = "hud_auto_roll_off",
-		Gui = "RacerHud",
-		Path = "RollControls/AutoRoll/Face",
-		Prepare = { Closed = CLOSED, Showcase = false, AttrIs = { AutoRoll = true } },
-		NeedSetup = { "spy" },
-		Expect = {
-			Remote = { Name = "SetAutoRoll", Arg = "not_attr:AutoRoll" },
-			After = { "autoroll_is_arg", "autoroll_labels_follow_server", "no_rolls_while_auto_off" },
-		},
-	},
-	{
-		Id = "hud_auto_roll_on",
-		Gui = "RacerHud",
-		Path = "RollControls/AutoRoll/Face",
-		Prepare = { Closed = CLOSED, Showcase = false, AttrIs = { AutoRoll = false } },
-		NeedSetup = { "spy" },
-		Expect = {
-			Remote = { Name = "SetAutoRoll", Arg = "not_attr:AutoRoll" },
-			After = { "autoroll_is_arg", "autoroll_labels_follow_server", "rolls_resume" },
-		},
-	},
-	{
-		Id = "settings_auto_roll_off",
-		Gui = "RacerSettings",
-		Path = "Panel/Face/AutoRow/Face/AutoToggle/Face",
-		Prepare = { Open = { "RacerSettings/Panel" }, Showcase = false, AttrIs = { AutoRoll = true } },
-		NeedSetup = { "spy" },
-		Expect = {
-			Remote = { Name = "SetAutoRoll", Arg = "not_attr:AutoRoll" },
-			After = { "autoroll_is_arg", "autoroll_labels_follow_server" },
-		},
-	},
-	{
-		Id = "settings_auto_roll_on",
-		Gui = "RacerSettings",
-		Path = "Panel/Face/AutoRow/Face/AutoToggle/Face",
-		Prepare = { Open = { "RacerSettings/Panel" }, Showcase = false, AttrIs = { AutoRoll = false } },
-		NeedSetup = { "spy" },
-		Expect = {
-			Remote = { Name = "SetAutoRoll", Arg = "not_attr:AutoRoll" },
-			After = { "autoroll_is_arg", "autoroll_labels_follow_server", "rolls_resume" },
-		},
-	},
-	-- ROLLS opens the enlarged view (closing any panel, hiding the HUD) and fires nothing
-	{
-		Id = "rolls_button_opens_showcase",
-		Gui = "RacerHud",
-		Path = "RollControls/RollView/Face",
-		Prepare = { Open = { "RacerIndex/Panel" }, Showcase = false, AttrIs = { AutoRoll = true } },
-		NeedSetup = { "spy", "auto_racing" },
-		Expect = {
-			Showcase = true,
-			Panels = { ["RacerIndex/Panel"] = false },
-			Remote = false,
-			After = { "view_enlarged", "showcase_blur_on", "hud_hidden_while_showcase_open" },
-		},
-	},
+	-- AUTO is intentionally only reachable from RollShowcase/AutoButton after
+	-- clicking the compact top-centre RollToast animation.
 	{
 		Id = "showcase_backdrop_closes_after_rolls",
 		Gui = "RollShowcase",

@@ -460,10 +460,10 @@ function richText(t) {
 
 function taskHtml(m) {
   const done = m.status === "done";
-  const action = !state.canWrite ? "" : done
+  const action = m.persistent ? `<span class="muted">Reference setup · keep this checklist available</span>` : !state.canWrite ? "" : done
     ? `<button data-m="${esc(m.id)}" data-ma="reopen">Reopen</button>`
     : `<button class="primary" data-m="${esc(m.id)}" data-ma="done">Mark done</button>`;
-  return `<div class="task ${esc(m.priority || "")}">
+  return `<div class="task ${esc(m.priority || "")} ${m.persistent ? "manual-reference" : ""}">
     <div class="head"><span class="t">${esc(m.title)}</span><span class="badge">${esc(m.priority || "")} priority</span></div>
     <p><b>Why:</b> ${richText(m.why)}</p>
     ${m.blocks ? `<p><b>Unblocks:</b> ${richText(m.blocks)}</p>` : ""}
@@ -477,7 +477,7 @@ const PRIORITY = { high: 0, medium: 1, low: 2 };
 
 async function loadManualCount() {
   const d = await api("/api/manual");
-  const open = d.items.filter((m) => m.status !== "done");
+  const open = d.items.filter((m) => m.status !== "done" && !m.persistent);
   $("manual-count").hidden = open.length === 0;
   $("manual-count").textContent = open.length;
   $("needs").hidden = open.length === 0;
@@ -489,9 +489,11 @@ async function loadManual() {
   const d = await loadManualCount();
   if (!changed("manual", d)) return;
   const byPriority = (a, b) => (PRIORITY[a.priority] ?? 3) - (PRIORITY[b.priority] ?? 3);
-  $("manual").innerHTML = d.items.filter((m) => m.status !== "done").sort(byPriority).map(taskHtml).join("") ||
-    `<p class="muted">Nothing needs you right now.</p>`;
-  $("manual-done").innerHTML = d.items.filter((m) => m.status === "done").map(taskHtml).join("") || `<p class="muted small">None yet.</p>`;
+  const configs = d.items.filter((m) => m.category === "config").sort(byPriority);
+  const open = d.items.filter((m) => m.status !== "done" && m.category !== "config").sort(byPriority);
+  $("manual").innerHTML = (configs.length ? `<div class="manual-section"><h3 class="manual-section-title">Configs &amp; setup</h3><p class="muted small">Persistent onboarding guidance for a new developer or LLM. Check the commands on the current machine before starting work.</p>${configs.map(taskHtml).join("")}</div>` : "") +
+    (open.length ? `<div class="manual-section"><h3 class="manual-section-title">Manual tasks</h3>${open.map(taskHtml).join("")}</div>` : `<p class="muted">Nothing needs you right now.</p>`);
+  $("manual-done").innerHTML = d.items.filter((m) => m.status === "done" && m.category !== "config").map(taskHtml).join("") || `<p class="muted small">None yet.</p>`;
   document.querySelectorAll("#tab-manual [data-ma]").forEach((b) => b.addEventListener("click", async () => {
     try {
       await api(`/api/manual/${b.dataset.m}`, { action: b.dataset.ma });

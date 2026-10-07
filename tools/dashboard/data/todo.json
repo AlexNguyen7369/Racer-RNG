@@ -225,6 +225,96 @@
       "by": "Claude",
       "added": "2026-10-06T17:44:01-07:00",
       "updated": "2026-10-06T17:44:01-07:00"
+    },
+    {
+      "id": "c0b03fca",
+      "title": "Show roll rarity as odds",
+      "detail": "After the current compatibility check passes and changes are pushed, change the roll animation label from rarity words such as Common/Rare to odds such as `1 in 10` or `1 in #`, using the rarity stat as the source.",
+      "status": "backlog",
+      "source": "manual",
+      "by": "Alex Nguyen",
+      "added": "2026-10-07T00:12:29-07:00",
+      "updated": "2026-10-07T00:12:29-07:00"
+    },
+    {
+      "id": "9ac65c93",
+      "title": "Add an Upgrade slab outside each workshop",
+      "detail": "After the current compatibility check passes and changes are pushed, place a clearly labeled `UPGRADE` slab outside each player's workshop area. Keep the presentation readable and visually integrated with the workshop.",
+      "status": "backlog",
+      "source": "manual",
+      "by": "Alex Nguyen",
+      "added": "2026-10-07T00:12:32-07:00",
+      "updated": "2026-10-07T00:12:32-07:00"
+    },
+    {
+      "id": "7c111020",
+      "title": "Implement workshop upgrades with E interaction",
+      "detail": "After the current compatibility check passes and changes are pushed, let the owner approach the Upgrade slab and press E to open an upgrade modal. Show the next workshop level and required Money; increase workshop Speed/s exponentially as level rises, with a correspondingly increasing cost. Define and document the exact progression before implementation.",
+      "status": "backlog",
+      "source": "manual",
+      "by": "Alex Nguyen",
+      "added": "2026-10-07T00:12:36-07:00",
+      "updated": "2026-10-07T00:12:36-07:00"
+    },
+    {
+      "id": "65b8cc63",
+      "title": "Draft Track 3 as a short straight drag race",
+      "detail": "After the current compatibility check passes and changes are pushed, begin Track 3: connect it from Track 02, keep it quite short, and make it a straight drag-race layout. Validate the connection, spawn/finish flow, and track rules.",
+      "status": "backlog",
+      "source": "manual",
+      "by": "Alex Nguyen",
+      "added": "2026-10-07T00:12:53-07:00",
+      "updated": "2026-10-07T00:12:53-07:00"
+    },
+    {
+      "id": "ab15d488",
+      "title": "Begin implementing the upgrade tree",
+      "detail": "After the current compatibility check passes and changes are pushed, begin the upgrade-tree implementation: define the progression, costs, effects, persistence, and UI/world interaction. Coordinate with the workshop upgrade economy so costs and Speed/s effects do not conflict.",
+      "status": "backlog",
+      "source": "manual",
+      "by": "Alex Nguyen",
+      "added": "2026-10-07T00:12:54-07:00",
+      "updated": "2026-10-07T00:12:54-07:00"
+    },
+    {
+      "id": "8fbc84a2",
+      "title": "Add an aesthetic Race-area overhang for manual auto racing",
+      "detail": "After the current compatibility check passes and changes are pushed, add a small overhang/canopy in the Race area where a player approaches to manually enter auto racing. Make it visually polished, readable as an interaction point, and consistent with the surrounding environment. Use existing Roblox assets or an available plugin only if needed after checking what is already in the project.",
+      "status": "backlog",
+      "source": "manual",
+      "by": "Alex Nguyen",
+      "added": "2026-10-07T00:12:55-07:00",
+      "updated": "2026-10-07T00:12:55-07:00"
+    },
+    {
+      "id": "4b83c3d5",
+      "title": "Move roll controls into the top-centre roll animation",
+      "detail": "After the current compatibility check passes and the existing changes are pushed, remove the bottom-left/bottom roll and AUTO controls. Keep the compact roll animation at the top centre as the only entry point; clicking it opens the enlarged roll view where the AUTO option lives.",
+      "status": "backlog",
+      "source": "manual",
+      "by": "Alex Nguyen",
+      "added": "2026-10-07T00:17:36-07:00",
+      "updated": "2026-10-07T00:17:36-07:00"
+    },
+    {
+      "id": "3e7ba29c",
+      "title": "Add a top-down auto-racing camera setting",
+      "detail": "After the current compatibility check passes and the existing changes are pushed, add a Settings toggle for Top-down view. When enabled during auto racing, keep the car visible from above; mouse-wheel zoom should smoothly change the camera height/perspective rather than switching to a ground-level chase view. Restore the normal camera when auto racing stops.",
+      "status": "backlog",
+      "source": "manual",
+      "by": "Alex Nguyen",
+      "added": "2026-10-07T00:17:36-07:00",
+      "updated": "2026-10-07T00:17:36-07:00"
+    },
+    {
+      "id": "0557b063",
+      "title": "Theme Tracks 01, 02, and 03 with distinct palettes",
+      "detail": "After the current compatibility check passes and the existing changes are pushed, give each track its own visual palette. Track 01 uses a classic red/grey road with checkered race accents; Tracks 02 and 03 use distinct themed palettes. Keep the palette data per track so future tracks can define their own themes.",
+      "status": "backlog",
+      "source": "manual",
+      "by": "Alex Nguyen",
+      "added": "2026-10-07T00:17:36-07:00",
+      "updated": "2026-10-07T00:17:36-07:00"
     }
   ]
 }

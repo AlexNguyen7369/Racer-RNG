@@ -636,14 +636,14 @@ local function isEnlarged()
 	return gui:GetAttribute("View") == "Enlarged"
 end
 
--- The compact roll shows while a roll plays in the compact view, or while auto-roll is off (it is then the way
--- into the enlarged view and its AUTO button); hidden only while the enlarged view is open. Panels and HUD clicks
--- never touch it (owner, 2026-10-02): the panels start below it instead.
+-- The compact roll is the always-available top-centre entry point. Clicking it
+-- opens the enlarged showcase, where the AUTO option lives. It is hidden only
+-- while the enlarged view is open.
 local function refreshToast()
 	local playing = phase ~= "Idle"
-	local show = (playing or not autoRollOn()) and not isEnlarged()
+	local show = not isEnlarged()
 	toast.Visible = show
-	compact.AutoOff.Visible = not autoRollOn()
+	compact.AutoOff.Visible = false
 	if show and not playing then
 		compact.Body.Size = UDim2.fromScale(1, 1)
 		if not latest then
@@ -1106,7 +1106,8 @@ rollRemote.OnClientEvent:Connect(function(id, isNew, turboMulti, emphasized)
 	})
 end)
 
--- Shared entry point for the bottom-right ROLLS button; it opens the existing view, not a free roll.
+-- Compatibility entry point for older callers; the visible entry point is the
+-- compact top-centre Toast itself.
 local openRollView = make("BindableEvent", { Name = "OpenRollView" }, gui)
 openRollView.Event:Connect(function()
 	openEnlarged(false)

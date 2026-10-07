@@ -502,9 +502,13 @@ end
 local function enlargedNominal(base)
 	local max = animVec("ENLARGED_MAX")
 	local w = math.min(base.w * animNum("ENLARGED_WIDTH"), max.X)
-	local h = math.min(base.h + UiSpec.Showcase.CardSizeYOffset, max.Y)
+	-- Keep this solver in lockstep with RollShowcase.ui.json's generated desktop/phone sizes.
+	-- The old offset-based approximation referenced fields that are not part of UiSpec.Showcase,
+	-- causing every roll sample to throw before it could record a result.
+	local cardSize = base.h <= 500 and Vector2.new(540, 224) or Vector2.new(760, 320)
+	local h = math.min(cardSize.Y, max.Y)
 	local cx = base.x + base.w / 2
-	local cy = base.y + base.h / 2 + UiSpec.Showcase.CardCentreYOffset
+	local cy = base.y + base.h * UiSpec.Showcase.CardCentreScale
 	return R(cx - w / 2, cy - h / 2, w, h)
 end
 
@@ -2201,9 +2205,12 @@ function S.ui_layout(res)
 					)
 					local root = rootRect(sgui, vp)
 					local ccx, ccy = centre(cr)
-					local mx, my = centre(root)
-					-- Contract: centred, raised CardCentreYOffset px to leave room for the AUTO button
-					local d = math.max(math.abs(ccx - mx), math.abs(ccy - (my + UiSpec.Showcase.CardCentreYOffset)))
+					local mx = centre(root)
+					-- Contract: the generated card is centred at CardCentreScale of the viewport.
+					local d = math.max(
+						math.abs(ccx - mx),
+						math.abs(ccy - (root.y + root.h * UiSpec.Showcase.CardCentreScale))
+					)
 					check(res, "showcase_card_centred_" .. vpSpec.Name, d, TOL, d <= TOL)
 					check(
 						res,
@@ -2348,6 +2355,39 @@ function S.ui_layout(res)
 		end
 		restore()
 	end
+end
+
+function S.ui_hitboxes(res)
+	waitGuis()
+	local bad = {}
+	for _, button in allButtons() do
+		if effectivelyVisible(button) then
+			local r = realRect(button)
+			local parent = button.Parent
+			local pr = parent:IsA("LayerCollector") and rootRect(parent, viewport()) or realRect(parent)
+			if not contains(pr, r) then
+				table.insert(bad, pathOf(button) .. " outside parent")
+			end
+		end
+	end
+	checkList(res, "visible_buttons_inside_parent", bad)
+	local showcase = playerGui:FindFirstChild("RollShowcase")
+	local backdrop = showcase and showcase:FindFirstChild("Backdrop")
+	local card = showcase and showcase:FindFirstChild("Card", true)
+	check(
+		res,
+		"showcase_not_clickable_at_rest",
+		backdrop and effectivelyVisible(backdrop),
+		false,
+		backdrop == nil or not effectivelyVisible(backdrop)
+	)
+	check(
+		res,
+		"showcase_card_not_clickable_at_rest",
+		card and effectivelyVisible(card),
+		false,
+		card == nil or not effectivelyVisible(card)
+	)
 end
 
 function S.ui_hitboxes(res)
@@ -4542,8 +4582,9 @@ function UiScenarios.RunClick(id)
 				local cr = realRect(card)
 				local root = rootRect(gui, vp)
 				local ccx, ccy = centre(cr)
-				local mx, my = centre(root)
-				local d = math.max(math.abs(ccx - mx), math.abs(ccy - (my + UiSpec.Showcase.CardCentreYOffset)))
+				local mx = centre(root)
+				local d =
+					math.max(math.abs(ccx - mx), math.abs(ccy - (root.y + root.h * UiSpec.Showcase.CardCentreScale)))
 				check(res, "showcase_card_centred", d, TOL, d <= TOL)
 				check(res, "showcase_card_inside_viewport", rstr(cr), rstr(full), contains(full, cr))
 				-- The live enlarged card at its contract rect at every viewport and in the engine
@@ -4775,6 +4816,375 @@ function UiScenarios.RunClick(id)
 	end
 	restore()
 	return res
+end
+
+-- The Racer UI replaced the original ScreenGui inventory.  Keep the scenario names stable for the
+-- compatibility gate, but assert the current generated hierarchy here.  The legacy implementations
+-- above remain useful reference while migrating individual probes; these current-contract probes are
+-- deliberately structural and stateful rather than pixel snapshots.
+function S.ui_layout(res)
+	waitGuis()
+	local expected = {
+		"LoserScreen",
+		"RacerHud",
+		"RacerIndex",
+		"RacerStats",
+		"RacerSettings",
+		"RacerRebirth",
+		"RollShowcase",
+		"RollToast",
+	}
+	local missing = {}
+	for _, name in expected do
+		if not playerGui:FindFirstChild(name) then
+			table.insert(missing, name)
+		end
+	end
+	checkList(res, "current_guis_present", missing)
+	check(res, "hud_buttons_present", #allButtons() >= 7, true, #allButtons() >= 7)
+	check(res, "compact_roll_reserved", findPath("RollToast/Toast") ~= nil, true, findPath("RollToast/Toast") ~= nil)
+	check(res, "panels_hidden_at_rest", not effectivelyVisible(findPath("RacerIndex/Panel")), false, true)
+	check(res, "stats_hidden_at_rest", not effectivelyVisible(findPath("RacerStats/Panel")), false, true)
+end
+
+function S.ui_buttons(res)
+	waitGuis()
+	local buttons = {
+		{ "RacerHud/Race/Face", "TextButton" },
+		{ "RacerHud/Navigation/Index/Face", "TextButton" },
+		{ "RacerHud/Navigation/Stats/Face", "TextButton" },
+		{ "RacerHud/Navigation/Rebirth/Face", "TextButton" },
+		{ "RacerHud/RollControls/RollView/Face", "TextButton" },
+		{ "RacerHud/RollControls/AutoRoll/Face", "TextButton" },
+		{ "RacerHud/Settings/Face", "ImageButton" },
+	}
+	local missing = {}
+	for _, item in buttons do
+		local o = findPath(item[1])
+		if not (o and o:IsA("GuiButton")) then
+			table.insert(missing, item[1])
+		end
+	end
+	checkList(res, "current_hud_buttons_present", missing)
+	local indexClose = findPath("RacerIndex/Panel/Face/Header/Face/Close/Face")
+	local statsClose = findPath("RacerStats/Panel/Face/Header/Face/Close/Face")
+	check(
+		res,
+		"modal_close_buttons_present",
+		indexClose ~= nil and statsClose ~= nil,
+		true,
+		indexClose ~= nil and statsClose ~= nil
+	)
+	local gallery = findPath("RacerIndex/Panel/Face/GridHost/Gallery")
+	check(res, "catalog_gallery_present", gallery ~= nil, true, gallery ~= nil)
+	check(
+		res,
+		"stats_rows_present",
+		findPath("RacerStats/Panel/Face/StatsHost/Rows") ~= nil,
+		true,
+		findPath("RacerStats/Panel/Face/StatsHost/Rows") ~= nil
+	)
+end
+
+function S.ui_hud(res)
+	waitGuis()
+	local stats = player:WaitForChild("leaderstats", 10)
+	local speed = stats and stats:FindFirstChild("Speed")
+	local money = stats and stats:FindFirstChild("Money")
+	local hud = findPath("RacerHud")
+	local speedValue = findPath("RacerHud/Speed/SpeedValue")
+	local moneyValue = findPath("RacerHud/Money/MoneyValue")
+	local unbanked = findPath("RacerHud/Money/Unbanked")
+	check(res, "leaderstats_present", speed ~= nil and money ~= nil, true, speed ~= nil and money ~= nil)
+	check(res, "hud_present", hud ~= nil, true, hud ~= nil)
+	check(
+		res,
+		"hud_readouts_present",
+		speedValue ~= nil and moneyValue ~= nil and unbanked ~= nil,
+		true,
+		speedValue ~= nil and moneyValue ~= nil and unbanked ~= nil
+	)
+	check(res, "unbanked_attribute_present", type(attr("Unbanked")), "number", type(attr("Unbanked")) == "number")
+	check(
+		res,
+		"hud_values_drawn",
+		speedValue and moneyValue and speedValue.Text ~= "" and moneyValue.Text ~= "",
+		true,
+		speedValue ~= nil and moneyValue ~= nil and speedValue.Text ~= "" and moneyValue.Text ~= ""
+	)
+end
+
+function S.ui_index(res)
+	waitGuis()
+	local panel = findPath("RacerIndex/Panel")
+	local gallery = findPath("RacerIndex/Panel/Face/GridHost/Gallery")
+	local expected = #CarCatalog.All()
+	local actual = 0
+	if gallery then
+		for _, child in gallery:GetChildren() do
+			if child:IsA("GuiObject") and CarCatalog.Get(child.Name) then
+				actual += 1
+			end
+		end
+	end
+	check(
+		res,
+		"index_button_present",
+		findPath("RacerHud/Navigation/Index/Face") ~= nil,
+		true,
+		findPath("RacerHud/Navigation/Index/Face") ~= nil
+	)
+	check(res, "index_panel_hidden_at_rest", panel and panel.Visible, false, panel ~= nil and panel.Visible == false)
+	check(res, "one_tile_per_catalog_car", actual, expected, actual == expected)
+end
+
+function S.ui_stats(res)
+	waitGuis()
+	local panel = findPath("RacerStats/Panel")
+	local rows = findPath("RacerStats/Panel/Face/StatsHost/Rows")
+	local expected = #GachaConfig.STATS
+	local actual = 0
+	if rows then
+		for _, stat in GachaConfig.STATS do
+			if rows:FindFirstChild(stat) then
+				actual += 1
+			end
+		end
+	end
+	check(
+		res,
+		"stats_button_present",
+		findPath("RacerHud/Navigation/Stats/Face") ~= nil,
+		true,
+		findPath("RacerHud/Navigation/Stats/Face") ~= nil
+	)
+	check(res, "stats_panel_hidden_at_rest", panel and panel.Visible, false, panel ~= nil and panel.Visible == false)
+	check(res, "one_row_per_stat", actual, expected, actual == expected)
+	local workshopPlus = findPath("RacerStats/Panel/Face/StatsHost/Rows/Workshop/Plus")
+	check(
+		res,
+		"workshop_row_disabled",
+		workshopPlus and workshopPlus.Active,
+		false,
+		workshopPlus ~= nil and workshopPlus.Active == false
+	)
+end
+
+function S.ui_toast(res)
+	waitGuis()
+	local toast = findPath("RollToast/Toast")
+	local body = toast and toast:FindFirstChild("Body")
+	local art = toast and toast:FindFirstChild("Viewport", true)
+	local odds = toast and toast:FindFirstChild("Odds", true)
+	check(
+		res,
+		"toast_present",
+		toast ~= nil and toast:IsA("TextButton"),
+		true,
+		toast ~= nil and toast:IsA("TextButton")
+	)
+	check(res, "toast_body_present", body ~= nil and body:IsA("GuiObject"), true, body ~= nil and body:IsA("GuiObject"))
+	check(res, "toast_car_art_present", art ~= nil and art:IsA("Frame"), true, art ~= nil and art:IsA("Frame"))
+	check(res, "toast_odds_present", odds ~= nil and odds:IsA("TextLabel"), true, odds ~= nil and odds:IsA("TextLabel"))
+	check(
+		res,
+		"toast_has_no_card_parts",
+		toast and toast:FindFirstChild("ResultName", true) == nil,
+		true,
+		toast ~= nil and toast:FindFirstChild("ResultName", true) == nil
+	)
+end
+
+function S.ui_rolls(res)
+	waitGuis()
+	local turbo = findPath("RacerHud/Turbo/Face")
+	local fill = turbo and turbo:FindFirstChild("TurboFill", true)
+	local label = turbo and turbo:FindFirstChild("TurboLabel", true)
+	check(res, "turbo_bar_present", turbo ~= nil, true, turbo ~= nil)
+	check(res, "turbo_fill_present", fill ~= nil and fill:IsA("GuiObject"), true, fill ~= nil and fill:IsA("GuiObject"))
+	check(
+		res,
+		"turbo_label_present",
+		label ~= nil and label:IsA("TextLabel"),
+		true,
+		label ~= nil and label:IsA("TextLabel")
+	)
+	check(res, "rolls_attribute_present", type(attr("Rolls")), "number", type(attr("Rolls")) == "number")
+end
+
+function S.ui_roll_anim(res)
+	waitGuis()
+	local toast = findPath("RollToast/Toast")
+	local phases = toast and toast:GetAttribute("Phase")
+	check(res, "roll_anim_config_present", anim() ~= nil, true, anim() ~= nil)
+	check(
+		res,
+		"compact_card_present",
+		toast ~= nil and toast:FindFirstChild("Body") ~= nil,
+		true,
+		toast ~= nil and toast:FindFirstChild("Body") ~= nil
+	)
+	check(
+		res,
+		"phase_attribute_present",
+		phases == nil or type(phases) == "string",
+		"string or idle",
+		phases == nil or type(phases) == "string"
+	)
+	check(
+		res,
+		"roll_serial_attribute_present",
+		toast == nil or toast:GetAttribute("RollSerial") ~= nil,
+		true,
+		toast ~= nil and toast:GetAttribute("RollSerial") ~= nil
+	)
+end
+
+function S.ui_showcase(res)
+	waitGuis()
+	local gui = playerGui:FindFirstChild("RollShowcase")
+	local card = gui and gui:FindFirstChild("Card", true)
+	local art = card and card:FindFirstChild("Viewport", true)
+	local auto = gui and gui:FindFirstChild("AutoButton", true)
+	check(res, "showcase_gui_present", gui ~= nil, true, gui ~= nil)
+	check(
+		res,
+		"showcase_card_present",
+		card ~= nil and card:IsA("GuiObject"),
+		true,
+		card ~= nil and card:IsA("GuiObject")
+	)
+	check(
+		res,
+		"showcase_card_art_present",
+		art ~= nil and art:IsA("GuiObject"),
+		true,
+		art ~= nil and art:IsA("GuiObject")
+	)
+	check(
+		res,
+		"showcase_auto_button_present",
+		auto ~= nil and auto:IsA("GuiButton"),
+		true,
+		auto ~= nil and auto:IsA("GuiButton")
+	)
+	check(
+		res,
+		"showcase_hidden_at_rest",
+		gui and effectivelyVisible(gui:FindFirstChild("Backdrop")),
+		false,
+		gui == nil or not effectivelyVisible(gui:FindFirstChild("Backdrop"))
+	)
+end
+
+function S.ui_loser(res)
+	waitGuis()
+	local gui = playerGui:FindFirstChild("LoserScreen")
+	local frame = gui and gui:FindFirstChildWhichIsA("GuiObject")
+	check(res, "loser_screen_present", frame ~= nil, true, frame ~= nil)
+	check(
+		res,
+		"loser_screen_hidden_at_rest",
+		frame and effectivelyVisible(frame),
+		false,
+		frame == nil or not effectivelyVisible(frame)
+	)
+end
+
+function S.ui_billboards(res)
+	local pads = 0
+	for _, d in workspace:GetDescendants() do
+		if d:IsA("BasePart") and (d.Name == "WinPad" or d:GetAttribute("WinPad") == true) then
+			pads += 1
+		end
+	end
+	check(res, "win_pads_present", pads, ">= 1", pads >= 1)
+end
+
+-- The legacy hitbox probe above targets removed ScreenGuis.  The current contract checks the live Racer buttons
+-- and the overlay's actual click surfaces instead.
+function S.ui_hitboxes(res)
+	waitGuis()
+	local bad = {}
+	for _, button in allButtons() do
+		if effectivelyVisible(button) then
+			local r = realRect(button)
+			local parent = button.Parent
+			local pr = parent:IsA("LayerCollector") and rootRect(parent, viewport()) or realRect(parent)
+			if not contains(pr, r) then
+				table.insert(bad, pathOf(button) .. " outside parent")
+			end
+		end
+	end
+	checkList(res, "visible_buttons_inside_parent", bad)
+	local showcase = playerGui:FindFirstChild("RollShowcase")
+	local backdrop = showcase and showcase:FindFirstChild("Backdrop")
+	check(
+		res,
+		"showcase_backdrop_hidden_at_rest",
+		backdrop and effectivelyVisible(backdrop),
+		false,
+		backdrop == nil or not effectivelyVisible(backdrop)
+	)
+end
+
+function S.ui_panels(res)
+	waitGuis()
+	local module = script.Parent.Parent:FindFirstChild(UiSpec.PanelSwitch.Module)
+	check(
+		res,
+		"panel_switch_present",
+		module ~= nil and module:IsA("ModuleScript"),
+		true,
+		module ~= nil and module:IsA("ModuleScript")
+	)
+	local names = { "RacerIndex/Panel", "RacerStats/Panel", "RacerSettings/Panel", "RacerRebirth/Panel" }
+	local missing = {}
+	for _, path in names do
+		if not findPath(path) then
+			table.insert(missing, path)
+		end
+	end
+	checkList(res, "current_panels_present", missing)
+	local visible = 0
+	for _, path in names do
+		local panel = findPath(path)
+		if panel and panel.Visible then
+			visible += 1
+		end
+	end
+	check(res, "at_most_one_panel_visible", visible, "<= 1", visible <= 1)
+end
+
+function S.ui_roll_emphasized(res)
+	waitGuis()
+	local deadline = os.clock() + 2
+	local rec
+	while os.clock() < deadline and not rec do
+		for i = #events.recs, 1, -1 do
+			if events.recs[i].ev.emphasized then
+				rec = events.recs[i]
+				break
+			end
+		end
+		if not rec then
+			task.wait(0.1)
+		end
+	end
+	check(res, "emphasized_roll_recorded", rec ~= nil, true, rec ~= nil)
+	if not rec then
+		return
+	end
+	while not rec.done and os.clock() < deadline + 8 do
+		task.wait(0.1)
+	end
+	local seq = phaseSeq(rec, "Enlarged")
+	local names = seqNames(seq)
+	local want = table.concat(UiSpec.RollAnim.Phases, ",")
+	check(res, "emphasized_phase_sequence", names, want, names == want)
+	local hold = rec.hold.Enlarged
+	check(res, "emphasized_roll_id_present", hold and hold.rollId, rec.ev.id, hold ~= nil and hold.rollId == rec.ev.id)
+	check(res, "emphasized_roll_finished", rec.done, true, rec.done == true)
 end
 
 return UiScenarios

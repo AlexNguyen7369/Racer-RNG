@@ -37,7 +37,18 @@ function CarPhysics.new(model, config)
 	pcall(function()
 		params.CollisionGroup = "Cars"
 	end)
-
+	local parkedAttachment = Instance.new("Attachment")
+	parkedAttachment.Name = "ParkedStabilizerAttachment"
+	parkedAttachment.Parent = chassis
+	local parkedStabilizer = Instance.new("LinearVelocity")
+	parkedStabilizer.Name = "ParkedStabilizer"
+	parkedStabilizer.Attachment0 = parkedAttachment
+	parkedStabilizer.RelativeTo = Enum.ActuatorRelativeTo.World
+	parkedStabilizer.VelocityConstraintMode = Enum.VelocityConstraintMode.Vector
+	parkedStabilizer.VectorVelocity = Vector3.zero
+	parkedStabilizer.ForceLimitsEnabled = false
+	parkedStabilizer.Enabled = false
+	parkedStabilizer.Parent = chassis
 	return setmetatable({
 		Model = model,
 		Chassis = chassis,
@@ -50,6 +61,8 @@ function CarPhysics.new(model, config)
 		ForwardSpeed = 0,
 		LateralSpeed = 0,
 		Speed = 0,
+		ParkedTime = 0,
+		ParkedStabilizer = parkedStabilizer,
 	}, CarPhysics)
 end
 
@@ -261,6 +274,14 @@ function CarPhysics:Step(input, dt)
 	self.ForwardSpeed = fwdSpeed
 	self.LateralSpeed = grounded > 0 and lateralSpeedSum / grounded or 0
 	self.Speed = speed
+	local idle = input.Throttle == 0 and input.Brake == 0 and not input.Handbrake
+	local horizontalSpeed = Vector3.new(vel.X, 0, vel.Z).Magnitude
+	if idle and grounded == n and horizontalSpeed < 0.5 and math.abs(vel.Y) < 0.5 then
+		self.ParkedTime += dt
+	else
+		self.ParkedTime = 0
+	end
+	self.ParkedStabilizer.Enabled = self.ParkedTime >= 0.5
 end
 
 -- Put the car upright at a CFrame (used for respawn / flip recovery).

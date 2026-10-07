@@ -1,6 +1,30 @@
 {
   "items": [
     {
+      "id": "project-configs",
+      "title": "Configs & setup for a new collaborator or LLM",
+      "category": "config",
+      "persistent": true,
+      "priority": "high",
+      "why": "This project needs local CLI tools, Roblox Studio, Rojo, MCP connections, and GitHub access before an agent can safely edit, test, or push the game.",
+      "blocks": "Reliable Rojo sync, live Studio compatibility tests, Blender work, and GitHub delivery",
+      "when": "Before the first implementation or compatibility run on a new machine.",
+      "steps": [
+        "Install Python 3, Git, Roblox Studio, and Homebrew (macOS). Install the project CLIs: `brew install rojo stylua selene lune gh uv`.",
+        "From the repository root, verify the tools: `rojo --version`, `stylua --version`, `selene --version`, `lune --version`, `gh --version`, and `python3 --version`.",
+        "Configure Codex MCP servers: `codex mcp add Roblox_Studio -- /Applications/RobloxStudio.app/Contents/MacOS/StudioMCP` and `codex mcp add blender -- uvx blender-mcp`; restart Codex and verify with `codex mcp list`. On another OS, use that StudioMCP executable path.",
+        "For Blender live editing, install the add-on with `uvx mcp-for-blender install-addon`, enable it in Blender, and start the BlenderMCP server from the N-panel. Headless exports do not need the live connection.",
+        "Start Rojo from the repository root with `rojo serve`; in Roblox Studio open Plugins > Rojo and connect to `localhost:34872`. Confirm the synced script matches the files on disk before testing.",
+        "Open the Roblox Studio place in Edit mode, enable the Roblox Studio MCP, and turn on Game Settings > Security > Enable Studio Access to API Services when real DataStore tests are needed. Set the place server size to 7 for the workshop.",
+        "Authenticate GitHub for branch and push workflows: `gh auth login --hostname github.com --git-protocol https --web`; verify with `gh auth status`.",
+        "Start the shared dashboard with `python3 tools/dashboard/server.py --no-fetch --no-auto-branch` and open `http://127.0.0.1:8765`. Use the dashboard Agents tab and manual tasks as the handoff record.",
+        "Run local checks before a live gate: `stylua --check src`, `selene src`, and `rojo build --output /tmp/racer-rng.rbxl`. Never run two Studio test sessions at once, never edit synced scripts inside Studio, and do not push without an ALL GREEN `/compat-check`."
+      ],
+      "status": "open",
+      "added": "2026-10-06T19:30:00-07:00",
+      "by": "Codex"
+    },
+    {
       "id": "max-players-7",
       "title": "Set the server size to 7 players",
       "priority": "medium",
