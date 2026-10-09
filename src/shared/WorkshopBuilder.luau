@@ -16,6 +16,7 @@ local WALL_COLOR = Color3.fromRGB(70, 75, 85)
 local TRIM_COLOR = Color3.fromRGB(255, 200, 40)
 local BENCH_COLOR = Color3.fromRGB(120, 80, 45)
 local TYRE_COLOR = Color3.fromRGB(25, 25, 25)
+local UPGRADE_COLOR = Color3.fromRGB(70, 190, 255)
 
 local BASE_HEIGHT = 0.2
 local BASE_LIFT = 0.05 -- base top above the floor top, so the two never z-fight
@@ -170,6 +171,16 @@ function WorkshopBuilder.BuildWorkshop(level, plotCFrame)
 	local rate = billboard(zone, "Rate", Vector3.new(0, 2, 0), UDim2.fromOffset(200, 40))
 	rate.Text = ""
 	rate.TextColor3 = TRIM_COLOR
+
+	-- The upgrade interaction is implemented separately, but every owned workshop
+	-- gets a readable world target now. It sits just beyond the open front, inside
+	-- the plot, so it does not block the workshop zone or the hub approach.
+	local upgrade =
+		part(model, "UpgradePad", Vector3.new(10, 0.25, 6), at(0, 0.125, -half - 3), UPGRADE_COLOR, Enum.Material.Neon)
+	CollectionService:AddTag(upgrade, "UpgradePad")
+	local upgradeSign = billboard(upgrade, "UpgradeSign", Vector3.new(0, 2.2, 0), UDim2.fromOffset(180, 44))
+	upgradeSign.Text = "UPGRADE"
+	upgradeSign.TextColor3 = UPGRADE_COLOR
 
 	model.PrimaryPart = floor
 	return model

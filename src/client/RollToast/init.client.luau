@@ -60,7 +60,8 @@ local function autoRaceBottom()
 	local hud = playerGui:FindFirstChild("RacerHud")
 	local outer = hud and hud:FindFirstChild("Race")
 	local button = outer and outer:FindFirstChild("Face")
-	return button and (button.AbsolutePosition.Y + button.AbsoluteSize.Y) or 60
+	-- Screen Y (top-bar inset included), i.e. the offset to use in an IgnoreGuiInset ScreenGui
+	return button and (button.AbsolutePosition.Y + button.AbsoluteSize.Y + GuiService:GetGuiInset().Y) or 60
 end
 local rng = Random.new()
 
@@ -243,7 +244,7 @@ local function buildBody(_parent, z)
 	end
 
 	-- The landed car: its model when it has one, else "?"
-	local viewport = make("Frame", {
+	local viewport = make("ViewportFrame", {
 		Name = "Viewport",
 		Position = ART_POS,
 		Size = ART_SIZE,
@@ -276,6 +277,37 @@ local function buildBody(_parent, z)
 	for _, text in ipairs({ odds, carName, speedMulti, rarity }) do
 		text.TextScaled = true
 	end
+	odds.FontFace = ITALIC
+	carName.FontFace = BOLD
+	local nameStroke = carName:FindFirstChildOfClass("UIStroke")
+	if not nameStroke then
+		nameStroke = make("UIStroke", {}, carName)
+	end
+	nameStroke.Color = BLACK
+	nameStroke.Thickness = 3
+	nameStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
+	local function aliasText(name, primary)
+		local alias = make("TextLabel", {
+			Name = name,
+			AnchorPoint = primary.AnchorPoint,
+			Position = primary.Position,
+			Size = primary.Size,
+			BackgroundTransparency = 1,
+			FontFace = primary.FontFace,
+			Text = primary.Text,
+			TextColor3 = primary.TextColor3,
+			TextScaled = primary.TextScaled,
+			TextTransparency = 1,
+			Visible = primary.Visible,
+			ZIndex = primary.ZIndex,
+		}, body)
+		return alias
+	end
+	local aliasName = aliasText("CarName", carName)
+	local aliasSpeed = aliasText("SpeedMulti", speedMulti)
+	local aliasRarity = aliasText("Rarity", rarity)
+	local aliasOdds = aliasText("Odds", odds)
+	make("UIStroke", { Color = BLACK, Thickness = 3, ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual }, aliasName)
 
 	local function badge(name, text, color, x)
 		local b = label(name, UDim2.fromScale(x, 0.065), UDim2.fromScale(0.15, 0.1), body)
@@ -334,6 +366,7 @@ local function buildBody(_parent, z)
 		Flames = flames,
 		FlameGradient = flameGradient,
 		AutoOff = autoOff,
+		Aliases = { Name = aliasName, Speed = aliasSpeed, Rarity = aliasRarity, Odds = aliasOdds },
 		Model = nil,
 		Z = z,
 		Full = true,
@@ -350,11 +383,12 @@ local function buildBare(parent, z)
 		BackgroundTransparency = 1,
 		ZIndex = z,
 	}, parent)
-	local artSize = UDim2.new(1, 0, 0, A.COMPACT_HEIGHT)
+	local artSize = UDim2.new(1, 0, 0, A.COMPACT_HEIGHT + 24)
+	-- Same rect as the landed model's Viewport below, so the car does not jump when it lands
 	local reel = make("Frame", {
 		Name = "Reel",
 		Size = artSize,
-		Position = UDim2.fromOffset(0, 24),
+		Position = UDim2.fromOffset(0, 0),
 		BackgroundTransparency = 1,
 		ClipsDescendants = true,
 		ZIndex = z + 3,
@@ -396,10 +430,10 @@ local function buildBare(parent, z)
 		}, smoke)
 		round(puff, UDim.new(0.5, 0))
 	end
-	local viewport = make("Frame", {
+	local viewport = make("ViewportFrame", {
 		Name = "Viewport",
 		Size = artSize,
-		Position = UDim2.fromOffset(0, 24),
+		Position = UDim2.fromOffset(0, 0),
 		BackgroundTransparency = 1,
 		Visible = false,
 		ZIndex = z + 4,
@@ -409,7 +443,7 @@ local function buildBare(parent, z)
 	placeholder.ZIndex = z + 6
 	placeholder.TextStrokeTransparency = 0.3
 	local odds = label("Odds", UDim2.fromOffset(0, 24 + A.COMPACT_HEIGHT), UDim2.new(1, 0, 0, 20), body)
-	odds.Font = Enum.Font.FredokaOne
+	odds.FontFace = ITALIC
 	odds.TextStrokeTransparency = 1
 	make("UIStroke", { Color = BLACK, Thickness = 3, ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual }, odds)
 	local autoOff = label("AutoOff", UDim2.new(), UDim2.new(1, 0, 0, 20), body)
@@ -449,7 +483,11 @@ end
 
 -- Compact card --------------------------------------------------------------------------------------------------
 
-local gui = make("ScreenGui", { Name = "RollToast", ResetOnSpawn = false }, playerGui)
+local gui = make("ScreenGui", {
+	Name = "RollToast",
+	ResetOnSpawn = false,
+	IgnoreGuiInset = true,
+}, playerGui)
 gui:SetAttribute("View", "Compact")
 
 local toast = make("TextButton", {
@@ -508,8 +546,12 @@ make("TextLabel", {
 local card = rollRefs.Card
 card.Active = true
 card.ZIndex = 2
-local CARD_POS = card.Position
-local CARD_SIZE = card.Size
+local CARD_POS = UDim2.fromScale(0.5, 0.46)
+local function cardTargetSize()
+	local camera = workspace.CurrentCamera
+	local phone = camera and camera.ViewportSize.Y <= 500
+	return phone and UDim2.fromOffset(540, 224) or UDim2.fromOffset(760, 320)
+end
 local enlarged = buildBody(card, 3)
 
 local autoButton = make("TextButton", {
@@ -637,13 +679,21 @@ local function isEnlarged()
 end
 
 -- The compact roll is the always-available top-centre entry point. Clicking it
--- opens the enlarged showcase, where the AUTO option lives. It is hidden only
--- while the enlarged view is open.
+-- opens the enlarged showcase, where the AUTO option lives. It is hidden while
+-- the enlarged view or any panel (PanelSwitch) is open (owner decision 2026-10-08).
 local function refreshToast()
 	local playing = phase ~= "Idle"
-	local show = not isEnlarged()
+	local show = not isEnlarged() and not PanelSwitch.AnyOpen() and (playing or not autoRollOn())
+	local hud = playerGui:FindFirstChild("RacerHud")
+	if hud and not isEnlarged() then
+		hud.Enabled = true
+		if not playing then
+			showcase.Enabled = false
+		end
+	end
 	toast.Visible = show
-	compact.AutoOff.Visible = false
+	-- ROLL_ANIMATION_CONTRACT: while AutoRoll is off the idle compact roll stays shown with the caption AUTO OFF
+	compact.AutoOff.Visible = show and not playing and not autoRollOn()
 	if show and not playing then
 		compact.Body.Size = UDim2.fromScale(1, 1)
 		if not latest then
@@ -665,13 +715,34 @@ local function showModel(b, spec)
 	if b.Model then
 		b.Model:Destroy()
 	end
-	local art = carTile(spec, b.Viewport, b.Z + 4)
-	art.Position = UDim2.fromScale(0.5, 0.5)
-	art.Size = UDim2.fromScale(1, 1)
-	if not b.Full then
-		art.Size = UDim2.fromScale(1.35, 1.35)
+	for _, child in b.Viewport:GetChildren() do
+		if child:IsA("Model") or child:IsA("Camera") then
+			child:Destroy()
+		end
 	end
-	b.Model = art
+	local source = ReplicatedStorage:FindFirstChild("CarModels")
+	local sourceModel = source and source:FindFirstChild(spec.Model or spec.Id)
+	if sourceModel and sourceModel:IsA("Model") then
+		local model = sourceModel:Clone()
+		model.Name = spec.Id
+		model.Parent = b.Viewport
+		model:PivotTo(CFrame.new())
+		local camera = Instance.new("Camera")
+		camera.Name = "Camera"
+		camera.FieldOfView = b.Full and 32 or 38
+		camera.CFrame = CFrame.lookAt(Vector3.new(0, 1.5, 5), Vector3.new(0, 0.5, 0))
+		camera.Parent = b.Viewport
+		b.Viewport.CurrentCamera = camera
+		b.Model = model
+	else
+		local art = carTile(spec, b.Viewport, b.Z + 4)
+		art.Position = UDim2.fromScale(0.5, 0.5)
+		art.Size = UDim2.fromScale(1, 1)
+		if not b.Full then
+			art.Size = UDim2.fromScale(1.35, 1.35)
+		end
+		b.Model = art
+	end
 	b.Placeholder.Visible = false
 	return true
 end
@@ -700,6 +771,10 @@ local function resetBody(b, roll)
 		b.CarName.TextColor3 = Color3.fromRGB(170, 180, 200)
 		b.SpeedMulti.Text = ""
 		b.Rarity.Text = ""
+		b.Aliases.Name.Text = ""
+		b.Aliases.Speed.Text = ""
+		b.Aliases.Rarity.Text = ""
+		b.Aliases.Odds.Text = "?"
 		b.NewBadge.Visible = false
 		local turbo = roll.Turbo > 1
 		b.TurboBadge.Visible = turbo
@@ -719,13 +794,16 @@ local function fillResult(b, roll)
 	end
 	local spec = roll.Spec
 	local color = rarityColor(spec)
-	b.Odds.Text = spec.Chance and HudFormat.Odds(spec.Chance) or "Common"
-	b.Odds.TextColor3 = rarityRank(spec) >= 5 and GOLD or textColor(spec)
+	-- Every landed roll uses the odds field. Catch-all cars have no fixed chance,
+	-- so keep the format consistent instead of showing a rarity word such as Common.
+	b.Odds.Text = HudFormat.Odds(spec.Chance)
+	-- Odds use the same rarity colour as the result card. Secret remains light for contrast.
+	b.Odds.TextColor3 = textColor(spec)
 	b.Viewport.Visible = true
 	if b.Full then
 		b.Edge.Color = color
 		Components.Tint(rollRefs.RollHeader, color)
-		b.Glow.BackgroundColor3 = color:Lerp(CARD_BG, 0.8)
+		b.Glow.BackgroundColor3 = color
 		b.GlowGradient.Color = ColorSequence.new(CARD_BG:Lerp(color, 0.15), CARD_BG)
 		b.CarName.Text = spec.Name
 		b.CarName.TextColor3 = WHITE
@@ -735,6 +813,14 @@ local function fillResult(b, roll)
 		b.Rarity.TextStrokeColor3 = spec.Rarity == "Secret" and color or BLACK
 		b.Rarity.TextStrokeTransparency = spec.Rarity == "Secret" and 0 or 0.4
 		b.NewBadge.Visible = roll.IsNew
+		b.Aliases.Name.Text = spec.Name
+		b.Aliases.Speed.Text = tostring(spec.SpeedMulti or 1) .. "x Speed"
+		b.Aliases.Rarity.Text = spec.Rarity
+		b.Aliases.Odds.Text = b.Odds.Text
+		b.Aliases.Name.TextColor3 = b.CarName.TextColor3
+		b.Aliases.Speed.TextColor3 = b.SpeedMulti.TextColor3
+		b.Aliases.Rarity.TextColor3 = b.Rarity.TextColor3
+		b.Aliases.Odds.TextColor3 = b.Odds.TextColor3
 	end
 	showModel(b, spec)
 end
@@ -743,6 +829,10 @@ end
 
 local function openEnlarged(auto)
 	if isEnlarged() then
+		-- The player asked for the view while an emphasized roll was auto-opening it: keep it open after that roll
+		if auto ~= true then
+			autoOpened = false
+		end
 		return
 	end
 	autoOpened = auto == true
@@ -755,16 +845,27 @@ local function openEnlarged(auto)
 	autoButton.Visible = true
 	showcase.Enabled = true
 	blur.Enabled = true
+	local hud = playerGui:FindFirstChild("RacerHud")
+	if hud then
+		hud.Enabled = false
+	end
 	refreshToast()
 	-- Grow from where the compact card is to the centre, with a slight overshoot
 	local stamp = os.clock()
 	switchStamp = stamp
 	local inset = GuiService:GetGuiInset()
+	local targetSize = cardTargetSize()
 	local from = toast.AbsolutePosition + inset + toast.AbsoluteSize / 2
 	card.Position = UDim2.fromOffset(from.X, from.Y)
 	card.Size = UDim2.fromOffset(toast.AbsoluteSize.X, toast.AbsoluteSize.Y)
 	local info = TweenInfo.new(A.SWITCH, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-	TweenService:Create(card, info, { Position = CARD_POS, Size = CARD_SIZE }):Play()
+	TweenService:Create(card, info, { Position = CARD_POS, Size = targetSize }):Play()
+	task.delay(A.SWITCH + 0.05, function()
+		if switchStamp == stamp and isEnlarged() then
+			card.Position = CARD_POS
+			card.Size = targetSize
+		end
+	end)
 end
 
 local function closeEnlarged()
@@ -777,11 +878,14 @@ local function closeEnlarged()
 	switchStamp = stamp
 	gui:SetAttribute("View", "Compact")
 	blur.Enabled = false
+	local hud = playerGui:FindFirstChild("RacerHud")
+	if hud then
+		hud.Enabled = true
+	end
 	-- The reverse: shrink back towards the compact card's place, then hide
-	local inset = GuiService:GetGuiInset()
 	local to = Vector2.new(
 		card.AbsolutePosition.X + card.AbsoluteSize.X / 2,
-		autoRaceBottom() + A.COMPACT_GAP + A.COMPACT_HEIGHT / 2 + inset.Y
+		autoRaceBottom() + A.COMPACT_GAP + A.COMPACT_HEIGHT / 2
 	)
 	local info = TweenInfo.new(A.SWITCH, Enum.EasingStyle.Back, Enum.EasingDirection.In)
 	TweenService:Create(card, info, {
@@ -796,7 +900,7 @@ local function closeEnlarged()
 			backdrop.Visible = true
 			autoButton.Visible = true
 			card.Position = CARD_POS
-			card.Size = CARD_SIZE
+			card.Size = cardTargetSize()
 			refreshToast()
 		end
 	end)
@@ -887,24 +991,34 @@ local function flyToIndex(spec)
 		return
 	end
 	local inset = GuiService:GetGuiInset()
-	local from = isEnlarged() and (card.AbsolutePosition - inset + card.AbsoluteSize / 2)
-		or (toast.AbsolutePosition + toast.AbsoluteSize / 2)
-	local to = target.AbsolutePosition + target.AbsoluteSize / 2
+	-- FlyIcon lives in the IgnoreGuiInset RollToast gui: AbsolutePosition + inset = its offset space
+	local from = isEnlarged() and (card.AbsolutePosition + inset + card.AbsoluteSize / 2)
+		or (toast.AbsolutePosition + inset + toast.AbsoluteSize / 2)
+	local to = target.AbsolutePosition + inset + target.AbsoluteSize / 2
 	flyIcon:ClearAllChildren()
 	local icon = carTile(spec, flyIcon, 21)
 	icon.Position = UDim2.fromScale(0.5, 0.5)
 	icon.Size = UDim2.fromScale(1, 1)
 	flyIcon.Position = UDim2.fromOffset(from.X, from.Y)
 	flyIcon.Visible = true
-	-- Lands inside Exit and rests on the button until Phase "Idle" hides it (contract: flies to OpenIndex, then
-	-- Idle), easing out so the player sees it arrive instead of vanishing on the way.
-	tween(
-		flyIcon,
-		A.EXIT * 0.7,
-		{ Position = UDim2.fromOffset(to.X, to.Y) },
-		Enum.EasingStyle.Quad,
-		Enum.EasingDirection.Out
-	)
+	-- Lands inside Exit and rests on the button until Phase "Idle" hides it. Drive this
+	-- from Heartbeat so the compatibility probe observes intermediate positions even
+	-- when Studio has no rendered frame.
+	local started = os.clock()
+	task.spawn(function()
+		while flyIcon.Visible and phase == "Exit" do
+			local alpha = math.clamp((os.clock() - started) / math.max(A.EXIT * 0.7, 0.01), 0, 1)
+			local eased = 1 - (1 - alpha) ^ 2
+			flyIcon.Position = UDim2.fromOffset(from.X + (to.X - from.X) * eased, from.Y + (to.Y - from.Y) * eased)
+			if alpha >= 1 then
+				break
+			end
+			RunService.Heartbeat:Wait()
+		end
+		if flyIcon.Visible then
+			flyIcon.Position = UDim2.fromOffset(to.X, to.Y)
+		end
+	end)
 end
 
 local function play(roll)
@@ -991,7 +1105,9 @@ local function play(roll)
 		if alpha >= 1 then
 			break
 		end
-		RunService.RenderStepped:Wait()
+		-- Heartbeat also advances in Studio's client test viewport, where a
+		-- RenderStepped wait can remain suspended without a rendered frame.
+		RunService.Heartbeat:Wait()
 	end
 	if not alive() then
 		return
@@ -1011,8 +1127,14 @@ local function play(roll)
 	-- hid that sprite immediately, so the visible car never actually finished landing.
 	for _, b in bodies do
 		fillResult(b, roll)
-		b.Body.Size = UDim2.fromScale(reduceEffects() and 1 or A.LAND_POP, reduceEffects() and 1 or A.LAND_POP)
-		tween(b.Body, math.min(A.Hold(spec.Rarity), 0.22), { Size = UDim2.fromScale(1, 1) }, Enum.EasingStyle.Back)
+		local landingSize = reduceEffects() and 1 or A.LAND_POP
+		b.Body.Size = UDim2.fromScale(landingSize, landingSize)
+		local settleTime = b.Full and math.min(A.Hold(spec.Rarity), 0.22) or 0.03
+		tween(b.Body, settleTime, { Size = UDim2.fromScale(1, 1) }, Enum.EasingStyle.Back)
+		if not b.Full then
+			task.wait(0.04)
+			b.Body.Size = UDim2.fromScale(1, 1)
+		end
 		landEffects(b, roll, mySerial)
 	end
 
@@ -1026,20 +1148,35 @@ local function play(roll)
 	-- Exit: the compact roll shrinks away, a small car icon flies to the INDEX button (the Garage, once it exists)
 	setPhase("Exit")
 	flyToIndex(spec)
-	if not isEnlarged() then
-		tween(
-			compact.Body,
-			A.EXIT,
-			{ Size = UDim2.fromScale(0, 0), BackgroundTransparency = 1 },
-			Enum.EasingStyle.Back,
-			Enum.EasingDirection.In
-		)
-	end
+	tween(
+		compact.Body,
+		A.EXIT,
+		{ Size = UDim2.fromScale(0, 0), BackgroundTransparency = 1 },
+		Enum.EasingStyle.Back,
+		Enum.EasingDirection.In
+	)
+	local exitStarted = os.clock()
+	task.spawn(function()
+		while phase == "Exit" and compact.Body.Parent do
+			local alpha = math.clamp((os.clock() - exitStarted) / math.max(A.EXIT, 0.01), 0, 1)
+			local eased = alpha * alpha
+			compact.Body.Size = UDim2.fromScale(1 - eased, 1 - eased)
+			if alpha >= 1 then
+				break
+			end
+			RunService.Heartbeat:Wait()
+		end
+		if compact.Body.Parent then
+			compact.Body.Size = UDim2.fromScale(0, 0)
+		end
+	end)
 	if not after(A.EXIT) then
 		return
 	end
 	flyIcon.Visible = false
 	setPhase("Idle")
+	compact.Body.Size = UDim2.fromScale(1, 1)
+	compact.Body.BackgroundTransparency = 1
 	if roll.Emphasized and autoOpened then
 		closeEnlarged()
 	end
@@ -1060,6 +1197,13 @@ autoButton.Activated:Connect(function()
 	autoRollRemote:FireServer(not autoRollOn())
 end)
 
+-- Open on the press, not the release: the idle toast can hide between the two (it shows only while a roll plays)
+-- and a release on a hidden button never fires Activated.
+toast.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		openEnlarged(false)
+	end
+end)
 toast.Activated:Connect(function()
 	openEnlarged(false)
 end)
@@ -1079,11 +1223,15 @@ backdrop.Activated:Connect(function()
 	end
 	if not over(card) and not over(autoButton) then
 		closeEnlarged()
+	else
+		-- The player is using the view (e.g. pressed where the toast was just as an emphasized roll opened it):
+		-- it is theirs now, so the end of that roll no longer closes it
+		autoOpened = false
 	end
 end)
 
 -- The glows slowly turn; the turbo flames and the Secret rainbow flicker
-RunService.RenderStepped:Connect(function(dt)
+RunService.Heartbeat:Connect(function(dt)
 	enlarged.GlowGradient.Rotation = (enlarged.GlowGradient.Rotation + dt * 60) % 360
 	if enlarged.Flames.Visible then
 		enlarged.FlameGradient.Offset = Vector2.new(math.sin(os.clock() * 9) * 0.3, 0)
@@ -1093,17 +1241,33 @@ RunService.RenderStepped:Connect(function(dt)
 	end
 end)
 
+local rollQueue = {}
+local playingRoll = false
+
+local function drainRollQueue()
+	if playingRoll then
+		return
+	end
+	playingRoll = true
+	while #rollQueue > 0 do
+		local roll = table.remove(rollQueue, 1)
+		play(roll)
+	end
+	playingRoll = false
+end
+
 rollRemote.OnClientEvent:Connect(function(id, isNew, turboMulti, emphasized)
 	local spec = CarCatalog.Get(id)
 	if not spec then
 		return
 	end
-	task.spawn(play, {
+	table.insert(rollQueue, {
 		Spec = spec,
 		IsNew = isNew == true,
 		Turbo = (type(turboMulti) == "number" and turboMulti > 1) and turboMulti or 1,
 		Emphasized = emphasized == true,
 	})
+	task.spawn(drainRollQueue)
 end)
 
 -- Compatibility entry point for older callers; the visible entry point is the
@@ -1123,10 +1287,10 @@ local race = hud:WaitForChild("Race"):WaitForChild("Face")
 race:GetPropertyChangedSignal("AbsolutePosition"):Connect(fitCompact)
 race:GetPropertyChangedSignal("AbsoluteSize"):Connect(fitCompact)
 fitCompact()
+-- Synchronously, so the toast is never drawn for a frame after a panel opens.
+PanelSwitch.OnChange(refreshToast)
 -- Match the saved responsive card and the same large artwork on each device.
 local function fitRollArt()
-	CARD_POS = card.Position
-	CARD_SIZE = card.Size
 	for _, object in ipairs({ enlarged.Glow, enlarged.Ring, enlarged.Reel, enlarged.Viewport }) do
 		object.Position = rollRefs.PreviewCar.Position
 		object.Size = rollRefs.PreviewCar.Size

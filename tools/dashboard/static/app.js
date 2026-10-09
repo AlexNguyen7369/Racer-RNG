@@ -534,6 +534,89 @@ async function loadTests() {
   keepOpen($("tab-tests"));
 }
 
+// ------------------------------------------------------------------------------------------------ bugs
+
+const KIND_TEXT = {
+  fault: "Fault: the defect in the code itself (the cause)",
+  failure: "Failure: the wrong behaviour seen when the game runs (the effect)",
+};
+const CODE_NOW = {
+  same: "",
+  changed: "The code at these lines has changed since the bug was logged; this is the code as it was.",
+  missing: "This file no longer exists; this is the code as it was.",
+};
+
+function bugSource(b) {
+  if (!b.file) return `<p class="muted small">No source location recorded.</p>`;
+  const loc = `${b.file}${b.line ? `:${b.line}${b.endLine && b.endLine !== b.line ? `-${b.endLine}` : ""}` : ""}`;
+  const head = `<p class="small"><b>Source:</b> <code title="Click to copy">${esc(loc)}</code></p>`;
+  if (!b.snippet) return head;
+  const rows = b.snippet.lines.map((l, i) => {
+    const n = b.snippet.from + i;
+    const hit = n >= b.line && n <= (b.endLine || b.line);
+    return `<span class="ln ${hit ? `hit ${esc(b.kind)}` : ""}"><span class="no">${n}</span>${esc(l) || " "}</span>`;
+  }).join("");
+  return `${head}<pre class="bug-code">${rows}</pre>${CODE_NOW[b.codeNow] ? `<p class="muted small">${CODE_NOW[b.codeNow]}</p>` : ""}`;
+}
+
+function bugHtml(b) {
+  const fixed = b.status === "fixed";
+  const action = !state.canWrite ? "" : fixed
+    ? `<button data-b="${esc(b.id)}" data-ba="reopen">Reopen</button>`
+    : `<button class="primary" data-b="${esc(b.id)}" data-ba="fixed">Mark fixed</button>`;
+  return `<div class="bug ${esc(b.kind)} ${fixed ? "fixed" : ""}">
+    <div class="head">
+      <span class="t">${esc(b.name)}</span>
+      <span class="badge kind-${esc(b.kind)}" title="${esc(KIND_TEXT[b.kind] || "")}">${esc(b.kind)}</span>
+      <span class="badge ${fixed ? "pass" : "fail"}">${fixed ? "fixed" : "open"}</span>
+    </div>
+    <div class="meta small">
+      <span>Found by <span class="achip" style="--c:${colorVar(b.foundBy)}">${esc(b.foundBy)}</span></span>
+      <span title="${esc(b.foundAt)}">${esc(new Date(b.foundAt).toLocaleString(undefined, { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" }))}</span>
+      ${b.loggedBy ? `<span class="muted">logged on ${esc(b.loggedBy)}'s machine</span>` : ""}
+    </div>
+    <p><b>What fails and how it affects the game:</b> ${richText(b.summary)}</p>
+    ${b.error ? `<p class="small"><b>Error:</b></p><pre class="bug-error">${esc(b.error)}</pre>` : ""}
+    ${bugSource(b)}
+    <div class="actions">${action}${fixed ? `<span>fixed by ${esc(b.fixedBy || "")} ${when(b.fixedAt)}${b.fixNote ? ` · ${esc(b.fixNote)}` : ""}</span>` : ""}</div>
+  </div>`;
+}
+
+async function loadBugsCount() {
+  const d = await api("/api/bugs");
+  const open = d.items.filter((b) => b.status !== "fixed").length;
+  $("bugs-count").hidden = open === 0;
+  $("bugs-count").textContent = open;
+  return d;
+}
+
+async function loadBugs() {
+  const d = await loadBugsCount();
+  const filters = [$("bug-status").value, $("bug-kind").value, $("bug-agent").value];
+  if (!changed("bugs", [d, filters])) return;
+  const agents = [...new Set(d.items.map((b) => b.foundBy))].sort();
+  const pick = $("bug-agent").value;
+  $("bug-agent").innerHTML = `<option value="">Found by anyone</option>` + agents.map((a) => `<option>${esc(a)}</option>`).join("");
+  $("bug-agent").value = agents.includes(pick) ? pick : "";
+  const [status, kind] = filters;
+  const rows = d.items
+    .filter((b) => (!status || b.status === status) && (!kind || b.kind === kind) && (!$("bug-agent").value || b.foundBy === $("bug-agent").value))
+    .sort((a, b) => new Date(b.foundAt) - new Date(a.foundAt));
+  $("bugs").innerHTML = rows.map(bugHtml).join("") ||
+    `<p class="muted">${d.items.length ? "No bugs match these filters." : "No bugs logged yet. Subagents log them with tools/dashboard/bugs.py."}</p>`;
+  document.querySelectorAll("#tab-bugs [data-ba]").forEach((btn) => btn.addEventListener("click", async () => {
+    try {
+      await api(`/api/bugs/${btn.dataset.b}`, { action: btn.dataset.ba });
+      toast(btn.dataset.ba === "fixed" ? "Marked fixed" : "Reopened");
+      state.last.bugs = null;
+      await loadBugs();
+    } catch (e) { toast(e.message); }
+  }));
+  document.querySelectorAll("#tab-bugs .bug code").forEach((c) => c.addEventListener("click", () => {
+    navigator.clipboard?.writeText(c.textContent).then(() => toast("Copied"), () => {});
+  }));
+}
+
 // ------------------------------------------------------------------------------------------------ model analytics
 
 function num(n) { return Number(n || 0).toLocaleString(); }
@@ -632,12 +715,13 @@ const LOADERS = {
   changes: [loadChanges, loadHistory],
   todo: [loadTodo, loadSuggestions],
   tests: [loadTests],
+  bugs: [loadBugs],
 };
 
 async function refresh() {
   try {
     await loadMeta();
-    await Promise.all([loadGate(), ...(state.tab === "manual" ? [] : [loadManualCount()]), ...LOADERS[state.tab].map((f) => f())]);
+    await Promise.all([loadGate(), ...(state.tab === "manual" ? [] : [loadManualCount()]), ...(state.tab === "bugs" ? [] : [loadBugsCount()]), ...LOADERS[state.tab].map((f) => f())]);
   } catch (e) {
     toast(`Dashboard server: ${e.message}`);
   }
@@ -685,6 +769,7 @@ $("bus-form").addEventListener("submit", async (e) => {
   } catch (err) { toast(err.message); }
 });
 $("f-branch").addEventListener("change", loadHistory);
+["bug-status", "bug-kind", "bug-agent"].forEach((id) => $(id).addEventListener("change", loadBugs));
 $("todo-form").addEventListener("submit", (e) => {
   e.preventDefault();
   todo({ action: "add", title: $("todo-title").value, status: $("todo-status").value });
@@ -701,7 +786,7 @@ $("theme").addEventListener("click", (e) => { if (e.target.dataset.theme) setThe
 setTheme(document.documentElement.dataset.theme || "system");
 
 renderLegend();
-// #changes, #todo, #tests open that tab (shareable links); otherwise the last tab this browser used
+// #changes, #todo, #tests, #bugs open that tab (shareable links); otherwise the last tab this browser used
 let startTab = location.hash.slice(1);
 try { if (!LOADERS[startTab]) startTab = localStorage.getItem("dash-tab"); } catch (_) { /* storage blocked: fine */ }
 if (LOADERS[startTab]) document.querySelector(`.tabs [data-tab="${startTab}"]`).click();

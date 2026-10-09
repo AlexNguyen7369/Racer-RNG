@@ -9,17 +9,20 @@ function CarAppearance.Apply(car, id, config)
 	assert(chassis, "Car appearance requires the existing chassis")
 	local templates = ReplicatedStorage:FindFirstChild("CarModels")
 	local spec = type(id) == "string" and CarCatalog.Get(id)
-	local visualId = spec and id ~= CarCatalog.STARTER_ID and id or "rusty_hatchback"
+	local visualId = spec and id ~= CarCatalog.STARTER_ID and (spec.Model or id) or "rusty_hatchback"
 	local template = templates and templates:FindFirstChild(visualId)
 	local skin
 	if template and template:IsA("Model") then
 		skin = template:Clone()
 		skin.Name = "EquippedVisual"
-		skin:SetAttribute("CarId", visualId)
+		skin:SetAttribute("CarId", id)
 		-- Imported templates have a base-centered pivot; place that base at tyre contact height.
 		skin:PivotTo(chassis.CFrame * CFrame.new(0, -config.RestHeight, 0))
 		for _, part in ipairs(skin:GetDescendants()) do
 			if part:IsA("BasePart") then
+				if spec and spec.Tint and part.Material ~= Enum.Material.Glass then
+					part.Color = part.Color:Lerp(spec.Tint, 0.35)
+				end
 				part.CanCollide = false
 				part.CanTouch = false
 				part.CanQuery = false

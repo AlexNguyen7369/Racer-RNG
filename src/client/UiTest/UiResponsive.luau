@@ -10,6 +10,9 @@
 -- Regenerated 2026-10-06 from the Racer UI (spec hashes RacerHud 20a92c4ea76e, RacerIndex ab7f1fe08591, RacerStats
 -- 53ff23d7d9f8, RacerSettings f7eec9b472c5, RacerRebirth 872eec02bc4b, RollShowcase 1039b947bbd9). RacerHud/Settings
 -- has a UIScale but no layout row: its UDim2 is the baked one at every viewport.
+-- The solver (UiScenarios simRect) uses a node's variant props from Nodes only at a viewport of the OTHER variant than
+-- the live one (on the live variant it reads the live properties, so a live deviation still shows), and the generated
+-- UIScale (ScaleAt) at every simulated viewport; hover / press UIScales (UiSpec.TransientScales) count as 1.
 
 local Model = {}
 
@@ -26,7 +29,6 @@ local generated = {
 		["RacerHud/Speed"] = { Desktop = 1, Phone = 1 },
 		["RacerHud/Money"] = { Desktop = 1, Phone = 1 },
 		["RacerHud/Turbo"] = { Desktop = 1, Phone = 1 },
-		["RacerHud/RollControls"] = { Desktop = 1, Phone = 1 },
 		["RacerHud/Settings"] = { Desktop = 1, Phone = 1 },
 		["RacerIndex/Panel"] = { Desktop = 1, Phone = 1 },
 		["RacerStats/Panel"] = { Desktop = 1, Phone = 1 },
@@ -300,80 +302,6 @@ local generated = {
 				Position = UDim2.fromOffset(0, 0),
 				Size = UDim2.fromOffset(200, 30),
 				TextSize = 18,
-				Visible = true,
-			},
-		},
-		["RacerHud/RollControls"] = {
-			Desktop = {
-				AnchorPoint = Vector2.new(1, 1),
-				Position = UDim2.new(1, -22, 1, -22),
-				Size = UDim2.fromOffset(220, 54),
-				Visible = true,
-			},
-			Phone = {
-				AnchorPoint = Vector2.new(1, 1),
-				Position = UDim2.new(1, -12, 1, -16),
-				Size = UDim2.fromOffset(194, 48),
-				Visible = true,
-			},
-		},
-		["RacerHud/RollControls/RollView"] = {
-			Desktop = {
-				AnchorPoint = Vector2.new(0, 0),
-				Position = UDim2.fromOffset(0, 0),
-				Size = UDim2.fromOffset(104, 54),
-				Visible = true,
-			},
-			Phone = {
-				AnchorPoint = Vector2.new(0, 0),
-				Position = UDim2.fromOffset(0, 0),
-				Size = UDim2.fromOffset(90, 48),
-				Visible = true,
-			},
-		},
-		["RacerHud/RollControls/RollView/Face/RollViewLabel"] = {
-			Desktop = {
-				AnchorPoint = Vector2.new(0, 0),
-				Position = UDim2.fromOffset(0, 0),
-				Size = UDim2.fromScale(1, 1),
-				TextSize = 25,
-				Visible = true,
-			},
-			Phone = {
-				AnchorPoint = Vector2.new(0, 0),
-				Position = UDim2.fromOffset(0, 0),
-				Size = UDim2.fromScale(1, 1),
-				TextSize = 22,
-				Visible = true,
-			},
-		},
-		["RacerHud/RollControls/AutoRoll"] = {
-			Desktop = {
-				AnchorPoint = Vector2.new(0, 0),
-				Position = UDim2.fromOffset(124, 0),
-				Size = UDim2.fromOffset(96, 54),
-				Visible = true,
-			},
-			Phone = {
-				AnchorPoint = Vector2.new(0, 0),
-				Position = UDim2.fromOffset(108, 0),
-				Size = UDim2.fromOffset(86, 48),
-				Visible = true,
-			},
-		},
-		["RacerHud/RollControls/AutoRoll/Face/AutoRollLabel"] = {
-			Desktop = {
-				AnchorPoint = Vector2.new(0, 0),
-				Position = UDim2.fromOffset(0, 0),
-				Size = UDim2.fromScale(1, 1),
-				TextSize = 23,
-				Visible = true,
-			},
-			Phone = {
-				AnchorPoint = Vector2.new(0, 0),
-				Position = UDim2.fromOffset(0, 0),
-				Size = UDim2.fromScale(1, 1),
-				TextSize = 20,
 				Visible = true,
 			},
 		},
@@ -982,8 +910,80 @@ Model.Scales = generated.Scales
 Model.Nodes = generated.Nodes
 
 -- Runtime changes the scripts make on top of the generated layout:
--- RacerUiController moves the Speed group horizontally every frame to centre its visible icon + text (X is live).
+-- RacerUiController moves the Speed group horizontally every frame to centre its visible icon + text (X is live on the
+-- live viewport; Model.SpeedGroup applies the same rule at a simulated one).
 Model.DynamicX = { ["RacerHud/Speed"] = true }
+
+-- The generated per-height k of a zoom-1 node (the generated fit(), also used by RacerUiController.fitPanels).
+function Model.K(viewport)
+	local fit = viewport.Y <= Model.PHONE_MAX_HEIGHT and Model.Phone or Model.Desktop
+	return math.clamp(viewport.Y / fit.Ref, fit.Min, fit.Max)
+end
+
+-- RacerUiController (owner decision 2026-10-08, R3 clearSpeedOfToast + the centring above), every Heartbeat:
+--  X: Position = UDim2(0.5, (group width - visible width) / 2, ...), so the visible icon + left-aligned number are
+--     centred on the screen (AnchorPoint 0.5: the icon's left edge is screen centre - visible width / 2).
+--  Y: after centring the group moves DOWN by max(0, min(need, room)), need = Toast bottom + SPEED_TOAST_GAP - group
+--     top, room = Turbo top - SPEED_TURBO_GAP - group bottom. The Toast keeps its rect while hidden.
+Model.SpeedRule = { ToastGap = 4, TurboGap = 2 }
+-- `group` is the generated rect (ScaledHudRect), `visibleWidth` the icon + number width at that viewport, `toast` and
+-- `turbo` the screen rects the rule reads. Returns the group's screen rect.
+function Model.SpeedGroup(viewport, group, visibleWidth, toast, turbo)
+	local r = { x = viewport.X / 2 - visibleWidth / 2, y = group.y, w = group.w, h = group.h }
+	if toast and turbo then
+		local need = toast.y + toast.h + Model.SpeedRule.ToastGap - r.y
+		local room = turbo.y - Model.SpeedRule.TurboGap - (r.y + r.h)
+		r.y += math.max(0, math.min(need, room))
+	end
+	return r
+end
+
+-- RacerUiController.fitPanels (owner decision 2026-10-08, R2), every Heartbeat, for each Racer panel's outer Frame:
+--   band top = Race Face bottom + Gap, band bottom = RacerHud/Turbo top - Gap (screen pixels, inset included),
+--   side = column right + Gap, where column right = the max right edge of RacerHud/Navigation and every GuiObject
+--   descendant of it whose own Visible is true (the STATS PointsBadge sticks out; Model.ColumnRight),
+--   width = viewport X - 2 * side, height = bottom - top;
+--   its UIScale = max(MinScale, min(k, width / Size.X.Offset, height / Size.Y.Offset)) (Size = generated variant size);
+--   AnchorPoint (0.5, 0.5), Position UDim2(0.5, 0, 0, top + height / 2).
+Model.RacerPanels = {
+	Paths = { "RacerIndex/Panel", "RacerStats/Panel", "RacerSettings/Panel", "RacerRebirth/Panel" },
+	Gap = 8,
+	MinScale = 0.3,
+}
+function Model.IsRacerPanel(path)
+	return table.find(Model.RacerPanels.Paths, path) ~= nil
+end
+-- The Navigation column's right edge as RacerUiController.fitPanels and ProgressionUi read it: Navigation's own rect
+-- and the rects of its GuiObject descendants with Visible = true (the descendant's own flag, as the game reads it).
+-- navigation = rect, parts = { rect, ... } (may be nil or empty).
+function Model.ColumnRight(navigation, parts)
+	local right = navigation.x + navigation.w
+	for _, r in parts or {} do
+		right = math.max(right, r.x + r.w)
+	end
+	return right
+end
+
+-- deps = { Race = rect, Turbo = rect, Navigation = rect, NavigationParts = { rect, ... } }; size = the panel's
+-- generated variant Size (UDim2). Returns { AnchorPoint, Position, Size, Scale, Band = { top, bottom, side } }.
+function Model.RacerPanelFit(viewport, deps, size)
+	local gap = Model.RacerPanels.Gap
+	local top = deps.Race.y + deps.Race.h + gap
+	local bottom = deps.Turbo.y - gap
+	local side = Model.ColumnRight(deps.Navigation, deps.NavigationParts) + gap
+	local width, height = viewport.X - 2 * side, bottom - top
+	local scale = Model.K(viewport)
+	if size.X.Offset > 0 and size.Y.Offset > 0 then
+		scale = math.max(Model.RacerPanels.MinScale, math.min(scale, width / size.X.Offset, height / size.Y.Offset))
+	end
+	return {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.new(0.5, 0, 0, top + height / 2),
+		Size = size,
+		Scale = scale,
+		Band = { top = top, bottom = bottom, side = side },
+	}
+end
 -- Client/RollToast copies PreviewCar's Position / Size into these enlarged-card parts (fitRollArt, on every viewport
 -- change).
 Model.Follow = {
@@ -993,7 +993,9 @@ Model.Follow = {
 	["RollShowcase/Card/CardBody/Face/Viewport"] = "RollShowcase/Card/CardBody/Face/PreviewCar",
 }
 -- Client/RollToast places the compact roll's top edge RollAnimConfig.COMPACT_GAP px under the Race button
--- (fitCompact, on every viewport change): Y offset = Race Face AbsolutePosition.Y + AbsoluteSize.Y + COMPACT_GAP.
+-- (fitCompact, on every viewport change): Y offset = Race Face bottom in screen pixels (AbsolutePosition.Y +
+-- AbsoluteSize.Y + top-bar inset; RollToast ignores the inset) + COMPACT_GAP. The solver applies it to the live
+-- properties at every simulated viewport (the live Y offset is the one fitCompact computed for the live screen).
 Model.BelowRace = { ["RollToast/Toast"] = "RacerHud/Race/Face" }
 -- The roll bodies animate (PopIn grows them from 0, LAND_POP, the compact Exit shrink); at rest (Hold / Idle) they
 -- fill their card centred. The solver always places them at this rest geometry.
@@ -1012,14 +1014,126 @@ Model.Animated = {
 -- RollShowcase/Card is tweened from the compact roll's rect to its layout rect when the view opens (SWITCH) and
 -- back when it closes; the solver places it at its layout rect (Nodes) once settled.
 -- Components.BindIndex sizes the Index grid cells per viewport: cell width =
--- floor((GridHost design width - Inset - (columns - 1) * Gap) / columns), columns 4 on desktop and 3 on a phone.
+-- floor((GridHost design width - Inset - (columns - 1) * Gap) / columns), columns 4 on desktop and 3 on a phone, cell
+-- height CellHeight (design pixels: the panel's generated UIScale applies on top).
 Model.Grids = {
 	["RacerIndex/Panel/Face/GridHost/Gallery"] = {
 		Host = "RacerIndex/Panel/Face/GridHost",
 		Inset = 14,
 		Gap = 12,
+		CellHeight = 208,
 		Columns = { Desktop = 4, Phone = 3 },
 	},
 }
+
+-- Which generated variant a viewport uses (the generated fit(): phone = ViewportSize.Y <= PHONE_MAX_HEIGHT).
+function Model.VariantOf(viewport)
+	return viewport.Y <= Model.PHONE_MAX_HEIGHT and "Phone" or "Desktop"
+end
+
+-- The generated UIScale.Scale of a node at a viewport (k x the node's zoom), or nil when the node has no generated
+-- UIScale. UIScale scales a GuiObject about its AnchorPoint (Position stays) and its descendants with it.
+function Model.ScaleAt(path, viewport)
+	local zoom = Model.Scales[path]
+	if not zoom then
+		return nil
+	end
+	local variant = Model.VariantOf(viewport)
+	local fit = variant == "Phone" and Model.Phone or Model.Desktop
+	return math.clamp(viewport.Y / fit.Ref, fit.Min, fit.Max) * zoom[variant]
+end
+
+-- A UIScale'd top-level node's screen rect at a viewport: its generated variant UDim2 in `root` (default: the whole
+-- viewport, an IgnoreGuiInset ScreenGui), its size scaled about its AnchorPoint. dynamicX replaces Position.X.
+function Model.ScaledHudRect(path, viewport, dynamicX, root)
+	root = root or { x = 0, y = 0, w = viewport.X, h = viewport.Y }
+	local node = Model.Nodes[path][Model.VariantOf(viewport)]
+	local scale = Model.ScaleAt(path, viewport) or 1
+	local width = (root.w * node.Size.X.Scale + node.Size.X.Offset) * scale
+	local height = (root.h * node.Size.Y.Scale + node.Size.Y.Offset) * scale
+	local px = dynamicX or node.Position.X
+	return {
+		x = root.x + root.w * px.Scale + px.Offset - node.AnchorPoint.X * width,
+		y = root.y + root.h * node.Position.Y.Scale + node.Position.Y.Offset - node.AnchorPoint.Y * height,
+		w = width,
+		h = height,
+	}
+end
+
+-- Race Face fills the generated Race wrapper. Its UIScale changes at each hypothetical viewport,
+-- independently of the live Studio camera, so dependent compact/panel geometry must use this rectangle.
+function Model.RaceFaceRect(viewport)
+	return Model.ScaledHudRect("RacerHud/Race", viewport)
+end
+
+-- The enlarged roll card (RollShowcase/Card) settled: the generated variant (Client/RollToast cardTargetSize() sets
+-- the same Size per variant, CARD_POS the same Position) scaled by its generated UIScale about its centre.
+function Model.CardRect(viewport, root)
+	return Model.ScaledHudRect("RollShowcase/Card", viewport, nil, root)
+end
+
+-- ProgressionUi's Heartbeat fit rules. Model input only: panel clearance and overlap limits remain in UiSpec.
+function Model.Progression(path, viewport, dependencies)
+	if path == "RacerUpgrades/Panel" or path == "RacerWorkshop/Panel" or path == "RacerWelcome/Panel" then
+		local toast = assert(dependencies and dependencies.Toast, "virtual Toast rectangle required")
+		local turbo = assert(dependencies.Turbo, "virtual Turbo rectangle required")
+		local top = toast.y + toast.h + 8
+		local bottom = turbo.y - 8
+		-- Non-phone: the base width, then narrowed so the centred panel clears the Navigation column (badge
+		-- included, Model.ColumnRight) + 8 on the left and the mirrored band on the right; never under 100.
+		local baseWidth = viewport.Y > 700 and math.min(700, viewport.X - 284) or math.min(700, viewport.X * 0.82)
+		local navigation = assert(dependencies.Navigation, "virtual Navigation rectangle required")
+		local columnRight = Model.ColumnRight(navigation, dependencies.NavigationParts)
+		local width = math.max(100, math.min(baseWidth, viewport.X - 2 * (columnRight + 8)))
+		if viewport.Y <= 500 then
+			local entry = assert(dependencies.UpgradeButton, "virtual UpgradeButton rectangle required")
+			local right = toast.x + toast.w + 12
+			local sideWidth = math.max(100, math.min(300, viewport.X - right - 16))
+			top = entry.y + entry.h + 8
+			return {
+				AnchorPoint = Vector2.new(1, 0),
+				Position = UDim2.new(1, -16, 0, top),
+				Size = UDim2.fromOffset(sideWidth, math.max(112, bottom - top)),
+			}
+		end
+		return {
+			AnchorPoint = Vector2.new(0.5, 0),
+			Position = UDim2.new(0.5, 0, 0, top),
+			Size = UDim2.fromOffset(width, math.max(112, bottom - top)),
+		}
+	elseif path == "RacerProgression/WorkshopRate" then
+		-- R4 (owner decision 2026-10-08): centred 28 px above the Speed group's top; when that top would be above
+		-- Toast bottom + 4 (inside the compact roll) it sits right of the Speed group instead: x = Speed right + 8,
+		-- width max(60, viewport X - x - 12), height 24, vertically centred on Speed (TextSize 12, left aligned).
+		local speed = assert(dependencies and dependencies.Speed, "virtual Speed rectangle required")
+		local width = math.min(300, viewport.X - 24)
+		local top = speed.y - 28
+		local toast = dependencies.Toast
+		if toast and top < toast.y + toast.h + 4 then
+			local left = speed.x + speed.w + 8
+			return {
+				AnchorPoint = Vector2.zero,
+				Position = UDim2.fromOffset(left, speed.y + speed.h / 2 - 12),
+				Size = UDim2.fromOffset(math.max(60, viewport.X - left - 12), 24),
+				TextSize = 12,
+				TextXAlignment = Enum.TextXAlignment.Left,
+			}
+		end
+		return {
+			AnchorPoint = Vector2.zero,
+			Position = UDim2.new(0.5, -width / 2, 0, top),
+			Size = UDim2.fromOffset(width, 24),
+			TextSize = 16,
+			TextXAlignment = Enum.TextXAlignment.Center,
+		}
+	elseif path == "RacerProgression/WeatherBanner" then
+		return {
+			AnchorPoint = Vector2.zero,
+			Position = UDim2.fromOffset(16, 12),
+			Size = UDim2.fromOffset(math.min(220, viewport.X * 0.28), 42),
+		}
+	end
+	return nil
+end
 
 return Model

@@ -32,5 +32,8 @@ return {
 		"roll_anim",
 		"upgrades",
 		"workshop",
+		"workshop_offline",
+		"workshop_phase2",
+		"weather",
 	},
 }

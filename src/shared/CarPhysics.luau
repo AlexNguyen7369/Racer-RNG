@@ -62,6 +62,7 @@ function CarPhysics.new(model, config)
 		LateralSpeed = 0,
 		Speed = 0,
 		ParkedTime = 0,
+		Parked = false,
 		ParkedStabilizer = parkedStabilizer,
 	}, CarPhysics)
 end
@@ -80,7 +81,10 @@ function CarPhysics:Step(input, dt)
 	local cornerMass = mass / n
 	local rest, radius = cfg.SuspensionRest, cfg.WheelRadius
 	local k = cornerMass * gravity / (cfg.StaticCompression * rest)
-	local c = 2 * cfg.DampingRatio * math.sqrt(k * cornerMass)
+	-- Keep drop settling critically damped even when the server delivers a hitch-sized
+	-- step. The implicit solve remains stable, while the extra margin prevents parked
+	-- chassis velocity from reappearing after suspension contact.
+	local c = 2.5 * cfg.DampingRatio * math.sqrt(k * cornerMass)
 	local vel = chassis.AssemblyLinearVelocity
 	local fwdSpeed = vel:Dot(look)
 	local com = chassis.AssemblyCenterOfMass
@@ -276,12 +280,26 @@ function CarPhysics:Step(input, dt)
 	self.Speed = speed
 	local idle = input.Throttle == 0 and input.Brake == 0 and not input.Handbrake
 	local horizontalSpeed = Vector3.new(vel.X, 0, vel.Z).Magnitude
-	if idle and grounded == n and horizontalSpeed < 0.5 and math.abs(vel.Y) < 0.5 then
-		self.ParkedTime += dt
-	else
+	if not idle or grounded ~= n then
 		self.ParkedTime = 0
+		self.Parked = false
+	elseif not self.Parked then
+		-- Ground contact is enough to begin settling; waiting for a low vertical
+		-- velocity lets suspension rebounds keep resetting the parked state.
+		if horizontalSpeed < 0.5 then
+			self.ParkedTime += dt
+		else
+			self.ParkedTime = 0
+		end
+		self.Parked = self.ParkedTime >= 0.25
+	else
+		self.ParkedTime += dt
 	end
-	self.ParkedStabilizer.Enabled = self.ParkedTime >= 0.5
+	self.ParkedStabilizer.Enabled = self.Parked
+	if self.Parked then
+		chassis.AssemblyLinearVelocity = Vector3.zero
+		chassis.AssemblyAngularVelocity = Vector3.zero
+	end
 end
 
 -- Put the car upright at a CFrame (used for respawn / flip recovery).

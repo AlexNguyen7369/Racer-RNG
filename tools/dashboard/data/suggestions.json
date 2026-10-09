@@ -20,7 +20,9 @@
       "fit": "Rolling is free and automatic, so events give players a reason to stay online at a given moment. Plugs straight into GachaConfig luck and MoneyService multipliers.",
       "effort": "M",
       "dependsOn": "",
-      "status": "open"
+      "status": "added",
+      "decidedBy": "Alex Nguyen",
+      "decidedAt": "2026-10-07T00:58:33-07:00"
     },
     {
       "id": "potions",

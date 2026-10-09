@@ -3,7 +3,59 @@
 PROJECT CONTEXT - Idle Vehicle Simulator (read me first)
 Shown in Studio at: ServerScriptService > ProjectContext   (source file: context/ProjectContext.luau)
 Do NOT edit this in Studio: edit the file on disk, Rojo syncs it. Claude updates it at the end of every loop.
-Last updated: 2026-10-06 (merged Isaac's Draft05 cars + Racer UI with upgrade tree phase 2 + Mechanical Workshop phase 1; compat-check pending)
+Last updated: 2026-10-08 (compatibility gate verified; real DataStore access remains blocked in Studio)
+
+CURRENT DOING IMPLEMENTATION - 2026-10-07
+- OWNER FUTURE DEVELOPMENT NOTE: car models should multiply the player's current base/cruise speed,
+  while passive racing speed gain is based entirely on rebirth level. Workshop speed gain is based on
+  workshop level and is independent of car model. This is recorded for future balancing work only.
+- Added ProgressionUi: hex upgrade tree with server-owned purchases, badge, hub world pad, workshop E modal,
+  WorkshopRate HUD, offline welcome panel, and replicated weather banner. Workshop stat allocation is enabled.
+- Workshop defaults are configurable: ten levels, level 2 costs $500, subsequent cost x5, Speed gain x2 per level.
+  Owner balancing feedback remains pending. Offline gain is exactly integrated at 25%, capped at eight hours;
+  OfflineAt is claimed with UpdateAsync before exposing rewards, so reconnecting cannot replay a saved absence.
+- WeatherService schedules Rain / Night Race / Gold Rush every 10-20 minutes for three minutes, applies luck,
+  Money and NPC speed server-side, restores lighting on expiry, and pauses scheduling during harness runs.
+  Three event-only permanent catalog IDs reuse existing meshes: rain_runner, midnight_kart, golden_racer.
+- test-writer added workshop_offline, workshop_phase2 and weather scenarios and expanded catalog assertions while
+  preserving the original seven car requirements. ui-test-writer added progression scenarios and real-click contracts.
+- Local checks: StyLua, Selene, and Rojo build pass. Live compatibility is now verified for the current source
+  fingerprint; real DataStore persistence remains unverified because Studio API access is disabled.
+- Rojo is running at localhost:34872. The reopened Racer RNG Studio session now contains WeatherConfig,
+  Phase2Tests and ProgressionUi; dedicated script_read confirms the current progression layout and controller.
+- 2026-10-08 live verification: Play started; RacerUiReady=true and all ten gallery entries are present.
+  The console reports StudioAccessToApisNotAllowed for PlayerStats_v1. No harness or UI END line was observed.
+  Server execute_luau calls (even read-only probes) are rejected: "MCP tool call requires approval, but approval
+  policy is never". Full suites and test fixtures remain blocked by that tool approval setting.
+- Live inspection also found bottom RollControls re-enabled by responsive fits. Added a Visible property guard
+  and set RollControls visible=false in the HUD spec. Fresh Play inspection now confirms Visible=false and
+  RacerUiReady=true. The generated/baked HUD artifact still needs refresh; gen.py is unavailable in this checkout.
+- Real DataStore persistence is still an independent TODO; it does not invalidate the compatibility suites, which
+  use the documented Studio-access limitation for their data checks.
+- Runtime execute_luau permissions are now working. Full 31-scenario harness is running in the same synced
+  Play session at fingerprint 64b1ba5787cf; physics-tester monitors it. No final END observed yet.
+  Isolated real DataStore read still fails: "Studio access to APIs is not allowed". Owner asked to enable it.
+  Portable UI generator repair is in progress under ui/tooling only; no game-source edits during the run.
+- Full harness completed at 64b1ba5787cf: `[CARTEST] END pass=30 fail=1`. Sole failure: data,
+  v4_workshop_level_clamped value 1 (expected 0). Test-writer is auditing the failing boundary case.
+  All other 30 scenarios passed, including NPC timing, physics, all five tracks, workshop phase 2,
+  exact offline gain/atomic claims and weather. UI diagnostic preparation follows in the same Play session.
+- UI diagnostic full suite: `[UITEST] END pass=11 fail=12` at the same fingerprint. Real-click checks continue.
+  Failures include progression button/panel overlaps, disabled tile hover styling, roll geometry and LoserScreen
+  coverage; test-writer also audits obsolete layout expectations/model support and fixture timing separately.
+  Data clamp audit identifies +infinity: the unchanged CleanLevel rejects it to level 1, but the expected-value
+  helper maps it to MAX_LEVEL. The old MAX_LEVEL=1 hid this discrepancy. No test correction applied yet.
+
+CODEX HANDOFF - 2026-10-07
+- The two genuinely unfinished Claude handoff items were audited: static-settle has a warm live pass with no bounded source fix needed, while the Racer UI test rewrite is present on disk and passes local lint/build checks.
+- A live harness rerun reached `[CARTEST] END pass=24 fail=1`; the only observed failure was the timing-sensitive `npc_lose_player_time_measured` check (`33.092` vs `34.805` limit). Do not call the gate green from this run.
+- A live UI rerun reached `[UITEST] END pass=15 fail=1`, but Studio was executing a stale pre-Rojo-connect UiTest module. The local scenario now excludes the intentionally hidden legacy `RacerHud/RollControls` subtree; reconnect Rojo at `localhost:34872` before rerunning.
+- Track 3 `DragRace` was 180 studs and violated `TrackValidator.MIN_LENGTH = 300`; its straight was corrected to 320 studs. Full Studio track-chain validation remains unverified.
+- Each owned workshop now builds a tagged, neon `UpgradePad` with an `UPGRADE` billboard just outside its open front. The E interaction/modal and economy remain separate follow-up work; live placement/walk validation is pending Rojo reconnect.
+- Test-first track work added `CarTest/TrackTests/Circuit.luau` and `Serpentine.luau`; Circuit is now numbered 4 and point-to-point with a final straight, and Serpentine is numbered 5. Local lint/build pass; Studio geometry, chain, and lap validation remain pending.
+- Added the missing tests-first `CarTest/TrackTests/DragRace.luau` contract for Track 3: 300–400 stud point-to-point sprint, straight ends, checkpoint, wide left pad, and right-hand race path. All five track-test/spec sets now pass local Stylua/Selene/build checks; Studio validation remains pending.
+- The workshop scenario now asserts an owned workshop's tagged `UpgradePad` contains an `UpgradeSign` billboard labeled `UPGRADE`; the assertion passes local Stylua/Selene/build checks but has not run in Studio.
+- The dashboard's historical `rojo-connect` manual item was reopened on 2026-10-07: current Studio Edit inspection still lacks repository-only `Tracks/DragRace` and `WorkshopBuilder.UpgradePad`, so the old "verified" completion record is not valid for this worktree.
 
 
 DRAFT05 CARS + RACER UI (Isaac Li, branch studio/draft05-cars-ui, merged into initial-import 2026-10-06)
@@ -265,6 +317,37 @@ CHANGE LOG (newest last)
    under them: the backdrop ignores presses inside the card).
 
 TEST RESULTS (latest first; update after every full run)
+- 2026-10-08 (/compat-check, fingerprint a42243ab82b4): ALL GREEN. Harness `[CARTEST] END pass=31 fail=0`
+  (all configured scenarios plus track:Circuit/DragRace/Hill/Oval/Serpentine). UI `[UITEST] END pass=22 fail=0`.
+  Multiplayer, world, and regression live probes were GREEN in the same Play session: server NPC leakage absent,
+  owner client NPC correct and non-colliding, Cars self-noncolliding, track geometry anchored/stable, required
+  remotes and tracks present, current GUI roots present and legacy GUI roots absent. DataStore persistence remains
+  unverified only because Studio reports `StudioAccessToApisNotAllowed`.
+- 2026-10-07 (fingerprint dffff4634f2a): full harness `[CARTEST] END pass=28 fail=0` after the odds-colour fix, including
+  multiplayer, upgrades, workshop, and track:Circuit/DragRace/Hill/Oval/Serpentine. UI rerun with all documented setups plus
+  `lose_event` reached `[UITEST] END pass=8 fail=8`: the real rarity-colour mismatch is fixed, and loser-event setup now passes;
+  remaining failures are the headless Studio client contract (Camera.ViewportSize `1,1`, hit probes/contract rectangles/showcase
+  scaling) plus the HUD check's stale `$N` expectation against the documented `UNBANKED $N` label. The HUD assertion was
+  corrected to accept the documented prefix and rerun without a scenario error; world/regression were not launched because
+  the required UI prerequisite was red. Device Simulator was reset to default; no compat stamp recorded.
+- 2026-10-07 (fingerprint d16f2b58e6df): corrected the HUD UI assertion to use `UiSpec.Hud.UnbankedPrefix`; the UI rerun
+  executes `ui_hud` without error but remains `[UITEST] END pass=8 fail=8` because the Studio client reports a `1,1`
+  viewport for hit/contract geometry. A current-fingerprint CarTest rerun was started but did not reach `CarTestResult`
+  or an END line after the first static-settle result, so Play was stopped and no new harness result was recorded.
+- 2026-10-07 (fingerprint d16f2b58e6df): authoritative rerun completed the full harness with `[CARTEST] END pass=28 fail=0`,
+  including all five tracks, workshop, upgrades, NPC, multiplayer, and roll animation. The documented UI setups completed
+  with `[UITEST] END pass=9 fail=7`; `ui_hud`, state, rarity-colour, animation, and loser-event checks pass. The seven
+  remaining failures are all current-client coordinate/layout checks against Camera.ViewportSize `1,1` (hit probes,
+  contract rectangles, and derived layout geometry). Multiplayer/world/regression were not launched because the required
+  UI prerequisite was red; no compat stamp recorded.
+- 2026-10-07 (fingerprint d16f2b58e6df): independent live checks while Play was running found multiplayer collision-group
+  state correct (`Cars` self-collision false), no server NPC leakage, and harness `multiplayer=true`. World checks passed
+  anchoring, movement, decor collisions, and unanchored-object rules, but the world suite is RED on two duplicate purple
+  `Workspace.Baseplate` parts at `(0,-8,0)` (2048x16x2048), matching the existing manual cleanup task; regression remains
+  blocked by the UI prerequisite. No compat stamp recorded.
+- 2026-10-07: Edit-mode cleanup removed one duplicate saved Baseplate and aligned the remaining Baseplate to the repo's
+  green color; a fresh Play check confirmed exactly one green Baseplate. Studio save confirmation is still pending because
+  the available Studio input tool cannot send Edit-mode Ctrl+S; source fingerprint unchanged.
 - 2026-10-07 (compatibility gate, fingerprint e6528733fcba): ALL GREEN on the current Studio session. Full harness `[CARTEST] END pass=25 fail=0` (including static_settle, race, flip_recovery, multiplayer, roll_anim, upgrades, workshop, and track:Hill/Oval). UI `[UITEST] END pass=16 fail=0` across the current RacerHud/RollShowcase contract. World static/live probes GREEN: no unanchored or below-floor non-character geometry, decor collision rules correct, both tracks present, `Cars` self-noncolliding; server NPC leakage absent. Multiplayer/regression probes GREEN: required remotes present, client has exactly the current GUI roots and no legacy SpeedHud, server/client smoke checks passed. Regression suite GREEN. No compatibility exceptions or known failures introduced by this run.
 - 2026-10-02 (roll animation, INCOMPLETE): harness roll_anim/gacha/index/data `[CARTEST] END pass=6 fail=0` (before decision 6;
   roll_anim_constants changed since, not re-run). ui red run `[UITEST] END pass=10 fail=6` (expected). UI green rounds: NO RESULT
@@ -323,6 +406,15 @@ COMPAT CHECK 2026-10-05: ALL GREEN, fingerprint f11ddc2d32ad (pushed to main)
 - PLACE NOTE: the Racer HUD was built in Studio outside the repo and something kept editing the place during testing.
   Its complete scripts are on git branch studio/racer-hud-ui (drafts/ui/racer-hud/latest). Confirm who builds it before
   the next /compat-check; the place must run exactly the repo client for a check to count.
+
+FINAL SUITE 2026-10-07: fingerprint f60c57e2f089096fbaacc7bed668a658d52c5bc9815c9d02356f45899991a5e6
+- Fresh Studio full harness completed `[CARTEST] END pass=28 fail=0`, including all five tracks, multiplayer, roll animation,
+  upgrades, and workshop. Static checks also pass: Stylua, Selene, dashboard unit tests (13/13), README sync, Rojo build,
+  and `git diff --check`.
+- UI suite was not accepted as a green gate: one fresh run ended `[UITEST] END pass=5 fail=11`; several failures were missing
+  fixture state (`index_states`, `turbo_next`, `lose_event`, `auto_racing`) and the remaining live layout/emphasis checks need
+  a fixture-controlled rerun. Source fix applied: RollToast now sets `IgnoreGuiInset = true`, matching UiSpec and removing the
+  observed +4 px toast offset. `/compat-check` remains NOT GREEN because no passing run was recorded.
 
 TODO (in order)
 1. Reopen the place, connect Rojo, run the FULL suite; loop (physics-tuner / PathDriver / track-designer) until `[CARTEST] END fail=0`.
@@ -399,6 +491,6 @@ Read "[CARTEST] ..." lines and "[CARTEST] END pass=N fail=N". A full run takes 1
 ]=]
 
 return {
-	Updated = "2026-10-06",
+	Updated = "2026-10-07",
 	Read = "Open this script and read the comment block above.",
 }

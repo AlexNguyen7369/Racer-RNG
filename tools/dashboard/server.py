@@ -8,7 +8,7 @@ commit history, the compat gate, the TODO list, feature suggestions and the test
   python3 tools/dashboard/server.py --lan --lan-write   others on the network may also edit TODO / suggestions
 
 Stdlib only. Reads Claude Code transcripts, workspace-filtered Codex rollouts, git, .compat/ and the repo files.
-Writes only tools/dashboard/data/todo.json, suggestions.json and manual.json (checked in, so the team shares them),
+Writes only tools/dashboard/data/todo.json, suggestions.json, manual.json and bugs.json (checked in, so the team shares them),
 plus the generated TODO section of README.md after every TODO change (tools/readme_sync.py).
 Team tab (tools/collab.py): fetches origin every FETCH_SECONDS, lists everyone's branches, and from this machine only
 (never from the network) starts labelled feature branches, pushes the current branch and switches branches.
@@ -44,6 +44,7 @@ import collab  # noqa: E402  (feature branches, GitHub sync, everyone's branches
 import compat  # noqa: E402  (fingerprints and the green stamp)
 import readme_sync  # noqa: E402  (README.md TODO section mirrors todo.json)
 import agent_bus  # noqa: E402  (Claude <-> Codex messages and status, .agents/)
+import bugs  # noqa: E402  (bug log for the Bugs tab, data/bugs.json)
 from codex_activity import CodexActivity  # noqa: E402
 
 CODEX = CodexActivity(ROOT)
@@ -1094,6 +1095,7 @@ class Handler(BaseHTTPRequestHandler):
                 "/api/todo": lambda: read_json(TODO_FILE, {"items": []}),
                 "/api/suggestions": lambda: read_json(SUGGEST_FILE, {"items": []}),
                 "/api/manual": lambda: read_json(MANUAL_FILE, {"items": []}),
+                "/api/bugs": bugs.view,
                 "/api/tests": tests,
                 "/api/history": lambda: history(min(int(q.get("limit", 60)), 300), q.get("author"), q.get("branch")),
             }
@@ -1145,6 +1147,10 @@ class Handler(BaseHTTPRequestHandler):
             r = bus_action(body)
         elif p.startswith("/api/manual/"):
             r = manual_action(p.rsplit("/", 1)[1], body)
+        elif p == "/api/bugs" or p.startswith("/api/bugs/"):
+            r = bugs.action(p.rsplit("/", 1)[1] if p.startswith("/api/bugs/") else None, body)
+            if "error" not in r:
+                r = bugs.view()
         elif p.startswith("/api/suggestions/"):
             r = suggestion_action(p.rsplit("/", 1)[1], body)
         else:

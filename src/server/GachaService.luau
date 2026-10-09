@@ -173,7 +173,8 @@ function GachaService.Roll(player, roller)
 	GachaService.Setup(player)
 	local rollNumber = math.min(cleanCount(player:GetAttribute("Rolls")) + 1, MAX_COUNT)
 	local turboMulti = UpgradeService.AdvanceTurbo(player)
-	local id = GachaConfig.Roll(roller or rng, GachaService.Luck(player) * turboMulti)
+	local event = require(script.Parent.WeatherService).Current()
+	local id = GachaConfig.Roll(roller or rng, GachaService.Luck(player) * turboMulti, event)
 	local emphasized = GachaConfig.IsEmphasized(id, ownedIds(player))
 	player:SetAttribute("Rolls", rollNumber)
 	local isNew = GachaService.Grant(player, id)
@@ -229,10 +230,12 @@ end
 
 function GachaService.MoneyMulti(player)
 	return GachaConfig.Multis(alloc(player), UpgradeService.Bonuses(player)).Money
+		* require(script.Parent.WeatherService).Multipliers().Money
 end
 
 function GachaService.Luck(player)
 	return GachaConfig.Multis(alloc(player), UpgradeService.Bonuses(player)).Luck
+		* require(script.Parent.WeatherService).Multipliers().Luck
 end
 
 -- The Workshop multi: Workshop stat points (the tree has no Workshop branch). Used by WorkshopService.

@@ -56,7 +56,7 @@
       "added": "2026-10-05T20:00:00-07:00",
       "by": "Claude",
       "doneBy": "Alex Nguyen",
-      "doneAt": "2026-10-05T20:10:00-07:00",
+      "doneAt": "2026-10-08T15:37:09-07:00",
       "verified": "Studio scripts match the repo (RollToast 33807 bytes with the fly-icon fix)."
     },
     {
@@ -259,6 +259,39 @@
       ],
       "status": "open",
       "added": "2026-10-05T04:20:00-07:00",
+      "by": "Claude"
+    },
+    {
+      "id": "studio-device-none",
+      "title": "Turn off Studio's Device Simulator before UI test runs",
+      "priority": "high",
+      "why": "Under device emulation (e.g. 750x361 phone) Studio's injected mouse clicks land at the wrong screen point, so the UI suite's ~57 click contracts can't run. Automation can't change the setting during Play (the menu is greyed out).",
+      "blocks": "/compat-check UI suite (click contracts) -> push to main",
+      "when": "Now, before the next /compat-check run.",
+      "steps": [
+        "Stop Play in Studio.",
+        "Test tab > Device: choose 'None' (or close the Device Simulator) so the game view uses the normal window size.",
+        "Start Play again (or tell Claude it's done; Claude restarts Play itself)."
+      ],
+      "status": "open",
+      "added": "2026-10-08T12:00:00-07:00",
+      "by": "Claude"
+    },
+    {
+      "id": "ui-manual-escape-foreign-e",
+      "title": "Manual UI checks: Escape closes panels, foreign workshop E, phone resize",
+      "priority": "medium",
+      "why": "Owner decision 2026-10-08: these can't be automated (Roblox reserves Escape for its menu; the foreign-plot E prompt needs 2 real players), so they are manual checks instead of gate blockers.",
+      "blocks": "Nothing (manual verification before a release)",
+      "when": "Before a release, or after changing PanelSwitch / ProgressionUi / WorkshopService.",
+      "steps": [
+        "In Play, open INDEX, press Escape: the panel closes (repeat for STATS, SETTINGS, REBIRTH).",
+        "Start a 2-player local server (Test > Clients and Servers > 2 players).",
+        "With player 1, walk into player 2's workshop zone and press E: nothing of player 2's opens (no RacerWorkshop for player 1).",
+        "Resize check: in Play, switch Test > Device to a phone (e.g. iPhone landscape) and back to None: the HUD re-lays out each time, no old SpeedHud / AutoRaceButton / roll controls reappear, nothing overlaps."
+      ],
+      "status": "open",
+      "added": "2026-10-08T12:00:00-07:00",
       "by": "Claude"
     }
   ]

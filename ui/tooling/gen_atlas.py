@@ -2,11 +2,11 @@
 """One spec -> three outputs that cannot disagree (they are all made from the same resolved numbers):
 
   1. preview images   ui/preview/<Name>.png (design size) and <Name>_<size>.png for the four checker sizes (+ .svg)
-  2. game UI file     src/client/Ui/<Name>.luau      ModuleScript: Build(playerGui) -> refs (refs[id] for every node)
+  2. game UI file     src/client/RollToast/Ui/<Name>.luau   ModuleScript: Build(playerGui) -> refs
   3. Studio script    ui/generated/<Name>.studio.luau   run in Studio (Edit) to build the same UI in StarterGui
-  + ui/generated/<Name>.manifest.json with the spec hash and a hash of each output, so check.py can catch drift.
+  + ui/generated/<Name>.manifest.json with the spec hash and a hash of each output.
 
-Usage: gen.py <path/to/Name.ui.json> [--root PROJECT] [--no-png]
+Usage: gen_atlas.py <path/to/Name.ui.json> [--root OUTPUT_ROOT] [--no-png]
 The project root defaults to the folder that contains ui/ (the spec lives in <root>/ui/specs/).
 """
 
@@ -20,8 +20,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-sys.path.insert(0, r"C:\Users\theha\.agents\skills\roblox-ui\scripts")
-import uispec as U  # noqa: E402
+import uispec as U
 
 BROWSERS = [
     r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
@@ -79,7 +78,8 @@ def render_svg(spec, W, H, icons, root, label):
                 fill = f"url(#{gid})"
             body.append(
                 f'<rect x="{f(op["x"])}" y="{f(op["y"])}" width="{f(op["w"])}" height="{f(op["h"])}" rx="{f(op["r"])}" '
-                f'fill="{fill}" fill-opacity="{op.get("opacity", 1)}"><title>{esc(op["name"])}</title></rect>'
+                f'fill="{fill}" opacity="{op.get("opacity", 1)}" stroke="{op.get("stroke", "none")}" '
+                f'stroke-width="{f(op.get("sw", 0))}"><title>{esc(op["name"])}</title></rect>'
             )
         elif op["op"] == "text":
             left = op["name"] in th.get("leftAlignedText", [])
@@ -116,15 +116,20 @@ def render_svg(spec, W, H, icons, root, label):
 
 
 def svg_to_png(browser, svg_path, png_path, W, H):
-    html = Path(tempfile.gettempdir()) / f"roblox_ui_{png_path.stem}.html"
-    html.write_text(
-        f'<html><body style="margin:0;overflow:hidden"><img src="{svg_path.resolve().as_uri()}" width="{W}" height="{H}"></body></html>',
-        encoding="utf-8",
-    )
-    cmd = [browser, "--headless=new", "--disable-gpu", "--hide-scrollbars", "--force-device-scale-factor=1",
-           f"--screenshot={png_path}", f"--window-size={W},{H}", html.resolve().as_uri()]
-    subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=120)
-    return png_path.exists()
+    with tempfile.TemporaryDirectory(prefix="racer-ui-png-") as temp:
+        html = Path(temp) / "preview.html"
+        html.write_text(
+            f'<html><body style="margin:0;overflow:hidden"><img src="{svg_path.resolve().as_uri()}" width="{W}" height="{H}"></body></html>',
+            encoding="utf-8",
+        )
+        cmd = [browser, "--headless=new", "--disable-gpu", "--hide-scrollbars", "--force-device-scale-factor=1",
+               f"--user-data-dir={Path(temp) / 'profile'}", f"--screenshot={png_path}",
+               f"--window-size={W},{H}", html.resolve().as_uri()]
+        try:
+            result = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=60)
+        except (OSError, subprocess.TimeoutExpired):
+            return False
+        return result.returncode == 0 and png_path.exists()
 
 
 # ---------------------------------------------------------------- Luau (game file + Studio script share one body)
@@ -137,7 +142,7 @@ def lnum(v):
 
 
 def lstr(t):
-    return '"' + str(t).replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n") + '"'
+    return '"' + str(t).replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t") + '"'
 
 
 def udim2(u):
@@ -155,8 +160,7 @@ def layout_props(node):
              f"Position = {udim2(node.get('pos', [[0, 0], [0, 0]]))}", f"Size = {udim2(node['size'])}"]
     if node.get("kind", "panel") == "text":
         props.append(f"TextSize = {lnum(node.get('textSize', 24))}")
-    if "hidden" in node:
-        props.append(f"Visible = {'false' if node.get('hidden') else 'true'}")
+    props.append(f"Visible = {lnum(U.visible(node))}")
     return "{ " + ", ".join(props) + " }"
 
 
@@ -174,7 +178,8 @@ def build_body(spec, icons):
     def common(node):
         a = node.get("anchor", [0, 0])
         return (f'Name = {lstr(node["id"])}, AnchorPoint = Vector2.new({lnum(a[0])}, {lnum(a[1])}), '
-                f'Position = {udim2(node.get("pos", [[0, 0], [0, 0]]))}, Size = {udim2(node["size"])}')
+                f'Position = {udim2(node.get("pos", [[0, 0], [0, 0]]))}, Size = {udim2(node["size"])}, '
+                f'Visible = {lnum(U.visible(node))}')
 
     def emit(node, parent, top, phone_node):
         kind = node.get("kind", "panel")
@@ -242,11 +247,11 @@ def build_body(spec, icons):
             out.append(f"\ttable.insert(layouts, {{ {v}, {layout_props(node)}, {layout_props(phone_node)} }})")
         for kid in node.get("children", []):
             emit(kid, child_parent, False, U.effective(kid, True))
-        for d, p in zip(U.synth_children(node), U.synth_children(phone_node)):
+        for d, p in zip(U.synth_children(node), U.synth_children(phone_node), strict=True):
             emit(d, child_parent, False, p)
 
     for n in spec["nodes"]:
-        emit(n, "gui", True, U.effective(n, True))
+        emit(U.effective(n), "gui", True, U.effective(n, True))
     return out
 
 
@@ -329,7 +334,7 @@ def game_file(spec, icons, rel_spec):
     h = U.spec_hash(spec)
     return (
         "--!nonstrict\n"
-        f"-- GENERATED by roblox-ui from {rel_spec}. DO NOT EDIT: change the spec and run gen.py.\n"
+        f"-- GENERATED from {rel_spec}. DO NOT EDIT: change the spec and run ui/tooling/gen_atlas.py.\n"
         f"-- spec-hash: {h}\n"
         "-- Build(playerGui) creates the ScreenGui and returns refs: refs[<node id>] for every node (buttons: the Face\n"
         "-- TextButton, connect .Activated to it), refs.Gui for the ScreenGui.\n\n"
@@ -364,19 +369,25 @@ def main():
     a = ap.parse_args()
     spec_path = Path(a.spec).resolve()
     root = Path(a.root).resolve() if a.root else spec_path.parent.parent.parent
-    spec = U.load_spec(spec_path)
+    try:
+        spec = U.load_spec(spec_path)
+    except (OSError, ValueError, TypeError) as error:
+        print(f"SPEC ERROR {error}")
+        return 1
     errors = U.validate(spec)
     if errors:
         for e in errors:
             print("SPEC ERROR", e)
         print("gen: nothing generated (fix the spec first)")
         return 1
-    icons = U.load_icons(root)
+    # --root redirects outputs; icon inputs remain beside the source spec.
+    source_root = spec_path.parent.parent.parent
+    icons = U.load_icons(source_root)
     name = spec["name"]
     rel_spec = spec_path.relative_to(root).as_posix() if spec_path.is_relative_to(root) else spec_path.name
     preview_dir = root / "ui" / "preview"
     gen_dir = root / "ui" / "generated"
-    game_path = root / "src" / "client" / "Ui" / f"{name}.luau"
+    game_path = root / "src" / "client" / "RollToast" / "Ui" / f"{name}.luau"
     for d in (preview_dir, gen_dir, game_path.parent):
         d.mkdir(parents=True, exist_ok=True)
 
@@ -394,7 +405,7 @@ def main():
     for label, W, H in sizes:
         stem = name if label == "design" else f"{name}_{label}"
         svg_path = preview_dir / f"{stem}.svg"
-        svg_path.write_text(render_svg(spec, W, H, icons, root, label), encoding="utf-8")
+        svg_path.write_text(render_svg(spec, W, H, icons, source_root, label), encoding="utf-8")
         files[svg_path.relative_to(root).as_posix()] = hashlib.sha256(svg_path.read_bytes()).hexdigest()[:12]
         if browser:
             png_path = preview_dir / f"{stem}.png"
@@ -412,7 +423,7 @@ def main():
     (gen_dir / f"{name}.manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
     if missing:
         print("NEEDS ICONS (ask the owner): " + ", ".join(missing))
-    print(f"gen: done, spec {manifest['specHash']}. Now run check.py.")
+    print(f"gen: done, spec {manifest['specHash']}. Verify with ui/tooling/verify.py.")
     return 0
 
 

@@ -126,4 +126,32 @@ function Workshop.Rate(stat, speedMulti, level, workshopMulti)
 		/ (1 + stat / RaceConfig.GAIN_SOFT)
 end
 
+-- Integrate ds/dt = A/(1+s/H), rather than multiplying a frozen rate by hours.
+-- The rationalized expression retains precision for small gains at high stats.
+function Workshop.OfflineGain(stat, speedMulti, level, workshopMulti, seconds)
+	if
+		not finite(stat)
+		or stat < 0
+		or not finite(speedMulti)
+		or speedMulti < 0
+		or not finite(workshopMulti)
+		or workshopMulti < 0
+		or not finite(seconds)
+		or (level ~= nil and not finite(level))
+	then
+		return 0
+	end
+	stat = math.min(stat, RaceConfig.MAX_STAT)
+	local duration = math.clamp(seconds, 0, WorkshopConfig.OFFLINE_CAP)
+	local a = WorkshopConfig.BASE_RATE
+		* speedMulti
+		* Workshop.LevelMulti(level)
+		* workshopMulti
+		* WorkshopConfig.OFFLINE_FRACTION
+	local h = RaceConfig.GAIN_SOFT
+	local q = 2 * h * a * duration
+	local gain = q / (math.sqrt((stat + h) ^ 2 + q) + stat + h)
+	return math.min(gain, RaceConfig.MAX_STAT - stat)
+end
+
 return Workshop

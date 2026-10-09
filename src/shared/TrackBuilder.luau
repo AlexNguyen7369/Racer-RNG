@@ -52,6 +52,14 @@ local COLORS = {
 	WinPad = Color3.fromRGB(255, 220, 40), -- yellow; easy to swap later
 }
 
+local function colorsFor(spec)
+	local colors = table.clone(COLORS)
+	for name, color in (spec.Palette or {}) do
+		colors[name] = color
+	end
+	return colors
+end
+
 local CHECKPOINT_LENGTH = TrackBuilder.CHECKPOINT_LENGTH
 local CHECKPOINT_APRON = TrackBuilder.CHECKPOINT_APRON
 local PAD_LEFT_OFFSET = TrackBuilder.PAD_LEFT_OFFSET
@@ -292,10 +300,32 @@ local function newPart(model, name, size, cframe, color, material)
 	return p
 end
 
+local function checkeredLine(parent, name, cframe, width, depth, colors)
+	local folder = Instance.new("Folder")
+	folder.Name = name
+	folder.Parent = parent
+	local cells = 8
+	local cellWidth = width / cells
+	for i = 1, cells do
+		local color = i % 2 == 0 and (colors.CheckerDark or Color3.fromRGB(28, 30, 38)) or colors.Line
+		newPart(
+			folder,
+			"Cell" .. i,
+			Vector3.new(cellWidth, 0.12, depth),
+			cframe * CFrame.new(-width / 2 + cellWidth * (i - 0.5), 0.08, 0),
+			color,
+			Enum.Material.SmoothPlastic
+		).CanCollide =
+			false
+	end
+	return folder
+end
+
 function TrackBuilder.Build(spec, origin)
 	origin = origin or CFrame.new()
 	local layout = TrackBuilder.Layout(spec)
 	local width = layout.Width
+	local colors = colorsFor(spec)
 
 	local model = Instance.new("Model")
 	model.Name = spec.Name
@@ -317,7 +347,7 @@ function TrackBuilder.Build(spec, origin)
 			"Road" .. i,
 			Vector3.new(width, ROAD_THICKNESS, piece.Length),
 			pieceCF * CFrame.new(0, -ROAD_THICKNESS / 2, 0),
-			COLORS.Road
+			colors.Road
 		)
 		local wallOffset = width / 2 + WALL_THICKNESS / 2
 		local pieceWalls = {}
@@ -335,7 +365,7 @@ function TrackBuilder.Build(spec, origin)
 					"Wall" .. i .. (side < 0 and "L" or "R"),
 					Vector3.new(WALL_THICKNESS, WALL_HEIGHT, wallLength),
 					pieceCF * CFrame.new(side * wallOffset, WALL_HEIGHT / 2 - ROAD_THICKNESS, wallZ),
-					COLORS.Wall
+					colors.Wall
 				)
 			)
 		end
@@ -358,7 +388,7 @@ function TrackBuilder.Build(spec, origin)
 				"Support" .. i,
 				Vector3.new(width - 1, height, piece.Length * math.max(flatLook.Magnitude, 0.5)),
 				CFrame.new(pieceCF.Position.X, GROUND_TOP + height / 2, pieceCF.Position.Z) * footprint.Rotation,
-				COLORS.Support
+				colors.Support
 			)
 		end
 	end
@@ -369,10 +399,13 @@ function TrackBuilder.Build(spec, origin)
 		"StartLine",
 		Vector3.new(width, 0.2, 3),
 		origin * CFrame.new(0, 0.1, -6),
-		COLORS.Line,
+		colors.Line,
 		Enum.Material.Neon
 	).CanCollide =
 		false -- decor: the car drives over it
+	if colors.Checkered then
+		checkeredLine(model, "StartCheckered", origin * CFrame.new(0, 0.1, -6), width, 3, colors)
+	end
 
 	-- Checkpoint area at the finish: it connects to the next track's start
 	local checkpoint = Instance.new("Model")
@@ -390,7 +423,7 @@ function TrackBuilder.Build(spec, origin)
 		"CheckpointArea",
 		Vector3.new(width + 2 * CHECKPOINT_APRON, ROAD_THICKNESS, CHECKPOINT_LENGTH),
 		endCF * CFrame.new(0, AREA_TOP - ROAD_THICKNESS / 2, CHECKPOINT_LENGTH / 2),
-		COLORS.Checkpoint
+		colors.Checkpoint
 	)
 	decor(
 		newPart(
@@ -398,16 +431,26 @@ function TrackBuilder.Build(spec, origin)
 			"FinishLine",
 			Vector3.new(width, 0.3, 3),
 			endCF * CFrame.new(0, AREA_TOP + 0.15, FINISH_LINE_BEHIND),
-			COLORS.Line,
+			colors.Line,
 			Enum.Material.Neon
 		)
 	)
+	if colors.Checkered then
+		checkeredLine(
+			checkpoint,
+			"FinishCheckered",
+			endCF * CFrame.new(0, AREA_TOP + 0.15, FINISH_LINE_BEHIND),
+			width,
+			3,
+			colors
+		)
+	end
 	local winPad = decor(newPart(
 		checkpoint,
 		"WinPad",
 		Vector3.new(PAD_SIZE, 0.4, PAD_SIZE),
 		endCF * CFrame.new(-PAD_LEFT_OFFSET, AREA_TOP + 0.2, PAD_BEHIND_FINISH), -- LEFT of the road centre
-		COLORS.WinPad,
+		colors.WinPad,
 		Enum.Material.Neon
 	))
 	winPad.CanTouch = true -- RaceService pays the driver when the auto-racing car reaches it
@@ -429,7 +472,7 @@ function TrackBuilder.Build(spec, origin)
 	label.Text = "$" .. cash
 	label.TextScaled = true
 	label.Font = Enum.Font.GothamBlack
-	label.TextColor3 = COLORS.WinPad
+	label.TextColor3 = colors.WinPad
 	label.TextStrokeTransparency = 0
 	label.Parent = billboard
 
@@ -446,13 +489,13 @@ function TrackBuilder.Build(spec, origin)
 		"Ground",
 		Vector3.new(size.X + pad * 2, 1, size.Z + pad * 2),
 		origin * CFrame.new((minP + maxP) / 2),
-		COLORS.Ground,
+		colors.Ground,
 		Enum.Material.Grass
 	)
 	ground.Position = Vector3.new(ground.Position.X, GROUND_TOP - 0.5, ground.Position.Z)
 
 	-- Invisible spawn marker: facing along the first straight, a little above the road
-	local start = newPart(model, "Start", Vector3.new(4, 1, 4), origin * CFrame.new(0, 0.5, 0), COLORS.Line)
+	local start = newPart(model, "Start", Vector3.new(4, 1, 4), origin * CFrame.new(0, 0.5, 0), colors.Line)
 	start.Transparency = 1
 	start.CanCollide = false
 	start.CanQuery = false

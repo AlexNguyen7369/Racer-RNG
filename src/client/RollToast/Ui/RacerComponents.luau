@@ -19,6 +19,9 @@ local ICONS = {
 	rocket_car = 8,
 	hover_car = 9,
 	void_racer = 10,
+	rain_runner = 7,
+	midnight_kart = 6,
+	golden_racer = 8,
 	rebirth = 11,
 }
 
@@ -238,15 +241,22 @@ end
 
 function Components.BakeHud(refs)
 	round(refs.TurboFill)
-	local badge = face(
-		"Frame",
-		"PointsBadge",
-		UDim2.new(1, -16, 0, -10),
-		UDim2.fromOffset(26, 26),
-		Color3.fromRGB(255, 77, 94),
-		refs.Stats
-	)
-	label(badge, "Label", "1", UDim2.new(), UDim2.fromScale(1, 1), 17)
+	local badge = make("TextLabel", {
+		Name = "PointsBadge",
+		Position = UDim2.new(1, -16, 0, -10),
+		Size = UDim2.fromOffset(26, 26),
+		BackgroundColor3 = Color3.fromRGB(255, 77, 94),
+		BorderSizePixel = 0,
+		Text = "1",
+		Font = Enum.Font.FredokaOne,
+		TextSize = 17,
+		TextColor3 = WHITE,
+		TextXAlignment = Enum.TextXAlignment.Center,
+		TextYAlignment = Enum.TextYAlignment.Center,
+		ZIndex = 5,
+	}, refs.Stats)
+	round(badge)
+	edge(badge)
 	badge.Visible = false
 end
 

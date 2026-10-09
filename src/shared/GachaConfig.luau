@@ -41,13 +41,15 @@ local function count(n)
 end
 
 -- One roll: checks cars rarest first, each hits with min(1, luck / N), the first hit wins, else the catch-all.
-function GachaConfig.Roll(rng, luck)
+function GachaConfig.Roll(rng, luck, event)
 	if type(luck) ~= "number" or luck ~= luck or luck < 1 then
 		luck = 1
 	end
 	local catchAll = nil
 	for _, spec in CarCatalog.Rollable() do
-		if spec.Chance == nil then
+		if spec.Event and spec.Event ~= event then
+			continue
+		elseif spec.Chance == nil then
 			catchAll = spec
 		elseif rng:NextNumber() < math.min(1, luck / spec.Chance) then
 			return spec.Id

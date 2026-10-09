@@ -5,6 +5,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
+local GuiService = game:GetService("GuiService")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local catalog = require(Shared.CarCatalog)
 local config = require(Shared.GachaConfig)
@@ -18,6 +19,9 @@ require(Ui.RacerMotion).Attach(playerGui)
 local client = script.Parent:IsA("LocalScript") and script.Parent.Parent or script.Parent
 local PanelSwitch = require(client.PanelSwitch)
 local hud = require(Ui.RacerHud).Bind(playerGui)
+-- The saved HUD asset predates the session-local free-points badge. Bake the
+-- small badge at runtime so the live HUD and UiSpec share the same contract.
+Components.BakeHud(hud)
 -- Uploaded HUD art shares an atlas; keep the individual icon crops when binding.
 hud.MoneyIcon.ImageRectOffset = Vector2.new(0, 0)
 hud.MoneyIcon.ImageRectSize = Vector2.new(256, 256)
@@ -30,21 +34,38 @@ local index = require(Ui.RacerIndex).Bind(playerGui)
 local stats = require(Ui.RacerStats).Bind(playerGui)
 local settings = require(Ui.RacerSettings).Bind(playerGui)
 local rebirth = require(Ui.RacerRebirth).Bind(playerGui)
+-- Catalog additions extend the saved gallery without waiting forever for an old seven-car bake.
+local gallery = index.GridHost:FindFirstChild("Gallery")
+for _, spec in catalog.All() do
+	if not gallery or not gallery:FindFirstChild(spec.Id) then
+		if gallery then
+			gallery:Destroy()
+		end
+		Components.BakeIndex(index, catalog, config)
+		break
+	end
+end
 local tiles = Components.BindIndex(index, catalog)
 local rows = Components.BindStats(stats, config)
 local GREEN = Color3.fromRGB(60, 255, 60)
 local RED = Color3.fromRGB(255, 77, 94)
 local GRAY = Color3.fromRGB(104, 111, 135)
 
--- Roll entry is the compact animation at the top centre of the screen.  The old
--- bottom roll controls and the Settings auto-roll row are intentionally hidden:
--- clicking the compact animation is the single entry point for the showcase and
--- its AUTO toggle.
+-- Roll entry is the compact animation at the top centre of the screen. The old
+-- bottom roll controls and Settings auto-roll row are intentionally hidden.
 hud.RollControls.Visible = false
-settings.AutoRow.Visible = false
+-- Generated responsive fits reapply authored visibility on viewport changes.
+-- Keep the retired entry points hidden throughout those fits.
+hud.RollControls:GetPropertyChangedSignal("Visible"):Connect(function()
+	if hud.RollControls.Visible then
+		hud.RollControls.Visible = false
+	end
+end)
+settings.AutoRow.Visible = true
 
 hud.Gui.DisplayOrder = 1
-for name, refs in pairs({ Index = index, Stats = stats, Settings = settings, Rebirth = rebirth }) do
+local racerPanels = { Index = index, Stats = stats, Settings = settings, Rebirth = rebirth }
+for name, refs in pairs(racerPanels) do
 	refs.Gui.DisplayOrder = 2
 	refs.Panel.Parent.Visible = false
 	refs.Gui.Enabled = true
@@ -61,6 +82,70 @@ local function label(button, value)
 		end
 	end
 end
+
+-- The former Settings auto-roll row is now the local top-down camera toggle.
+local function refreshTopDown()
+	local on = player:GetAttribute("TopDownView") == true
+	label(settings.AutoName, "TOP-DOWN VIEW")
+	label(settings.AutoToggle, on and "ON" or "OFF")
+	Components.Tint(settings.AutoToggle, on and GREEN or GRAY)
+end
+settings.AutoToggle.Activated:Connect(function()
+	player:SetAttribute("TopDownView", player:GetAttribute("TopDownView") ~= true)
+	refreshTopDown()
+end)
+refreshTopDown()
+
+-- Optional bird's-eye camera for auto racing. Mouse-wheel zoom changes the
+-- camera height, keeping the car visible from above instead of using a chase
+-- camera. The normal Roblox camera is restored when auto racing ends.
+local topDownHeight = 48
+local TOP_DOWN_MIN = 22
+local TOP_DOWN_MAX = 110
+local topDownWasActive = false
+local savedCameraType, savedCameraSubject, savedFieldOfView
+
+UserInputService.InputChanged:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseWheel and player:GetAttribute("TopDownView") == true then
+		topDownHeight = math.clamp(topDownHeight - input.Position.Z * 6, TOP_DOWN_MIN, TOP_DOWN_MAX)
+	end
+end)
+
+local function autoRaceCar()
+	local character = player.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	local seat = humanoid and humanoid.SeatPart
+	local model = seat and seat.Parent
+	if model and model:IsA("Model") and model:GetAttribute("IsCar") and model:GetAttribute("AutoRace") then
+		return model
+	end
+	return nil
+end
+
+RunService.RenderStepped:Connect(function()
+	local camera = workspace.CurrentCamera
+	local car = player:GetAttribute("TopDownView") == true and autoRaceCar() or nil
+	if car and camera then
+		if not topDownWasActive then
+			topDownWasActive = true
+			savedCameraType = camera.CameraType
+			savedCameraSubject = camera.CameraSubject
+			savedFieldOfView = camera.FieldOfView
+		end
+		local target = car:GetPivot().Position + Vector3.new(0, 2, 0)
+		local desired = CFrame.lookAt(target + Vector3.new(0, topDownHeight, 0), target)
+		camera.CameraType = Enum.CameraType.Scriptable
+		camera.FieldOfView = 55
+		camera.CFrame = camera.CFrame:Lerp(desired, 0.16)
+	elseif topDownWasActive and camera then
+		topDownWasActive = false
+		camera.CameraType = savedCameraType or Enum.CameraType.Custom
+		camera.CameraSubject = savedCameraSubject
+		if savedFieldOfView then
+			camera.FieldOfView = savedFieldOfView
+		end
+	end
+end)
 
 hud.Index.Activated:Connect(function()
 	PanelSwitch.Toggle("Index")
@@ -132,9 +217,13 @@ local function refreshStats()
 	end
 	local multis = config.Multis(allocations)
 	for stat, row in pairs(rows) do
-		local available = free > 0 and stat ~= "Workshop"
-		row.Value.Text = stat == "Workshop" and "x1.00 · COMING SOON"
-			or string.format("x%.2f  >  x%.2f", multis[stat], multis[stat] + config.PER_POINT[stat])
+		local available = free > 0
+		row.Value.Text = string.format(
+			"%d pts  x%.2f  >  x%.2f",
+			allocations[stat],
+			multis[stat],
+			multis[stat] + config.PER_POINT[stat]
+		)
 		row.Plus.Active = available
 		row.Plus.Selectable = available
 		Components.Tint(row.Plus, available and GREEN or GRAY)
@@ -143,12 +232,12 @@ local function refreshStats()
 	local badge = hud.Stats:FindFirstChild("PointsBadge")
 	if badge then
 		badge.Visible = free > 0
-		badge.Label.Text = tostring(free)
+		badge.Text = tostring(free)
 	end
 end
 for stat, row in pairs(rows) do
 	row.Plus.Activated:Connect(function()
-		if row.Plus.Active and stat ~= "Workshop" then
+		if row.Plus.Active then
 			remotes.AllocateStat:FireServer(stat)
 		end
 	end)
@@ -160,7 +249,7 @@ refreshStats()
 local pendingRace = false
 local function refreshRace()
 	local racing = player:GetAttribute("AutoRacing") == true
-	label(hud.Race, racing and "STOP AUTO" or "AUTO RACE")
+	label(hud.Race, format.AutoButtonText(racing))
 	Components.Tint(hud.Race, pendingRace and GRAY or (racing and RED or GREEN))
 	hud.Race.Active = not pendingRace
 end
@@ -205,8 +294,17 @@ local function refreshTurbo()
 	if turboTween then
 		turboTween:Cancel()
 	end
-	turboTween = TweenService:Create(hud.TurboFill, TweenInfo.new(0.2), { Size = UDim2.fromScale(progress / every, 1) })
-	turboTween:Play()
+	local size = UDim2.fromScale(progress / every, 1)
+	turboTween = TweenService:Create(hud.TurboFill, TweenInfo.new(0.2), { Size = size })
+	local tweenRef = turboTween
+	tweenRef:Play()
+	-- Keep the authoritative endpoint exact for HUD checks and for a turbo reset;
+	-- the tween still provides the visible transition between updates.
+	task.delay(0.25, function()
+		if turboTween == tweenRef then
+			hud.TurboFill.Size = size
+		end
+	end)
 end
 player:GetAttributeChangedSignal("Rolls"):Connect(refreshTurbo)
 player:GetAttributeChangedSignal("TurboCount"):Connect(refreshTurbo)
@@ -232,10 +330,83 @@ local function readable(value, isMoney)
 	end
 	return isMoney and format.MoneyText(value) or format.SpeedText(value)
 end
+-- The Racer panels open in the band between the Race button and the TURBO LUCK bar, centred, clear of the
+-- INDEX / STATS / REBIRTH column on the left (and the same margin on the right). The generated fit sizes them;
+-- here their UIScale shrinks below the generated k only when the band is too small (owner decision 2026-10-08;
+-- the compact roll hides while a panel is open). All these ScreenGuis ignore the top-bar inset.
+local PANEL_GAP = 8
+local function fitPanels()
+	local camera = workspace.CurrentCamera
+	if not camera or camera.ViewportSize.X <= 1 then
+		return
+	end
+	local viewport = camera.ViewportSize
+	local inset = GuiService:GetGuiInset().Y
+	local race = hud.Gui:FindFirstChild("Race")
+	local raceFace = race and race:FindFirstChild("Face")
+	local turbo = hud.Gui:FindFirstChild("Turbo")
+	local navigation = hud.Gui:FindFirstChild("Navigation")
+	if not (raceFace and turbo and navigation) then
+		return
+	end
+	local top = raceFace.AbsolutePosition.Y + raceFace.AbsoluteSize.Y + inset + PANEL_GAP
+	local bottom = turbo.AbsolutePosition.Y + inset - PANEL_GAP
+	-- The column's right edge includes what sticks out of it (the STATS free-points badge).
+	local columnRight = navigation.AbsolutePosition.X + navigation.AbsoluteSize.X
+	for _, child in navigation:GetDescendants() do
+		if child:IsA("GuiObject") and child.Visible then
+			columnRight = math.max(columnRight, child.AbsolutePosition.X + child.AbsoluteSize.X)
+		end
+	end
+	local side = columnRight + PANEL_GAP
+	local width, height = viewport.X - 2 * side, bottom - top
+	local k = if viewport.Y <= 500
+		then math.clamp(viewport.Y / 390, 0.85, 1.15)
+		else math.clamp(viewport.Y / 720, 0.6, 1.4)
+	for _, refs in pairs(racerPanels) do
+		local frame = refs.Panel.Parent
+		local scale = frame:FindFirstChildOfClass("UIScale")
+		local base = frame.Size
+		if scale and base.X.Offset > 0 and base.Y.Offset > 0 then
+			scale.Scale = math.max(0.3, math.min(k, width / base.X.Offset, height / base.Y.Offset))
+			frame.AnchorPoint = Vector2.new(0.5, 0.5)
+			frame.Position = UDim2.new(0.5, 0, 0, top + height / 2)
+		end
+	end
+end
+
+-- On short screens the centred Speed group would reach up into the compact roll (Race bottom + COMPACT_GAP +
+-- its height): move it down into the gap above the TURBO bar, never closer than SPEED_TURBO_GAP to the bar.
+local SPEED_TOAST_GAP, SPEED_TURBO_GAP = 4, 2
+local speedShift, speedSetOffset = 0, nil
+local function clearSpeedOfToast(group)
+	local position = group.Position
+	if speedSetOffset == nil or position.Y.Offset ~= speedSetOffset then
+		speedShift = 0 -- the generated fit put the group back at its authored place
+	end
+	local baseOffset = position.Y.Offset - speedShift
+	local toastGui = playerGui:FindFirstChild("RollToast")
+	local toast = toastGui and toastGui:FindFirstChild("Toast")
+	local turbo = hud.Gui:FindFirstChild("Turbo")
+	local shift = 0
+	if toast and turbo then
+		local groupTop = group.AbsolutePosition.Y - speedShift
+		local need = toast.AbsolutePosition.Y + toast.AbsoluteSize.Y + SPEED_TOAST_GAP - groupTop
+		local room = turbo.AbsolutePosition.Y - SPEED_TURBO_GAP - (groupTop + group.AbsoluteSize.Y)
+		shift = math.max(0, math.min(need, room))
+	end
+	speedShift = shift
+	speedSetOffset = baseOffset + shift
+	group.Position = UDim2.new(position.X.Scale, position.X.Offset, position.Y.Scale, speedSetOffset)
+end
+
 RunService.Heartbeat:Connect(function(dt)
+	fitPanels()
 	shownSpeed = format.Approach(shownSpeed, speed.Value, dt)
 	shownMoney = format.Approach(shownMoney, money.Value, dt)
-	shownBank = format.Approach(shownBank, player:GetAttribute("Unbanked") or 0, dt)
+	-- Unbanked is a live round result, so never leave the sublabel behind the
+	-- authoritative value while the money/speed readouts are animating.
+	shownBank = player:GetAttribute("Unbanked") or 0
 	hud.SpeedValue.Text = readable(shownSpeed, false) .. " SPEED"
 	hud.MoneyValue.Text = readable(shownMoney, true)
 	hud.Unbanked.Text = "UNBANKED " .. readable(shownBank, true)
@@ -248,10 +419,14 @@ RunService.Heartbeat:Connect(function(dt)
 		local groupPosition = group.Position
 		group.Position =
 			UDim2.new(0.5, (group.AbsoluteSize.X - visibleWidth) / 2, groupPosition.Y.Scale, groupPosition.Y.Offset)
+		clearSpeedOfToast(group)
 		local wrapper = hud.Turbo.Parent
 		local position = wrapper.Position
 		wrapper.Position = UDim2.new(0.5, 0, position.Y.Scale, position.Y.Offset)
 	end
+end)
+player:GetAttributeChangedSignal("Unbanked"):Connect(function()
+	shownBank = player:GetAttribute("Unbanked") or 0
 end)
 
 -- Session-local audio preference: preserve authored volumes and mute new sounds too.

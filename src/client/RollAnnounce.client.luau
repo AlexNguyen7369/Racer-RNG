@@ -30,7 +30,7 @@ announceRemote.OnClientEvent:Connect(function(_, displayName, id, rolls)
 	if spec.Rarity == "Secret" then
 		color = "FFFFFF"
 	end
-	local odds = spec.Chance and HudFormat.Odds(spec.Chance) or "Common"
+	local odds = HudFormat.Odds(spec.Chance)
 	channel:DisplaySystemMessage(
 		string.format(
 			'%s rolled <font color="#%s"><b>%s</b></font> (%s)! Total rolls: %s',

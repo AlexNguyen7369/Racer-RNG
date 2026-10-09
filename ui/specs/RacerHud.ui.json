@@ -744,6 +744,7 @@
     },
     {
       "id": "RollControls",
+      "visible": false,
       "kind": "spacer",
       "anchor": [
         1,

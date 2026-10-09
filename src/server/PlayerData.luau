@@ -25,6 +25,11 @@ local MAX_ADD = 1e6 -- most a single AddSpeed call may add
 local AUTOSAVE_SECONDS = 60
 
 local store = nil
+local clock = os.time
+
+function PlayerData.SetClock(fn)
+	clock = fn or os.time
+end
 
 local leaveHooks = {}
 
@@ -89,6 +94,9 @@ end
 
 -- Returns true if the stats were loaded (or newly created). Yields.
 function PlayerData.Load(player, userId)
+	if player:GetAttribute("DataLoaded") then
+		return true
+	end
 	userId = userId or player.UserId
 	local money = MoneyService.Setup(player)
 	local speed = speedValue(player)
@@ -111,6 +119,55 @@ function PlayerData.Load(player, userId)
 	GachaService.Apply(player, data) -- older saves have no gacha fields: starter car, nothing allocated
 	UpgradeService.Apply(player, data) -- version 3 and older: no tiles, BestTrack 0, TurboCount from Rolls % 10
 	player:SetAttribute("WorkshopLevel", Workshop.CleanLevel(data.WorkshopLevel)) -- missing = the starter workshop
+	local at = clock()
+	local offlineAt = data.OfflineAt
+	local seconds = type(offlineAt) == "number"
+			and offlineAt == offlineAt
+			and offlineAt >= 0
+			and offlineAt <= at
+			and math.min(at - offlineAt, Workshop.Config.OFFLINE_CAP)
+		or 0
+	local gain = Workshop.OfflineGain(
+		speed.Value,
+		GachaService.SpeedMulti(player),
+		data.WorkshopLevel,
+		GachaService.WorkshopMulti(player),
+		seconds
+	)
+	if gain > 0 then
+		-- Persist the claim before exposing it. UpdateAsync retries can never award the same saved absence twice.
+		local claimed = 0
+		local claimOk, updated = pcall(function()
+			return dataStore:UpdateAsync(PlayerData.KeyFor(userId), function(current)
+				claimed = 0
+				if type(current) ~= "table" or current.OfflineAt ~= offlineAt then
+					return nil
+				end
+				local result = table.clone(current)
+				claimed = gain
+				result.Speed = cleanStat(cleanStat(current.Speed) + gain)
+				result.OfflineAt = at
+				return result
+			end)
+		end)
+		if not claimOk then
+			player:SetAttribute("DataFailed", true)
+			return false
+		end
+		if type(updated) ~= "table" then
+			player:SetAttribute("DataFailed", true)
+			return false -- competing load: don't overwrite a save whose claim changed under us
+		end
+		speed.Value = cleanStat(updated.Speed)
+		money.Value = cleanInt(updated.Money, 0, MAX_MONEY, 0)
+		GachaService.Apply(player, updated)
+		UpgradeService.Apply(player, updated)
+		player:SetAttribute("WorkshopLevel", Workshop.CleanLevel(updated.WorkshopLevel))
+		gain = claimed
+	end
+	player:SetAttribute("OfflineSpeed", gain)
+	player:SetAttribute("OfflineSeconds", seconds)
+	player:SetAttribute("DataFailed", nil)
 	player:SetAttribute("DataLoaded", true)
 	return true
 end
@@ -142,6 +199,7 @@ function PlayerData.Save(player, userId)
 		BestTrack = upgrades.BestTrack,
 		TurboCount = upgrades.TurboCount,
 		WorkshopLevel = Workshop.CleanLevel(player:GetAttribute("WorkshopLevel")),
+		OfflineAt = clock(),
 		Version = VERSION,
 	}
 	local ok = pcall(function()

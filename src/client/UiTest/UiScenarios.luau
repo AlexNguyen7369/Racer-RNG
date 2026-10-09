@@ -13,6 +13,7 @@ local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local SoundService = game:GetService("SoundService")
 local TextChatService = game:GetService("TextChatService")
 local TextService = game:GetService("TextService")
 local UserInputService = game:GetService("UserInputService")
@@ -20,12 +21,15 @@ local Lighting = game:GetService("Lighting")
 local Workspace = game:GetService("Workspace")
 
 local UiSpec = require(script.Parent:WaitForChild("UiSpec"))
+local UiResponsive = require(script.Parent:WaitForChild("UiResponsive"))
+local UiLegacyControls = require(script.Parent:WaitForChild("UiLegacyControls"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local HudFormat = require(Shared:WaitForChild("HudFormat"))
 local CarCatalog = require(Shared:WaitForChild("CarCatalog"))
 local GachaConfig = require(Shared:WaitForChild("GachaConfig"))
 local NpcConfig = require(Shared:WaitForChild("NpcConfig"))
 local TrackBuilder = require(Shared:WaitForChild("TrackBuilder"))
+local UpgradeTree = require(Shared:WaitForChild("UpgradeTree"))
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -50,15 +54,6 @@ local function animNum(name)
 	local cfg = anim()
 	local v = cfg and cfg[name]
 	if type(v) ~= "number" then
-		v = UiSpec.RollAnim.Fallback[name]
-	end
-	return v
-end
-
-local function animVec(name)
-	local cfg = anim()
-	local v = cfg and cfg[name]
-	if typeof(v) ~= "Vector2" then
 		v = UiSpec.RollAnim.Fallback[name]
 	end
 	return v
@@ -90,6 +85,7 @@ local UiScenarios = {}
 UiScenarios.Names = {
 	"ui_client_rendering",
 	"ui_inventory",
+	"ui_legacy_controls",
 	"ui_layout",
 	"ui_hitboxes",
 	"ui_buttons",
@@ -103,6 +99,13 @@ UiScenarios.Names = {
 	"ui_loser",
 	"ui_billboards",
 	"ui_panels",
+	"ui_upgrades",
+	"ui_workshop_modal",
+	"ui_progression_layout",
+	"ui_progression_hud",
+	-- ui_offline_welcome needs its offline_welcome server fixture, so it runs only through
+	-- UiSpec.Progression.FixtureChecks (UiTestScenario), like ui_offline_zero and ui_progression_world.
+	"ui_weather",
 	-- Last: its server setup (emphasized_next) takes the cars away until the emphasized roll happened
 	"ui_roll_emphasized",
 }
@@ -110,21 +113,26 @@ UiScenarios.Names = {
 local TOL = UiSpec.Tolerance
 local STATES = {
 	{ Name = "rest", Open = {} },
-	{ Name = "index_open", Open = { "IndexUi/Panel" } },
-	{ Name = "stats_open", Open = { "StatsUi/Panel" } },
+	{ Name = "index_open", Open = { "RacerIndex/Panel" } },
+	{ Name = "stats_open", Open = { "RacerStats/Panel" } },
+	{ Name = "settings_open", Open = { "RacerSettings/Panel" } },
+	{ Name = "rebirth_open", Open = { "RacerRebirth/Panel" } },
+	{ Name = "upgrades_open", Open = { "RacerUpgrades/Panel" } },
+	{ Name = "workshop_open", Open = { "RacerWorkshop/Panel" } },
+	{ Name = "welcome_open", Open = { "RacerWelcome/Panel" } },
 	-- Two panels open at once is NOT a reachable state: ui_panels proves the panels are mutually exclusive
 	-- through the real mechanism (PanelSwitch) and the Clicks open_*_while_*_open prove it through the buttons.
 	-- If exclusivity ever breaks, ui_panels fails, and this state must be added back here.
 }
+-- Layout objects the solver does not model (UIListLayout, UIGridLayout and UIPadding are solved in simRect).
 local UNSUPPORTED_LAYOUT = {
-	UIListLayout = true,
-	UIPadding = true,
 	UIAspectRatioConstraint = true,
 	UIScale = true,
 	UIPageLayout = true,
 	UITableLayout = true,
 	UIFlexItem = true,
 }
+local legacyObserver = nil
 
 ---------------------------------------------------------------------------------------------------------------
 -- Results
@@ -134,7 +142,7 @@ local function newResult(name)
 end
 
 local function check(res, name, value, limit, ok)
-	-- snake_case names like the server harness: "right_column_y_IndexUi/OpenIndex" -> "right_column_y_indexui_openindex"
+	-- Check names use snake_case, matching the server harness.
 	name = string.lower((string.gsub(name, "[^%w_]", "_")))
 	if type(value) == "number" then
 		value = math.floor(value * 1000 + 0.5) / 1000
@@ -394,9 +402,21 @@ local function inset()
 	return tl, br
 end
 
+-- The screen size the engine lays the UI out in. A camera that has not rendered yet (a freshly created or swapped
+-- CurrentCamera) reports ViewportSize (1, 1); then the screen comes from an IgnoreGuiInset ScreenGui, whose
+-- AbsoluteSize is the whole screen. (A (1, 1) viewport made the enlarged card's model a 1-px rect.)
 local function viewport()
 	local cam = Workspace.CurrentCamera
-	return cam and cam.ViewportSize or Vector2.new(0, 0)
+	local size = cam and cam.ViewportSize
+	if size and size.X > 1 and size.Y > 1 then
+		return size
+	end
+	for _, g in playerGui:GetChildren() do
+		if g:IsA("ScreenGui") and g.IgnoreGuiInset and g.AbsoluteSize.X > 1 and g.AbsoluteSize.Y > 1 then
+			return g.AbsoluteSize
+		end
+	end
+	return size or Vector2.new(0, 0)
 end
 
 -- The ScreenGui's drawing area in screen pixels: below the top bar unless IgnoreGuiInset.
@@ -408,15 +428,18 @@ local function rootRect(gui, vp)
 	return R(0, 0, vp.X, vp.Y)
 end
 
--- Engine rectangle, converted to screen pixels through the ScreenGui's own origin.
+-- Engine rectangle in screen pixels. AbsolutePosition is measured from the top-left of the area BELOW the top bar
+-- for every ScreenGui (an IgnoreGuiInset gui's top edge reads -inset), the same space GetGuiObjectsAtPosition takes
+-- (hitsAt), so screen = AbsolutePosition + GetGuiInset() top-left. It does not go through the ScreenGui's own
+-- AbsolutePosition: under Studio device emulation (750x361, inset 58) that put every IgnoreGuiInset rect exactly
+-- 58 px off (layout_model_matches_engine_rest).
 local function realRect(obj)
 	local gui = guiOf(obj)
-	local root = rootRect(gui, viewport())
 	if obj == gui then
-		return root
+		return rootRect(gui, viewport())
 	end
-	local ox, oy = root.x - gui.AbsolutePosition.X, root.y - gui.AbsolutePosition.Y
-	return R(obj.AbsolutePosition.X + ox, obj.AbsolutePosition.Y + oy, obj.AbsoluteSize.X, obj.AbsoluteSize.Y)
+	local tl = inset()
+	return R(obj.AbsolutePosition.X + tl.X, obj.AbsolutePosition.Y + tl.Y, obj.AbsoluteSize.X, obj.AbsoluteSize.Y)
 end
 
 local function constrain(obj, w, h)
@@ -430,43 +453,230 @@ end
 
 local simRect
 
-local function gridCell(obj, parent, grid, base, ctx)
-	if
-		grid.FillDirection ~= Enum.FillDirection.Horizontal
-		or grid.StartCorner ~= Enum.StartCorner.TopLeft
-		or grid.HorizontalAlignment ~= Enum.HorizontalAlignment.Left
-		or grid.VerticalAlignment ~= Enum.VerticalAlignment.Top
-		or (grid.SortOrder ~= Enum.SortOrder.LayoutOrder and grid.SortOrder ~= Enum.SortOrder.Name)
-	then
-		ctx.unsupported[pathOf(grid)] = "UIGridLayout options"
-	end
-	local cw = base.w * grid.CellSize.X.Scale + grid.CellSize.X.Offset
-	local ch = base.h * grid.CellSize.Y.Scale + grid.CellSize.Y.Offset
-	local px = base.w * grid.CellPadding.X.Scale + grid.CellPadding.X.Offset
-	local py = base.h * grid.CellPadding.Y.Scale + grid.CellPadding.Y.Offset
-	local items = {}
-	for _, c in parent:GetChildren() do
-		if c:IsA("GuiObject") and c.Visible then
-			table.insert(items, c)
+-- True when ctx viewport uses the other generated variant (phone / desktop) than the live screen: the live properties
+-- then describe the wrong variant and the model's (UiResponsive.Nodes / Grids) are used instead.
+local function otherVariant(vp)
+	return UiResponsive.VariantOf(vp) ~= UiResponsive.VariantOf(viewport())
+end
+
+local function sameSize(a, b)
+	return math.abs(a.X - b.X) < 0.5 and math.abs(a.Y - b.Y) < 0.5
+end
+
+-- The layout factor of obj's own UIScale children at ctx.vp (1 without one). UIScale scales the object about its
+-- AnchorPoint and all its descendants. Generated "UIScale"s come from the model (UiResponsive.ScaleAt) at every
+-- viewport; hover / press scales (UiSpec.TransientScales) count as 1; any other UIScale is read live on the live
+-- viewport and is unsupported (ctx.unsupported -> layout_model_supported fails) on a simulated one.
+local function ownScale(obj, ctx)
+	local s = 1
+	for _, child in obj:GetChildren() do
+		if child:IsA("UIScale") and not UiSpec.TransientScales[child.Name] then
+			-- A runtime fit (RacerUiController.fitPanels) replaces the generated scale: ctx.scaleOverride[obj]
+			local override = child.Name == "UIScale" and ctx.scaleOverride and ctx.scaleOverride[obj]
+			local modelled = override or (child.Name == "UIScale" and UiResponsive.ScaleAt(pathOf(obj), ctx.vp))
+			if modelled then
+				s *= modelled
+			else
+				if not sameSize(ctx.vp, viewport()) then
+					ctx.unsupported[pathOf(obj)] = "UIScale " .. child.Name
+				end
+				s *= child.Scale
+			end
 		end
 	end
-	local byName = grid.SortOrder == Enum.SortOrder.Name
+	return s
+end
+
+-- The product of the UIScale factors of obj and its GuiObject ancestors (what obj's children's offsets are scaled by).
+local function inheritedScale(obj, ctx)
+	ctx.scales = ctx.scales or {}
+	local cached = ctx.scales[obj]
+	if cached then
+		return cached
+	end
+	local s = 1
+	if obj:IsA("GuiObject") then
+		s = ownScale(obj, ctx) * (obj.Parent and inheritedScale(obj.Parent, ctx) or 1)
+	end
+	ctx.scales[obj] = s
+	return s
+end
+
+-- The layout props a node uses at ctx.vp: on the other variant than the live one a generated node takes the model's
+-- variant props (UiResponsive.Nodes), else its live properties.
+local function variantProps(obj, ctx)
+	local node = otherVariant(ctx.vp) and UiResponsive.Nodes[pathOf(obj)]
+	local props = node and node[UiResponsive.VariantOf(ctx.vp)] or {}
+	return props.Size or obj.Size, props.Position or obj.Position, props.AnchorPoint or obj.AnchorPoint
+end
+
+-- obj's size in `base` (Offsets are design pixels scaled by the inherited UIScale c; UISizeConstraint limits the
+-- design size; obj's own UIScale scales it about its anchor).
+local function sizeIn(obj, size, base, ctx, c)
+	local own = ownScale(obj, ctx)
+	local w = base.w * size.X.Scale + c * size.X.Offset
+	local h = base.h * size.Y.Scale + c * size.Y.Offset
+	w, h = constrain(obj, w / c, h / c)
+	return w * c * own, h * c * own
+end
+
+-- The area children are laid out in: a ScrollingFrame's canvas (moved by CanvasPosition; as wide and tall as the
+-- window, AutomaticCanvasSize only grows it downwards) minus the parent's UIPadding (its offsets are design pixels
+-- scaled by the parent's inherited UIScale c, its scales relative to that area).
+local function contentBox(parent, pr, c)
+	local base = pr
+	if parent:IsA("ScrollingFrame") then
+		base = R(pr.x - parent.CanvasPosition.X, pr.y - parent.CanvasPosition.Y, pr.w, pr.h)
+	end
+	local pad = parent:FindFirstChildWhichIsA("UIPadding")
+	if pad then
+		local function px(u, extent)
+			return extent * u.Scale + c * u.Offset
+		end
+		local l, r = px(pad.PaddingLeft, base.w), px(pad.PaddingRight, base.w)
+		local t, b = px(pad.PaddingTop, base.h), px(pad.PaddingBottom, base.h)
+		base = R(base.x + l, base.y + t, base.w - l - r, base.h - t - b)
+	end
+	return base
+end
+
+-- The visible GuiObject children a layout arranges, in its order.
+local function layoutItems(parent, layout)
+	local items = {}
+	for _, ch in parent:GetChildren() do
+		if ch:IsA("GuiObject") and ch.Visible then
+			table.insert(items, ch)
+		end
+	end
+	local byName = layout.SortOrder == Enum.SortOrder.Name
 	table.sort(items, function(a, b)
 		if not byName and a.LayoutOrder ~= b.LayoutOrder then
 			return a.LayoutOrder < b.LayoutOrder
 		end
 		return a.Name < b.Name
 	end)
+	return items
+end
+
+-- Offset of a run of `length` px inside `extent` px for an alignment: 0 (Left / Top), half (Center), all (Right /
+-- Bottom).
+local function align(alignment, extent, length)
+	if alignment == Enum.HorizontalAlignment.Center or alignment == Enum.VerticalAlignment.Center then
+		return (extent - length) / 2
+	elseif alignment == Enum.HorizontalAlignment.Right or alignment == Enum.VerticalAlignment.Bottom then
+		return extent - length
+	end
+	return 0
+end
+
+-- UIGridLayout: cells fill rows left to right from the top-left (FillDirection Horizontal, StartCorner TopLeft);
+-- HorizontalAlignment / VerticalAlignment place the whole block of cells (as wide as its fullest row) in the content
+-- box, and a short last row fills from the block's left edge like the others (it is NOT centred on its own: the
+-- engine put the Index's last-row tiles one column pitch left of a per-row-centred model, layout_model_matches_engine
+-- 162 px at 1081x638). Other options are recorded as unsupported.
+local function gridCell(obj, parent, grid, base, ctx, scale)
+	if
+		grid.FillDirection ~= Enum.FillDirection.Horizontal
+		or grid.StartCorner ~= Enum.StartCorner.TopLeft
+		or (grid.SortOrder ~= Enum.SortOrder.LayoutOrder and grid.SortOrder ~= Enum.SortOrder.Name)
+	then
+		ctx.unsupported[pathOf(grid)] = "UIGridLayout options"
+	end
+	-- Offsets are design pixels: the inherited UIScale factor `scale` applies to them. On the other variant than the live
+	-- one the cell size comes from the model (Components.BindIndex fit()), else from the live UIGridLayout.
+	local cellSize = grid.CellSize
+	local gridModel = UiResponsive.Grids[pathOf(parent)]
+	if gridModel and otherVariant(ctx.vp) then
+		local variant = UiResponsive.VariantOf(ctx.vp)
+		local host = UiResponsive.Nodes[gridModel.Host][variant]
+		local cols = gridModel.Columns[variant]
+		local width = host.Size.X.Offset - gridModel.Inset
+		cellSize = UDim2.fromOffset(math.floor((width - (cols - 1) * gridModel.Gap) / cols), gridModel.CellHeight)
+	end
+	local cw = base.w * cellSize.X.Scale + scale * cellSize.X.Offset
+	local ch = base.h * cellSize.Y.Scale + scale * cellSize.Y.Offset
+	local px = base.w * grid.CellPadding.X.Scale + scale * grid.CellPadding.X.Offset
+	local py = base.h * grid.CellPadding.Y.Scale + scale * grid.CellPadding.Y.Offset
+	local items = layoutItems(parent, grid)
 	local idx = table.find(items, obj)
 	if not idx then
 		return R(base.x, base.y, 0, 0)
 	end
-	local cols = math.max(1, math.floor((base.w + px) / (cw + px)))
+	-- (1e-9: an exact fit, e.g. the phone Index 3 x 146 + 2 x 12 = 462, must not lose a column to float error)
+	local cols = math.max(1, math.floor((base.w + px) / (cw + px) + 1e-9))
 	if grid.FillDirectionMaxCells > 0 then
 		cols = math.min(cols, grid.FillDirectionMaxCells)
 	end
 	local i = idx - 1
-	return R(base.x + (i % cols) * (cw + px), base.y + math.floor(i / cols) * (ch + py), cw, ch)
+	local row = math.floor(i / cols)
+	local blockCols = math.min(cols, #items)
+	local rows = math.ceil(#items / cols)
+	local x0 = align(grid.HorizontalAlignment, base.w, blockCols * cw + (blockCols - 1) * px)
+	local y0 = align(grid.VerticalAlignment, base.h, rows * ch + (rows - 1) * py)
+	return R(base.x + x0 + (i % cols) * (cw + px), base.y + y0 + row * (ch + py), cw, ch)
+end
+
+-- UIListLayout (no Wraps, no flex): the visible children one after another along FillDirection with Padding between
+-- them (Position and AnchorPoint ignored), the run aligned by the alignment along that axis and each child by the
+-- other alignment across it.
+local function listCell(obj, parent, list, base, ctx, scale)
+	local okW, wraps = pcall(function()
+		return list.Wraps
+	end)
+	local okF, flex = pcall(function()
+		return list.HorizontalFlex ~= Enum.UIFlexAlignment.None or list.VerticalFlex ~= Enum.UIFlexAlignment.None
+	end)
+	if (okW and wraps) or (okF and flex) then
+		ctx.unsupported[pathOf(list)] = "UIListLayout Wraps / flex"
+	end
+	local vertical = list.FillDirection == Enum.FillDirection.Vertical
+	local items = layoutItems(parent, list)
+	local gap = (vertical and base.h or base.w) * list.Padding.Scale + scale * list.Padding.Offset
+	local sizes, total, before = {}, 0, nil
+	for k, item in items do
+		local size = variantProps(item, ctx)
+		local w, h = sizeIn(item, size, base, ctx, scale)
+		sizes[item] = { w = w, h = h }
+		if item == obj then
+			before = total
+		end
+		total += (vertical and h or w) + (k < #items and gap or 0)
+	end
+	if not before then
+		return R(base.x, base.y, 0, 0)
+	end
+	local me = sizes[obj]
+	if vertical then
+		local y = base.y + align(list.VerticalAlignment, base.h, total) + before
+		return R(base.x + align(list.HorizontalAlignment, base.w, me.w), y, me.w, me.h)
+	end
+	local x = base.x + align(list.HorizontalAlignment, base.w, total) + before
+	return R(x, base.y + align(list.VerticalAlignment, base.h, me.h), me.w, me.h)
+end
+
+-- The Speed group's visible icon + number width at a viewport (RacerUiController centres exactly that): the number's
+-- live TextBounds in design pixels (live UIScale and TextSize divided out, the variant's TextSize and UIScale applied),
+-- or nil while the number draws nothing (the controller then does not move the group).
+local function speedVisibleWidth(vp)
+	local group, icon, value =
+		findPath(UiSpec.Hud.Speed), findPath(UiSpec.Hud.SpeedIcon), findPath(UiSpec.Hud.SpeedValue)
+	if not (group and icon and value) or value.TextBounds.X <= 0 then
+		return nil
+	end
+	local liveScale = group:FindFirstChild("UIScale")
+	liveScale = liveScale and liveScale:IsA("UIScale") and liveScale.Scale or 1
+	local nodes = UiResponsive.Nodes
+	local liveVariant, variant = UiResponsive.VariantOf(viewport()), UiResponsive.VariantOf(vp)
+	local valueNode = nodes[UiSpec.Hud.SpeedValue]
+	local iconNode = nodes[UiSpec.Hud.SpeedIcon]
+	local textDesign = value.TextBounds.X / liveScale
+	if valueNode and valueNode[liveVariant].TextSize and valueNode[variant].TextSize then
+		textDesign *= valueNode[variant].TextSize / valueNode[liveVariant].TextSize
+	end
+	local valueX = valueNode and valueNode[variant].Position.X.Offset or value.Position.X.Offset
+	local iconX = iconNode and iconNode[variant].Position.X.Offset or icon.Position.X.Offset
+	local s = UiResponsive.ScaleAt(UiSpec.Hud.Speed, vp) or 1
+	return s * (valueX + textDesign - iconX), s * iconX
 end
 
 -- The two roll cards animate (PopIn grows from 0, LAND_POP, Exit shrink, the 0.3 s SWITCH), so their live Size /
@@ -492,44 +702,66 @@ end
 -- clamp(COMPACT_WIDTH x parent width, COMPACT_MIN, COMPACT_MAX), height COMPACT_HEIGHT.
 local function compactNominal(base, toggleRect)
 	local w = math.clamp(base.w * animNum("COMPACT_WIDTH"), animNum("COMPACT_MIN"), animNum("COMPACT_MAX"))
-	local h = animNum("COMPACT_HEIGHT")
+	local h = animNum("COMPACT_HEIGHT") + UiSpec.Compact.ExtraHeight
 	local top = toggleRect and (toggleRect.y + toggleRect.h + animNum("COMPACT_GAP")) or base.y
 	return R(base.x + base.w / 2 - w / 2, top, w, h)
 end
 
--- Enlarged: AnchorPoint (0.5, 0.5), Position UDim2(0.5, 0, 0.5, CardCentreYOffset), Size UDim2(ENLARGED_WIDTH, 0, 1,
--- CardSizeYOffset), UISizeConstraint MaxSize = ENLARGED_MAX (no longer derived from the compact size).
-local function enlargedNominal(base)
-	local max = animVec("ENLARGED_MAX")
-	local w = math.min(base.w * animNum("ENLARGED_WIDTH"), max.X)
-	-- Keep this solver in lockstep with RollShowcase.ui.json's generated desktop/phone sizes.
-	-- The old offset-based approximation referenced fields that are not part of UiSpec.Showcase,
-	-- causing every roll sample to throw before it could record a result.
-	local cardSize = base.h <= 500 and Vector2.new(540, 224) or Vector2.new(760, 320)
-	local h = math.min(cardSize.Y, max.Y)
-	local cx = base.x + base.w / 2
-	local cy = base.y + base.h * UiSpec.Showcase.CardCentreScale
-	return R(cx - w / 2, cy - h / 2, w, h)
+-- Enlarged: the generated RollShowcase.ui.json card (Desktop 760x320 / Phone 540x224, AnchorPoint (0.5, 0.5),
+-- Position (0.5, 0.46)) scaled by its generated UIScale k about its centre (UiResponsive.CardRect). The
+-- docs/ROLL_ANIMATION_CONTRACT.md size formula (ENLARGED_WIDTH x screen width) is superseded by the owner-approved
+-- ui.json, with no ENLARGED_MAX cap (owner decision 2026-10-08).
+local function enlargedNominal(base, vp)
+	local r = UiResponsive.CardRect(vp, base)
+	return R(r.x, r.y, r.w, r.h)
 end
 
--- Layout solver for a hypothetical viewport: UDim2 Position/Size, AnchorPoint, UISizeConstraint, UIGridLayout
--- (top-left, horizontal fill), ScrollingFrame CanvasPosition, and the top-bar inset. Anything else is recorded
--- in ctx.unsupported (the layout_model_supported check fails, so the solver must be extended, never ignored).
--- UIGradient, UICorner, UIStroke and GuiObject.Rotation do not move or size anything (visual only).
+-- Layout solver for a hypothetical viewport: UDim2 Position/Size, AnchorPoint, UISizeConstraint, UIScale, UIPadding,
+-- UIListLayout, UIGridLayout, ScrollingFrame CanvasPosition, the top-bar inset, and the runtime rules of the UI
+-- scripts mirrored in UiResponsive (Speed centring + R3, Racer panel band R2, compact roll BelowRace, ProgressionUi
+-- fits incl. R4). Anything else is recorded in ctx.unsupported (the layout_model_supported check fails, so the solver
+-- must be extended, never ignored). UIGradient, UICorner, UIStroke and GuiObject.Rotation do not move or size
+-- anything (visual only).
 simRect = function(obj, ctx)
 	local cached = ctx.cache[obj]
 	if cached then
 		return cached
 	end
+	ctx.scaleOverride = ctx.scaleOverride or {}
 	local r
 	local kind = not ctx.live and cardKind(obj)
-	if kind then
+	local liveVp = sameSize(ctx.vp, viewport())
+	if pathOf(obj) == UiSpec.Hud.Race then
+		r = UiResponsive.RaceFaceRect(ctx.vp)
+	elseif pathOf(obj) == UiSpec.Hud.Turbo then
+		r = UiResponsive.ScaledHudRect(UiSpec.Hud.Turbo, ctx.vp)
+	elseif pathOf(obj) == UiSpec.Hud.Speed then
+		if liveVp then
+			-- The live viewport: where RacerUiController put it (X centring and the R3 shift are live properties)
+			r = UiResponsive.ScaledHudRect(UiSpec.Hud.Speed, ctx.vp, obj.Position.X)
+			r.y += obj.Position.Y.Offset - UiResponsive.Nodes[UiSpec.Hud.Speed][UiResponsive.VariantOf(ctx.vp)].Position.Y.Offset
+		else
+			r = UiResponsive.ScaledHudRect(UiSpec.Hud.Speed, ctx.vp)
+			local visible, iconX = speedVisibleWidth(ctx.vp)
+			if visible then
+				local toast, turbo = findPath("RollToast/Toast"), findPath(UiSpec.Hud.Turbo)
+				r = UiResponsive.SpeedGroup(
+					ctx.vp,
+					r,
+					visible,
+					toast and simRect(toast, ctx),
+					turbo and simRect(turbo, ctx)
+				)
+				r.x -= iconX
+			end
+		end
+	elseif kind then
 		local base = simRect(obj.Parent, ctx)
 		if kind == "compact" then
-			local toggle = findPath("AutoRaceButton/Toggle")
+			local toggle = findPath(UiSpec.Hud.Race)
 			r = compactNominal(base, toggle and simRect(toggle, ctx))
 		else
-			r = enlargedNominal(base)
+			r = enlargedNominal(base, ctx.vp)
 		end
 	elseif obj:IsA("LayerCollector") then
 		r = rootRect(obj, ctx.vp)
@@ -539,26 +771,96 @@ simRect = function(obj, ctx)
 		local parent = obj.Parent
 		local pr = simRect(parent, ctx)
 		for _, sibling in parent:GetChildren() do
-			if UNSUPPORTED_LAYOUT[sibling.ClassName] then
+			-- A UIScale under a GuiObject is solved (ownScale / inheritedScale); under a ScreenGui it is not
+			local solved = sibling:IsA("UIScale") and parent:IsA("GuiObject")
+			if UNSUPPORTED_LAYOUT[sibling.ClassName] and not solved then
 				ctx.unsupported[pathOf(parent)] = sibling.ClassName
 			end
+			if
+				(sibling:IsA("UIListLayout") or sibling:IsA("UIGridLayout") or sibling:IsA("UIPadding"))
+				and not parent:IsA("GuiObject")
+			then
+				ctx.unsupported[pathOf(parent)] = sibling.ClassName .. " under a ScreenGui"
+			end
 		end
+		local c = inheritedScale(parent, ctx)
 		if obj.AutomaticSize ~= Enum.AutomaticSize.None then
 			ctx.unsupported[pathOf(obj)] = "AutomaticSize"
 		end
-		local base = pr
-		if parent:IsA("ScrollingFrame") then
-			base = R(pr.x - parent.CanvasPosition.X, pr.y - parent.CanvasPosition.Y, pr.w, pr.h)
-		end
+		local base = parent:IsA("GuiObject") and contentBox(parent, pr, c) or pr
 		local grid = parent:FindFirstChildWhichIsA("UIGridLayout")
+		local list = parent:FindFirstChildWhichIsA("UIListLayout")
 		if grid then
-			r = gridCell(obj, parent, grid, base, ctx)
+			r = gridCell(obj, parent, grid, base, ctx, c)
+		elseif list then
+			r = listCell(obj, parent, list, base, ctx, c)
 		else
-			local w = base.w * obj.Size.X.Scale + obj.Size.X.Offset
-			local h = base.h * obj.Size.Y.Scale + obj.Size.Y.Offset
-			w, h = constrain(obj, w, h)
-			local x = base.x + base.w * obj.Position.X.Scale + obj.Position.X.Offset - obj.AnchorPoint.X * w
-			local y = base.y + base.h * obj.Position.Y.Scale + obj.Position.Y.Offset - obj.AnchorPoint.Y * h
+			local path = pathOf(obj)
+			local dependencies = {}
+			local isProgressionPanel = path == "RacerUpgrades/Panel"
+				or path == "RacerWorkshop/Panel"
+				or path == "RacerWelcome/Panel"
+			local isRate = path == "RacerProgression/WorkshopRate"
+			local isRacerPanel = UiResponsive.IsRacerPanel(path)
+			local wanted = {}
+			if isProgressionPanel then
+				wanted = {
+					Toast = "RollToast/Toast",
+					Turbo = UiSpec.Hud.Turbo,
+					UpgradeButton = "RacerProgression/UpgradeButton",
+					Navigation = UiSpec.RacerPanelBand.Navigation,
+				}
+			elseif isRate then
+				wanted = { Speed = UiSpec.Hud.Speed, Toast = "RollToast/Toast" }
+			elseif isRacerPanel then
+				wanted =
+					{ Race = UiSpec.Hud.Race, Turbo = UiSpec.Hud.Turbo, Navigation = UiSpec.RacerPanelBand.Navigation }
+			end
+			local missing = false
+			for key, dependencyPath in wanted do
+				local dependency = findPath(dependencyPath)
+				if dependency then
+					dependencies[key] = simRect(dependency, ctx)
+				else
+					missing = true
+				end
+			end
+			-- The column's right edge includes its visible descendants (the STATS PointsBadge), as the game reads
+			-- it: each GuiObject descendant whose own Visible is true (UiResponsive.ColumnRight).
+			if dependencies.Navigation then
+				local parts = {}
+				for _, d in findPath(wanted.Navigation):GetDescendants() do
+					if d:IsA("GuiObject") and d.Visible then
+						table.insert(parts, simRect(d, ctx))
+					end
+				end
+				dependencies.NavigationParts = parts
+			end
+			local fitted = nil
+			if missing then
+				ctx.unsupported[path] = "missing runtime layout dependency"
+			elseif isRacerPanel then
+				local size = variantProps(obj, ctx)
+				fitted = UiResponsive.RacerPanelFit(ctx.vp, dependencies, size)
+				ctx.scaleOverride[obj] = fitted.Scale
+			elseif isProgressionPanel or isRate then
+				fitted = UiResponsive.Progression(path, ctx.vp, dependencies)
+			end
+			local vSize, vPosition, vAnchor = variantProps(obj, ctx)
+			local size = fitted and fitted.Size or vSize
+			local position = fitted and fitted.Position or vPosition
+			local anchor = fitted and fitted.AnchorPoint or vAnchor
+			-- The compact roll's live Y offset is fitCompact's for the live screen: at a simulated viewport it is
+			-- Race Face bottom + COMPACT_GAP there (UiResponsive.BelowRace)
+			local below = UiResponsive.BelowRace[path]
+			if below and not liveVp and findPath(below) then
+				local race = simRect(findPath(below), ctx)
+				position =
+					UDim2.new(position.X.Scale, position.X.Offset, 0, race.y + race.h + animNum("COMPACT_GAP") - base.y)
+			end
+			local w, h = sizeIn(obj, size, base, ctx, c)
+			local x = base.x + base.w * position.X.Scale + c * position.X.Offset - anchor.X * w
+			local y = base.y + base.h * position.Y.Scale + c * position.Y.Offset - anchor.Y * h
 			r = R(x, y, w, h)
 		end
 	end
@@ -749,6 +1051,19 @@ local function recordAfterLose(kind)
 end
 
 function UiScenarios.Init()
+	if not legacyObserver then
+		legacyObserver = UiLegacyControls.Observe({
+			player = player,
+			playerGui = playerGui,
+			find = findPath,
+			frames = frames,
+			check = check,
+			visible = effectivelyVisible,
+			rect = realRect,
+			centre = centre,
+			hits = hitsAt,
+		})
+	end
 	player:GetAttributeChangedSignal("Rolls"):Connect(function()
 		events.rollsChanged = os.clock()
 	end)
@@ -850,17 +1165,24 @@ local function hasNumber(text, n)
 end
 
 ---------------------------------------------------------------------------------------------------------------
--- Rolls strip helpers (RollUi, docs/SPAWN_AND_ROLLS_SPEC.md sections 4 and 5)
+-- Turbo HUD helpers for RacerHud/Turbo.
 
 local function turboEvery()
-	return type(GachaConfig.TURBO_EVERY) == "number" and GachaConfig.TURBO_EVERY or UiSpec.RollUi.FallbackTurbo.Every
+	local every = attr("TurboEvery")
+	return type(every) == "number" and every >= 1 and every or (GachaConfig.TURBO_EVERY or 10)
 end
 
 local function turboLuck()
-	return type(GachaConfig.TURBO_LUCK) == "number" and GachaConfig.TURBO_LUCK or UiSpec.RollUi.FallbackTurbo.Luck
+	local multi = attr("TurboMulti")
+	return type(multi) == "number" and multi > 1 and multi
+		or (type(GachaConfig.TURBO_LUCK) == "number" and GachaConfig.TURBO_LUCK or UiSpec.Turbo.FallbackMulti)
 end
 
 local function turboProgress(rolls)
+	local count = attr("TurboCount")
+	if type(count) == "number" then
+		return math.max(0, math.floor(count))
+	end
 	if type(GachaConfig.TurboProgress) == "function" then
 		return GachaConfig.TurboProgress(rolls)
 	end
@@ -878,7 +1200,7 @@ local function allText(obj)
 	end
 	local list = {}
 	for _, o in { obj, table.unpack(obj:GetDescendants()) } do
-		if (o:IsA("TextLabel") or o:IsA("TextButton")) and o.Text ~= "" and o.Visible then
+		if o.Name ~= "PointsBadge" and (o:IsA("TextLabel") or o:IsA("TextButton")) and o.Text ~= "" and o.Visible then
 			table.insert(list, o.Text)
 		end
 	end
@@ -895,8 +1217,8 @@ end
 
 -- TurboBar/Fill width as a fraction of TurboBar (a hidden Fill is an empty bar).
 local function fillFraction()
-	local bar = findPath("RollUi/TurboBar")
-	local fill = bar and bar:FindFirstChild("Fill")
+	local bar = findPath(UiSpec.Hud.Turbo)
+	local fill = findPath(UiSpec.Hud.TurboFill)
 	if not (bar and fill and fill:IsA("GuiObject")) then
 		return nil
 	end
@@ -909,19 +1231,13 @@ end
 
 -- TurboPop's text, whether it is clearly showing, and whether it is gone (hidden or fully transparent).
 local function popState()
-	local gui = playerGui:FindFirstChild("RollUi")
-	local pop = gui and gui:FindFirstChild("TurboPop", true)
-	if not pop then
+	local textObj = findPath(UiSpec.Hud.TurboLabel)
+	if not (textObj and textObj:IsA("TextLabel")) then
 		return nil, false, true
 	end
-	local textObj = (pop:IsA("TextLabel") or pop:IsA("TextButton")) and pop
-		or pop:FindFirstChildWhichIsA("TextLabel", true)
-	if not textObj then
-		return nil, false, not effectivelyVisible(pop)
-	end
-	local visible = effectivelyVisible(pop) and effectivelyVisible(textObj)
-	local shown = visible and textObj.Text ~= "" and textObj.TextTransparency < 0.5
-	local gone = not visible or textObj.Text == "" or textObj.TextTransparency >= 0.99
+	local visible = effectivelyVisible(textObj) and textObj.TextTransparency < 0.5
+	local shown = visible and string.sub(textObj.Text, 1, 6) == "TURBO "
+	local gone = not visible or string.sub(textObj.Text, 1, 11) == "TURBO LUCK "
 	return textObj.Text, shown, gone
 end
 
@@ -1008,14 +1324,38 @@ end
 
 -- What is wrong with a roll card (compact or enlarged) as the card for roll event `ev` once it has landed (empty
 -- when it shows the roll's truth).
-local function cardProblems(card, ev)
+-- The enlarged card's content parts (UiSpec.Showcase.ContentParts) that are shown but not inside the card's rect.
+local function contentOutside(card)
+	local bad = {}
+	local cardRect = realRect(card)
+	for _, name in UiSpec.Showcase.ContentParts do
+		local o = card:FindFirstChild(name, true)
+		if o and o:IsA("GuiObject") and effectivelyVisible(o) and not contains(cardRect, realRect(o)) then
+			table.insert(bad, name .. rstr(realRect(o)) .. " outside the card")
+		end
+	end
+	return bad
+end
+
+-- The enlarged card's animated body (UiSpec.Showcase.Body) is back at 1x (within RollAnim.SettledTolerance of the
+-- card's width): the LAND_POP has settled, so its parts' geometry is the resting one.
+local function cardBodySettled(card)
+	local gui = guiOf(card)
+	local body = gui and findPath(gui.Name .. "/" .. UiSpec.Showcase.Body)
+	if not (body and body:IsA("GuiObject")) or card.AbsoluteSize.X <= 0 then
+		return true
+	end
+	return math.abs(body.AbsoluteSize.X / card.AbsoluteSize.X - 1) <= UiSpec.RollAnim.SettledTolerance
+end
+
+-- skipGeometry: leave out contentOutside (SampleRoll measures it once the body has settled from LAND_POP).
+local function cardProblems(card, ev, skipGeometry)
 	if not card then
 		return { "no card" }
 	end
 	if not ev then
 		return { "no RollResult received yet" }
 	end
-	local bad = {}
 	local spec = CarCatalog.Get(ev.id)
 	if not spec then
 		return { "roll id " .. tostring(ev.id) .. " not in CarCatalog" }
@@ -1023,13 +1363,7 @@ local function cardProblems(card, ev)
 	local function part(name)
 		return card:FindFirstChild(name, true)
 	end
-	local cardRect = realRect(card)
-	for _, name in UiSpec.Showcase.ContentParts do
-		local o = part(name)
-		if o and o:IsA("GuiObject") and effectivelyVisible(o) and not contains(cardRect, realRect(o)) then
-			table.insert(bad, name .. rstr(realRect(o)) .. " outside the card")
-		end
-	end
+	local bad = skipGeometry and {} or contentOutside(card)
 	local name = part("CarName")
 	if not (name and name:IsA("TextLabel") and name.Text == spec.Name and effectivelyVisible(name)) then
 		table.insert(bad, ("CarName %q want %q"):format(name and name.Text or "nil", spec.Name))
@@ -1044,7 +1378,7 @@ local function cardProblems(card, ev)
 		end
 	end
 	local odds = part("Odds")
-	local wantOdds = spec.Chance and HudFormat.Odds(spec.Chance) or "Common"
+	local wantOdds = HudFormat.Odds(spec.Chance)
 	if not (odds and odds:IsA("TextLabel") and odds.Text == wantOdds and effectivelyVisible(odds)) then
 		table.insert(bad, ("Odds %q want %q"):format(odds and odds.Text or "nil", wantOdds))
 	else
@@ -1331,7 +1665,7 @@ local function compactProblems(toast, ev)
 	local bad = {}
 	local tr = realRect(toast)
 	local odds = toast:FindFirstChild("Odds", true)
-	local wantOdds = spec.Chance and HudFormat.Odds(spec.Chance) or "Common"
+	local wantOdds = HudFormat.Odds(spec.Chance)
 	if not (odds and odds:IsA("TextLabel") and odds.Text == wantOdds and effectivelyVisible(odds)) then
 		table.insert(bad, ("Odds %q want %q"):format(odds and odds:IsA("TextLabel") and odds.Text or "nil", wantOdds))
 	else
@@ -1610,8 +1944,11 @@ function UiScenarios.SampleRoll(ev)
 						serial = card:GetAttribute("RollSerial"),
 						reelIds = reel and reel:GetAttribute("ReelIds"),
 						-- The compact roll is only the model and its odds; the card checks apply to the enlarged card
+						-- The enlarged card enters Hold still popped (LAND_POP settles early in Hold): its content-inside
+						-- -the-card geometry is added once the body is back at 1x (geomPending below)
 						problems = compact and compactProblems(card, ev)
-							or (spec and cardProblems(card, ev) or { "roll id not in CarCatalog" }),
+							or (spec and cardProblems(card, ev, true) or { "roll id not in CarCatalog" }),
+						geomPending = not compact and spec ~= nil,
 						styles = (not compact and spec) and styleProblems(card, spec) or {},
 						effects = (not compact and spec) and effectProblems(card, spec) or {},
 						shape = compact and compactShapeProblems(card) or nil,
@@ -1638,6 +1975,14 @@ function UiScenarios.SampleRoll(ev)
 				)
 			end
 			local h = rec.hold[key]
+			-- Settled (or leaving Hold, the latest resting moment: the enlarged card does not shrink on Exit)
+			if h and h.geomPending and (phase ~= "Hold" or cardBodySettled(card)) then
+				h.geomPending = false
+				h.geomPhase = tostring(phase)
+				for _, problem in contentOutside(card) do
+					table.insert(h.problems, problem)
+				end
+			end
 			if phase == "Hold" and h and h.glowRot2 == nil and now - holdAt[key] >= UiSpec.RollAnim.GlowTurnWait then
 				local grad = glowGradient(card)
 				h.glowRot2 = grad and grad.Rotation or false
@@ -1678,6 +2023,21 @@ function UiScenarios.SampleRoll(ev)
 		}
 	end
 	rec.done = true
+end
+
+-- An enlarged Hold sample's problems once its settled geometry is in (SampleRoll adds contentOutside when the body
+-- is back at 1x, at the latest when Hold ends). A sample whose geometry never got measured reports that.
+local function settledProblems(rec, hold)
+	local deadline = os.clock() + holdFor("Secret") + 2
+	while hold.geomPending and not rec.done and os.clock() < deadline do
+		task.wait(0.05)
+	end
+	if hold.geomPending then
+		local list = table.clone(hold.problems)
+		table.insert(list, "card geometry not measured (no settled Hold frame)")
+		return list
+	end
+	return hold.problems
 end
 
 local function recFor(ev)
@@ -1769,18 +2129,33 @@ end
 ---------------------------------------------------------------------------------------------------------------
 -- Element sets per panel state
 
--- Every element that is interactive or always on in the given state: AlwaysOn elements, the open panels and
--- every button inside an open panel (buttons that only show in some data state, e.g. Equip on an undiscovered
--- tile, are included: they WILL be shown, so their place must already be free).
+-- True when UiSpec.HiddenWhilePanelOpen hides the AlwaysOn element `path` while the panels in `open` are open.
+local function hiddenByPanel(path, open)
+	local rule = UiSpec.HiddenWhilePanelOpen[path]
+	if not rule then
+		return false
+	end
+	local except = string.match(rule, "^other_than:(.+)$")
+	for _, p in open do
+		if rule == "any" or (except and p ~= except) then
+			return true
+		end
+	end
+	return false
+end
+
+-- Every element that is interactive or always on in the given state: AlwaysOn elements (minus the ones declared hidden
+-- while that panel is open, UiSpec.HiddenWhilePanelOpen: ui_panels / ui_toast prove they really are hidden then), the
+-- open panels and every button inside an open panel (buttons that only show in some data state, e.g. Equip on an
+-- undiscovered tile, are included: they WILL be shown, so their place must already be free). At rest the compact
+-- roll's rect is reserved even between rolls.
 local function elementsFor(open)
 	local list = {}
 	for _, guiName in declaredGuis() do
 		local g = UiSpec.Guis[guiName]
 		for _, p in g.AlwaysOn or {} do
 			local obj = findPath(guiName .. "/" .. p)
-			-- Elements that hide while a panel is open are only placed in the rest state (ui_toast proves they hide)
-			local hides = #open > 0 and table.find(UiSpec.HiddenWhilePanelOpen, guiName .. "/" .. p) ~= nil
-			if obj and not hides then
+			if obj and not hiddenByPanel(guiName .. "/" .. p, open) then
 				table.insert(list, { path = guiName .. "/" .. p, obj = obj })
 			end
 		end
@@ -1797,7 +2172,69 @@ local function elementsFor(open)
 	return list
 end
 
-local function overlapAllowed(a, b)
+local function underPath(path, root)
+	return path == root or string.sub(path, 1, #root + 1) == root .. "/"
+end
+
+-- UiSpec.PanelCoversReadouts: the PanelSwitch panel and the read-out an element pair belongs to, or nil.
+local function panelReadoutPair(a, b)
+	for panelPath in UiSpec.PanelSwitch.Names do
+		for _, readout in UiSpec.PanelCoversReadouts.Readouts do
+			if underPath(a, panelPath) and underPath(b, readout) then
+				return panelPath, readout
+			elseif underPath(b, panelPath) and underPath(a, readout) then
+				return panelPath, readout
+			end
+		end
+	end
+	return nil
+end
+
+-- nil when the panel draws over the read-out across the whole region (UiSpec.PanelCoversReadouts), else why not.
+local function panelCoverProblem(panelPath, readoutPath, region, rectOf)
+	local cfg = UiSpec.PanelCoversReadouts
+	local panel, readout = findPath(panelPath), findPath(readoutPath)
+	if not (panel and readout) then
+		return "missing panel or read-out"
+	end
+	local pg, rg = guiOf(panel), guiOf(readout)
+	if not (pg and rg and pg:IsA("ScreenGui") and rg:IsA("ScreenGui")) then
+		return "not in ScreenGuis"
+	end
+	if pg.DisplayOrder <= rg.DisplayOrder then
+		return ("panel DisplayOrder %d <= read-out %d"):format(pg.DisplayOrder, rg.DisplayOrder)
+	end
+	local surface = panel:FindFirstChild(cfg.Surface) or panel
+	if not (surface:IsA("GuiObject") and effectivelyVisible(surface)) then
+		return "panel surface not shown"
+	end
+	if surface.BackgroundTransparency > cfg.MaxSurfaceTransparency then
+		return ("panel surface BackgroundTransparency %.2f > %.2f"):format(
+			surface.BackgroundTransparency,
+			cfg.MaxSurfaceTransparency
+		)
+	end
+	local node = surface
+	while node and not node:IsA("LayerCollector") do
+		if node:IsA("CanvasGroup") and node.GroupTransparency > cfg.MaxSurfaceTransparency then
+			return "panel faded by CanvasGroup " .. pathOf(node)
+		end
+		node = node.Parent
+	end
+	local sr = clipped(surface, rectOf)
+	if not (sr and region and contains(sr, region)) then
+		return "overlap " .. (region and rstr(region) or "?") .. " outside the opaque panel surface"
+	end
+	return nil
+end
+
+-- a, b: element paths; ra, rb: their (clipped) rects; rectOf: the viewport's rect provider. Returns allowed, why-not.
+local function overlapAllowed(a, b, ra, rb, rectOf)
+	local panelPath, readout = panelReadoutPair(a, b)
+	if panelPath then
+		local problem = panelCoverProblem(panelPath, readout, ra and rb and intersection(ra, rb), rectOf)
+		return problem == nil, problem
+	end
 	for _, pair in UiSpec.AllowOverlap do
 		if (pair[1] == a and pair[2] == b) or (pair[1] == b and pair[2] == a) then
 			return true
@@ -1820,6 +2257,20 @@ end
 -- Scenarios
 
 local S = {}
+
+function S.ui_legacy_controls(res)
+	if not legacyObserver then
+		UiScenarios.Init()
+	end
+	legacyObserver.Run(res, false)
+end
+
+function S.ui_legacy_controls_resize(res)
+	if not legacyObserver then
+		UiScenarios.Init()
+	end
+	legacyObserver.Run(res, true)
+end
 
 -- The client must be rendering for any geometry or label check to mean anything: count RenderStepped frames
 -- during 1 s of Heartbeat time.
@@ -1875,6 +2326,9 @@ function S.ui_inventory(res)
 		local path = pathOf(b)
 		local guiName = splitPath(path)[1]
 		local rel = string.sub(path, #guiName + 2)
+		-- RacerHud keeps the generated legacy RollControls subtree for compatibility with
+		-- the UI asset, but it is not part of the live Racer UI inventory.
+		local isLegacyRollControl = guiName == "RacerHud" and string.match(rel, "^RollControls/") ~= nil
 		local matched = false
 		for i, spec in UiSpec.Guis[guiName].Buttons or {} do
 			if pathMatches(spec.Path, rel) then
@@ -1884,7 +2338,9 @@ function S.ui_inventory(res)
 				break
 			end
 		end
-		if not matched then
+		-- The generated HUD retains a hidden legacy RollControls subtree. It must stay hidden and is
+		-- checked by ui_hitboxes, but it is not part of the live inventory.
+		if not matched and not isLegacyRollControl and effectivelyVisible(b) then
 			table.insert(undeclared, path)
 		end
 	end
@@ -1896,6 +2352,8 @@ function S.ui_inventory(res)
 				want = #CarCatalog.All()
 			elseif spec.Count == "stats" then
 				want = #GachaConfig.STATS
+			elseif spec.Count == "upgrades" then
+				want = #UpgradeTree.Tiles()
 			end
 			local got = counts[guiName .. "#" .. i] or 0
 			check(res, "button_count_" .. guiName .. "/" .. spec.Path, got, want, got == want)
@@ -1960,14 +2418,14 @@ function S.ui_inventory(res)
 end
 
 -- The enlarged view's AUTO button and hint at one viewport (contract): RollShowcase/AutoButton at least MinSize,
--- bottom centre with its bottom edge BottomGap px above the screen bottom, above the Hint and the TURBO LUCK bar,
--- clear of the card; the Hint clear of the card and the bar; the backdrop click points (corner, INDEX button) off
--- the AUTO button and the card.
+-- bottom centre with its bottom edge BottomGap px above the screen bottom, above the Hint, clear of the card; the Hint
+-- clear of the card; the backdrop click points (corner, INDEX button) off the AUTO button and the card. (AUTO button /
+-- hint vs the TURBO LUCK bar is retired, owner decision 2026-10-08: the HUD and its bar are hidden while the view is
+-- open, which hud_hidden_while_showcase_open checks.)
 local function showcaseAutoButtonLayout(res, vpName, sim, vp, sgui, backdrop, cardRect)
 	local cfg = UiSpec.Showcase.AutoButton
 	local auto = sgui:FindFirstChild(cfg.Path)
 	local hint = backdrop:FindFirstChild(UiSpec.Showcase.Hint)
-	local bar = findPath("RollUi/TurboBar")
 	if not (auto and auto:IsA("GuiObject")) then
 		check(res, "showcase_autobutton_present_" .. vpName, "missing", "RollShowcase/" .. cfg.Path, false)
 		return
@@ -1995,12 +2453,6 @@ local function showcaseAutoButtonLayout(res, vpName, sim, vp, sgui, backdrop, ca
 		"no overlap " .. rstr(cardRect),
 		not intersects(ar, cardRect)
 	)
-	if bar then
-		local br = sim(bar)
-		check(res, "autobutton_above_turbobar_" .. vpName, ar.y + ar.h, "<= " .. br.y, ar.y + ar.h <= br.y + TOL)
-	else
-		check(res, "autobutton_above_turbobar_" .. vpName, "no RollUi/TurboBar", "present", false)
-	end
 	if hint and hint:IsA("GuiObject") then
 		local hr = sim(hint)
 		check(res, "autobutton_above_hint_" .. vpName, ar.y + ar.h, "<= " .. hr.y, ar.y + ar.h <= hr.y + TOL)
@@ -2011,10 +2463,6 @@ local function showcaseAutoButtonLayout(res, vpName, sim, vp, sgui, backdrop, ca
 			"no overlap " .. rstr(cardRect),
 			not intersects(hr, cardRect)
 		)
-		if bar then
-			local br = sim(bar)
-			check(res, "hint_clear_of_turbobar_" .. vpName, rstr(hr), "no overlap " .. rstr(br), not intersects(hr, br))
-		end
 		check(res, "hint_inside_viewport_" .. vpName, rstr(hr), rstr(full), contains(full, hr))
 	else
 		check(res, "showcase_hint_present_" .. vpName, "missing", "Backdrop/" .. UiSpec.Showcase.Hint, false)
@@ -2026,11 +2474,58 @@ local function showcaseAutoButtonLayout(res, vpName, sim, vp, sgui, backdrop, ca
 	end
 	local onAuto = inside(ar, vp.X - ci, vp.Y - ci)
 	check(res, "showcase_corner_off_autobutton_" .. vpName, onAuto, false, not onAuto)
-	local index = findPath("IndexUi/OpenIndex")
+	-- The INDEX click point (showcase_backdrop_over_index_button) must not reach INDEX or any HUD button while the
+	-- view is open: it lands on the full-screen backdrop, or on the Active card (owner-approved uncapped card, it may
+	-- cover the point at large viewports; the backdrop ignores presses over the card). It fails on the AUTO button, on
+	-- a button inside the card, outside the backdrop, or when the showcase does not draw above INDEX's ScreenGui.
+	local index = findPath(UiSpec.Hud.NavButtons[1])
 	if index then
 		local ix, iy = centre(sim(index))
-		local blocked = inside(ar, ix, iy) or inside(cardRect, ix, iy)
-		check(res, "showcase_index_point_on_backdrop_" .. vpName, blocked, false, not blocked)
+		local where
+		if inside(ar, ix, iy) then
+			where = "autobutton"
+		elseif not inside(sim(backdrop), ix, iy) then
+			where = "off_backdrop"
+		else
+			local hudGui = guiOf(index)
+			if
+				hudGui
+				and hudGui:IsA("ScreenGui")
+				and hudGui.Enabled
+				and not (sgui:IsA("ScreenGui") and sgui.DisplayOrder > hudGui.DisplayOrder)
+			then
+				where = "hud_above_showcase"
+			elseif inside(cardRect, ix, iy) then
+				where = "card"
+				local card = sgui:FindFirstChild(UiSpec.Showcase.Card, true)
+				if not (card and card:IsA("GuiObject") and swallows(card)) then
+					where = "card_not_active"
+				else
+					for _, d in card:GetDescendants() do
+						-- Visible within the card (the view is closed during ui_layout, so not effectivelyVisible)
+						local shownInCard = d:IsA("GuiButton")
+						local node = d
+						while shownInCard and node and node ~= card do
+							shownInCard = not node:IsA("GuiObject") or node.Visible
+							node = node.Parent
+						end
+						if shownInCard and inside(sim(d), ix, iy) then
+							where = "card_button:" .. pathOf(d)
+							break
+						end
+					end
+				end
+			else
+				where = "backdrop"
+			end
+		end
+		check(
+			res,
+			"showcase_index_point_on_backdrop_" .. vpName,
+			where,
+			"backdrop or card",
+			where == "backdrop" or where == "card"
+		)
 	end
 end
 
@@ -2058,10 +2553,20 @@ function S.ui_layout(res)
 						and rb
 						and not a.obj:IsAncestorOf(b.obj)
 						and not b.obj:IsAncestorOf(a.obj)
-						and not overlapAllowed(a.path, b.path)
 						and intersects(ra, rb)
 					then
-						table.insert(overlaps, a.path .. rstr(ra) .. " x " .. b.path .. rstr(rb))
+						local allowed, why = overlapAllowed(a.path, b.path, ra, rb, rectOf)
+						if not allowed then
+							table.insert(
+								overlaps,
+								a.path
+									.. rstr(ra)
+									.. " x "
+									.. b.path
+									.. rstr(rb)
+									.. (why and (" (" .. why .. ")") or "")
+							)
+						end
 					end
 				end
 			end
@@ -2099,7 +2604,23 @@ function S.ui_layout(res)
 								for _, b in buttons do
 									local br = rects[b]
 									if br and not b.obj:IsAncestorOf(l) and intersects(tr, br) then
-										table.insert(textHits, pathOf(l) .. " text" .. rstr(tr) .. " x " .. b.path)
+										-- A read-out's text under a panel button is fine only where the panel
+										-- verifiably draws over the read-out (UiSpec.PanelCoversReadouts)
+										local lp = pathOf(l)
+										local panelPath, readout = panelReadoutPair(lp, b.path)
+										local why = panelPath
+											and panelCoverProblem(panelPath, readout, intersection(tr, br), rectOf)
+										if not panelPath or why then
+											table.insert(
+												textHits,
+												lp
+													.. " text"
+													.. rstr(tr)
+													.. " x "
+													.. b.path
+													.. (why and (" (" .. why .. ")") or "")
+											)
+										end
 									end
 								end
 							end
@@ -2115,51 +2636,71 @@ function S.ui_layout(res)
 					local o = findPath(path)
 					return o and rootRect(guiOf(o), vp)
 				end
-				for _, item in ipairs(UiSpec.RightColumn) do
-					local o = findPath(item.Path)
-					if o then
-						local r, root = rectOf(o), rootOf(item.Path)
-						local _, cy = centre(r)
-						local wantY = root.y + root.h / 2 + item.CentreYOffset
-						check(
-							res,
-							"right_column_y_" .. item.Path .. "_" .. vpSpec.Name,
-							cy,
-							wantY,
-							math.abs(cy - wantY) <= TOL
-						)
-						local gap = root.x + root.w - (r.x + r.w)
-						check(
-							res,
-							"right_column_edge_" .. item.Path .. "_" .. vpSpec.Name,
-							gap,
-							UiSpec.RightColumn.MaxRightGap,
-							gap >= -TOL and gap <= UiSpec.RightColumn.MaxRightGap
-						)
-					else
-						check(res, "right_column_" .. item.Path .. "_" .. vpSpec.Name, "missing", "present", false)
-					end
-				end
-				local hud = findPath("SpeedHud/Panel")
-				if hud then
-					local r, root = rectOf(hud), rootOf("SpeedHud/Panel")
-					local cx = centre(r)
-					check(res, "hud_on_left_" .. vpSpec.Name, cx, root.x + root.w / 3, cx < root.x + root.w / 3)
+				-- Settings sits in the top-right corner (UiSpec.TopControls; the Race button's top-centre place is
+				-- checked below)
+				local settings = findPath(UiSpec.TopControls.Settings)
+				if settings then
+					local r, root = rectOf(settings), rootOf(UiSpec.TopControls.Settings)
+					local gap = root.x + root.w - (r.x + r.w)
+					check(
+						res,
+						"settings_top_right_edge_" .. vpSpec.Name,
+						gap,
+						UiSpec.TopControls.SettingsMaxRightGap,
+						gap >= -TOL and gap <= UiSpec.TopControls.SettingsMaxRightGap
+					)
+					local topGap = r.y - root.y
+					check(
+						res,
+						"settings_top_right_top_" .. vpSpec.Name,
+						topGap,
+						UiSpec.TopControls.SettingsMaxTopGap,
+						topGap >= -TOL and topGap <= UiSpec.TopControls.SettingsMaxTopGap
+					)
 				else
-					check(res, "hud_on_left_" .. vpSpec.Name, "missing", "present", false)
+					check(res, "settings_top_right_" .. vpSpec.Name, "missing", "present", false)
 				end
-				local toggle = findPath("AutoRaceButton/Toggle")
+				-- The VISIBLE icon + number are centred (not the Speed frame, whose number label is wider than its text):
+				-- live from the engine (icon left edge .. number's left edge + TextBounds.X), simulated from the model
+				local hud = findPath(UiSpec.Hud.Speed)
+				local icon, value = findPath(UiSpec.Hud.SpeedIcon), findPath(UiSpec.Hud.SpeedValue)
+				if hud and icon and value then
+					local root = rootOf(UiSpec.Hud.Speed)
+					local left, right = nil, nil
+					if not vpSpec.Size then
+						left = realRect(icon).x
+						right = value.TextBounds.X > 0 and realRect(value).x + value.TextBounds.X or nil
+					else
+						local visible, iconX = speedVisibleWidth(vp)
+						if visible then
+							left = rectOf(hud).x + iconX
+							right = left + visible
+						end
+					end
+					local midX = root.x + root.w / 2
+					local cx = right and (left + right) / 2
+					check(
+						res,
+						"speed_group_centred_" .. vpSpec.Name,
+						cx or "number draws nothing",
+						midX,
+						cx ~= nil and math.abs(cx - midX) <= UiSpec.Hud.SpeedCentreTolerance
+					)
+				else
+					check(res, "speed_group_centred_" .. vpSpec.Name, "missing", "present", false)
+				end
+				local toggle = findPath(UiSpec.Hud.Race)
 				if toggle then
-					local r, root = rectOf(toggle), rootOf("AutoRaceButton/Toggle")
+					local r, root = rectOf(toggle), rootOf(UiSpec.Hud.Race)
 					local cx, cy = centre(r)
 					local midX = root.x + root.w / 2
 					check(res, "autorace_top_centre_x_" .. vpSpec.Name, cx, midX, math.abs(cx - midX) <= TOL)
 					check(
 						res,
-						"autorace_top_centre_y_" .. vpSpec.Name,
+						"autorace_below_topbar_" .. vpSpec.Name,
 						cy,
-						root.y + root.h / 4,
-						cy < root.y + root.h / 4
+						UiSpec.Hud.RaceTop,
+						r.y >= UiSpec.Hud.RaceTop - TOL
 					)
 				else
 					check(res, "autorace_top_centre_" .. vpSpec.Name, "missing", "present", false)
@@ -2168,25 +2709,19 @@ function S.ui_layout(res)
 				-- BottomGap px above the screen bottom, BarSize. (The compact roll card moved to the top centre,
 				-- docs/ROLL_ANIMATION_CONTRACT.md: the overlap checks above place it at its contract rect, ui_toast
 				-- proves the live card sits there.)
-				local turboBar = findPath("RollUi/TurboBar")
+				local turboBar = findPath(UiSpec.Hud.Turbo)
 				if turboBar then
-					local bb, root = rectOf(turboBar), rootOf("RollUi/TurboBar")
+					local bb, root = rectOf(turboBar), rootOf(UiSpec.Hud.Turbo)
 					local cx = centre(bb)
 					local midX = root.x + root.w / 2
 					check(res, "turbobar_bottom_centre_x_" .. vpSpec.Name, cx, midX, math.abs(cx - midX) <= TOL)
 					local gap = root.y + root.h - (bb.y + bb.h)
-					local wantGap = UiSpec.RollUi.BottomGap
-					check(res, "turbobar_bottom_gap_" .. vpSpec.Name, gap, wantGap, math.abs(gap - wantGap) <= TOL)
-					local size = UiSpec.RollUi.BarSize
-					check(
-						res,
-						"turbobar_size_" .. vpSpec.Name,
-						("%dx%d"):format(math.floor(bb.w + 0.5), math.floor(bb.h + 0.5)),
-						("%dx%d"):format(size.X, size.Y),
-						math.abs(bb.w - size.X) <= TOL and math.abs(bb.h - size.Y) <= TOL
-					)
+					local phone = vp.Y <= 500
+					local wantGap = phone and UiSpec.Hud.TurboBottomGap.Phone or UiSpec.Hud.TurboBottomGap.Desktop
+					check(res, "turbo_bottom_gap_" .. vpSpec.Name, gap, wantGap, math.abs(gap - wantGap) <= TOL)
+					check(res, "turbo_centred_" .. vpSpec.Name, cx, midX, math.abs(cx - midX) <= TOL)
 				else
-					check(res, "turbobar_bottom_centre_" .. vpSpec.Name, "missing", "present", false)
+					check(res, "turbo_bottom_centre_" .. vpSpec.Name, "missing", "present", false)
 				end
 				-- The showcase (an overlay, closed at rest): backdrop full screen, card centred and on screen
 				local sgui = playerGui:FindFirstChild(UiSpec.Showcase.Gui)
@@ -2219,6 +2754,7 @@ function S.ui_layout(res)
 						rstr(full),
 						contains(full, cr)
 					)
+					-- (No ENLARGED_MAX cap: owner decision 2026-10-08, the card follows RollShowcase.ui.json x k.)
 					local ci = UiSpec.Showcase.CornerInset
 					local cornerOnCard = vp.X - ci >= cr.x
 						and vp.X - ci <= cr.x + cr.w
@@ -2241,87 +2777,73 @@ function S.ui_layout(res)
 					check(res, "loser_overlay_full_screen_" .. vpSpec.Name, "missing", "present", false)
 				end
 			end
-			-- Panels make room for the compact roll (owner decision 6): an open panel never overlaps it and, where it
-			-- overlaps it horizontally, starts PanelTopMargin below its bottom edge
+			-- An open panel never covers the top controls (Race top centre, Settings top right): both stay clickable
 			for _, panelPath in state.Open do
-				local panel, roll = findPath(panelPath), findPath("RollToast/Toast")
-				if panel and roll then
-					local pr, rr = rectOf(panel), rectOf(roll)
-					local name = "panel_clear_of_compact_roll_" .. panelPath .. "_" .. vpSpec.Name
-					local sideBySide = pr.x >= rr.x + rr.w - TOL or pr.x + pr.w <= rr.x + TOL
-					local minTop = rr.y + rr.h + UiSpec.PanelTopMargin
-					check(
-						res,
-						name,
-						rstr(pr) .. " roll " .. rstr(rr),
-						sideBySide and "side by side" or ("top >= " .. minTop),
-						not intersects(pr, rr) and (sideBySide or pr.y >= minTop - TOL)
-					)
-				else
-					check(
-						res,
-						"panel_clear_of_compact_roll_" .. panelPath .. "_" .. vpSpec.Name,
-						"missing",
-						"present",
-						false
-					)
-				end
-			end
-			if state.Name == "index_open" then
-				local p = findPath("IndexUi/Panel")
-				if p then
-					local r, root = rectOf(p), rootRect(guiOf(p), vp)
-					local cx = centre(r)
-					local dx = math.abs(cx - (root.x + root.w / 2))
-					check(res, "index_panel_centred_x_" .. vpSpec.Name, dx, TOL, dx <= TOL)
-					-- Vertically: below the top-centre Auto Race button (+ margin) and above the screen bottom
-					local toggle = findPath("AutoRaceButton/Toggle")
-					if toggle then
-						local tr = rectOf(toggle)
-						local minTop = tr.y + tr.h + UiSpec.PanelTopMargin
-						check(res, "index_panel_below_autorace_" .. vpSpec.Name, r.y, minTop, r.y >= minTop - TOL)
+				local panel = findPath(panelPath)
+				for _, key in { "Race", "Settings" } do
+					local name = "panel_clear_of_top_controls_" .. panelPath .. "_" .. key .. "_" .. vpSpec.Name
+					local control = findPath(UiSpec.TopControls[key])
+					if panel and control then
+						local pr, cr = rectOf(panel), rectOf(control)
+						check(res, name, rstr(pr) .. " x " .. rstr(cr), "no overlap", not intersects(pr, cr))
 					else
-						check(res, "index_panel_below_autorace_" .. vpSpec.Name, "missing", "present", false)
+						check(res, name, "missing", "present", false)
 					end
-					local bottom = root.y + root.h
-					check(res, "index_panel_above_bottom_" .. vpSpec.Name, r.y + r.h, bottom, r.y + r.h <= bottom + TOL)
-					-- Owner decision 6: the Index panel's top edge is PANEL_TOP (below the compact roll)
-					local top = r.y - root.y
-					local want = animNum("PANEL_TOP")
-					check(res, "index_panel_top_is_panel_top_" .. vpSpec.Name, top, want, math.abs(top - want) <= TOL)
-				else
-					check(res, "index_panel_centred_x_" .. vpSpec.Name, "missing", "present", false)
 				end
 			end
-			if state.Name == "stats_open" then
-				local p = findPath("StatsUi/Panel")
-				local col = {}
-				for _, item in ipairs(UiSpec.RightColumn) do
-					local o = findPath(item.Path)
-					if o then
-						table.insert(col, rectOf(o).x)
+			-- The four Racer panels sit in the band between the Race button and the TURBO LUCK bar (owner decision
+			-- 2026-10-08, RacerUiController.fitPanels; the compact roll is hidden while they are open): centred
+			-- horizontally, Gap below the Race Face, Gap above the TURBO bar, clear of the INDEX / STATS / REBIRTH column
+			-- by Gap (the same margin on the right), centred vertically in the band.
+			for _, panelPath in state.Open do
+				local prefix = UiSpec.RacerPanelBand.Panels[panelPath]
+				if prefix then
+					local p = findPath(panelPath)
+					local race, turbo = findPath(UiSpec.Hud.Race), findPath(UiSpec.Hud.Turbo)
+					local nav = findPath(UiSpec.RacerPanelBand.Navigation)
+					local tagV = "_" .. vpSpec.Name
+					if p and race and turbo and nav then
+						local gap = UiSpec.RacerPanelBand.Gap
+						local r, root = rectOf(p), rootRect(guiOf(p), vp)
+						local ar, br, nr = rectOf(race), rectOf(turbo), rectOf(nav)
+						local cx, cy = centre(r)
+						local dx = math.abs(cx - (root.x + root.w / 2))
+						check(res, prefix .. "_centred_x" .. tagV, dx, TOL, dx <= TOL)
+						local minTop = ar.y + ar.h + gap
+						check(res, prefix .. "_below_autorace" .. tagV, r.y, ">= " .. minTop, r.y >= minTop - TOL)
+						local maxBottom = br.y - gap
+						check(
+							res,
+							prefix .. "_above_turbo" .. tagV,
+							r.y + r.h,
+							"<= " .. maxBottom,
+							r.y + r.h <= maxBottom + TOL
+						)
+						-- the column includes what sticks out of it (the STATS PointsBadge): every GuiObject
+						-- descendant with Visible = true, as fitPanels reads it (UiResponsive.ColumnRight)
+						local parts = {}
+						for _, d in nav:GetDescendants() do
+							if d:IsA("GuiObject") and d.Visible then
+								table.insert(parts, rectOf(d))
+							end
+						end
+						local side = UiResponsive.ColumnRight(nr, parts) + gap
+						check(
+							res,
+							prefix .. "_clear_of_nav" .. tagV,
+							("%s..%s"):format(math.floor(r.x + 0.5), math.floor(r.x + r.w + 0.5)),
+							("%s..%s"):format(math.floor(side + 0.5), math.floor(vp.X - side + 0.5)),
+							r.x >= side - TOL and r.x + r.w <= vp.X - side + TOL
+						)
+						local mid = (minTop + maxBottom) / 2
+						check(res, prefix .. "_band_centred_y" .. tagV, cy, mid, math.abs(cy - mid) <= TOL)
+						if prefix == "index_panel" then
+							local bottom = root.y + root.h
+							check(res, "index_panel_above_bottom" .. tagV, r.y + r.h, bottom, r.y + r.h <= bottom + TOL)
+						end
+					else
+						check(res, prefix .. "_centred_x" .. tagV, "missing", "panel, Race, Turbo, Navigation", false)
 					end
-				end
-				if p and #col > 0 then
-					local right = rectOf(p).x + rectOf(p).w
-					local limit = math.min(table.unpack(col))
-					check(res, "stats_panel_left_of_buttons_" .. vpSpec.Name, right, limit, right <= limit + TOL)
-				else
-					check(res, "stats_panel_left_of_buttons_" .. vpSpec.Name, "missing", "present", false)
-				end
-				-- Owner decision 6: the Stats panel stays right of the compact roll's right edge
-				local roll = findPath("RollToast/Toast")
-				if p and roll then
-					local pr, rr = rectOf(p), rectOf(roll)
-					check(
-						res,
-						"stats_panel_right_of_compact_roll_" .. vpSpec.Name,
-						pr.x,
-						">= " .. (rr.x + rr.w),
-						pr.x >= rr.x + rr.w - TOL
-					)
-				else
-					check(res, "stats_panel_right_of_compact_roll_" .. vpSpec.Name, "missing", "present", false)
 				end
 			end
 
@@ -2359,45 +2881,12 @@ end
 
 function S.ui_hitboxes(res)
 	waitGuis()
-	local bad = {}
-	for _, button in allButtons() do
-		if effectivelyVisible(button) then
-			local r = realRect(button)
-			local parent = button.Parent
-			local pr = parent:IsA("LayerCollector") and rootRect(parent, viewport()) or realRect(parent)
-			if not contains(pr, r) then
-				table.insert(bad, pathOf(button) .. " outside parent")
-			end
-		end
-	end
-	checkList(res, "visible_buttons_inside_parent", bad)
-	local showcase = playerGui:FindFirstChild("RollShowcase")
-	local backdrop = showcase and showcase:FindFirstChild("Backdrop")
-	local card = showcase and showcase:FindFirstChild("Card", true)
-	check(
-		res,
-		"showcase_not_clickable_at_rest",
-		backdrop and effectivelyVisible(backdrop),
-		false,
-		backdrop == nil or not effectivelyVisible(backdrop)
-	)
-	check(
-		res,
-		"showcase_card_not_clickable_at_rest",
-		card and effectivelyVisible(card),
-		false,
-		card == nil or not effectivelyVisible(card)
-	)
-end
-
-function S.ui_hitboxes(res)
-	waitGuis()
 	local pad = UiSpec.MaxHitboxPadding
 
 	-- Probe sanity: the engine query works in the coordinates used here, front-most first
 	do
 		local restore = setPanels({})
-		local open = findPath("IndexUi/OpenIndex")
+		local open = findPath(UiSpec.Hud.NavButtons[1])
 		local ok = false
 		if open then
 			local cx, cy = centre(realRect(open))
@@ -2405,8 +2894,8 @@ function S.ui_hitboxes(res)
 		end
 		check(res, "probe_coordinates_valid", ok, true, ok)
 		restore()
-		restore = setPanels({ "IndexUi/Panel" })
-		local close, panel = findPath("IndexUi/Panel/Close"), findPath("IndexUi/Panel")
+		restore = setPanels({ "RacerIndex/Panel" })
+		local close, panel = findPath("RacerIndex/Panel/Face/Header/Face/Close/Face"), findPath("RacerIndex/Panel")
 		local order = false
 		if close and panel then
 			local cx, cy = centre(realRect(close))
@@ -2430,16 +2919,31 @@ function S.ui_hitboxes(res)
 				-- inside the visible parent (or the ScreenGui's area)
 				local parent = b.Parent
 				local pr = parent:IsA("LayerCollector") and rootRect(parent, vp) or realRect(parent)
+				if pathOf(parent) == "RacerUpgrades/Panel/Canvas" and parent:IsA("ScrollingFrame") then
+					-- A panning tree's parent is the full canvas. Off-window clicks remain checked below.
+					pr = R(
+						pr.x - parent.CanvasPosition.X,
+						pr.y - parent.CanvasPosition.Y,
+						pr.w * parent.CanvasSize.X.Scale + parent.CanvasSize.X.Offset,
+						pr.h * parent.CanvasSize.Y.Scale + parent.CanvasSize.Y.Offset
+					)
+				end
 				if not contains(pr, r) then
 					table.insert(spill, path .. rstr(r) .. " outside " .. rstr(pr))
 				end
 				-- no bigger than what it shows
 				local opaque = b.BackgroundTransparency < 0.95
 					or (b:IsA("ImageButton") and b.Image ~= "" and b.ImageTransparency < 0.95)
-				if not opaque then
+				-- Only what can be SEEN and CLICKED counts: the hitbox and every part (and the button's own
+				-- text) are cut by their ClipsDescendants ancestors first (a long reel strip inside a clipping
+				-- window, a tree node half outside the panning Upgrades canvas). A button clipped away entirely
+				-- is skipped here: clipped_buttons_not_clickable_* already proves it can not be clicked.
+				local hitbox = clipped(b, realRect)
+				if not opaque and hitbox then
 					local content = nil
 					if b:IsA("TextButton") then
-						content = textRect(b, r)
+						local tr = textRect(b, r)
+						content = tr and intersection(tr, hitbox) or nil
 					end
 					for _, d in b:GetDescendants() do
 						if d:IsA("GuiObject") and effectivelyVisible(d) then
@@ -2448,15 +2952,16 @@ function S.ui_hitboxes(res)
 								or ((d:IsA("ImageLabel") or d:IsA("ImageButton")) and d.Image ~= "" and d.ImageTransparency < 0.95)
 								-- a ViewportFrame draws its 3D content over its whole rect (the compact roll's model)
 								or (d:IsA("ViewportFrame") and d.ImageTransparency < 0.95)
-							if drawn then
-								content = union(content, realRect(d))
+							local seen = drawn and clipped(d, realRect)
+							if seen then
+								content = union(content, seen)
 							end
 						end
 					end
 					if not content then
 						table.insert(padded, path .. " shows nothing")
-					elseif r.w > content.w + 2 * pad + TOL or r.h > content.h + 2 * pad + TOL then
-						table.insert(padded, path .. rstr(r) .. " content" .. rstr(content))
+					elseif hitbox.w > content.w + 2 * pad + TOL or hitbox.h > content.h + 2 * pad + TOL then
+						table.insert(padded, path .. rstr(hitbox) .. " content" .. rstr(content))
 					end
 				end
 				-- disabled buttons look disabled (no hover/press highlight)
@@ -2527,25 +3032,25 @@ end
 
 function S.ui_buttons(res)
 	waitGuis()
-	local toggle = findPath("AutoRaceButton/Toggle")
+	local toggle = findPath(UiSpec.Hud.Race)
 	local racing = attr("AutoRacing") == true
 	if toggle then
 		check(
 			res,
 			"autorace_label_matches_server",
-			toggle.Text,
+			allText(toggle),
 			HudFormat.AutoButtonText(racing),
-			toggle.Text == HudFormat.AutoButtonText(racing)
+			allText(toggle) == HudFormat.AutoButtonText(racing)
 		)
 	else
 		check(res, "autorace_label_matches_server", "missing", "present", false)
 	end
-	for _, item in { { "IndexUi/OpenIndex", "INDEX" }, { "StatsUi/OpenStats", "STATS" } } do
+	for _, item in { { UiSpec.Hud.NavButtons[1], "INDEX" }, { UiSpec.Hud.NavButtons[2], "STATS" } } do
 		local b = findPath(item[1])
-		local text = b and b:IsA("TextButton") and b.Text or "missing"
+		local text = b and allText(b) or "missing"
 		check(res, "label_" .. item[1], text, item[2], text == item[2])
 	end
-	local close = findPath("IndexUi/Panel/Close")
+	local close = findPath("RacerIndex/Panel/Face/Header/Face/Close/Face")
 	check(
 		res,
 		"index_close_inside_index_panel",
@@ -2558,7 +3063,8 @@ function S.ui_buttons(res)
 	local equipped = attr("EquippedCar")
 	local wrong = {}
 	for _, spec in CarCatalog.All() do
-		local b = findPath("IndexUi/Panel/Grid/" .. spec.Id .. "/Equip")
+		local b = findPath("RacerIndex/Panel/Face/GridHost/Gallery/" .. spec.Id .. "/Equip")
+		local label = b and b:FindFirstChild("Label")
 		if not b then
 			table.insert(wrong, spec.Id .. ": no Equip button")
 		elseif not owned(spec.Id) then
@@ -2566,23 +3072,23 @@ function S.ui_buttons(res)
 				table.insert(wrong, spec.Id .. ": undiscovered but Equip visible")
 			end
 		elseif equipped == spec.Id then
-			if not (b.Visible and b.Text == "Equipped" and b.Active == false) then
+			if not (b.Visible and label and label.Text == "EQUIPPED" and b.Active == false) then
 				table.insert(
 					wrong,
 					("%s: equipped shows %q Visible=%s Active=%s"):format(
 						spec.Id,
-						b.Text,
+						label and label.Text or "nil",
 						tostring(b.Visible),
 						tostring(b.Active)
 					)
 				)
 			end
-		elseif not (b.Visible and b.Text == "Equip" and b.Active == true) then
+		elseif not (b.Visible and label and label.Text == "EQUIP" and b.Active == true) then
 			table.insert(
 				wrong,
 				("%s: owned shows %q Visible=%s Active=%s"):format(
 					spec.Id,
-					b.Text,
+					label and label.Text or "nil",
 					tostring(b.Visible),
 					tostring(b.Active)
 				)
@@ -2595,8 +3101,8 @@ function S.ui_buttons(res)
 	local points = attr("StatPoints") or 0
 	local plusWrong = {}
 	for _, stat in GachaConfig.STATS do
-		local b = findPath("StatsUi/Panel/" .. stat .. "/Plus")
-		local want = points > 0 and not UiSpec.Guis.StatsUi.DisabledStats[stat]
+		local b = findPath("RacerStats/Panel/Face/StatsHost/Rows/" .. stat .. "/Plus")
+		local want = points > 0 and not UiSpec.Guis.RacerStats.DisabledStats[stat]
 		if not b then
 			table.insert(plusWrong, stat .. ": no + button")
 		elseif b.Active ~= want then
@@ -2607,13 +3113,13 @@ function S.ui_buttons(res)
 		end
 	end
 	checkList(res, "plus_buttons_match_server", plusWrong)
-	local ws = findPath("StatsUi/Panel/Workshop/Plus")
+	local ws = findPath("RacerStats/Panel/Face/StatsHost/Rows/Workshop/Plus")
 	check(
 		res,
-		"workshop_plus_disabled",
+		"workshop_plus_matches_free_points",
 		ws and ws.Active,
-		false,
-		ws ~= nil and ws.Active == false and ws.AutoButtonColor == false
+		points > 0,
+		ws ~= nil and ws.Active == (points > 0) and (points > 0 or ws.AutoButtonColor == false)
 	)
 end
 
@@ -2622,26 +3128,11 @@ function S.ui_hud(res)
 	local stats = player:WaitForChild("leaderstats", 10)
 	local speed = stats and stats:FindFirstChild("Speed")
 	local money = stats and stats:FindFirstChild("Money")
-	local value, rate, moneyValue =
-		findPath("SpeedHud/Panel/Value"), findPath("SpeedHud/Panel/Rate"), findPath("SpeedHud/Panel/MoneyValue")
+	local value, moneyValue = findPath(UiSpec.Hud.SpeedValue), findPath(UiSpec.Hud.MoneyValue)
 	check(res, "leaderstats_present", speed ~= nil and money ~= nil, true, speed ~= nil and money ~= nil)
-	check(
-		res,
-		"hud_labels_present",
-		value ~= nil and rate ~= nil and moneyValue ~= nil,
-		true,
-		value ~= nil and rate ~= nil and moneyValue ~= nil
-	)
+	check(res, "hud_labels_present", value ~= nil and moneyValue ~= nil, true, value ~= nil and moneyValue ~= nil)
 	-- Unbanked row (spec section 5): title "UNBANKED" and the smoothed player attribute Unbanked, under Money
-	local unbankedTitle, unbankedValue =
-		findPath("SpeedHud/Panel/UnbankedTitle"), findPath("SpeedHud/Panel/UnbankedValue")
-	check(
-		res,
-		"unbanked_title_text",
-		unbankedTitle and unbankedTitle.Text,
-		"UNBANKED",
-		unbankedTitle ~= nil and unbankedTitle:IsA("TextLabel") and unbankedTitle.Text == "UNBANKED"
-	)
+	local unbankedValue = findPath(UiSpec.Hud.Unbanked)
 	check(
 		res,
 		"unbanked_value_present",
@@ -2650,12 +3141,11 @@ function S.ui_hud(res)
 		unbankedValue ~= nil and unbankedValue:IsA("TextLabel")
 	)
 	check(res, "unbanked_attribute_present", typeof(attr("Unbanked")), "number", type(attr("Unbanked")) == "number")
-	local hudPanel = findPath("SpeedHud/Panel")
-	if hudPanel and moneyValue and unbankedTitle and unbankedValue then
+	local hudPanel = findPath(UiSpec.Hud.Money)
+	if hudPanel and moneyValue and unbankedValue then
 		renderFrame()
-		local mv, ut, uv = realRect(moneyValue), realRect(unbankedTitle), realRect(unbankedValue)
-		check(res, "unbanked_title_under_money", ut.y, ">= " .. (mv.y + mv.h), ut.y >= mv.y + mv.h - TOL)
-		check(res, "unbanked_value_under_title", uv.y, ">= " .. (ut.y + ut.h), uv.y >= ut.y + ut.h - TOL)
+		local mv, uv = realRect(moneyValue), realRect(unbankedValue)
+		check(res, "unbanked_under_money", uv.y, ">= " .. (mv.y + mv.h), uv.y >= mv.y + mv.h - TOL)
 		local pr = realRect(hudPanel)
 		local outside = {}
 		for _, l in hudPanel:GetDescendants() do
@@ -2665,7 +3155,7 @@ function S.ui_hud(res)
 		end
 		checkList(res, "hud_labels_inside_panel", outside)
 	end
-	if not (speed and money and value and rate and moneyValue) then
+	if not (speed and money and value and moneyValue) then
 		return
 	end
 	local s0, t0 = speed.Value, os.clock()
@@ -2676,7 +3166,7 @@ function S.ui_hud(res)
 		local u1 = attr("Unbanked")
 		local shownUnbanked = digits(unbankedValue.Text)
 		local ok = type(u1) == "number"
-			and string.sub(unbankedValue.Text, 1, 1) == "$"
+			and string.sub(unbankedValue.Text, 1, #UiSpec.Hud.UnbankedPrefix) == UiSpec.Hud.UnbankedPrefix
 			and shownUnbanked ~= nil
 			and math.abs(shownUnbanked - math.floor(u1)) <= 1
 		check(
@@ -2706,25 +3196,29 @@ function S.ui_hud(res)
 		HudFormat.MoneyText(m1),
 		shownMoney ~= nil and math.abs(shownMoney - math.floor(m1)) <= 1
 	)
-	local okRate = rate.Text == HudFormat.RateText(s1)
-		or (shown ~= nil and (rate.Text == HudFormat.RateText(shown) or rate.Text == HudFormat.RateText(shown + 1)))
-	check(res, "hud_rate_matches_stat", rate.Text, HudFormat.RateText(s1), okRate)
-	local toggle = findPath("AutoRaceButton/Toggle")
+	check(
+		res,
+		"hud_speed_suffix",
+		value.Text,
+		UiSpec.Hud.SpeedSuffix,
+		string.find(value.Text, UiSpec.Hud.SpeedSuffix, 1, true) ~= nil
+	)
+	local toggle = findPath(UiSpec.Hud.Race)
 	local racing = attr("AutoRacing") == true
 	check(
 		res,
 		"autorace_label_follows_server",
-		toggle and toggle.Text,
+		toggle and allText(toggle),
 		HudFormat.AutoButtonText(racing),
-		toggle ~= nil and toggle.Text == HudFormat.AutoButtonText(racing)
+		toggle ~= nil and allText(toggle) == HudFormat.AutoButtonText(racing)
 	)
 end
 
 function S.ui_index(res)
 	waitGuis()
-	local gui = playerGui:FindFirstChild("IndexUi")
-	local panel = findPath("IndexUi/Panel")
-	local open = findPath("IndexUi/OpenIndex")
+	local gui = playerGui:FindFirstChild("RacerIndex")
+	local panel = findPath("RacerIndex/Panel")
+	local open = findPath(UiSpec.Hud.NavButtons[1])
 	check(
 		res,
 		"index_button_present",
@@ -2736,11 +3230,11 @@ function S.ui_index(res)
 	if not (gui and panel) then
 		return
 	end
-	local restore = setPanels({ "IndexUi/Panel" })
+	local restore = setPanels({ "RacerIndex/Panel" })
 	local all = CarCatalog.All()
 	local tiles, missing = {}, {}
 	for _, spec in all do
-		local tile = findPath("IndexUi/Panel/Grid/" .. spec.Id)
+		local tile = findPath("RacerIndex/Panel/Face/GridHost/Gallery/" .. spec.Id)
 		if tile then
 			table.insert(tiles, { spec = spec, tile = tile })
 		else
@@ -2748,7 +3242,7 @@ function S.ui_index(res)
 		end
 	end
 	checkList(res, "one_tile_per_catalog_car", missing)
-	local grid = findPath("IndexUi/Panel/Grid")
+	local grid = findPath("RacerIndex/Panel/Face/GridHost/Gallery")
 	local extra = {}
 	if grid then
 		for _, c in grid:GetChildren() do
@@ -2788,8 +3282,11 @@ function S.ui_index(res)
 	local anyFound, anyHidden, equippedTile = false, false, nil
 	for _, t in tiles do
 		local id, spec, tile = t.spec.Id, t.spec, t.tile
-		local name, icon, equip =
-			tile:FindFirstChild("CarName"), tile:FindFirstChild("Icon"), tile:FindFirstChild("Equip")
+		local name, art, locked, equip =
+			tile:FindFirstChild("CarName"),
+			tile:FindFirstChild("Art"),
+			tile:FindFirstChild("Locked"),
+			tile:FindFirstChild("Equip")
 		if owned(id) then
 			anyFound = true
 			if not (name and name.Text == spec.Name) then
@@ -2806,8 +3303,11 @@ function S.ui_index(res)
 			if not (name and name.Text == "???") then
 				table.insert(wrong, id .. ": undiscovered but name is " .. tostring(name and name.Text))
 			end
-			if not (icon and icon.Text == "?") then
-				table.insert(wrong, id .. ": undiscovered but icon is " .. tostring(icon and icon.Text))
+			if not (art and art:IsA("ImageLabel") and art.ImageColor3 == Color3.new(0, 0, 0)) then
+				table.insert(wrong, id .. ": undiscovered art is not a silhouette")
+			end
+			if not (locked and locked:IsA("TextLabel") and locked.Text == "?" and effectivelyVisible(locked)) then
+				table.insert(wrong, id .. ": undiscovered but lock marker is missing")
 			end
 			if equip and equip.Visible then
 				table.insert(wrong, id .. ": undiscovered but Equip visible")
@@ -2823,12 +3323,22 @@ function S.ui_index(res)
 	end
 	if equippedTile then
 		local e = equippedTile.tile:FindFirstChild("Equip")
-		local ok = e ~= nil and e.Text == "Equipped" and e.Active == false and e.AutoButtonColor == false
+		local label = e and e:FindFirstChild("Label")
+		local ok = e ~= nil
+			and label ~= nil
+			and label.Text == "EQUIPPED"
+			and e.Active == false
+			and e.AutoButtonColor == false
 		check(
 			res,
 			"equipped_tile_shows_equipped_and_is_disabled",
-			e and ("%s Active=%s AutoButtonColor=%s"):format(e.Text, tostring(e.Active), tostring(e.AutoButtonColor)),
-			"Equipped Active=false AutoButtonColor=false",
+			label
+				and ("%s Active=%s AutoButtonColor=%s"):format(
+					label.Text,
+					tostring(e.Active),
+					tostring(e.AutoButtonColor)
+				),
+			"EQUIPPED Active=false AutoButtonColor=false",
 			ok
 		)
 	else
@@ -2846,7 +3356,7 @@ function S.ui_index(res)
 			unique += 1
 		end
 	end
-	local progress = findPath("IndexUi/Panel/Progress")
+	local progress = findPath("RacerIndex/Panel/Face/IndexProgress")
 	local want2 = ("%d / %d"):format(unique, #all)
 	check(
 		res,
@@ -2860,8 +3370,8 @@ end
 
 function S.ui_stats(res)
 	waitGuis()
-	local open = findPath("StatsUi/OpenStats")
-	local panel = findPath("StatsUi/Panel")
+	local open = findPath(UiSpec.Hud.NavButtons[2])
+	local panel = findPath("RacerStats/Panel")
 	check(
 		res,
 		"stats_button_present",
@@ -2874,7 +3384,7 @@ function S.ui_stats(res)
 		return
 	end
 	local points = attr("StatPoints") or 0
-	local badge = findPath("StatsUi/OpenStats/Badge")
+	local badge = findPath(UiSpec.Hud.PointsBadge)
 	if points > 0 then
 		local ok = badge ~= nil and effectivelyVisible(badge) and badge.Text == tostring(points)
 		check(res, "badge_shows_free_points", badge and badge.Text, tostring(points), ok)
@@ -2883,13 +3393,13 @@ function S.ui_stats(res)
 		check(res, "badge_hidden_at_zero", badge and effectivelyVisible(badge), false, ok)
 	end
 
-	local restore = setPanels({ "StatsUi/Panel" })
-	local pts = findPath("StatsUi/Panel/Points")
+	local restore = setPanels({ "RacerStats/Panel" })
+	local pts = findPath("RacerStats/Panel/Face/Header/Face/Points")
 	check(res, "points_label_matches_server", pts and pts.Text, points, pts ~= nil and hasNumber(pts.Text, points))
 
 	local rows, missing = {}, {}
 	for _, stat in GachaConfig.STATS do
-		local row = findPath("StatsUi/Panel/" .. stat)
+		local row = findPath("RacerStats/Panel/Face/StatsHost/Rows/" .. stat)
 		if row and row:FindFirstChild("Plus") then
 			table.insert(rows, { stat = stat, row = row })
 		else
@@ -2920,7 +3430,7 @@ function S.ui_stats(res)
 	local multis = GachaConfig.Multis(alloc)
 	local wrong = {}
 	for _, r in rows do
-		local disabled = UiSpec.Guis.StatsUi.DisabledStats[r.stat]
+		local disabled = UiSpec.Guis.RacerStats.DisabledStats[r.stat]
 		local v = r.row:FindFirstChild("Value")
 		if not disabled then
 			local multi = ("x%.2f"):format(multis[r.stat])
@@ -2971,9 +3481,11 @@ function S.ui_toast(res)
 		return
 	end
 
-	-- Independent of every HUD click (owner decision 6): while a roll plays, opening and closing each panel through
-	-- Client/PanelSwitch (what the INDEX / STATS buttons use) never hides, pauses or restarts it, and a roll that
-	-- arrives while a panel is open plays too. (Only enlarging hides it: the showcase clicks check that.)
+	-- Hidden while any panel is open (owner decision 2026-10-08, CLAUDE.md; supersedes ROLL_ANIMATION_CONTRACT
+	-- decision 6): while a roll plays, opening each panel through Client/PanelSwitch (what the HUD buttons use) hides
+	-- the compact roll at once and for as long as the panel is open; closing it while the roll still plays shows it
+	-- again. The roll itself keeps playing hidden (same phases, not restarted), and a roll that arrives while a panel is
+	-- open is not shown. (Enlarging hides it too: the showcase clicks check that.)
 	local switchModule = script.Parent.Parent:FindFirstChild(UiSpec.PanelSwitch.Module)
 	local Switch = nil
 	if switchModule and switchModule:IsA("ModuleScript") then
@@ -3000,28 +3512,42 @@ function S.ui_toast(res)
 			local ev0 = events.rolls[#events.rolls]
 			waitCardPhase(toast, { Spin = true }, animNum("POP") + 0.5)
 			local serial0 = toast:GetAttribute("RollSerial")
+			local shownBefore = effectivelyVisible(toast)
 			setPanel(p, true)
 			local panelObj = findPath(p)
 			local opened = panelObj ~= nil and panelObj.Visible
-			local hiddenFrames = 0
+			-- PanelSwitch.Changed -> refreshToast runs as the panel's Visible changes: hidden in the same frame
+			local shownFrames, samples = effectivelyVisible(toast) and 1 or 0, 1
 			local untilT = os.clock() + animNum("SPIN") + animNum("LAND")
 			repeat
 				RunService.Heartbeat:Wait()
-				if not effectivelyVisible(toast) then
-					hiddenFrames += 1
+				samples += 1
+				if effectivelyVisible(toast) then
+					shownFrames += 1
 				end
 			until os.clock() > untilT or toast:GetAttribute("Phase") == "Hold"
-			setPanel(p, false)
-			frames(2)
-			if not effectivelyVisible(toast) and toast:GetAttribute("Phase") ~= "Idle" then
-				hiddenFrames += 1
-			end
 			check(
 				res,
-				"toast_stays_shown_while_" .. p .. "_opens_and_closes",
-				("panel opened=%s, %d frames hidden"):format(tostring(opened), hiddenFrames),
-				"panel opened=true, 0 frames hidden",
-				opened and hiddenFrames == 0
+				"toast_hidden_while_" .. p .. "_open",
+				("panel opened=%s, shown before=%s, %d of %d frames shown"):format(
+					tostring(opened),
+					tostring(shownBefore),
+					shownFrames,
+					samples
+				),
+				"panel opened=true, shown before=true, 0 frames shown",
+				opened and shownBefore and shownFrames == 0
+			)
+			setPanel(p, false)
+			frames(2)
+			local phaseNow = toast:GetAttribute("Phase")
+			local back = effectivelyVisible(toast)
+			check(
+				res,
+				"toast_back_after_" .. p .. "_closes",
+				("Phase %s, shown=%s"):format(tostring(phaseNow), tostring(back)),
+				"roll still playing (not Idle), shown=true",
+				phaseNow ~= "Idle" and back
 			)
 			local rec = recFor(ev0)
 			local doneBy = os.clock() + durationFor(rarityOf(ev0.id), ev0.emphasized) + 2
@@ -3044,21 +3570,23 @@ function S.ui_toast(res)
 				type(serial0) == "number" and serial1 == serial0 and hold.rollId == ev0.id
 			)
 		else
-			stateMissing(
-				res,
-				"toast_stays_shown_while_" .. p .. "_opens_and_closes",
-				"auto_racing",
-				"no Remotes.RollResult"
-			)
+			stateMissing(res, "toast_hidden_while_" .. p .. "_open", "auto_racing", "no Remotes.RollResult")
 		end
 		setPanel(p, true)
 		if waitNewRoll(UiSpec.Waits.RollToast) then
 			task.wait(UiSpec.Waits.ToastShown)
 			frames(2)
-			local shown = effectivelyVisible(toast) and drawsSomething(toast)
-			check(res, "toast_plays_on_roll_while_" .. p .. "_open", shown, true, shown)
+			local phaseNow = toast:GetAttribute("Phase")
+			local shown = effectivelyVisible(toast)
+			check(
+				res,
+				"toast_hidden_on_roll_while_" .. p .. "_open",
+				("Phase %s, shown=%s"):format(tostring(phaseNow), tostring(shown)),
+				"roll playing (not Idle), shown=false",
+				phaseNow ~= nil and phaseNow ~= "Idle" and not shown
+			)
 		else
-			stateMissing(res, "toast_plays_on_roll_while_" .. p .. "_open", "auto_racing", "no Remotes.RollResult")
+			stateMissing(res, "toast_hidden_on_roll_while_" .. p .. "_open", "auto_racing", "no Remotes.RollResult")
 		end
 		setPanel(p, false)
 		restorePanel()
@@ -3149,7 +3677,7 @@ function S.ui_toast(res)
 	check(res, "toast_reached_hold", holdRec.landed, true, holdRec.landed == true)
 	-- Owner decision 4: the compact roll shows the odds, not the car's name (CarName / NewBadge are checked on the
 	-- enlarged card: showcase_card_is_latest_roll, showcase_updates_live, emphasized_card_matches_roll)
-	local wantOdds = spec.Chance and HudFormat.Odds(spec.Chance) or "Common"
+	local wantOdds = HudFormat.Odds(spec.Chance)
 	check(res, "toast_shows_odds", holdRec.odds, wantOdds, holdRec.odds == wantOdds and holdRec.oddsShown == true)
 	checkList(res, "toast_is_no_card", holdRec.shape)
 	checkList(res, "toast_model_over_odds", holdRec.layout)
@@ -3175,7 +3703,7 @@ function S.ui_toast(res)
 	restore()
 end
 
--- The TURBO LUCK bar, the only part of RollUi left (docs/SPAWN_AND_ROLLS_SPEC.md sections 4 and 5).
+-- The TURBO LUCK bar is part of RacerHud; the removed bottom roll controls must not return.
 function S.ui_rolls(res)
 	waitGuis()
 	local every, luck = turboEvery(), turboLuck()
@@ -3185,26 +3713,22 @@ function S.ui_rolls(res)
 		and type(GachaConfig.TurboProgress) == "function"
 	check(res, "gacha_turbo_config_present", cfgOk, true, cfgOk)
 
-	local gui = playerGui:FindFirstChild("RollUi")
+	local gui = playerGui:FindFirstChild("RacerHud")
 	local missing = {}
-	for _, p in { "TurboBar", "TurboBar/Fill", "TurboBar/Label" } do
-		if not findPath("RollUi/" .. p) then
-			table.insert(missing, "RollUi/" .. p)
+	for _, p in { UiSpec.Hud.Turbo, UiSpec.Hud.TurboFill, UiSpec.Hud.TurboLabel } do
+		if not findPath(p) then
+			table.insert(missing, p)
 		end
 	end
-	if not (gui and gui:FindFirstChild("TurboPop", true)) then
-		table.insert(missing, "RollUi/**/TurboPop")
-	end
-	checkList(res, "rollui_parts_present", missing)
-	-- Owner's revision: no ROLLS button and no roll feed any more
-	local stale = {}
-	for _, name in UiSpec.RollUi.Removed do
-		local o = gui and gui:FindFirstChild(name, true)
-		if o then
-			table.insert(stale, pathOf(o))
-		end
-	end
-	checkList(res, "rollui_feed_and_button_removed", stale)
+	checkList(res, "turbo_hud_parts_present", missing)
+	local legacy = findPath("RacerHud/RollControls")
+	check(
+		res,
+		"legacy_roll_controls_hidden",
+		legacy and effectivelyVisible(legacy),
+		false,
+		legacy == nil or not effectivelyVisible(legacy)
+	)
 	if not gui then
 		return
 	end
@@ -3224,10 +3748,10 @@ function S.ui_rolls(res)
 		res,
 		"turbo_fill_matches_progress",
 		frac or "missing",
-		("%.2f +- %.2f"):format(wantFrac, UiSpec.RollUi.FillTolerance),
-		frac ~= nil and math.abs(frac - wantFrac) <= UiSpec.RollUi.FillTolerance
+		("%.2f +- %.2f"):format(wantFrac, UiSpec.Turbo.FillTolerance),
+		frac ~= nil and math.abs(frac - wantFrac) <= UiSpec.Turbo.FillTolerance
 	)
-	local barLabel = findPath("RollUi/TurboBar/Label")
+	local barLabel = findPath(UiSpec.Hud.TurboLabel)
 	local wantLabel = ("TURBO LUCK %d/%d"):format(progress, every)
 	check(
 		res,
@@ -3242,8 +3766,7 @@ function S.ui_rolls(res)
 	end
 	if not recentTurbo then
 		local _, _, gone = popState()
-		local exists = gui:FindFirstChild("TurboPop", true) ~= nil
-		check(res, "turbo_pop_hidden_at_rest", exists and gone or "missing", true, exists and gone)
+		check(res, "turbo_pop_hidden_at_rest", gone, true, gone)
 	end
 	restore()
 
@@ -3296,8 +3819,8 @@ function S.ui_rolls(res)
 		res,
 		"turbo_fill_empty_after_turbo",
 		rec.fill or "missing",
-		("0 +- %.2f"):format(UiSpec.RollUi.FillTolerance),
-		rec.fill ~= nil and rec.fill <= UiSpec.RollUi.FillTolerance
+		("0 +- %.2f"):format(UiSpec.Turbo.FillTolerance),
+		rec.fill ~= nil and rec.fill <= UiSpec.Turbo.FillTolerance
 	)
 end
 
@@ -3492,7 +4015,7 @@ function S.ui_roll_anim(res)
 	)
 	check(res, "smoke_puff_on_land", rec.smoke == true, true, rec.smoke == true)
 
-	-- FlyIcon (a small car icon, no text) flies from the roll to IndexUi/OpenIndex on Exit, takes no clicks, then
+	-- FlyIcon (a small car icon, no text) flies from the roll to the HUD INDEX button on Exit, takes no clicks, then
 	-- is gone
 	local target = findPath(UiSpec.RollAnim.FlyTarget)
 	local fly = rec.fly
@@ -3929,6 +4452,71 @@ function S.ui_panels(res)
 			check(res, "close_" .. p, after, "", after == "")
 		end
 	end
+
+	-- UiSpec.HiddenWhilePanelOpen: each declared element really is hidden while a panel that hides it is open (the
+	-- overlap lists leave it out then), and shown again once no panel is open. ProgressionUi polls every 0.25 s, so
+	-- each state is waited for (UiSpec.HiddenWhilePanelOpenWait). The compact roll is also checked during a playing
+	-- roll by ui_toast (toast_hidden_while_*_open), since between rolls it is hidden anyway.
+	local function waitFor(cond)
+		local deadline = os.clock() + UiSpec.HiddenWhilePanelOpenWait
+		repeat
+			frames(1)
+		until cond() or os.clock() > deadline
+		return cond()
+	end
+	local elems = {}
+	for path in UiSpec.HiddenWhilePanelOpen do
+		table.insert(elems, path)
+	end
+	table.sort(elems)
+	setPanels({})
+	local shownAtRest = {}
+	waitFor(function()
+		for _, path in elems do
+			local o = findPath(path)
+			if o and o:IsA("GuiObject") and path ~= "RollToast/Toast" and not effectivelyVisible(o) then
+				return false
+			end
+		end
+		return true
+	end)
+	for _, path in elems do
+		local o = findPath(path)
+		shownAtRest[path] = o ~= nil and o:IsA("GuiObject") and effectivelyVisible(o)
+		check(res, "hidden_rule_element_present_" .. path, o ~= nil, true, o ~= nil and o:IsA("GuiObject"))
+	end
+	-- Always shown with no panel open (WorkshopRate is an always-on read-out, UPGRADES its entry button)
+	for _, path in { "RacerProgression/WorkshopRate", "RacerProgression/UpgradeButton" } do
+		if UiSpec.HiddenWhilePanelOpen[path] then
+			check(res, "shown_with_no_panel_open_" .. path, shownAtRest[path], true, shownAtRest[path] == true)
+		end
+	end
+	for _, panelPath in panels do
+		setPanels({ panelPath })
+		local function wantHidden(path)
+			return hiddenByPanel(path, { panelPath })
+		end
+		waitFor(function()
+			for _, path in elems do
+				local o = findPath(path)
+				if o and o:IsA("GuiObject") and wantHidden(path) and effectivelyVisible(o) then
+					return false
+				end
+			end
+			return true
+		end)
+		for _, path in elems do
+			local o = findPath(path)
+			if o and o:IsA("GuiObject") then
+				local shown = effectivelyVisible(o)
+				if wantHidden(path) then
+					check(res, "hidden_while_open_" .. path .. "_" .. panelPath, shown, false, not shown)
+				elseif shownAtRest[path] then
+					check(res, "still_shown_while_open_" .. path .. "_" .. panelPath, shown, true, shown)
+				end
+			end
+		end
+	end
 	restore()
 end
 
@@ -3995,7 +4583,7 @@ function S.ui_roll_emphasized(res)
 		check(res, "emphasized_blur_on_at_hold", hold.blur, "enabled", hold.blur == "enabled")
 		check(res, "emphasized_compact_hidden", hold.toastShown, false, hold.toastShown == false)
 		check(res, "emphasized_roll_id", tostring(hold.rollId), ev.id, hold.rollId == ev.id)
-		checkList(res, "emphasized_card_matches_roll", hold.problems)
+		checkList(res, "emphasized_card_matches_roll", settledProblems(rec, hold))
 		enlargedLookChecks(res, "emphasized_", hold)
 		check(
 			res,
@@ -4077,7 +4665,7 @@ function S.ui_roll_emphasized(res)
 		("%d,%s,%s,%s"):format(player.UserId, player.DisplayName, ev.id, tostring(wantRolls)),
 		argsOk
 	)
-	local odds = (spec and spec.Chance) and HudFormat.Odds(spec.Chance) or "Common"
+	local odds = HudFormat.Odds(spec and spec.Chance)
 	local want = UiSpec.Announce.Format:format(
 		player.DisplayName,
 		spec and spec.Name or tostring(ev.id),
@@ -4124,6 +4712,43 @@ function S.ui_roll_emphasized(res)
 	restore()
 end
 
+-- Progression scenarios reuse the same geometry provider and limits as the existing suite.
+local Progression = require(script.Parent.UiProgression)
+local progressionChecks = Progression.Build({
+	check = check,
+	find = findPath,
+	frames = frames,
+	text = allText,
+	visible = effectivelyVisible,
+	provider = provider,
+	rect = realRect,
+	contains = contains,
+	intersects = intersects,
+	setPanels = setPanels,
+	top = topAt,
+	centre = centre,
+	player = player,
+})
+for name, fn in progressionChecks do
+	S[name] = fn
+end
+
+-- The UiSpec.Clicks entries marked Manual (owner decision 2026-10-08), in order.
+function UiScenarios.ManualClicks()
+	local list = {}
+	for _, c in UiSpec.Clicks do
+		if c.Manual then
+			table.insert(list, c)
+		end
+	end
+	return list
+end
+
+-- The UiSpec.ManualScenarios entries ({ Name, Manual }), in order.
+function UiScenarios.ManualScenarios()
+	return UiSpec.ManualScenarios or {}
+end
+
 function UiScenarios.Run(name)
 	local res = newResult(name)
 	local fn = S[name]
@@ -4132,6 +4757,11 @@ function UiScenarios.Run(name)
 		return res
 	end
 	fn(res)
+	for _, m in UiScenarios.ManualScenarios() do
+		if m.Name == name then
+			res.manual = m.Manual -- run by hand (UiSpec.ManualScenarios): same checks, marked as the manual one
+		end
+	end
 	return res
 end
 
@@ -4162,8 +4792,13 @@ local function attrSnapshot()
 	local snap = {
 		AutoRacing = attr("AutoRacing") == true,
 		AutoRoll = attr("AutoRoll") == true,
+		ReduceEffects = attr("ReduceEffects") == true,
+		TopDownView = attr("TopDownView") == true,
 		EquippedCar = attr("EquippedCar"),
 		StatPoints = attr("StatPoints") or 0,
+		WorkshopLevel = attr("WorkshopLevel"),
+		ProgressionMoney = player:FindFirstChild("leaderstats") and player.leaderstats.Money.Value,
+		ProgressionOwned = player:FindFirstChild("Upgrades") and #player.Upgrades:GetChildren() or 0,
 	}
 	for _, stat in GachaConfig.STATS do
 		snap["Alloc_" .. stat] = attr("Alloc_" .. stat) or 0
@@ -4183,6 +4818,168 @@ local function poppedIn(obj)
 	return phase == nil or POPPED[phase] == true
 end
 
+-- Remotes fired between two spy readings, in order.
+local function firedSince(preSpy)
+	local fired = {}
+	for name, list in readSpy() or {} do
+		local before = preSpy[name] and #preSpy[name] or 0
+		for i = before + 1, #list do
+			table.insert(fired, { name = name, args = list[i] })
+		end
+	end
+	return fired
+end
+
+-- A key press from UiSpec.Clicks (Key = "Escape", ...), other than the workshop E prompt (Progression.RunInput).
+-- A LocalScript can not send a key (VirtualInputManager needs plugin security), so ui-tester presses it (KEY
+-- protocol in UiSpec.Clicks). Prepare is honoured like a click (AttrIs / AttrNot / Showcase are required, Open /
+-- Closed panels are set); the harness records the REAL InputBegan for that key, then checks Expect exactly: every
+-- panel is as Expect.Panels says (the rest unchanged), the showcase is untouched unless Expect.Showcase says
+-- otherwise, and exactly the Expect.Remote call (or none) went to the server.
+local function runKey(spec, res)
+	waitGuis()
+	local prep = spec.Prepare or {}
+	local index = table.find(UiSpec.Clicks, spec)
+	local previous = index and index > 1 and ("click:" .. UiSpec.Clicks[index - 1].Id) or "none"
+	for name, want in prep.AttrIs or {} do
+		if attr(name) ~= want then
+			stateMissing(
+				res,
+				"attribute_before_key_" .. name,
+				previous,
+				("%s is %s, want %s"):format(name, tostring(attr(name)), tostring(want))
+			)
+			return res
+		end
+	end
+	for name, forbidden in prep.AttrNot or {} do
+		if attr(name) == forbidden then
+			stateMissing(
+				res,
+				"attribute_not_before_key_" .. name,
+				previous,
+				("%s is %s, must not be %s"):format(name, tostring(attr(name)), tostring(forbidden))
+			)
+			return res
+		end
+	end
+	local preShowcase = showcaseState()
+	if prep.Showcase ~= nil then
+		local want = prep.Showcase and "open" or "closed"
+		if preShowcase ~= want and not (want == "closed" and preShowcase == "missing") then
+			stateMissing(res, "showcase_state_before_key", previous, "showcase is " .. preShowcase .. ", want " .. want)
+			return res
+		end
+	end
+
+	local saved = {}
+	for _, p in allPanels() do
+		local o = findPath(p)
+		if o then
+			saved[o] = o.Visible
+			if table.find(prep.Open or {}, p) then
+				o.Visible = true
+			elseif table.find(prep.Closed or {}, p) then
+				o.Visible = false
+			end
+		end
+	end
+	local function restore()
+		for o, v in saved do
+			o.Visible = v
+		end
+	end
+	frames(2)
+	if prep.WaitSeconds then
+		task.wait(prep.WaitSeconds)
+	end
+	-- The prepared panel really is open before the key (else the check below would prove nothing)
+	for _, p in prep.Open or {} do
+		local o = findPath(p)
+		check(res, "prepared_open_" .. p, o and o.Visible, true, o ~= nil and o.Visible == true)
+	end
+	local preSpy = readSpy()
+	if not preSpy then
+		stateMissing(res, "spy_installed", "spy", "ReplicatedStorage.UiTestSpy missing")
+		restore()
+		return res
+	end
+	local prePanels = {}
+	for _, p in allPanels() do
+		local o = findPath(p)
+		prePanels[p] = o and o.Visible
+	end
+
+	local pressed, consumed = false, nil
+	local conn = UserInputService.InputBegan:Connect(function(input, gameProcessed)
+		if not pressed and input.KeyCode.Name == spec.Key then
+			pressed, consumed = true, gameProcessed
+		end
+	end)
+	ReplicatedStorage:SetAttribute("UiTestClickDone", nil)
+	player:SetAttribute("UiTestClickTarget", HttpService:JSONEncode({ id = spec.Id, key = spec.Key, done = spec.Id }))
+	print("[UITEST] KEY " .. spec.Id .. " key=" .. spec.Key .. " done=" .. spec.Id)
+	local deadline = os.clock() + UiSpec.Waits.ClickDone
+	while ReplicatedStorage:GetAttribute("UiTestClickDone") ~= spec.Id and os.clock() < deadline do
+		task.wait(0.05)
+	end
+	conn:Disconnect()
+	player:SetAttribute("UiTestClickTarget", nil)
+	local done = ReplicatedStorage:GetAttribute("UiTestClickDone") == spec.Id
+	local menuOpen = GuiService.MenuIsOpen
+	check(res, "key_performed", done, true, done)
+	-- consumed = gameProcessedEvent (true when Roblox's own UI took the key); menu = GuiService.MenuIsOpen at the
+	-- acknowledgement (ui-tester closes Roblox's menu before acknowledging). Both are info for a failing panel check.
+	check(
+		res,
+		"key_pressed_" .. string.lower(spec.Key),
+		pressed and ("pressed consumed=%s menu=%s"):format(tostring(consumed), tostring(menuOpen)) or "no InputBegan",
+		"pressed",
+		pressed
+	)
+	if not done then
+		restore()
+		return res
+	end
+	task.wait(UiSpec.Waits.ClickSettle)
+	frames(2)
+
+	local expect = spec.Expect
+	for _, p in allPanels() do
+		local o = findPath(p)
+		local want = prePanels[p]
+		if expect.Panels and expect.Panels[p] ~= nil then
+			want = expect.Panels[p]
+		end
+		check(res, "panel_" .. p, o and o.Visible, want, o ~= nil and o.Visible == want)
+	end
+	local wantShowcase = preShowcase
+	if expect.Showcase ~= nil then
+		wantShowcase = expect.Showcase and "open" or "closed"
+	end
+	local nowShowcase = showcaseState()
+	check(res, "showcase_after_key", nowShowcase, wantShowcase, nowShowcase == wantShowcase)
+	local fired = firedSince(preSpy)
+	local names = {}
+	for _, f in fired do
+		table.insert(names, f.name)
+	end
+	local got = #names > 0 and table.concat(names, ",") or "nothing"
+	if expect.Remote then
+		check(
+			res,
+			"fires_" .. expect.Remote.Name,
+			got,
+			expect.Remote.Name,
+			#fired == 1 and fired[1].name == expect.Remote.Name
+		)
+	else
+		check(res, "fires_nothing", got, "nothing", #fired == 0)
+	end
+	restore()
+	return res
+end
+
 function UiScenarios.RunClick(id)
 	local spec = nil
 	for _, c in UiSpec.Clicks do
@@ -4194,6 +4991,21 @@ function UiScenarios.RunClick(id)
 	if not spec then
 		check(res, "click_declared", id, "UiSpec.Clicks id", false)
 		return res
+	end
+	-- A MANUAL check (UiSpec.Clicks Manual) run by hand: same checks; the result says it is the manual one
+	res.manual = spec.Manual
+	if spec.Key and spec.Expect.WorkshopOpen == nil then
+		return runKey(spec, res)
+	elseif spec.Key then
+		-- The workshop E prompt contracts (Expect.WorkshopOpen) keep their own fixture-checked runner
+		return Progression.RunInput(spec, res, {
+			check = check,
+			find = findPath,
+			frames = frames,
+			player = player,
+			setPanels = setPanels,
+			allPanels = allPanels,
+		})
 	end
 	waitGuis()
 	local prep = spec.Prepare or {}
@@ -4208,6 +5020,17 @@ function UiScenarios.RunClick(id)
 				"attribute_before_click_" .. name,
 				previous,
 				("%s is %s, want %s"):format(name, tostring(attr(name)), tostring(want))
+			)
+			return res
+		end
+	end
+	for name, forbidden in prep.AttrNot or {} do
+		if attr(name) == forbidden then
+			stateMissing(
+				res,
+				"attribute_not_before_click_" .. name,
+				previous,
+				("%s is %s, must not be %s"):format(name, tostring(attr(name)), tostring(forbidden))
 			)
 			return res
 		end
@@ -4252,7 +5075,8 @@ function UiScenarios.RunClick(id)
 		tileId = equipped
 		path = string.gsub(path, "{equipped}", tileId)
 	end
-	local rowStat = spec.Gui == "StatsUi" and splitPath(path)[2] or nil
+	local rowStat = spec.Gui == "RacerStats" and splitPath(path)[5] or nil
+	local upgradeId = spec.Gui == "RacerUpgrades" and splitPath(path)[3] or nil
 	local button = findPath(spec.Gui .. "/" .. path)
 	if not button and spec.Gui == UiSpec.Showcase.Gui and #splitPath(path) == 1 then
 		local sg = playerGui:FindFirstChild(spec.Gui)
@@ -4276,17 +5100,21 @@ function UiScenarios.RunClick(id)
 			end
 		end
 	end
-	local grid = findPath("IndexUi/Panel/Grid")
+	local grid = upgradeId and findPath("RacerUpgrades/Panel/Canvas")
+		or findPath("RacerIndex/Panel/Face/GridHost/Gallery")
 	local savedCanvas = grid and grid.CanvasPosition
+	local probe = nil
 	frames(2)
 	if tileId and grid then
-		local tile = findPath("IndexUi/Panel/Grid/" .. tileId)
+		local tile = findPath("RacerIndex/Panel/Face/GridHost/Gallery/" .. tileId)
 		local rel = tile.AbsolutePosition.Y - grid.AbsolutePosition.Y + grid.CanvasPosition.Y
 		grid.CanvasPosition = Vector2.new(0, math.max(0, rel - 8))
 		frames(2)
 	end
-	if prep.WaitSeconds then
-		task.wait(prep.WaitSeconds)
+	if upgradeId and grid and grid:IsA("ScrollingFrame") then
+		local rel = button.AbsolutePosition - grid.AbsolutePosition + grid.CanvasPosition
+		grid.CanvasPosition = Vector2.new(math.max(0, rel.X - 8), math.max(0, rel.Y - 8))
+		frames(2)
 	end
 	local function restore()
 		for o, v in saved do
@@ -4295,13 +5123,44 @@ function UiScenarios.RunClick(id)
 		if grid and savedCanvas then
 			grid.CanvasPosition = savedCanvas
 		end
+		if probe then
+			probe:Destroy()
+			probe = nil
+		end
 	end
-
+	if prep.WaitSeconds then
+		task.wait(prep.WaitSeconds)
+	end
+	if prep.LabelIs ~= nil then
+		local actual = allText(button)
+		if actual ~= prep.LabelIs then
+			stateMissing(
+				res,
+				"label_before_click",
+				previous,
+				("%s shows %q, want %q"):format(pathOf(button), actual, prep.LabelIs)
+			)
+			return res
+		end
+	end
 	local preSpy = readSpy()
 	if not preSpy then
 		stateMissing(res, "spy_installed", "spy", "ReplicatedStorage.UiTestSpy missing")
 		restore()
 		return res
+	end
+	if spec.Expect.Remote and table.find(UiSpec.RemoteFunctions, spec.Expect.Remote.Name) then
+		local spyFolder = ReplicatedStorage:FindFirstChild("UiTestSpy")
+		local remote = ReplicatedStorage.Remotes:FindFirstChild(spec.Expect.Remote.Name)
+		local ready = spyFolder
+			and spyFolder:GetAttribute("ProgressionIntercepted") == true
+			and remote
+			and remote:GetAttribute("UiTestIntercepted") == true
+		check(res, "purchase_intercepted_before_click", ready, true, ready == true)
+		if not ready then
+			restore()
+			return res
+		end
 	end
 
 	-- Where to click: the target's centre, a corner, or another element's centre (the target must be topmost there)
@@ -4353,6 +5212,12 @@ function UiScenarios.RunClick(id)
 			return res
 		end
 		pre = attrSnapshot()
+		if prep.SoundProbe and not probe then
+			probe = Instance.new("Sound")
+			probe.Name = "UiTestSoundProbe"
+			probe.Volume = UiSpec.Settings.ProbeVolume
+			probe.Parent = SoundService
+		end
 		prePanels = {}
 		for _, p in allPanels() do
 			local o = findPath(p)
@@ -4400,6 +5265,10 @@ function UiScenarios.RunClick(id)
 				y = ty,
 				screenX = math.floor(cx + 0.5),
 				screenY = math.floor(cy + 0.5),
+				-- The space x, y were computed in (UiSpec.ClickNeedsUnemulatedView): ui-tester checks it first
+				viewportX = math.floor(viewport().X + 0.5),
+				viewportY = math.floor(viewport().Y + 0.5),
+				insetY = math.floor(tl.Y + 0.5),
 				done = doneValue,
 			})
 		)
@@ -4491,6 +5360,8 @@ function UiScenarios.RunClick(id)
 			wantArg = tileId
 		elseif argSpec == "row_stat" then
 			wantArg = rowStat
+		elseif argSpec == "upgrade_id" then
+			wantArg = upgradeId
 		end
 		local names = {}
 		for _, f in fired do
@@ -4498,6 +5369,9 @@ function UiScenarios.RunClick(id)
 		end
 		local want = expect.Remote.Name .. "(" .. tostring(wantArg) .. ")"
 		local ok = #fired == 1 and fired[1].name == expect.Remote.Name and fired[1].args[1] == wantArg
+		if ok and (expect.Remote.Arg == "upgrade_id" or expect.Remote.Arg == "none") then
+			ok = #fired[1].args == (expect.Remote.Arg == "none" and 0 or 1)
+		end
 		check(res, "fires_" .. expect.Remote.Name, #names > 0 and table.concat(names, ",") or "nothing", want, ok)
 	else
 		local names = {}
@@ -4510,16 +5384,54 @@ function UiScenarios.RunClick(id)
 	-- Post-conditions
 	local toast = findPath("RollToast/Toast")
 	for _, cond in expect.After or {} do
-		if cond == "autorace_label_follows_server" then
+		if cond == "progression_not_optimistic" then
+			local now = attrSnapshot()
+			for _, key in { "WorkshopLevel", "ProgressionMoney", "ProgressionOwned" } do
+				check(res, "unchanged_" .. string.lower(key), now[key], pre[key], now[key] == pre[key])
+			end
+		elseif cond == "workshop_rejection_shown" then
+			local result = findPath("RacerWorkshop/Panel/Result")
+			local text = result and allText(result) or ""
+			check(res, cond, text, "server rejection money", string.find(string.lower(text), "money", 1, true) ~= nil)
+		elseif cond == "autorace_label_follows_server" then
 			local want = HudFormat.AutoButtonText(attr("AutoRacing") == true)
-			check(res, cond, button.Text, want, button.Text == want)
+			check(res, cond, allText(button), want, allText(button) == want)
 		elseif cond == "autoracing_is_arg" then
 			check(res, cond, attr("AutoRacing") == true, wantArg, (attr("AutoRacing") == true) == wantArg)
+		elseif cond == "sound_label_off" or cond == "sound_label_on" then
+			local want = cond == "sound_label_off" and "OFF" or "ON"
+			local actual = allText(button)
+			check(res, cond, actual, want, actual == want)
+		elseif cond == "sound_probe_muted" or cond == "sound_probe_restored" then
+			local want = cond == "sound_probe_muted" and 0 or UiSpec.Settings.ProbeVolume
+			local actual = probe and probe.Volume
+			check(res, cond, actual, want, actual ~= nil and math.abs(actual - want) <= 0.001)
+		elseif cond == "reduce_effects_flipped" then
+			local want = not pre.ReduceEffects
+			check(res, cond, attr("ReduceEffects"), want, attr("ReduceEffects") == want)
+		elseif cond == "effects_label_follows_attr" then
+			local want = attr("ReduceEffects") == true and "ON" or "OFF"
+			local actual = allText(button)
+			check(res, cond, actual, want, actual == want)
+		elseif cond == "top_down_flipped" then
+			local want = not pre.TopDownView
+			check(res, cond, attr("TopDownView"), want, attr("TopDownView") == want)
+		elseif cond == "top_down_label_follows_attr" then
+			local want = attr("TopDownView") == true and "ON" or "OFF"
+			local actual = allText(button)
+			check(res, cond, actual, want, actual == want)
 		elseif cond == "equipped_is_tile" then
 			check(res, cond, attr("EquippedCar"), tileId, attr("EquippedCar") == tileId)
 		elseif cond == "tile_shows_equipped" then
-			local e = findPath("IndexUi/Panel/Grid/" .. tileId .. "/Equip")
-			check(res, cond, e and e.Text, "Equipped", e ~= nil and e.Text == "Equipped" and e.Active == false)
+			local e = findPath("RacerIndex/Panel/Face/GridHost/Gallery/" .. tileId .. "/Equip")
+			local label = e and e:FindFirstChild("Label")
+			check(
+				res,
+				cond,
+				label and label.Text,
+				"EQUIPPED",
+				e ~= nil and label ~= nil and label.Text == "EQUIPPED" and e.Active == false
+			)
 		elseif cond == "alloc_incremented" then
 			local k = "Alloc_" .. rowStat
 			check(res, cond, attr(k) or 0, pre[k] + 1, (attr(k) or 0) == pre[k] + 1)
@@ -4531,13 +5443,21 @@ function UiScenarios.RunClick(id)
 				pre.StatPoints - 1,
 				(attr("StatPoints") or 0) == pre.StatPoints - 1
 			)
+		elseif cond == "points_label_follows_server" then
+			-- The header read-out follows the server's StatPoints (after the answer), with the declared wording
+			local statsSpec = UiSpec.Guis.RacerStats
+			local n = attr("StatPoints") or 0
+			local want = ((n == 1) and statsSpec.PointsText.Singular or statsSpec.PointsText.Plural):format(n)
+			local label = findPath(statsSpec.PointsLabel)
+			local text = label and (label:IsA("TextLabel") or label:IsA("TextButton")) and label.Text or "missing"
+			check(res, cond, text, want, text == want and label ~= nil and effectivelyVisible(label))
 		elseif cond == "alloc_unchanged" then
 			local k = "Alloc_" .. rowStat
 			check(res, cond, attr(k) or 0, pre[k], (attr(k) or 0) == pre[k])
 		elseif cond == "points_unchanged" then
 			check(res, cond, attr("StatPoints") or 0, pre.StatPoints, (attr("StatPoints") or 0) == pre.StatPoints)
 		elseif cond == "row_shows_alloc" then
-			local v = findPath("StatsUi/Panel/" .. rowStat .. "/Value")
+			local v = findPath("RacerStats/Panel/Face/StatsHost/Rows/" .. rowStat .. "/Value")
 			local n = attr("Alloc_" .. rowStat) or 0
 			local a = {}
 			for _, stat in GachaConfig.STATS do
@@ -4704,7 +5624,7 @@ function UiScenarios.RunClick(id)
 				checkList(
 					res,
 					"showcase_updates_live",
-					hold and hold.problems or { "no Hold sample on RollShowcase/Card" }
+					hold and settledProblems(rec, hold) or { "no Hold sample on RollShowcase/Card" }
 				)
 				if hold then
 					local glowBy = os.clock() + UiSpec.RollAnim.GlowTurnWait + 1
@@ -4807,6 +5727,33 @@ function UiScenarios.RunClick(id)
 			frames(2)
 			local still = toast ~= nil and shownNow(toast)
 			check(res, "toast_stays_while_auto_off", still, true, still)
+		elseif cond == "hud_hidden_while_showcase_open" then
+			-- CLAUDE.md "UI tests": the HUD hides while the roll showcase is open. Pass when its ScreenGui is
+			-- disabled, or when nothing in it is effectively visible and drawing (any background, text or image
+			-- less than 95 % transparent) and no button in it is shown (so no HUD button can take a press).
+			for _, guiName in UiSpec.Showcase.HiddenGuis do
+				local gui = playerGui:FindFirstChild(guiName)
+				if not (gui and gui:IsA("LayerCollector")) then
+					check(res, cond .. "_" .. guiName, "missing", "hidden", false)
+					continue
+				end
+				local shown = {}
+				if gui.Enabled then
+					for _, d in gui:GetDescendants() do
+						if d:IsA("GuiObject") and effectivelyVisible(d) then
+							local draws = d.BackgroundTransparency < 0.95
+								or d:IsA("GuiButton")
+								or ((d:IsA("TextLabel") or d:IsA("TextButton") or d:IsA("TextBox")) and d.Text ~= "" and d.TextTransparency < 0.95)
+								or ((d:IsA("ImageLabel") or d:IsA("ImageButton")) and d.Image ~= "" and d.ImageTransparency < 0.95)
+								or (d:IsA("ViewportFrame") and d.ImageTransparency < 0.95)
+							if draws then
+								table.insert(shown, pathOf(d))
+							end
+						end
+					end
+				end
+				checkList(res, cond .. "_" .. guiName, shown)
+			end
 		elseif cond == "normal_view_back" then
 			checkList(res, "normal_view_buttons_clickable", alwaysOnCovered())
 			checkList(res, "showcase_not_clickable_after_close", showcaseHits())
@@ -4816,375 +5763,6 @@ function UiScenarios.RunClick(id)
 	end
 	restore()
 	return res
-end
-
--- The Racer UI replaced the original ScreenGui inventory.  Keep the scenario names stable for the
--- compatibility gate, but assert the current generated hierarchy here.  The legacy implementations
--- above remain useful reference while migrating individual probes; these current-contract probes are
--- deliberately structural and stateful rather than pixel snapshots.
-function S.ui_layout(res)
-	waitGuis()
-	local expected = {
-		"LoserScreen",
-		"RacerHud",
-		"RacerIndex",
-		"RacerStats",
-		"RacerSettings",
-		"RacerRebirth",
-		"RollShowcase",
-		"RollToast",
-	}
-	local missing = {}
-	for _, name in expected do
-		if not playerGui:FindFirstChild(name) then
-			table.insert(missing, name)
-		end
-	end
-	checkList(res, "current_guis_present", missing)
-	check(res, "hud_buttons_present", #allButtons() >= 7, true, #allButtons() >= 7)
-	check(res, "compact_roll_reserved", findPath("RollToast/Toast") ~= nil, true, findPath("RollToast/Toast") ~= nil)
-	check(res, "panels_hidden_at_rest", not effectivelyVisible(findPath("RacerIndex/Panel")), false, true)
-	check(res, "stats_hidden_at_rest", not effectivelyVisible(findPath("RacerStats/Panel")), false, true)
-end
-
-function S.ui_buttons(res)
-	waitGuis()
-	local buttons = {
-		{ "RacerHud/Race/Face", "TextButton" },
-		{ "RacerHud/Navigation/Index/Face", "TextButton" },
-		{ "RacerHud/Navigation/Stats/Face", "TextButton" },
-		{ "RacerHud/Navigation/Rebirth/Face", "TextButton" },
-		{ "RacerHud/RollControls/RollView/Face", "TextButton" },
-		{ "RacerHud/RollControls/AutoRoll/Face", "TextButton" },
-		{ "RacerHud/Settings/Face", "ImageButton" },
-	}
-	local missing = {}
-	for _, item in buttons do
-		local o = findPath(item[1])
-		if not (o and o:IsA("GuiButton")) then
-			table.insert(missing, item[1])
-		end
-	end
-	checkList(res, "current_hud_buttons_present", missing)
-	local indexClose = findPath("RacerIndex/Panel/Face/Header/Face/Close/Face")
-	local statsClose = findPath("RacerStats/Panel/Face/Header/Face/Close/Face")
-	check(
-		res,
-		"modal_close_buttons_present",
-		indexClose ~= nil and statsClose ~= nil,
-		true,
-		indexClose ~= nil and statsClose ~= nil
-	)
-	local gallery = findPath("RacerIndex/Panel/Face/GridHost/Gallery")
-	check(res, "catalog_gallery_present", gallery ~= nil, true, gallery ~= nil)
-	check(
-		res,
-		"stats_rows_present",
-		findPath("RacerStats/Panel/Face/StatsHost/Rows") ~= nil,
-		true,
-		findPath("RacerStats/Panel/Face/StatsHost/Rows") ~= nil
-	)
-end
-
-function S.ui_hud(res)
-	waitGuis()
-	local stats = player:WaitForChild("leaderstats", 10)
-	local speed = stats and stats:FindFirstChild("Speed")
-	local money = stats and stats:FindFirstChild("Money")
-	local hud = findPath("RacerHud")
-	local speedValue = findPath("RacerHud/Speed/SpeedValue")
-	local moneyValue = findPath("RacerHud/Money/MoneyValue")
-	local unbanked = findPath("RacerHud/Money/Unbanked")
-	check(res, "leaderstats_present", speed ~= nil and money ~= nil, true, speed ~= nil and money ~= nil)
-	check(res, "hud_present", hud ~= nil, true, hud ~= nil)
-	check(
-		res,
-		"hud_readouts_present",
-		speedValue ~= nil and moneyValue ~= nil and unbanked ~= nil,
-		true,
-		speedValue ~= nil and moneyValue ~= nil and unbanked ~= nil
-	)
-	check(res, "unbanked_attribute_present", type(attr("Unbanked")), "number", type(attr("Unbanked")) == "number")
-	check(
-		res,
-		"hud_values_drawn",
-		speedValue and moneyValue and speedValue.Text ~= "" and moneyValue.Text ~= "",
-		true,
-		speedValue ~= nil and moneyValue ~= nil and speedValue.Text ~= "" and moneyValue.Text ~= ""
-	)
-end
-
-function S.ui_index(res)
-	waitGuis()
-	local panel = findPath("RacerIndex/Panel")
-	local gallery = findPath("RacerIndex/Panel/Face/GridHost/Gallery")
-	local expected = #CarCatalog.All()
-	local actual = 0
-	if gallery then
-		for _, child in gallery:GetChildren() do
-			if child:IsA("GuiObject") and CarCatalog.Get(child.Name) then
-				actual += 1
-			end
-		end
-	end
-	check(
-		res,
-		"index_button_present",
-		findPath("RacerHud/Navigation/Index/Face") ~= nil,
-		true,
-		findPath("RacerHud/Navigation/Index/Face") ~= nil
-	)
-	check(res, "index_panel_hidden_at_rest", panel and panel.Visible, false, panel ~= nil and panel.Visible == false)
-	check(res, "one_tile_per_catalog_car", actual, expected, actual == expected)
-end
-
-function S.ui_stats(res)
-	waitGuis()
-	local panel = findPath("RacerStats/Panel")
-	local rows = findPath("RacerStats/Panel/Face/StatsHost/Rows")
-	local expected = #GachaConfig.STATS
-	local actual = 0
-	if rows then
-		for _, stat in GachaConfig.STATS do
-			if rows:FindFirstChild(stat) then
-				actual += 1
-			end
-		end
-	end
-	check(
-		res,
-		"stats_button_present",
-		findPath("RacerHud/Navigation/Stats/Face") ~= nil,
-		true,
-		findPath("RacerHud/Navigation/Stats/Face") ~= nil
-	)
-	check(res, "stats_panel_hidden_at_rest", panel and panel.Visible, false, panel ~= nil and panel.Visible == false)
-	check(res, "one_row_per_stat", actual, expected, actual == expected)
-	local workshopPlus = findPath("RacerStats/Panel/Face/StatsHost/Rows/Workshop/Plus")
-	check(
-		res,
-		"workshop_row_disabled",
-		workshopPlus and workshopPlus.Active,
-		false,
-		workshopPlus ~= nil and workshopPlus.Active == false
-	)
-end
-
-function S.ui_toast(res)
-	waitGuis()
-	local toast = findPath("RollToast/Toast")
-	local body = toast and toast:FindFirstChild("Body")
-	local art = toast and toast:FindFirstChild("Viewport", true)
-	local odds = toast and toast:FindFirstChild("Odds", true)
-	check(
-		res,
-		"toast_present",
-		toast ~= nil and toast:IsA("TextButton"),
-		true,
-		toast ~= nil and toast:IsA("TextButton")
-	)
-	check(res, "toast_body_present", body ~= nil and body:IsA("GuiObject"), true, body ~= nil and body:IsA("GuiObject"))
-	check(res, "toast_car_art_present", art ~= nil and art:IsA("Frame"), true, art ~= nil and art:IsA("Frame"))
-	check(res, "toast_odds_present", odds ~= nil and odds:IsA("TextLabel"), true, odds ~= nil and odds:IsA("TextLabel"))
-	check(
-		res,
-		"toast_has_no_card_parts",
-		toast and toast:FindFirstChild("ResultName", true) == nil,
-		true,
-		toast ~= nil and toast:FindFirstChild("ResultName", true) == nil
-	)
-end
-
-function S.ui_rolls(res)
-	waitGuis()
-	local turbo = findPath("RacerHud/Turbo/Face")
-	local fill = turbo and turbo:FindFirstChild("TurboFill", true)
-	local label = turbo and turbo:FindFirstChild("TurboLabel", true)
-	check(res, "turbo_bar_present", turbo ~= nil, true, turbo ~= nil)
-	check(res, "turbo_fill_present", fill ~= nil and fill:IsA("GuiObject"), true, fill ~= nil and fill:IsA("GuiObject"))
-	check(
-		res,
-		"turbo_label_present",
-		label ~= nil and label:IsA("TextLabel"),
-		true,
-		label ~= nil and label:IsA("TextLabel")
-	)
-	check(res, "rolls_attribute_present", type(attr("Rolls")), "number", type(attr("Rolls")) == "number")
-end
-
-function S.ui_roll_anim(res)
-	waitGuis()
-	local toast = findPath("RollToast/Toast")
-	local phases = toast and toast:GetAttribute("Phase")
-	check(res, "roll_anim_config_present", anim() ~= nil, true, anim() ~= nil)
-	check(
-		res,
-		"compact_card_present",
-		toast ~= nil and toast:FindFirstChild("Body") ~= nil,
-		true,
-		toast ~= nil and toast:FindFirstChild("Body") ~= nil
-	)
-	check(
-		res,
-		"phase_attribute_present",
-		phases == nil or type(phases) == "string",
-		"string or idle",
-		phases == nil or type(phases) == "string"
-	)
-	check(
-		res,
-		"roll_serial_attribute_present",
-		toast == nil or toast:GetAttribute("RollSerial") ~= nil,
-		true,
-		toast ~= nil and toast:GetAttribute("RollSerial") ~= nil
-	)
-end
-
-function S.ui_showcase(res)
-	waitGuis()
-	local gui = playerGui:FindFirstChild("RollShowcase")
-	local card = gui and gui:FindFirstChild("Card", true)
-	local art = card and card:FindFirstChild("Viewport", true)
-	local auto = gui and gui:FindFirstChild("AutoButton", true)
-	check(res, "showcase_gui_present", gui ~= nil, true, gui ~= nil)
-	check(
-		res,
-		"showcase_card_present",
-		card ~= nil and card:IsA("GuiObject"),
-		true,
-		card ~= nil and card:IsA("GuiObject")
-	)
-	check(
-		res,
-		"showcase_card_art_present",
-		art ~= nil and art:IsA("GuiObject"),
-		true,
-		art ~= nil and art:IsA("GuiObject")
-	)
-	check(
-		res,
-		"showcase_auto_button_present",
-		auto ~= nil and auto:IsA("GuiButton"),
-		true,
-		auto ~= nil and auto:IsA("GuiButton")
-	)
-	check(
-		res,
-		"showcase_hidden_at_rest",
-		gui and effectivelyVisible(gui:FindFirstChild("Backdrop")),
-		false,
-		gui == nil or not effectivelyVisible(gui:FindFirstChild("Backdrop"))
-	)
-end
-
-function S.ui_loser(res)
-	waitGuis()
-	local gui = playerGui:FindFirstChild("LoserScreen")
-	local frame = gui and gui:FindFirstChildWhichIsA("GuiObject")
-	check(res, "loser_screen_present", frame ~= nil, true, frame ~= nil)
-	check(
-		res,
-		"loser_screen_hidden_at_rest",
-		frame and effectivelyVisible(frame),
-		false,
-		frame == nil or not effectivelyVisible(frame)
-	)
-end
-
-function S.ui_billboards(res)
-	local pads = 0
-	for _, d in workspace:GetDescendants() do
-		if d:IsA("BasePart") and (d.Name == "WinPad" or d:GetAttribute("WinPad") == true) then
-			pads += 1
-		end
-	end
-	check(res, "win_pads_present", pads, ">= 1", pads >= 1)
-end
-
--- The legacy hitbox probe above targets removed ScreenGuis.  The current contract checks the live Racer buttons
--- and the overlay's actual click surfaces instead.
-function S.ui_hitboxes(res)
-	waitGuis()
-	local bad = {}
-	for _, button in allButtons() do
-		if effectivelyVisible(button) then
-			local r = realRect(button)
-			local parent = button.Parent
-			local pr = parent:IsA("LayerCollector") and rootRect(parent, viewport()) or realRect(parent)
-			if not contains(pr, r) then
-				table.insert(bad, pathOf(button) .. " outside parent")
-			end
-		end
-	end
-	checkList(res, "visible_buttons_inside_parent", bad)
-	local showcase = playerGui:FindFirstChild("RollShowcase")
-	local backdrop = showcase and showcase:FindFirstChild("Backdrop")
-	check(
-		res,
-		"showcase_backdrop_hidden_at_rest",
-		backdrop and effectivelyVisible(backdrop),
-		false,
-		backdrop == nil or not effectivelyVisible(backdrop)
-	)
-end
-
-function S.ui_panels(res)
-	waitGuis()
-	local module = script.Parent.Parent:FindFirstChild(UiSpec.PanelSwitch.Module)
-	check(
-		res,
-		"panel_switch_present",
-		module ~= nil and module:IsA("ModuleScript"),
-		true,
-		module ~= nil and module:IsA("ModuleScript")
-	)
-	local names = { "RacerIndex/Panel", "RacerStats/Panel", "RacerSettings/Panel", "RacerRebirth/Panel" }
-	local missing = {}
-	for _, path in names do
-		if not findPath(path) then
-			table.insert(missing, path)
-		end
-	end
-	checkList(res, "current_panels_present", missing)
-	local visible = 0
-	for _, path in names do
-		local panel = findPath(path)
-		if panel and panel.Visible then
-			visible += 1
-		end
-	end
-	check(res, "at_most_one_panel_visible", visible, "<= 1", visible <= 1)
-end
-
-function S.ui_roll_emphasized(res)
-	waitGuis()
-	local deadline = os.clock() + 2
-	local rec
-	while os.clock() < deadline and not rec do
-		for i = #events.recs, 1, -1 do
-			if events.recs[i].ev.emphasized then
-				rec = events.recs[i]
-				break
-			end
-		end
-		if not rec then
-			task.wait(0.1)
-		end
-	end
-	check(res, "emphasized_roll_recorded", rec ~= nil, true, rec ~= nil)
-	if not rec then
-		return
-	end
-	while not rec.done and os.clock() < deadline + 8 do
-		task.wait(0.1)
-	end
-	local seq = phaseSeq(rec, "Enlarged")
-	local names = seqNames(seq)
-	local want = table.concat(UiSpec.RollAnim.Phases, ",")
-	check(res, "emphasized_phase_sequence", names, want, names == want)
-	local hold = rec.hold.Enlarged
-	check(res, "emphasized_roll_id_present", hold and hold.rollId, rec.ev.id, hold ~= nil and hold.rollId == rec.ev.id)
-	check(res, "emphasized_roll_finished", rec.done, true, rec.done == true)
 end
 
 return UiScenarios

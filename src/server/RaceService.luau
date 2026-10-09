@@ -176,6 +176,7 @@ function RaceService.NewRun(car, raceRoute, player, options)
 		local track = raceRoute.Tracks[i]
 		local cfg = track.Npc.Config
 		local speed = options.NpcSpeeds and options.NpcSpeeds[track.Number] or cfg.Speed
+		speed *= require(script.Parent.WeatherService).Multipliers().NpcSpeed
 		local profile = track.Npc.Profile
 		if speed ~= profile.Speed then
 			profile = NpcRacer.Profile(track.Npc.Path, speed)

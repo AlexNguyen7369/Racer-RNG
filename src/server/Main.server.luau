@@ -14,6 +14,7 @@ local PlayerData = require(script.Parent.PlayerData)
 local RaceService = require(script.Parent.RaceService)
 local UpgradeService = require(script.Parent.UpgradeService)
 local WorkshopService = require(script.Parent.WorkshopService)
+local WeatherService = require(script.Parent.WeatherService)
 
 -- Tracks are chained in Number order: each one starts where the previous one's finish checkpoint is.
 local chain = TrackRegistry.Chain()
@@ -40,6 +41,7 @@ spawnArea.Parent = Workspace
 
 -- The player's car auto-races the whole chain at the speed from their saved stats
 RaceService.Start(RaceService.BuildRoute(entries))
+WeatherService.Start()
 PlayerData.Start()
 UpgradeService.SetTrackCount(#chain) -- the tree's tier gate (docs/UPGRADE_TREE_DESIGN.md)
 UpgradeService.Start() -- the money upgrade tree: Remotes.BuyUpgrade and the UPGRADES badge

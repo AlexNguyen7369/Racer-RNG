@@ -42,6 +42,7 @@
   <button data-tab="changes">Changes &amp; history</button>
   <button data-tab="todo">TODO &amp; ideas</button>
   <button data-tab="tests">Tests</button>
+  <button data-tab="bugs">Bugs <span class="count" id="bugs-count" hidden></span></button>
 </nav>
 
 <main>
@@ -191,6 +192,24 @@
       <div class="panel wide"><h2>Compat suites (gate to main)</h2><div id="compat"></div></div>
     </div>
     <div class="panel"><h2>Every test <span class="muted small">status from the newest tester report that mentions it</span></h2><div id="tests"></div></div>
+  </section>
+
+  <!-- BUGS -->
+  <section id="tab-bugs" class="tab">
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Bugs <span class="muted small">found by the subagents, with the source they are in</span></h2>
+        <div class="filters">
+          <select id="bug-status" aria-label="Status"><option value="open">Open</option><option value="fixed">Fixed</option><option value="">All</option></select>
+          <select id="bug-kind" aria-label="Kind"><option value="">Faults and failures</option><option value="fault">Faults only</option><option value="failure">Failures only</option></select>
+          <select id="bug-agent" aria-label="Found by"><option value="">Found by anyone</option></select>
+        </div>
+      </div>
+      <p class="muted small"><span class="badge kind-fault">fault</span> the defect in the code itself (the cause) &nbsp;
+        <span class="badge kind-failure">failure</span> the wrong behaviour seen when the game runs (the effect).
+        Log one with <code>python3 tools/dashboard/bugs.py add --name … --kind fault|failure --file … --line N[-M] --found-by &lt;subagent&gt; --summary …</code></p>
+      <div id="bugs"></div>
+    </div>
   </section>
 </main>
 

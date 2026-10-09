@@ -48,6 +48,12 @@ local function runAll()
 		return
 	end
 	running = true
+	ReplicatedStorage:SetAttribute("CarTestRunning", true)
+	local weatherModule = script.Parent.Parent:FindFirstChild("WeatherService")
+	local weather = weatherModule and require(weatherModule)
+	if weather then
+		weather.SetEvent("")
+	end
 	print("[CARTEST] START")
 	warmUp()
 
@@ -97,6 +103,7 @@ local function runAll()
 	)
 	print(("[CARTEST] END pass=%d fail=%d"):format(pass, fail))
 	ReplicatedStorage:SetAttribute("CarTestRun", false)
+	ReplicatedStorage:SetAttribute("CarTestRunning", false)
 	running = false
 end
 

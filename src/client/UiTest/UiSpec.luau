@@ -20,7 +20,8 @@ UiSpec.Tolerance = 1
 -- whose background is invisible: an opaque background IS the visible content).
 UiSpec.MaxHitboxPadding = 8
 
--- Viewports the layout is checked at. "current" is the live Studio viewport (engine AbsolutePosition); the others
+-- Viewports the layout is checked at. "current" is the live Studio viewport (engine AbsolutePosition: the emulated
+-- phone screen under Device emulation, the real game view at a desktop size with Device = none); the others
 -- are solved with the same layout rules (UDim2, AnchorPoint, UISizeConstraint, UIScale, UIPadding, UIListLayout,
 -- UIGridLayout, ScrollingFrame canvas, top-bar inset) and the Racer UI's own responsive rules (UiResponsive: phone
 -- variant at ViewportSize.Y <= 500, UIScale k per height).
@@ -131,7 +132,11 @@ UiSpec.Guis = {
 				DisabledWhen = "no_points_or_disabled_stat",
 			},
 		},
-		DisabledStats = { Workshop = true }, -- the Racer UI shows the Workshop row as "COMING SOON": it fires nothing
+		DisabledStats = {}, -- Every implemented stat, including Workshop, accepts allocation with free points.
+		-- The header's free-points read-out (RacerStats.ui.json "1 FREE POINT"): exactly the server's StatPoints,
+		-- singular for 1, plural otherwise ("0 FREE POINTS", "1 FREE POINT", "3 FREE POINTS").
+		PointsLabel = "RacerStats/Panel/Face/Header/Face/Points",
+		PointsText = { Singular = "%d FREE POINT", Plural = "%d FREE POINTS" },
 	},
 	-- SETTINGS modal (ui/specs/RacerSettings.ui.json): local preferences only.
 	RacerSettings = {
@@ -158,6 +163,13 @@ UiSpec.Guis = {
 				Effect = "attr:ReduceEffects",
 				Label = "UiSpec.Settings.EffectsText[ReduceEffects]",
 			},
+			{
+				-- Session-local bird's-eye camera preference used while auto-racing
+				Path = "Panel/Face/AutoRow/Face/AutoToggle/Face",
+				Does = "local",
+				Effect = "attr:TopDownView",
+				Label = "TOP-DOWN VIEW [TopDownView]",
+			},
 		},
 	},
 	-- REBIRTH modal (ui/specs/RacerRebirth.ui.json): "COMING SOON", only a Close button
@@ -173,9 +185,10 @@ UiSpec.Guis = {
 			},
 		},
 	},
-	-- The compact roll (docs/ROLL_ANIMATION_CONTRACT.md): top centre, directly UNDER the Race button. Its area is
-	-- always reserved (the overlap checks place it there even while hidden), it is a button only while shown
-	-- (Visible = false at rest: no invisible hitbox; shown at rest only while AutoRoll is false, with "AUTO OFF").
+	-- The compact roll (docs/ROLL_ANIMATION_CONTRACT.md): top centre, directly UNDER the Race button. With no panel
+	-- open its area is always reserved (the overlap checks place it there even while hidden between rolls); while any
+	-- panel is open it is hidden (UiSpec.HiddenWhilePanelOpen, owner decision 2026-10-08). It is a button only while
+	-- shown (Visible = false at rest: no invisible hitbox; shown at rest only while AutoRoll is false, with "AUTO OFF").
 	-- Text is "": its parts draw it.
 	RollToast = {
 		Source = "Client/RollToast",
@@ -217,6 +230,26 @@ UiSpec.Guis = {
 -- The ScreenGuis the Racer UI replaced (owner decision 2026-10-06): their scripts are disabled and they must not be
 -- in PlayerGui (two HUDs at once). RacerHudConcept is an unused concept draft (ui/concept-draft): never shipped.
 UiSpec.RemovedGuis = { "SpeedHud", "AutoRaceButton", "IndexUi", "StatsUi", "RollUi", "RacerHudConcept" }
+UiSpec.LegacyControls = {
+	Path = "RacerHud/RollControls",
+	PhoneMaxHeight = 500,
+	ResizeScenario = "ui_legacy_controls_resize",
+	ResizeProtocol = "After RacerUiReady, resize real game viewport desktop (>500 high) -> phone (<=500) -> desktop. "
+		.. "Wait at least two rendered frames at each size. Run ui_legacy_controls_resize with UiTestScenario; "
+		.. "no observed resize is a failure, not a pass. Restore the original viewport afterwards.",
+}
+
+-- Scenarios ui-tester's tools can not perform (same rule as UiSpec.Clicks Manual, owner decision 2026-10-08): not in
+-- UiScenarios.Names; the harness lists them as "[UITEST] MANUAL <name> reason=..." (not a pass, not a failure, never
+-- blocking the gate). The owner runs them by hand with UiTestScenario (steps in the dashboard's Needs-you list); the
+-- scenario still checks everything when run and fails without an observed resize.
+UiSpec.ManualScenarios = {
+	{
+		Name = UiSpec.LegacyControls.ResizeScenario,
+		Manual = "needs the real game viewport resized desktop (>500 high) -> phone (<=500) -> desktop; with the "
+			.. "Device Simulator off automation can not resize the Studio game view (MCP has no window-resize input)",
+	},
+}
 
 -- Labels whose text follows a server attribute (each button names what it shows).
 UiSpec.AutoRollText = {
@@ -257,8 +290,19 @@ UiSpec.Hud = {
 	TurboBottomGap = { Desktop = 22, Phone = 16 }, -- px from the screen bottom to the TURBO LUCK bar's bottom edge
 	Settings = "RacerHud/Settings/Face",
 	PointsBadge = "RacerHud/Navigation/Stats/Face/PointsBadge",
-	BottomGap = { Desktop = 22, Phone = 16 }, -- px: Money (bottom left) and RollControls (bottom right) bottom edges
-	SideGap = { Desktop = 22, Phone = 12 }, -- px: Money's left / RollControls' right edge from the screen side
+	BottomGap = { Desktop = 22, Phone = 16 }, -- px: Money (bottom left) and TURBO bar bottom edges
+	SideGap = { Desktop = 22, Phone = 12 }, -- px: Money's left edge from the screen side
+}
+
+-- The top controls (owner-approved layout, CLAUDE.md + ui/specs/RacerHud.ui.json, reconfirmed 2026-10-08): the Race
+-- button (AUTO RACE / STOP AUTO) at the top centre (ui_layout autorace_top_centre_x / autorace_below_topbar) and
+-- Settings in the top-right corner (ui.json: AnchorPoint (1, 0), Position (1, -12, 0, 12)). Both stay reachable while
+-- any pop-up panel is open: no open panel may cover either of them (ui_layout panel_clear_of_top_controls_*).
+UiSpec.TopControls = {
+	Race = UiSpec.Hud.Race,
+	Settings = UiSpec.Hud.Settings,
+	SettingsMaxRightGap = 32, -- px from the screen's right edge to Settings' right edge
+	SettingsMaxTopGap = 32, -- px from the screen's top edge (IgnoreGuiInset) to Settings' top edge
 }
 
 -- TURBO LUCK bar (ui/specs/RacerHud.ui.json "Live turbo progress meter"): the server's TurboCount / TurboEvery
@@ -283,10 +327,38 @@ UiSpec.PanelSwitch = {
 	},
 }
 
--- CLAUDE.md: panels open BELOW the Race (Auto Race) button and end ABOVE the bottom TURBO LUCK bar; owner decision 6
--- (docs/ROLL_ANIMATION_SPEC.md): where a panel overlaps the compact roll horizontally it starts this far below the
--- compact roll's bottom edge (the roll keeps playing while panels open, so the two never overlap).
+-- CLAUDE.md: panels open BELOW the Race (Auto Race) button and end ABOVE the bottom TURBO LUCK bar. The progression
+-- panels (Upgrades / Workshop / Welcome) keep their rule: below the Race button and the compact roll's rect by this
+-- margin, and this far above the TURBO bar (ui_progression_layout).
 UiSpec.PanelTopMargin = 4
+
+-- The four Racer panels (owner decision 2026-10-08, RacerUiController.fitPanels): centred in the band between the
+-- Race button and the TURBO LUCK bar, Gap px below the Race Face's bottom, Gap px above the TURBO bar's top and at
+-- least Gap px right of the INDEX / STATS / REBIRTH column (the same margin on the right), their UIScale shrinking
+-- below the generated k only when the band is too small. ui_layout <panel>_centred_x / _below_autorace /
+-- _above_turbo / _clear_of_nav / _band_centred_y check it at every viewport.
+UiSpec.RacerPanelBand = {
+	Panels = {
+		["RacerIndex/Panel"] = "index_panel",
+		["RacerStats/Panel"] = "stats_panel",
+		["RacerSettings/Panel"] = "settings_panel",
+		["RacerRebirth/Panel"] = "rebirth_panel",
+	},
+	Gap = 8,
+	Navigation = "RacerHud/Navigation",
+}
+
+-- Always-on elements that are HIDDEN while a pop-up panel is open (owner decision 2026-10-08 and CLAUDE.md "UI
+-- tests"): they are left out of the overlap lists in that state, and ui_panels / ui_toast prove they really are hidden
+-- (Visible false) then. When = "any": any PanelSwitch panel open; "other_than:<panel>": any panel but that one.
+UiSpec.HiddenWhilePanelOpen = {
+	["RollToast/Toast"] = "any", -- RollToast refreshToast: show requires not PanelSwitch.AnyOpen()
+	["RacerProgression/WorkshopRate"] = "any", -- ProgressionUi: rate.Visible = not AnyOpen()
+	["RacerProgression/UpgradeButton"] = "other_than:RacerUpgrades/Panel", -- ProgressionUi: hidden over other panels
+	["RacerProgression/UpgradeButton/Badge"] = "other_than:RacerUpgrades/Panel", -- inside UpgradeButton
+}
+-- ProgressionUi applies its visibility on a 0.25 s poll: the checks wait up to this long for it.
+UiSpec.HiddenWhilePanelOpenWait = 1
 
 -- Overlaps that are allowed: a modal panel may cover a read-out (Speed, Money), never a button or the TURBO bar.
 UiSpec.AllowOverlap = {}
@@ -295,6 +367,19 @@ for _, panel in { "RacerIndex/Panel", "RacerStats/Panel", "RacerSettings/Panel",
 	table.insert(UiSpec.AllowOverlap, { panel, "RacerHud/Money" })
 end
 
+-- A PanelSwitch panel (every entry of UiSpec.PanelSwitch.Names, incl. the progression panels) AND everything inside it
+-- may overlap these read-outs (not interactive), but ONLY where the panel really draws over them (ui_layout verifies
+-- it for every such overlap, panel and button alike): the panel's ScreenGui has a higher DisplayOrder than the
+-- read-out's, and the overlap lies inside the panel's opaque, shown surface (Panel/<Surface>, or the Panel itself when
+-- it has no <Surface>) whose BackgroundTransparency is at most MaxSurfaceTransparency, with no CanvasGroup fading it.
+-- A read-out drawn above a panel button is never allowed.
+UiSpec.PanelCoversReadouts = {
+	-- Money (and MoneyValue / Unbanked inside it) is a display-only read-out like Speed (2026-10-08, gate run 5).
+	Readouts = { "RacerHud/Speed", "RacerHud/Money" },
+	Surface = "Face",
+	MaxSurfaceTransparency = 0.05,
+}
+
 -- The enlarged view (RollShowcase ScreenGui). Card parts are found by name anywhere in RollShowcase/Card.
 UiSpec.Showcase = {
 	Gui = "RollShowcase",
@@ -302,6 +387,9 @@ UiSpec.Showcase = {
 	BackdropTransparency = { Min = 0.2, Max = 0.5 },
 	BackdropMaxLuminance = 0.3,
 	Card = "Card", -- Frame, Active (a click on it does NOT close)
+	-- ScreenGuis hidden while the view is open (CLAUDE.md "UI tests": the HUD hides while the roll showcase is open;
+	-- hud_hidden_while_showcase_open: Enabled false, or nothing in it visible and drawing, no button shown)
+	HiddenGuis = { "RacerHud" },
 	Body = "Card/CardBody/Face", -- the animated card body (PopIn grows it, LAND_POP pops it)
 	CardCentreScale = 0.46, -- RollShowcase.ui.json positions the card centre at 46% of the viewport height
 	-- Every part the enlarged card must have (presence; Racer UI names)...
@@ -331,6 +419,7 @@ UiSpec.Showcase = {
 	GoldOdds = Color3.fromRGB(255, 200, 60), -- contract: Legendary and rarer show gold odds
 	SecretMinLuminance = 0.5, -- Secret's colour is near-black: its Rarity / Odds text must still read (light)
 	NameStrokeMaxLuminance = 0.3, -- ResultName: a DARK UIStroke outline
+	CarNameStrokeMaxLuminance = 0.3, -- compatibility probe name for the same ResultName outline
 	Blur = "RollShowcaseBlur", -- BlurEffect in Lighting: Enabled while open, disabled when closed
 	CornerInset = 24, -- px: the backdrop click lands this far in from the bottom-right corner (clear of the card)
 	Hint = "Hint", -- Backdrop/Hint
@@ -398,8 +487,8 @@ UiSpec.RollAnim = {
 		COMPACT_GAP = 8,
 		ENLARGED_FACTOR = 3,
 		ENLARGED_WIDTH = 0.6, -- the enlarged card no longer derives from the compact size
-		ENLARGED_MAX = Vector2.new(780, 336),
-		PANEL_TOP = 138, -- stale since the merge (old toggle geometry); presence only, see ui_layout
+		-- ENLARGED_MAX (780x336) and PANEL_TOP are retired (owner decisions 2026-10-08): the enlarged card follows
+		-- ui/specs/RollShowcase.ui.json with no cap, and the Racer panels are fitted in the Race..TURBO band.
 	},
 	Numbers = {
 		"POP",
@@ -416,9 +505,8 @@ UiSpec.RollAnim = {
 		"COMPACT_GAP",
 		"ENLARGED_FACTOR",
 		"ENLARGED_WIDTH",
-		"PANEL_TOP",
 	},
-	Vectors = { "ENLARGED_MAX" },
+	Vectors = {},
 	Functions = { "Hold", "Duration", "ExtraPause", "Reel" },
 	Phases = { "PopIn", "Spin", "Land", "Hold", "Exit", "Idle" }, -- one roll, in this order
 	PhaseTolerance = 0.1, -- s, per phase length (frame quantisation at both ends)
@@ -451,8 +539,16 @@ UiSpec.ClientScripts = { "RollAnnounce" }
 -- Remotes the UI fires or listens to (ReplicatedStorage.Remotes, RemoteEvents).
 UiSpec.Remotes = { "SetAutoRace", "SetAutoRoll", "EquipCar", "AllocateStat", "RollResult", "RollAnnounce", "NpcRace" }
 
--- Created by Roblox, not the game.
-UiSpec.IgnoreGuis = { Freecam = true, BubbleChat = true, Chat = true, TouchGui = true, RbxCameraUI = true }
+-- Created by Roblox, not the game: an explicit list of engine ScreenGui names (never a pattern or wildcard).
+-- ProximityPrompts: the engine's default ProximityPrompt UI (the workshop E prompt), created on first prompt shown.
+UiSpec.IgnoreGuis = {
+	Freecam = true,
+	BubbleChat = true,
+	Chat = true,
+	TouchGui = true,
+	RbxCameraUI = true,
+	ProximityPrompts = true,
+}
 
 UiSpec.Billboards = {
 	WinText = { Tag = "WinPad", Label = "Amount", MaxDistance = "TrackBuilder.WIN_TEXT_DISTANCE", Text = "$<Cash>" },
@@ -477,6 +573,7 @@ UiSpec.Billboards = {
 UiSpec.Waits = {
 	GuiAppear = 15, -- each ScreenGui must exist in PlayerGui within this
 	HudSettle = 2.5, -- HUD counters must reach the server value within this
+	RollsStable = 15, -- allow the turbo meter to settle after the latest server roll
 	RollToast = 12, -- a Remotes.RollResult must arrive within this (GachaConfig.ROLL_INTERVAL = 3 s)
 	ToastShown = 0.3, -- the compact roll must be showing (Visible, drawn) this soon after a RollResult
 	ToastGoneGrace = 0.3, -- and Visible = false this long after RollAnimConfig's roll length
@@ -509,8 +606,11 @@ whose state is missing fail with value "state_missing:<Id>".
 UiSpec.ServerSetup = {
 	{
 		Id = "snapshot",
-		When = "ONCE, before UiTestRun and before any click (it is the baseline: never listed in a click's NeedSetup)",
-		What = "Remembers the player's GachaService snapshot, AutoRacing and AutoRoll so 'restore' can put them back.",
+		When = "before UiTestRun and before any click (it is the baseline: never listed in a click's NeedSetup), and "
+			.. "again after every 'restore' before the next fixture or click",
+		What = "Remembers the player's GachaService snapshot, AutoRacing and AutoRoll so 'restore' can put them back. "
+			.. "A second 'snapshot' before 'restore' is a no-op (the first baseline is kept); 'restore' consumes it, so "
+			.. "take a fresh 'snapshot' before each fixture that follows a restore.",
 	},
 	{
 		Id = "spy",
@@ -526,7 +626,7 @@ UiSpec.ServerSetup = {
 	},
 	{
 		Id = "stat_points",
-		When = "before each allocate_* click that expects a fire (and allocate_workshop_disabled)",
+		When = "before each allocate_* click that expects a fire",
 		What = "Same allocation reset as index_states: StatPoints >= 1.",
 	},
 	{ Id = "no_stat_points", When = "before click allocate_no_points", What = "StatPoints == 0." },
@@ -563,7 +663,12 @@ UiSpec.ServerSetup = {
 	{
 		Id = "restore",
 		When = "after the run and the clicks",
-		What = "Applies the 'snapshot', restores AutoRacing and AutoRoll and removes UiTestSpy.",
+		What = "Applies the 'snapshot', restores AutoRacing and AutoRoll and removes UiTestSpy. It CONSUMES the "
+			.. "snapshot (deliberately: a kept baseline would survive into a later session and make its 'snapshot' a "
+			.. "no-op, restoring stale money/cars). Any fixture after a restore needs a fresh 'snapshot' first, else "
+			.. "it errors 'snapshot required'. Restore can stop auto race, and CarService then holds the avatar at the "
+			.. "walk spawn for ~2 s: the world fixtures (workshop_*_prompt, upgrade_world_*) re-place the avatar until "
+			.. "it stays put and error if it does not.",
 	},
 }
 
@@ -573,6 +678,17 @@ UiSpec.ServerSetup = {
 -- for reference only. The harness then checks where the press REALLY landed (UserInputService.InputBegan
 -- position, top bar added back; fallback GetMouseLocation) and that the target button was topmost there.
 UiSpec.ClickSpace = "below_topbar"
+-- Mouse clicks need an UNEMULATED game view. Under Studio device emulation (e.g. 750x361 phone) the emulated screen is
+-- drawn scaled inside the Studio viewport, and user_mouse_input's coordinates are NOT mapped through that transform
+-- (seen 2026-10-08: target (67,38) was pressed at (683,97)), so every click lands somewhere else. Protocol:
+--  1. Geometry / state scenarios (UiTestRun, UiTestScenario) may run under emulation (phone checks need it).
+--  2. Before the first UiTestClick ui-tester turns device emulation OFF (Studio Test tab > Device: none / "Actual
+--     resolution"), waits two frames, and only then starts the clicks. Clicks are never run under emulation.
+--  3. UiTestClickTarget carries viewportX / viewportY (Camera.ViewportSize the harness computed x, y in) and
+--     insetY. ui-tester compares them with the Studio game view it is clicking in; on a mismatch it stops and reports
+--     "click space mismatch", it does not click. The harness still verifies where the press really landed
+--     (click_landed_on_button), so a wrong space can never pass as a click on the target.
+UiSpec.ClickNeedsUnemulatedView = true
 
 --[[
 Clicks ui-tester performs with mcp__Roblox_Studio__user_mouse_input (a LocalScript can not fire Activated).
@@ -609,6 +725,9 @@ Key: instead of Gui/Path, a key press ("Escape"). The harness prints "[UITEST] K
  publishes UiTestClickTarget = JSON { id, key, done }; ui-tester presses that key once in the game view (Roblox Studio
  MCP keyboard input; the Studio window must have focus), closes Roblox's own menu if the key opened it (the harness
  records GuiService.MenuIsOpen in the result's info), then sets UiTestClickDone = <done> as for a click.
+Manual = "<reason>": a check ui-tester's tools can not perform (owner decision 2026-10-08). ui-tester does NOT run
+ it and reports it as MANUAL (not a pass, not a failure; it never blocks the gate). The owner performs it by hand
+ (steps in the dashboard's Needs-you list) with the same protocol; the harness still checks Expect when it is run.
 Expect:
  Panels   = { [panelPath] = visibleAfter }  (every other declared panel must keep its visibility)
  Showcase = true/false: showcase open after the click (default: unchanged)
@@ -631,6 +750,8 @@ local function only(open)
 	return { Open = { open }, Closed = closed, Showcase = false }
 end
 local CLOSE = "Panel/Face/Header/Face/Close/Face"
+local ESCAPE_MANUAL =
+	"VirtualInput::SendKey: Escape is permanently bound to a CoreGUI core action (MCP can not send it)"
 
 UiSpec.Clicks = {
 	-- Panels: each opens with its HUD button, closes with a second click and with its X
@@ -756,10 +877,12 @@ UiSpec.Clicks = {
 		Expect = { Panels = { ["RacerIndex/Panel"] = true, ["RacerRebirth/Panel"] = false }, Remote = false },
 	},
 	-- Escape closes whichever panel is open (RacerUiController: InputBegan Escape -> PanelSwitch.Close for all four).
-	-- A script can not send a key: ui-tester presses it (UiSpec.Clicks Key protocol above).
+	-- A script can not send a key, and the Studio MCP can not send Escape either, so these are MANUAL (owner decision
+	-- 2026-10-08): the owner presses Escape by hand with the Key protocol.
 	{
 		Id = "escape_closes_index",
 		Key = "Escape",
+		Manual = ESCAPE_MANUAL,
 		Prepare = only("RacerIndex/Panel"),
 		NeedSetup = { "spy" },
 		Expect = { Panels = { ["RacerIndex/Panel"] = false }, Remote = false },
@@ -767,6 +890,7 @@ UiSpec.Clicks = {
 	{
 		Id = "escape_closes_stats",
 		Key = "Escape",
+		Manual = ESCAPE_MANUAL,
 		Prepare = only("RacerStats/Panel"),
 		NeedSetup = { "spy" },
 		Expect = { Panels = { ["RacerStats/Panel"] = false }, Remote = false },
@@ -774,6 +898,7 @@ UiSpec.Clicks = {
 	{
 		Id = "escape_closes_settings",
 		Key = "Escape",
+		Manual = ESCAPE_MANUAL,
 		Prepare = only("RacerSettings/Panel"),
 		NeedSetup = { "spy" },
 		Expect = { Panels = { ["RacerSettings/Panel"] = false }, Remote = false },
@@ -781,6 +906,7 @@ UiSpec.Clicks = {
 	{
 		Id = "escape_closes_rebirth",
 		Key = "Escape",
+		Manual = ESCAPE_MANUAL,
 		Prepare = only("RacerRebirth/Panel"),
 		NeedSetup = { "spy" },
 		Expect = { Panels = { ["RacerRebirth/Panel"] = false }, Remote = false },
@@ -828,7 +954,7 @@ UiSpec.Clicks = {
 		NeedSetup = { "spy", "index_states" },
 		Expect = { Remote = false, After = { "tile_shows_equipped" } },
 	},
-	-- Stats: "+" fires AllocateStat with THAT row's stat; Workshop and "no points" fire nothing
+	-- Stats: "+" fires AllocateStat with THAT row's stat, including Workshop; no points fires nothing.
 	{
 		Id = "allocate_speed",
 		Gui = "RacerStats",
@@ -863,12 +989,23 @@ UiSpec.Clicks = {
 		},
 	},
 	{
-		Id = "allocate_workshop_disabled",
+		Id = "allocate_workshop",
 		Gui = "RacerStats",
 		Path = "Panel/Face/StatsHost/Rows/Workshop/Plus",
 		Prepare = only("RacerStats/Panel"),
-		NeedSetup = { "spy", "stat_points" }, -- even WITH free points the Workshop row fires nothing
-		Expect = { Remote = false, After = { "alloc_unchanged", "points_unchanged" } },
+		NeedSetup = { "spy", "stat_points" },
+		Expect = {
+			Remote = { Name = "AllocateStat", Arg = "row_stat" },
+			After = { "alloc_incremented", "points_decremented", "row_shows_alloc", "points_label_follows_server" },
+		},
+	},
+	{
+		Id = "allocate_workshop_no_points",
+		Gui = "RacerStats",
+		Path = "Panel/Face/StatsHost/Rows/Workshop/Plus",
+		Prepare = only("RacerStats/Panel"),
+		NeedSetup = { "spy", "no_stat_points" },
+		Expect = { Remote = false, After = { "alloc_unchanged", "points_unchanged", "row_shows_alloc" } },
 	},
 	{
 		Id = "allocate_no_points",
@@ -911,22 +1048,33 @@ UiSpec.Clicks = {
 		NeedSetup = { "spy" },
 		Expect = { Remote = false, After = { "reduce_effects_flipped", "effects_label_follows_attr" } },
 	},
-	-- AUTO is intentionally only reachable from RollShowcase/AutoButton after
-	-- clicking the compact top-centre RollToast animation.
 	{
-		Id = "showcase_backdrop_closes_after_rolls",
-		Gui = "RollShowcase",
-		Path = "Backdrop",
-		ClickAt = "corner",
-		Prepare = { Showcase = true },
-		NeedSetup = { "spy" },
-		Expect = {
+		Id = "top_down_on",
+		Gui = "RacerSettings",
+		Path = "Panel/Face/AutoRow/Face/AutoToggle/Face",
+		Prepare = {
+			Open = { "RacerSettings/Panel" },
 			Showcase = false,
-			Remote = false,
-			After = { "showcase_blur_off", "view_compact", "normal_view_back" },
+			AttrNot = { TopDownView = true },
+			LabelIs = "OFF",
 		},
+		NeedSetup = { "spy" },
+		Expect = { Remote = false, After = { "top_down_flipped", "top_down_label_follows_attr" } },
 	},
-	-- Compact roll -> enlarged view (docs/ROLL_ANIMATION_CONTRACT.md). Run these nine in this order, with
+	{
+		Id = "top_down_off",
+		Gui = "RacerSettings",
+		Path = "Panel/Face/AutoRow/Face/AutoToggle/Face",
+		Prepare = {
+			Open = { "RacerSettings/Panel" },
+			Showcase = false,
+			AttrIs = { TopDownView = true },
+			LabelIs = "ON",
+		},
+		NeedSetup = { "spy" },
+		Expect = { Remote = false, After = { "top_down_flipped", "top_down_label_follows_attr" } },
+	},
+	-- Compact roll -> enlarged view (docs/ROLL_ANIMATION_CONTRACT.md). Run these eleven in this order, with
 	-- auto_racing active and AutoRoll on; 'restore' afterwards puts AutoRoll back too.
 	{
 		Id = "open_showcase_from_toast",
@@ -964,6 +1112,42 @@ UiSpec.Clicks = {
 				"showcase_updates_live_turbo",
 				"showcase_result_stays_after_exit",
 				"toast_hidden_while_showcase_open",
+			},
+		},
+	},
+	-- Closes the view after rolls played on the open card (the turbo roll above). Ordered here, right after a click
+	-- that leaves the showcase open, because Prepare.Showcase is never forced (it used to follow top_down_off with
+	-- nothing opening the view, so it could only report state_missing).
+	{
+		Id = "showcase_backdrop_closes_after_rolls",
+		Gui = "RollShowcase",
+		Path = "Backdrop",
+		ClickAt = "corner",
+		Prepare = { Showcase = true },
+		NeedSetup = { "spy" },
+		Expect = {
+			Showcase = false,
+			Remote = false,
+			After = { "showcase_blur_off", "view_compact", "normal_view_back" },
+		},
+	},
+	{
+		-- Reopen for the AUTO clicks below: the compact roll is the only entry point (AUTO is intentionally only
+		-- reachable from RollShowcase/AutoButton after clicking the compact top-centre RollToast animation)
+		Id = "open_showcase_from_toast_after_close",
+		Gui = "RollToast",
+		Path = "Toast",
+		Prepare = { Closed = CLOSED, Showcase = false, WaitShown = true, AttrIs = { AutoRoll = true } },
+		Retries = 4,
+		NeedSetup = { "spy" },
+		Expect = {
+			Showcase = true,
+			Remote = false,
+			After = {
+				"view_enlarged",
+				"showcase_card_is_latest_roll",
+				"showcase_blur_on",
+				"hud_hidden_while_showcase_open",
 			},
 		},
 	},
@@ -1066,4 +1250,196 @@ UiSpec.Clicks = {
 	},
 }
 
+-- Progression contract agreed with main, 2026-10-07. These are additions to the Racer UI gate.
+UiSpec.Guis.RacerProgression = {
+	Source = "Client/ProgressionUi",
+	AlwaysOn = { "UpgradeButton", "UpgradeButton/Badge", "WorkshopRate", "WeatherBanner" },
+	Readouts = { "UpgradeButton/Badge", "WorkshopRate", "WeatherBanner" },
+	NonInteractiveParts = { "WorkshopRate", "WeatherBanner" },
+	Buttons = { { Path = "UpgradeButton", Does = "toggle_panel", Panel = "RacerUpgrades/Panel", Text = "UPGRADES" } },
+}
+UiSpec.Guis.RacerUpgrades = {
+	Source = "Client/ProgressionUi",
+	Panels = { "Panel" },
+	Buttons = {
+		{ Path = "Panel/Close", Does = "close_panel", Panel = "RacerUpgrades/Panel" },
+		{ Path = "Panel/Canvas/*", Does = "remote", Remote = "BuyUpgrade", Arg = "upgrade_id", Count = "upgrades" },
+	},
+}
+UiSpec.Guis.RacerWorkshop = {
+	Source = "Client/ProgressionUi",
+	Panels = { "Panel" },
+	Buttons = {
+		{ Path = "Panel/Close", Does = "close_panel", Panel = "RacerWorkshop/Panel" },
+		{ Path = "Panel/Buy", Does = "remote", Remote = "WorkshopUpgrade", Arg = "none" },
+	},
+}
+UiSpec.Guis.RacerWelcome = {
+	Source = "Client/ProgressionUi",
+	Panels = { "Panel" },
+	Buttons = { { Path = "Panel/Close", Does = "close_panel", Panel = "RacerWelcome/Panel" } },
+}
+UiSpec.Progression = {
+	TileSize = Vector2.new(100, 88),
+	UpgradeButtonSize = Vector2.new(110, 40),
+	UpgradeButtonTop = 0.22,
+	UpgradeButtonRight = 16,
+	WorkshopRateStep = 0.05,
+	WorldPadWait = 1.5, -- s: ProgressionUi polls the pad every 0.25 s and the fixture's teleport must replicate
+}
+for _, name in { "Upgrades", "Workshop", "Welcome" } do
+	local path = "Racer" .. name .. "/Panel"
+	UiSpec.PanelSwitch.Names[path] = name
+	table.insert(CLOSED, path)
+	table.insert(UiSpec.AllowOverlap, { path, "RacerHud/Speed" })
+	table.insert(UiSpec.AllowOverlap, { path, "RacerHud/Money" })
+end
+table.insert(UiSpec.ClientScripts, "ProgressionUi")
+UiSpec.RemoteFunctions = { "BuyUpgrade", "WorkshopUpgrade" }
+table.insert(UiSpec.Remotes, "WorkshopOpen")
+for _, item in
+	{
+		{
+			Id = "progression_spy",
+			What = "Intercepts BuyUpgrade and WorkshopUpgrade RFs, logs args, returns false, money; real handlers never run. Snapshot first; restore always.",
+		},
+		{
+			Id = "progression_buyable",
+			What = "Unsaved fixture: empty tree, Money 100000, BestTrack 0; refresh badge. Snapshot required.",
+		},
+		{ Id = "progression_no_money", What = "Same tree fixture, Money 0. Snapshot required." },
+		{ Id = "workshop_open", What = "Fires WorkshopOpen only to the owner; no purchase." },
+		{
+			Id = "offline_welcome",
+			What = "OfflineSeconds=3661, OfflineSpeed=1234; no credit added. Snapshot required.",
+		},
+	}
+do
+	item.When = "before the corresponding progression scenario/click; restore afterwards"
+	table.insert(UiSpec.ServerSetup, item)
+end
+for _, name in { "Upgrades", "Workshop", "Welcome" } do
+	local path = "Racer" .. name .. "/Panel"
+	table.insert(UiSpec.Clicks, {
+		Id = "close_" .. string.lower(name),
+		Gui = "Racer" .. name,
+		Path = "Panel/Close",
+		Prepare = only(path),
+		NeedSetup = { "spy" },
+		Expect = { Panels = { [path] = false }, Remote = false },
+	})
+end
+table.insert(UiSpec.Clicks, {
+	Id = "open_upgrades",
+	Gui = "RacerProgression",
+	Path = "UpgradeButton",
+	Prepare = { Closed = CLOSED, Showcase = false },
+	NeedSetup = { "spy" },
+	Expect = { Panels = { ["RacerUpgrades/Panel"] = true }, Remote = false },
+})
+table.insert(UiSpec.Clicks, {
+	Id = "toggle_upgrades_closed",
+	Gui = "RacerProgression",
+	Path = "UpgradeButton",
+	Prepare = only("RacerUpgrades/Panel"),
+	NeedSetup = { "spy" },
+	Expect = { Panels = { ["RacerUpgrades/Panel"] = false }, Remote = false },
+})
+table.insert(UiSpec.Clicks, {
+	Id = "buy_upgrade",
+	Gui = "RacerUpgrades",
+	Path = "Panel/Canvas/money_1",
+	Prepare = only("RacerUpgrades/Panel"),
+	NeedSetup = { "progression_buyable", "spy", "progression_spy" },
+	Expect = { Remote = { Name = "BuyUpgrade", Arg = "upgrade_id" }, After = { "progression_not_optimistic" } },
+})
+table.insert(UiSpec.Clicks, {
+	Id = "upgrade_no_money",
+	Gui = "RacerUpgrades",
+	Path = "Panel/Canvas/money_1",
+	Prepare = only("RacerUpgrades/Panel"),
+	NeedSetup = { "progression_no_money", "spy", "progression_spy" },
+	Expect = { Remote = false, After = { "progression_not_optimistic" } },
+})
+table.insert(UiSpec.Clicks, {
+	Id = "buy_workshop",
+	Gui = "RacerWorkshop",
+	Path = "Panel/Buy",
+	Prepare = only("RacerWorkshop/Panel"),
+	NeedSetup = { "progression_buyable", "spy", "progression_spy" },
+	Expect = {
+		Remote = { Name = "WorkshopUpgrade", Arg = "none" },
+		After = { "progression_not_optimistic", "workshop_rejection_shown" },
+	},
+})
+for _, item in
+	{
+		{
+			Id = "workshop_owner_prompt",
+			What = "Moves the test avatar to its owned UpgradePad. E must open only RacerWorkshop.",
+		},
+		{
+			Id = "workshop_foreign_prompt",
+			What = "Requires second player's owned plot; moves test avatar to that UpgradePad. E must open no panel.",
+		},
+		{
+			Id = "upgrade_world_enter",
+			What = "Moves avatar onto spawn UpgradePad; ui_progression_world must observe only Upgrades open.",
+		},
+		{
+			Id = "upgrade_world_leave",
+			What = "Moves avatar off spawn UpgradePad; ui_progression_world must observe Upgrades closed.",
+		},
+		{
+			Id = "offline_zero",
+			What = "OfflineSpeed=0, OfflineSeconds=0; ui_offline_zero must observe welcome hidden.",
+		},
+		{ Id = "weather_rain", What = "Replicates rain with 180 seconds remaining; run ui_weather." },
+		{ Id = "weather_night", What = "Replicates night with 180 seconds remaining; run ui_weather." },
+		{ Id = "weather_gold", What = "Replicates gold with 180 seconds remaining; run ui_weather." },
+		{ Id = "weather_clear", What = "Replicates no event; run ui_weather, banner must hide." },
+	}
+do
+	item.When = "after a FRESH snapshot (restore consumes it); run stated scenario with UiTestScenario attribute, "
+		.. "then restore. The world fixtures only report done once the avatar stayed at the spot (prompt fixtures: "
+		.. "within the prompt's MaxActivationDistance) for 1 s; otherwise UiTestSetupError is set."
+	table.insert(UiSpec.ServerSetup, item)
+end
+for _, own in { true, false } do
+	table.insert(UiSpec.Clicks, {
+		Id = own and "workshop_owner_e" or "workshop_foreign_e",
+		Key = "E",
+		-- Foreign E needs a second real player's plot: MANUAL (owner decision 2026-10-08)
+		Manual = (not own) and "needs a second real player who owns a plot (a solo Studio session has only one)" or nil,
+		NeedSetup = { own and "workshop_owner_prompt" or "workshop_foreign_prompt" },
+		Expect = { WorkshopOpen = own },
+	})
+end
+-- Required additional fixture runs: UiTestScenario invokes exactly one existing check without the long roll suite.
+--[[
+Fixture run protocol (ui-tester), per FixtureChecks entry, in order:
+  1. SERVER datamodel: run Setup through the UiTestSetup protocol above (UiTestSetup / UiTestSetupDone, check
+     UiTestSetupError).
+  2. SERVER datamodel: ReplicatedStorage:SetAttribute("UiTestScenario", nil), then "UiTestScenario" = Scenario
+     (ReplicatedStorage attributes replicate server -> client; the client harness listens for the change).
+  3. Read the result on the CLIENT, never on the server: the harness prints "[UITEST] {json}" for the scenario in the
+     console (Output) and sets the LocalPlayer attribute "UiTestScenarioResult" = that JSON. Client attribute changes
+     do NOT replicate, so Players.<name>:GetAttribute("UiTestScenarioResult") read on the SERVER datamodel is always
+     nil/stale: read it with execute_luau in the CLIENT datamodel (Players.LocalPlayer), or read the console line.
+     The same holds for every result attribute the client harness sets on LocalPlayer: "UiTestResult" (full run),
+     "UiTestClickResult" and "UiTestClickTarget" (clicks).
+  4. Before step 2 of the next fixture, clear the stale result on the client (or compare the JSON's "scenario" and wait
+     for a new value) so a previous run's result is not taken for this one.
+  5. Restore the setup (snapshot restore) after the scenario's result arrived.
+]]
+UiSpec.Progression.FixtureChecks = {
+	{ Setup = "upgrade_world_enter", Scenario = "ui_progression_world" },
+	{ Setup = "upgrade_world_leave", Scenario = "ui_progression_world" },
+	{ Setup = "offline_welcome", Scenario = "ui_offline_welcome" },
+	{ Setup = "offline_zero", Scenario = "ui_offline_zero" },
+	{ Setup = "weather_rain", Scenario = "ui_weather" },
+	{ Setup = "weather_night", Scenario = "ui_weather" },
+	{ Setup = "weather_gold", Scenario = "ui_weather" },
+	{ Setup = "weather_clear", Scenario = "ui_weather" },
+}
 return UiSpec

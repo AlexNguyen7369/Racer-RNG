@@ -2,7 +2,8 @@
 -- Point-to-point sprint: a zig-zag of 90 degree corners. Not a loop.
 return {
 	Name = "Serpentine",
-	Description = "Sprint with alternating left/right 90s.",
+	Description = "Track 5 sprint with alternating left/right 90s.",
+	Number = 5,
 	Width = 36,
 	Closed = false,
 	Segments = {

@@ -79,7 +79,13 @@ ScreenGui and button names stay as they are, so the existing UI tests keep their
   HUD click (owner decision 6):** opening/closing Index, Stats or any panel, or clicking any HUD button, never hides,
   pauses or restarts it (`RollToast/Toast` is no longer in `UiSpec.HiddenWhilePanelOpen`). Only enlarging closes
   panels.
-- **Panels make room (owner decision 6):** `IndexUi/Panel` top edge = `PANEL_TOP` (below the compact roll; its
+- **Owner decisions 2026-10-08 (supersede decision 6 and the ENLARGED cap below):** the compact roll HIDES while any
+  PanelSwitch panel is open; the Index / Stats / Settings / Rebirth panels are centred in the band between the Race
+  button (+8) and the TURBO LUCK bar (-8), clear of the INDEX/STATS/REBIRTH column, shrinking their UIScale only when
+  the band is too small (`RacerUiController.fitPanels`). `PANEL_TOP` is no longer a contract. The enlarged card follows
+  `ui/specs/RollShowcase.ui.json` (760x320 / 540x224 x k) with no `ENLARGED_MAX` cap. The showcase AUTO button / hint
+  vs TURBO bar rule is retired (the HUD is hidden while the showcase is open).
+- **(Superseded) Panels make room (owner decision 6):** `IndexUi/Panel` top edge = `PANEL_TOP` (below the compact roll; its
   UISizeConstraint MinSize.Y drops to 110 so it still ends above the bottom strip on a phone). `StatsUi/Panel` keeps
   its top (68) but its width is UDim2(0.44, -150) capped at 300 px, so its left edge stays right of the compact
   roll's right edge (0.56 x screen width) at every viewport. No overlap between the compact roll and either panel. Clicking it
@@ -93,14 +99,14 @@ ScreenGui and button names stay as they are, so the existing UI tests keep their
 - **Compact = no card (owner decision 4, 2026-10-02).** The compact roll is ONLY the car model with its "1 in N"
   under it. `RollToast/Toast` keeps its rect, but its background is invisible and it holds a transparent `Body` that
   fills it with exactly these parts: `Reel` + `Streaks` + `Smoke` (the spin/land play on the bare model), `Viewport`
-  (+ `Placeholder` "?") filling the top 70% of the rect, and `Odds` filling the bottom 30% ("1 in 250" / "Common",
+  (+ `Placeholder` "?") filling the top 70% of the rect, and `Odds` filling the bottom 30% ("1 in 250" / "1 in ?",
   rarity-coloured, italic). Plus the `AutoOff` caption only while AutoRoll is false. NO `Glow`, `CarName`,
   `SpeedMulti`, `Rarity`, `NewBadge`, `TurboBadge`, `TurboFlames`, `Ring`, `Burst`, `Flare`, frame or stroke in the
   compact view. Turbo, NEW and rarity effects show only in the enlarged card.
 - **Enlarged card parts** (found by name anywhere in `RollShowcase/Card`): `Glow` (rarity-coloured badge, slowly turning
   UIGradient), `Reel` (ClipsDescendants frame the reel cars drive through, left to right, slowing down), `Viewport`
   (ViewportFrame, the landed car's model from `ReplicatedStorage.CarModels[spec.Model]`, else `Placeholder` "?"),
-  `Odds` (italic decal, "1 in 250" or "Common"), `CarName` (bold, dark UIStroke outline), `SpeedMulti`
+  `Odds` (italic decal, "1 in 250" or "1 in ?"), `CarName` (bold, dark UIStroke outline), `SpeedMulti`
   ("25x Speed"), `Rarity`, `NewBadge`, `TurboBadge` ("TURBO x5", shown from pop-in on a turbo roll),
   `TurboFlames` (blue flame frame on a turbo roll), `Streaks`, `Smoke` (landing puff), `Ring` (Epic+ pulsing ring),
   `Burst` (Legendary+ radial burst). Secret: a full-screen `Takeover` frame in `RollShowcase` during its hold, tap to

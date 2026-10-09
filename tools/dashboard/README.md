@@ -14,7 +14,7 @@ does not need to be running. Needs only `python3` and `git` (no packages).
 For board upkeep without background fetching or automatic GitHub branch creation:
 `python3 tools/dashboard/server.py --no-fetch --no-auto-branch`.
 
-Tabs (`#manual`, `#agents`, `#analytics`, `#changes`, `#todo`, `#tests` in the URL open one directly):
+Tabs (`#manual`, `#agents`, `#analytics`, `#changes`, `#todo`, `#tests`, `#bugs` in the URL open one directly):
 
 | Tab | Shows | Source |
 |---|---|---|
@@ -24,6 +24,7 @@ Tabs (`#manual`, `#agents`, `#analytics`, `#changes`, `#todo`, `#tests` in the U
 | Analytics | graphical Claude/Codex model usage: 14-day output trend, provider task-state bars, model mix, token and tool-call totals, live tasks, inferred paused tasks, recently completed tasks, and authenticated current-window/weekly quota percentages with reset times; scoped to this terminal's workspace and local provider logs | `GET /api/analytics`, Claude transcripts, Claude `/usage`, workspace-filtered Codex rollouts, Codex `account/rateLimits/read` |
 | Changes & history | uncommitted files with diffs; commits on all branches with developer, date and time, files, `green` (that commit's game code passed /compat-check) and `local` (not pushed) | git, `tools/compat.py` |
 | TODO & ideas | Doing / Up next / Backlog / Done board; suggested features that expand and can be added to the backlog or dismissed | `data/todo.json`, `data/suggestions.json` |
+| Bugs | every bug a subagent found: name, `fault` (the defect in the code, red) or `failure` (the wrong behaviour it causes, amber), the source file and lines with the buggy lines highlighted (copied when logged, so the code stays visible after a fix; a note says when the file has changed since), a summary of what fails and how it affects the game, the error text, the subagent that found it, and the date and time it was found; filter by open/fixed, kind and subagent; Mark fixed / Reopen. The tab pill counts open bugs | `data/bugs.json`, written by `tools/dashboard/bugs.py` (works without the server) or `POST /api/bugs` |
 | Tests | how testing works, latest tester runs, the five compat suites (including the final regression pass), every scenario with its last status and what it checks | `src/server/CarTest/`, `src/client/UiTest/`, tester reports, `.compat/`, `data/tests_explained.json` |
 
 Top bar: the gate light. Green = this exact code passed `/compat-check`, you can commit and push to `main`. Amber = code changed since the last green run. Red = a suite failed.
@@ -70,9 +71,11 @@ python3 tools/dashboard/client.py manual/<task-id> --json '{"action":"done"}'
 ```
 
 GET endpoints: `meta`, `agents`, `messages`, `agent/<id>`, `changes`, `history`,
-`gate`, `needtoknow`, `todo`, `suggestions`, `manual`, `tests`, `team`.
+`gate`, `needtoknow`, `todo`, `suggestions`, `manual`, `tests`, `team`, `bugs`.
 POST endpoints: `todo` (`add`, `move`, `delete`), `suggestions/<id>` (`add`,
-`dismiss`, `reopen`), `manual/<id>` (`done`, `reopen`). The separate `team/sync`,
+`dismiss`, `reopen`), `manual/<id>` (`done`, `reopen`), `bugs` (`add` with `name`, `kind`,
+`summary`, `foundBy`, optional `file`, `line` "N" or "N-M", `error`, `foundAt`), `bugs/<id>` (`fixed` with
+optional `note`, `reopen`). The separate `team/sync`,
 `team/start`, `team/push`, `team/switch` endpoints perform Git actions; use only
 when requested. With automatic branches enabled, moving a TODO to Doing can
 also create and push a branch.

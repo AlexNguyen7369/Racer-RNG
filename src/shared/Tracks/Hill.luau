@@ -6,6 +6,15 @@ return {
 	Width = 40,
 	Closed = false,
 	Number = 2,
+	Palette = {
+		Road = Color3.fromRGB(36, 111, 122),
+		Support = Color3.fromRGB(24, 69, 82),
+		Wall = Color3.fromRGB(102, 222, 210),
+		Ground = Color3.fromRGB(58, 126, 105),
+		Line = Color3.fromRGB(226, 255, 248),
+		Checkpoint = Color3.fromRGB(33, 92, 102),
+		WinPad = Color3.fromRGB(255, 187, 44),
+	},
 	Segments = {
 		{ Type = "Straight", Length = 100 },
 		{ Type = "Slope", Length = 160, Rise = 30 },

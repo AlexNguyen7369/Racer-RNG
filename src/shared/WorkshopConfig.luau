@@ -26,12 +26,18 @@ WorkshopConfig.ZONE_SIZE = Vector3.new(32, 12, 32)
 WorkshopConfig.TICK = 0.5 -- seconds between server zone checks
 WorkshopConfig.BASE_RATE = 1 -- Speed per second at level 1, stat 0, no multis (placeholder, design doc "B")
 
--- Workshop levels: Multi = W. Placeholder growth for later levels: W doubles, price 5x the last. Only level 1 exists
--- until the owner sets prices.
+-- Configurable progression defaults: each level doubles W; next prices grow fivefold from $500.
 WorkshopConfig.Levels = {
 	{ Multi = 1, Price = 0 }, -- the starter workshop
 }
+for level = 2, 10 do
+	WorkshopConfig.Levels[level] = { Multi = 2 ^ (level - 1), Price = 500 * 5 ^ (level - 2) }
+end
 WorkshopConfig.MAX_LEVEL = #WorkshopConfig.Levels
+WorkshopConfig.OFFLINE_FRACTION = 0.25
+WorkshopConfig.OFFLINE_CAP = 8 * 60 * 60
+WorkshopConfig.UPGRADE_DISTANCE = 12
+WorkshopConfig.REMOTE_COOLDOWN = 0.5
 
 WorkshopConfig.SIGN_DISTANCE = 120 -- MaxDistance of the plot signs
 WorkshopConfig.EMPTY_TEXT = "EMPTY PLOT"

@@ -40,6 +40,48 @@ local function nameOf(player)
 end
 
 local liveFolder = nil -- Workspace.Workshops, built by Start
+local lastBuy = setmetatable({}, { __mode = "k" })
+local openRemote = nil
+
+local function nearUpgrade(player)
+	local index = plotOf[player]
+	local plot = index and plots[index]
+	if not plot or owners[index] ~= player or plot:GetAttribute("Owner") ~= userIdOf(player) then
+		return false
+	end
+	local workshop = plot and plot:FindFirstChild("Workshop")
+	local pad = workshop and workshop:FindFirstChild("UpgradePad")
+	local character = CarService.GetCharacter(player)
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	return pad
+		and root
+		and humanoid
+		and humanoid.Health > 0
+		and not CarService.IsAutoRacing(player)
+		and player:GetAttribute("AutoRacing") ~= true
+		and (root.Position - pad.Position).Magnitude <= WorkshopConfig.UPGRADE_DISTANCE
+end
+
+local function bindUpgrade(player, workshop)
+	local pad = workshop:FindFirstChild("UpgradePad")
+	if not pad then
+		return
+	end
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.Name = "UpgradePrompt"
+	prompt.ActionText = "Upgrade"
+	prompt.ObjectText = nameOf(player) .. "'s Workshop"
+	prompt.KeyboardKeyCode = Enum.KeyCode.E
+	prompt.MaxActivationDistance = WorkshopConfig.UPGRADE_DISTANCE
+	prompt.RequiresLineOfSight = false
+	prompt.Parent = pad
+	prompt.Triggered:Connect(function(who)
+		if who == player and nearUpgrade(player) and openRemote then
+			openRemote:FireClient(player)
+		end
+	end)
+end
 
 local function buildFolder(newStartCFrame, parent)
 	local folder = Instance.new("Folder")
@@ -120,6 +162,7 @@ function WorkshopService.Assign(player)
 		Workshop.PlotCFrame(startCFrame, index)
 	)
 	workshop.Parent = plot
+	bindUpgrade(player, workshop)
 	setRate(player, false, WorkshopService.Rate(player))
 	return index
 end
@@ -151,6 +194,38 @@ end
 -- The player's plot index (0 = none).
 function WorkshopService.PlotOf(player)
 	return plotOf[player] or 0
+end
+
+-- Client supplies no price or level. Every guard and the debit run without yielding.
+function WorkshopService.BuyUpgrade(player)
+	if player:GetAttribute("DataFailed") or not player:GetAttribute("DataLoaded") then
+		return false, "Data not loaded"
+	end
+	if not nearUpgrade(player) then
+		return false, "Approach your workshop upgrade slab"
+	end
+	local level = Workshop.CleanLevel(player:GetAttribute("WorkshopLevel"))
+	local nextLevel = WorkshopConfig.Levels[level + 1]
+	if not nextLevel then
+		return false, "Maximum level"
+	end
+	local stats = player:FindFirstChild("leaderstats")
+	local money = stats and stats:FindFirstChild("Money")
+	if not money or money.Value < nextLevel.Price then
+		return false, "Not enough Money"
+	end
+	local index = plotOf[player]
+	local replacement = WorkshopBuilder.BuildWorkshop(level + 1, Workshop.PlotCFrame(startCFrame, index))
+	money.Value -= nextLevel.Price
+	player:SetAttribute("WorkshopLevel", level + 1)
+	local old = plots[index]:FindFirstChild("Workshop")
+	if old then
+		old:Destroy()
+	end
+	replacement.Parent = plots[index]
+	bindUpgrade(player, replacement)
+	setRate(player, false, WorkshopService.Rate(player))
+	return true, "Upgraded to level " .. (level + 1)
 end
 
 -- Speed per second the player earns while in their zone right now.
@@ -210,6 +285,21 @@ end
 -- Builds the plots, assigns plots on join (after the save loads, so the saved level is built), frees them on leave,
 -- runs the zone check every TICK seconds.
 function WorkshopService.Start(newStartCFrame)
+	local remotes = ReplicatedStorage:WaitForChild("Remotes")
+	openRemote = remotes:FindFirstChild("WorkshopOpen") or Instance.new("RemoteEvent")
+	openRemote.Name = "WorkshopOpen"
+	openRemote.Parent = remotes
+	local buyRemote = remotes:FindFirstChild("WorkshopUpgrade") or Instance.new("RemoteFunction")
+	buyRemote.Name = "WorkshopUpgrade"
+	buyRemote.Parent = remotes
+	buyRemote.OnServerInvoke = function(player)
+		local at = os.clock()
+		if lastBuy[player] and at - lastBuy[player] < WorkshopConfig.REMOTE_COOLDOWN then
+			return false, "Please wait"
+		end
+		lastBuy[player] = at
+		return WorkshopService.BuyUpgrade(player)
+	end
 	local old = Workspace:FindFirstChild("Workshops")
 	if old then
 		old:Destroy()

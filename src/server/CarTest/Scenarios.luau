@@ -4128,11 +4128,13 @@ function Scenarios.data()
 				table.sort(names)
 				return f ~= nil, names
 			end
+			-- WORKSHOP_SPEC.md section 5: invalid numbers (non-number, NaN, +inf, -inf) load as level 1;
+			-- finite levels floor, then clamp to 1 .. MAX_LEVEL.
 			local function wantLevel(v)
-				if type(v) ~= "number" or v ~= v then
+				if type(v) ~= "number" or v ~= v or v == math.huge or v == -math.huge then
 					return 1
 				end
-				return math.clamp(math.floor(math.clamp(v, -1e9, 1e9)), 1, MAXL)
+				return math.clamp(math.floor(v), 1, MAXL)
 			end
 
 			-- round trip through the store
@@ -4261,7 +4263,7 @@ function Scenarios.data()
 				u4:GetAttribute("TurboCount") == 5
 			)
 
-			-- WorkshopLevel: missing = 1, garbage / out of range clamped to 1 .. MAX_LEVEL (attribute and next save)
+			-- WorkshopLevel: missing / garbage / NaN / +-inf = 1, finite out of range clamped to 1 .. MAX_LEVEL (attribute and next save)
 			local levelBad = 0
 			local levelCases =
 				table.pack(nil, 0, -3, 1, 2.5, MAXL, MAXL + 1, 1e9, math.huge, -math.huge, 0 / 0, "3", true, {})
@@ -4544,6 +4546,17 @@ local GACHA_SEED = {
 	{ Id = "hover_car", Rarity = "Mythic", Chance = 10000, SpeedMulti = 150 },
 	{ Id = "void_racer", Rarity = "Secret", Chance = 100000, SpeedMulti = 1000 },
 }
+-- Approved weather variants extend the catalog; the original seven odds/multis
+-- and seven-discovery stat-point fixtures remain unchanged.
+local GACHA_EVENT_SEED = {
+	{ Id = "rain_runner", Event = "rain", Model = "street_racer", Rarity = "Epic", Chance = 500, SpeedMulti = 6 },
+	{ Id = "midnight_kart", Event = "night", Model = "go_kart", Rarity = "Legendary", Chance = 2500, SpeedMulti = 8 },
+	{ Id = "golden_racer", Event = "gold", Model = "rocket_car", Rarity = "Legendary", Chance = 5000, SpeedMulti = 10 },
+}
+local GACHA_CATALOG = table.clone(GACHA_SEED)
+for _, spec in GACHA_EVENT_SEED do
+	table.insert(GACHA_CATALOG, spec)
+end
 local GACHA_RARITY_ORDER = { "Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic", "Secret" }
 local GACHA_STATS = { "Speed", "Money", "Luck", "Workshop" }
 local GACHA_PER_POINT = { Speed = 0.1, Money = 0.1, Luck = 0.05, Workshop = 0.2 }
@@ -4562,11 +4575,15 @@ local INDEX_SETTLE_CAP = 10
 
 -- Expected "1 in N" result per car at a given luck: rarest first, a car hits with min(1, luck/N), the first hit
 -- wins and the catch-all gets whatever is left.
-local function gachaExpected(luck)
+local function gachaExpected(luck, event)
 	local rollable = {}
 	local catchAll
-	for _, c in GACHA_SEED do
-		if c.Chance then
+	local expected = {}
+	for _, c in GACHA_CATALOG do
+		expected[c.Id] = 0
+		if c.Event and c.Event ~= event then
+			continue
+		elseif c.Chance then
 			table.insert(rollable, c)
 		else
 			catchAll = c
@@ -4575,7 +4592,7 @@ local function gachaExpected(luck)
 	table.sort(rollable, function(a, b)
 		return a.Chance > b.Chance
 	end)
-	local expected, remaining = {}, 1
+	local remaining = 1
 	for _, c in rollable do
 		local p = math.min(1, luck / c.Chance)
 		expected[c.Id] = remaining * p
@@ -4698,8 +4715,27 @@ function Scenarios.gacha()
 	local okRoll, rollable = pcall(CarCatalog.Rollable)
 	all = okAll and type(all) == "table" and all or {}
 	rollable = okRoll and type(rollable) == "table" and rollable or {}
-	check(checks, "catalog_seven_cars", #all, #GACHA_SEED, #all == #GACHA_SEED)
-	check(checks, "rollable_seven_cars", #rollable, #GACHA_SEED, #rollable == #GACHA_SEED)
+	local baseCount, eventCount, baseRollCount, eventRollCount = 0, 0, 0, 0
+	for _, spec in all do
+		if spec.Event == nil then
+			baseCount += 1
+		else
+			eventCount += 1
+		end
+	end
+	for _, spec in rollable do
+		if spec.Event == nil then
+			baseRollCount += 1
+		else
+			eventRollCount += 1
+		end
+	end
+	check(checks, "catalog_seven_cars", baseCount, #GACHA_SEED, baseCount == #GACHA_SEED)
+	check(checks, "rollable_seven_cars", baseRollCount, #GACHA_SEED, baseRollCount == #GACHA_SEED)
+	check(checks, "catalog_three_event_cars", eventCount, #GACHA_EVENT_SEED, eventCount == #GACHA_EVENT_SEED)
+	check(checks, "rollable_three_event_cars", eventRollCount, #GACHA_EVENT_SEED, eventRollCount == #GACHA_EVENT_SEED)
+	check(checks, "catalog_base_and_event_cars", #all, #GACHA_CATALOG, #all == #GACHA_CATALOG)
+	check(checks, "rollable_base_and_event_cars", #rollable, #GACHA_CATALOG, #rollable == #GACHA_CATALOG)
 	local seen, idsOk, snakeOk, catchAlls, starterInAll = {}, true, true, 0, false
 	local rarityValid, multiOk, chanceOk = true, true, true
 	local validRarity = {}
@@ -4755,13 +4791,13 @@ function Scenarios.gacha()
 			or got.Chance ~= want.Chance
 			or not nearly(got.SpeedMulti, want.SpeedMulti)
 			or type(got.Name) ~= "string"
+			or got.Event ~= nil
 		then
 			seedOk = false
 		elseif got.Model ~= nil then
 			-- Model is optional (nil = "?" placeholder). When set it must be a non-empty string that
 			-- resolves to ReplicatedStorage.CarModels[Model] (a Model) now. RollShowcase/Index look up
-			-- CarModels[spec.Model] but CarAppearance skins the car via CarModels[id], so the two
-			-- must agree: Model == Id.
+			-- Original cars retain Model == Id. Only documented Event variants may reuse a mesh.
 			local folder = ReplicatedStorage:FindFirstChild("CarModels")
 			local template = type(got.Model) == "string" and folder and folder:FindFirstChild(got.Model)
 			if
@@ -4775,6 +4811,45 @@ function Scenarios.gacha()
 		end
 	end
 	check(checks, "catalog_matches_design_doc", seedOk and 1 or 0, 1, seedOk)
+	local eventOk, modelsOk, baseIds = true, true, {}
+	for _, spec in GACHA_SEED do
+		baseIds[spec.Id] = true
+	end
+	for _, want in GACHA_EVENT_SEED do
+		local got = CarCatalog.Get(want.Id)
+		if
+			type(got) ~= "table"
+			or got.Event ~= want.Event
+			or got.Model ~= want.Model
+			or got.Chance ~= want.Chance
+			or got.Rarity ~= want.Rarity
+			or not nearly(got.SpeedMulti, want.SpeedMulti)
+			or type(got.Name) ~= "string"
+			or got.Name == ""
+		then
+			eventOk = false
+		end
+	end
+	for _, got in all do
+		if got.Model ~= nil then
+			local folder = ReplicatedStorage:FindFirstChild("CarModels")
+			local template = type(got.Model) == "string" and folder and folder:FindFirstChild(got.Model)
+			local source = type(got.Model) == "string" and CarCatalog.Get(got.Model)
+			local identityOk = got.Event == nil and got.Model == got.Id
+				or (got.Event == "rain" or got.Event == "night" or got.Event == "gold")
+					and baseIds[got.Model] == true
+					and source ~= nil
+					and source.Event == nil
+					and source.Model == got.Model
+			if got.Model == "" or not identityOk or not (template and template:IsA("Model")) then
+				modelsOk = false
+			end
+		elseif got.Event ~= nil then
+			modelsOk = false
+		end
+	end
+	check(checks, "catalog_event_variants_match_contract", eventOk and 1 or 0, 1, eventOk)
+	check(checks, "catalog_all_models_resolve_with_event_only_reuse", modelsOk and 1 or 0, 1, modelsOk)
 	local orderOk, orders = #all > 0, {}
 	for i, c in all do
 		local o = type(c) == "table" and c.Order or nil
@@ -4801,18 +4876,31 @@ function Scenarios.gacha()
 		end
 	end
 	check(checks, "rollable_rarest_first", rarestOk and 1 or 0, 1, rarestOk)
+	local rollSeen, membershipOk = {}, true
+	for _, c in rollable do
+		if rollSeen[c.Id] or not seen[c.Id] or c.Rollable ~= true then
+			membershipOk = false
+		end
+		rollSeen[c.Id] = true
+	end
+	for id in seen do
+		if not rollSeen[id] then
+			membershipOk = false
+		end
+	end
+	check(checks, "rollable_matches_entire_catalog_once", membershipOk and 1 or 0, 1, membershipOk)
 
 	-- Seeded roll odds at luck 1 and luck 10
 	local validIds = {}
-	for _, c in GACHA_SEED do
+	for _, c in GACHA_CATALOG do
 		validIds[c.Id] = true
 	end
-	local function rollMany(seed, luck)
+	local function rollMany(seed, luck, event)
 		local counts, invalid = {}, 0
 		local ok = pcall(function()
 			local rng = Random.new(seed)
 			for _ = 1, GACHA_ROLLS do
-				local id = GachaConfig.Roll(rng, luck)
+				local id = GachaConfig.Roll(rng, luck, event)
 				if validIds[id] then
 					counts[id] = (counts[id] or 0) + 1
 				else
@@ -4826,13 +4914,16 @@ function Scenarios.gacha()
 		{
 			{ luck = 1, seed = GACHA_SEED_LUCK1, tag = "luck1" },
 			{ luck = 10, seed = GACHA_SEED_LUCK10, tag = "luck10" },
+			{ luck = 1, seed = GACHA_SEED_LUCK1, event = "rain", tag = "rain_luck1" },
+			{ luck = 1, seed = GACHA_SEED_LUCK1, event = "night", tag = "night_luck1" },
+			{ luck = 1, seed = GACHA_SEED_LUCK1, event = "gold", tag = "gold_luck1" },
 		}
 	do
-		local ok, counts, invalid = rollMany(case.seed, case.luck)
+		local ok, counts, invalid = rollMany(case.seed, case.luck, case.event)
 		check(checks, "roll_no_error_" .. case.tag, ok and 1 or 0, 1, ok)
 		check(checks, "roll_always_valid_id_" .. case.tag, invalid, 0, ok and invalid == 0)
-		local expected = gachaExpected(case.luck)
-		for _, c in GACHA_SEED do
+		local expected = gachaExpected(case.luck, case.event)
+		for _, c in GACHA_CATALOG do
 			local mean = GACHA_ROLLS * expected[c.Id]
 			local sigma = math.sqrt(GACHA_ROLLS * expected[c.Id] * (1 - expected[c.Id]))
 			local tol = GACHA_SIGMAS * sigma + GACHA_FLOOR
@@ -4843,7 +4934,7 @@ function Scenarios.gacha()
 				"roll_odds_" .. case.tag .. "_" .. c.Id,
 				got,
 				string.format("%.1f +- %.1f", mean, tol),
-				ok and math.abs(got - mean) <= tol
+				ok and (expected[c.Id] == 0 and got == 0 or expected[c.Id] > 0 and math.abs(got - mean) <= tol)
 			)
 		end
 		if case.luck == 10 then
@@ -7371,22 +7462,39 @@ function Scenarios.spawn_area()
 	-- the previous frame for SPAWN_SETTLE_FRAMES frames in a row spanning at least SPAWN_SETTLE_MIN_S seconds (any
 	-- violation resets the streak), at most `timeout` seconds. A short grounded moment (top of the hip-height
 	-- correction, a small bounce after respawn) is therefore not "landed". On timeout it returns anyway so a
-	-- character that never settles still FAILS the height check.
-	-- Records <pre>_settle_s (seconds waited) and <pre>_settle_landed (1 landed, 0 timed out) in the metrics.
+	-- character that never settles still FAILS the height check. A frame also only counts as still when a ray
+	-- straight down from the root (ignoring this character only) hits the SpawnArea itself (floor / SpawnLocation),
+	-- so standing on a dead body or any other object is never "landed".
+	-- Records <pre>_settle_s (seconds waited), <pre>_settle_landed (1 landed, 0 timed out) and
+	-- <pre>_settle_on_floor (1 if the last sampled ray hit the SpawnArea) in the metrics.
 	local SPAWN_SETTLE_MAX_VY = 1 -- studs/s
 	local SPAWN_SETTLE_MAX_DY = 0.05 -- studs of root Y change allowed between consecutive frames
 	local SPAWN_SETTLE_FRAMES = 10
 	local SPAWN_SETTLE_MIN_S = 0.2 -- the stable streak must also last this long
 	local SPAWN_SETTLE_TIMEOUT = 5 -- seconds
+	local SPAWN_SETTLE_RAY = 12 -- studs: downward ray length from the root when checking what it stands on
+	local function standsOnSpawnArea(c)
+		if area == nil or c.Root.Parent == nil then
+			return false
+		end
+		local params = RaycastParams.new()
+		params.FilterType = Enum.RaycastFilterType.Exclude
+		params.FilterDescendantsInstances = { c.Model }
+		local hit = Workspace:Raycast(c.Root.Position, Vector3.new(0, -SPAWN_SETTLE_RAY, 0), params)
+		return hit ~= nil and hit.Instance:IsDescendantOf(area)
+	end
 	local function settleOnFloor(pre, c, timeout)
 		local t0 = os.clock()
 		local streak, streakT0, lastY = 0, nil, nil
 		local landed = false
+		local onFloor = false
 		while os.clock() - t0 < timeout do
 			local hum, root = c.Humanoid, c.Root
 			local alive = hum.Parent ~= nil and root.Parent ~= nil
 			local y = alive and root.Position.Y or nil
+			onFloor = alive and standsOnSpawnArea(c)
 			local still = alive
+				and onFloor
 				and hum.FloorMaterial ~= Enum.Material.Air
 				and math.abs(root.AssemblyLinearVelocity.Y) < SPAWN_SETTLE_MAX_VY
 				and lastY ~= nil
@@ -7406,6 +7514,15 @@ function Scenarios.spawn_area()
 		end
 		metrics[pre .. "_settle_s"] = math.floor((os.clock() - t0) * 1000 + 0.5) / 1000
 		metrics[pre .. "_settle_landed"] = landed and 1 or 0
+		metrics[pre .. "_settle_on_floor"] = onFloor and 1 or 0
+	end
+	-- A real Roblox respawn removes the old character before the new one is placed. The fake avatars are not
+	-- managed by Players, so the scenario does it: a dead avatar left lying on the walk spawn would be under the
+	-- next one, which lands on the body and bounces (respawn_*_standing_height sampled mid-bounce).
+	local function removeDeadChar(c)
+		if c and c.Model then
+			c.Model:Destroy()
+		end
 	end
 
 	-- On foot at the walk spawn, visible, able to walk and jump, not racing, no car, no run.
@@ -7585,6 +7702,7 @@ function Scenarios.spawn_area()
 		frames(0.3)
 		touch(c1.Model:FindFirstChild("Left Leg"))
 		check(checks, "pad_dead_avatar_ignored", stillOnFoot() and 1 or 0, 1, stillOnFoot())
+		removeDeadChar(c1)
 		local c2 = newChar(Vector3.new(-15, 2, 25))
 		local okR = pcall(CarService.OnCharacter, player, c2.Model)
 		check(checks, "respawn_on_foot_no_error", okR and 1 or 0, 1, okR)
@@ -7601,6 +7719,7 @@ function Scenarios.spawn_area()
 			and activeRuns() == 0
 			and (car3 == nil or car3.Parent == nil)
 		check(checks, "death_car_removed", gone and 1 or 0, 1, gone)
+		removeDeadChar(c2)
 		local c3 = newChar(Vector3.new(25, 2, -15))
 		local okR2 = pcall(CarService.OnCharacter, player, c3.Model)
 		check(checks, "respawn_after_race_no_error", okR2 and 1 or 0, 1, okR2)
@@ -8886,7 +9005,7 @@ function Scenarios.roll_anim()
 	end
 	local interval = GachaConfig.ROLL_INTERVAL
 	local validIds, catchAllId = {}, nil
-	for _, c in GACHA_SEED do
+	for _, c in GACHA_CATALOG do
 		validIds[c.Id] = true
 		if c.Chance == nil then
 			catchAllId = c.Id
@@ -8994,7 +9113,7 @@ function Scenarios.roll_anim()
 			return nil
 		end
 		local lenBad, lastBad, idBad = 0, 0, 0
-		for k, c in GACHA_SEED do
+		for k, c in GACHA_CATALOG do
 			for s = 1, 20 do
 				local r = reel(Random.new(1000 * k + s), c.Id)
 				if not r or #r ~= n then
@@ -9140,7 +9259,7 @@ function Scenarios.roll_anim()
 			check(checks, name, #bad, table.concat(bad, ","), #bad == 0)
 		end
 		local allIds = {}
-		for _, c in GACHA_SEED do
+		for _, c in GACHA_CATALOG do
 			table.insert(allIds, c.Id)
 		end
 		local rare5 = { "void_racer", "hover_car", "rocket_car", "street_racer", "go_kart" } -- 5th-rarest = 1 in 50
@@ -11562,6 +11681,18 @@ function Scenarios.workshop()
 				and zone.Anchored == true
 		end
 		flag("workshop_model_with_zone_part", zoneOk)
+		local upgradePad = wsModel and wsModel:FindFirstChild("UpgradePad")
+		local upgradeSign = upgradePad and upgradePad:FindFirstChild("UpgradeSign")
+		local upgradeLabel = upgradeSign
+			and upgradeSign:IsA("BillboardGui")
+			and upgradeSign:FindFirstChildWhichIsA("TextLabel", true)
+		flag(
+			"workshop_upgrade_pad",
+			upgradePad ~= nil
+				and CollectionService:HasTag(upgradePad, "UpgradePad")
+				and upgradeLabel ~= nil
+				and upgradeLabel.Text == "UPGRADE"
+		)
 		local rateGui = m1 and m1:FindFirstChild("Rate", true)
 		local rateLabel = rateGui and rateGui:IsA("BillboardGui") and rateGui:FindFirstChildWhichIsA("TextLabel", true)
 		flag(
@@ -11870,5 +12001,11 @@ function Scenarios.Run(name)
 	end
 	return fn()
 end
+
+-- Phase-two tests stay in their own module so existing collaborator checks remain intact.
+local Phase2Tests = require(script.Parent.Phase2Tests)
+Scenarios.workshop_offline = Phase2Tests.workshop_offline
+Scenarios.workshop_phase2 = Phase2Tests.workshop_phase2
+Scenarios.weather = Phase2Tests.weather
 
 return Scenarios

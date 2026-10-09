@@ -31,6 +31,7 @@ local EDGE_WIDTH = 1
 local PAD_RAISE = 0.2
 local SPAWN_SIZE = 12
 local LABEL_DISTANCE = 150
+local RACE_CANOPY_HEIGHT = 11
 
 -- Track 1's start, flattened: yaw only, at ground level (the local space every spawn-area and plot position uses)
 local function base(startCFrame)
@@ -158,7 +159,89 @@ function SpawnArea.Build(startCFrame)
 	text.TextStrokeTransparency = 0.3
 	text.Parent = billboard
 
+	-- A small overhang makes the manual race entrance read as a destination instead of
+	-- an isolated neon pad. It stays open on every side so the start trigger remains
+	-- easy to approach on foot.
+	local canopy = Instance.new("Model")
+	canopy.Name = "RaceOverhang"
+	canopy.Parent = model
+	local raceBase = base(startCFrame)
+	local function canopyPart(name, size, localPosition, color, material)
+		local beam = Instance.new("Part")
+		beam.Name = name
+		beam.Anchored = true
+		beam.Size = size
+		beam.CFrame = raceBase * CFrame.new(localPosition.X, localPosition.Y, localPosition.Z)
+		beam.Color = color
+		beam.Material = material or Enum.Material.Metal
+		beam.TopSurface = Enum.SurfaceType.Smooth
+		beam.BottomSurface = Enum.SurfaceType.Smooth
+		beam.Parent = canopy
+		return beam
+	end
+	local canopyTrim = SpawnArea.PAD_COLOR:Lerp(Color3.new(1, 1, 1), 0.2)
+	for _, x in { -20, 20 } do
+		canopyPart(
+			"Post" .. x,
+			Vector3.new(1.2, RACE_CANOPY_HEIGHT, 1.2),
+			Vector3.new(x, RACE_CANOPY_HEIGHT / 2, 18),
+			canopyTrim
+		)
+	end
+	canopyPart(
+		"Roof",
+		Vector3.new(42, 1.2, 19),
+		Vector3.new(0, RACE_CANOPY_HEIGHT, 18),
+		SpawnArea.COLOR:Lerp(Color3.new(1, 1, 1), 0.15)
+	)
+	canopyPart(
+		"RoofTrim",
+		Vector3.new(43, 0.35, 0.7),
+		Vector3.new(0, RACE_CANOPY_HEIGHT + 0.7, 8.7),
+		canopyTrim,
+		Enum.Material.Neon
+	)
+	canopyPart(
+		"RoofTrimBack",
+		Vector3.new(43, 0.35, 0.7),
+		Vector3.new(0, RACE_CANOPY_HEIGHT + 0.7, 27.3),
+		canopyTrim,
+		Enum.Material.Neon
+	)
+	local canopySign = Instance.new("BillboardGui")
+	canopySign.Name = "RaceSign"
+	canopySign.Size = UDim2.fromOffset(250, 60)
+	canopySign.StudsOffsetWorldSpace = Vector3.new(0, 1.6, 18)
+	canopySign.MaxDistance = LABEL_DISTANCE
+	canopySign.AlwaysOnTop = false
+	canopySign.Parent = canopyPart(
+		"SignMount",
+		Vector3.new(18, 0.4, 0.4),
+		Vector3.new(0, RACE_CANOPY_HEIGHT - 1.5, 8),
+		SpawnArea.PAD_COLOR,
+		Enum.Material.Neon
+	)
+	local signText = Instance.new("TextLabel")
+	signText.Name = "Text"
+	signText.Size = UDim2.fromScale(1, 1)
+	signText.BackgroundTransparency = 1
+	signText.Text = "RACE"
+	signText.Font = Enum.Font.GothamBlack
+	signText.TextScaled = true
+	signText.TextColor3 = Color3.new(1, 1, 1)
+	signText.TextStrokeTransparency = 0.25
+	signText.Parent = canopySign
+
 	model.PrimaryPart = floor
+	local upgrade =
+		slab(model, "UpgradePad", startCFrame, Vector2.new(144, -76), Vector2.new(156, -64), top + 0.15, 0.25)
+	upgrade.Color = Color3.fromRGB(75, 235, 140)
+	upgrade.Material = Enum.Material.Neon
+	CollectionService:AddTag(upgrade, "UpgradePad")
+	local upgradeGui = billboard:Clone()
+	upgradeGui.Name = "UpgradeSign"
+	upgradeGui.Text.Text = "UPGRADES"
+	upgradeGui.Parent = upgrade
 	return model
 end
 

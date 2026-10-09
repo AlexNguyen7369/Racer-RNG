@@ -1,7 +1,9 @@
-# Mechanical Workshop and plots (DRAFT, phase 1 in progress)
+# Mechanical Workshop and plots
 
-Status: drafted 2026-10-06 from the design doc ("Starting state and Mechanical Workshop", "Technical and data
-requirements") and the owner's brief of the same day. Numbers marked *placeholder* are tunable in `Shared/WorkshopConfig`.
+Status: phases 1 and 2 implemented; full compatibility and real DataStore persistence remain unverified.
+The 2026-10-08 harness passed workshop, workshop_offline and workshop_phase2; its data scenario failed one
+level-boundary expectation and is under audit. Originally drafted 2026-10-06 from the design doc and owner's brief.
+Numbers marked *placeholder* are tunable in `Shared/WorkshopConfig` and remain pending owner balancing feedback.
 
 ## Owner's brief (2026-10-06)
 - Start the Mechanical Workshop, with a dedicated area in the spawn area for players' workshops.
@@ -18,7 +20,7 @@ requirements") and the owner's brief of the same day. Numbers marked *placeholde
   gamepasses add a permanent W boost (monetization, later).
 - The zone check is done **on the server on a timer** from the character's position, never from client touch events.
 - The `Workshop` stat point (`Alloc_Workshop`, +0.2x per point, `GachaConfig.PER_POINT`) boosts workshop gain only.
-- Offline earnings (*recommended*, 25 % of workshop gain, capped at 8 h) and a welcome-back screen: later phase.
+- Offline earnings: 25 % of workshop gain, capped at 8 h, with a welcome-back screen (phase 2 implemented).
 
 ## 1. Layout (`Shared/SpawnArea` + `Shared/WorkshopConfig`)
 All positions are local (x, z) of Track 1's flattened Start, like the rest of the spawn area. Track 1 (Oval) turns LEFT
@@ -83,13 +85,16 @@ Every `WorkshopConfig.TICK` (0.5 s) for each player with a plot:
   - `WorkshopPointsMulti` = `GachaConfig.Multis(alloc).Workshop` (1 + 0.2 per point)
   - divided by the same diminishing-returns term racing uses, so idling and racing climb the same curve and cruise speed
     (`RaceConfig.SpeedFor`) still never passes `MAX_SPEED` (stability rules untouched)
-- Player attribute `WorkshopRate` = the current rate (shown on the plot's `Rate` billboard; HUD line later).
+- Player attribute `WorkshopRate` = the current rate (shown on the plot's `Rate` billboard and HUD line).
 - Leaving the zone stops the gain at the next tick. Nothing a client sends changes the rate or the zone check.
 
-## 5. Levels (data now, buying later)
-`WorkshopConfig.Levels`: level 1 = `{ Multi = 1, Price = 0 }` (starter). *Placeholder* growth for later levels:
-W doubles and the price is 5x the last. `WorkshopConfig.MAX_LEVEL = 1` until the owner confirms prices, so no level can
-be bought yet. Saved as `WorkshopLevel` (PlayerData VERSION 4, shared with the upgrade tree's fields).
+## 5. Levels and purchases
+`WorkshopConfig.Levels`: level 1 = `{ Multi = 1, Price = 0 }` (starter), with ten configurable levels.
+Level 2 costs $500; each later price is 5x the previous price and W doubles at each level. These defaults are not
+approved balancing. Saved as `WorkshopLevel` (PlayerData VERSION 4, shared with the upgrade tree's fields).
+An owned workshop has an `UPGRADE` slab and E prompt. Its modal requests the next level only; the server validates
+loaded data, ownership, a living on-foot character within 12 studs, available level and Money, and rate-limits
+remote requests. Invalid numbers (including NaN and infinities) load as level 1; finite levels floor and clamp to 1..10.
 
 ## 6. Manual step
 Studio: Game Settings > Places > Server Size (Max Players) = **7** (Rojo can not set it). Listed on the dashboard
@@ -106,11 +111,17 @@ Studio: Game Settings > Places > Server Size (Max Players) = **7** (Rojo can not
 - World (`world-tester`): plots and workshop parts anchored, nothing blocks walking from the spawn to a plot.
 
 ## 8. Phases
-1. **Plots + starter workshop + idle gain** (this round): WorkshopConfig, layout, WorkshopBuilder, WorkshopService,
+1. **Plots + starter workshop + idle gain** (implemented): WorkshopConfig, layout, WorkshopBuilder, WorkshopService,
    PlayerData v4 field, tests above.
-2. Workshop HUD line ("IN WORKSHOP +N Speed/s"), level upgrades bought with Money (owner sets prices), offline earnings
+2. Workshop HUD line, level upgrades bought with Money (configurable defaults pending owner feedback), offline earnings
    and the welcome-back screen.
 3. Gold / Diamond / Void passes (monetization).
+
+## Phase 2 implementation defaults (2026-10-07)
+
+Ten levels are configured, with level 2 costing $500 and subsequent prices growing ×5. Every level doubles W. These are configurable defaults pending owner feedback, rather than a record of approved balancing. The E prompt on an owned plot opens the upgrade modal; the server checks load state, ownership, life, racing state, distance and Money before buying the next level. No client price or requested level is accepted.
+
+The HUD shows the server's current workshop rate, and Workshop stat allocation is enabled. Offline earnings integrate the diminishing gain formula at 25%, capped at eight hours. Saves include `OfflineAt`; an atomic DataStore claim persists the credited Speed and new timestamp before exposing rewards. Missing or invalid legacy timestamps grant no offline reward. Repeated loads do not replay rewards or reset live progress. The welcome panel reports the credited Speed and capped duration. Workshop harness scenarios passed on the synced sources; UI diagnostics, full compatibility and real-store verification remain pending.
 
 ## Open questions for the owner
 - `BASE_RATE` (1 Speed/s now; driving at base speed gains ~1.5/s): should idling beat racing for Speed?
