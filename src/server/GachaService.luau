@@ -120,6 +120,10 @@ local function refreshPoints(player)
 	player:SetAttribute("StatPoints", GachaService.FreePoints(player))
 end
 
+function GachaService.ScrapValue(id)
+	return GachaConfig.ScrapMoney(CarCatalog.Get(id))
+end
+
 local function owns(player, id)
 	if id == STARTER then
 		return true
@@ -179,13 +183,20 @@ function GachaService.Roll(player, roller)
 	local emphasized = GachaConfig.IsEmphasized(id, ownedIds(player))
 	player:SetAttribute("Rolls", rollNumber)
 	local isNew = GachaService.Grant(player, id)
+	local scrapMoney = 0
+	if isNew == false then
+		-- MoneyService requires GachaService for payout multis, so load it lazily.
+		local MoneyService = require(script.Parent.MoneyService)
+		scrapMoney = GachaService.ScrapValue(id)
+		MoneyService.Award(player, scrapMoney)
+	end
 	if rollRemote and player:IsA("Player") then
-		rollRemote:FireClient(player, id, isNew, turboMulti, emphasized)
+		rollRemote:FireClient(player, id, isNew, turboMulti, emphasized, scrapMoney)
 	end
 	if emphasized then
 		GachaService.Announce(player, id, rollNumber)
 	end
-	return id, isNew, turboMulti, emphasized
+	return id, isNew, turboMulti, emphasized, scrapMoney
 end
 
 -- The AUTO toggle: while false the auto-roll loop makes no roll. Returns true if the value was applied.
@@ -244,11 +255,15 @@ end
 
 function GachaService.MoneyMulti(player)
 	return GachaConfig.Multis(alloc(player), UpgradeService.Bonuses(player)).Money
+		* RebirthConfig.MoneyMulti(player:GetAttribute("RebirthLevel"))
+		* require(script.Parent.BoostService).Multiplier(player, "Money")
 		* require(script.Parent.WeatherService).Multipliers().Money
 end
 
 function GachaService.Luck(player)
 	return GachaConfig.Multis(alloc(player), UpgradeService.Bonuses(player)).Luck
+		* RebirthConfig.LuckMulti(player:GetAttribute("RebirthLevel"))
+		* require(script.Parent.BoostService).Multiplier(player, "Luck")
 		* require(script.Parent.WeatherService).Multipliers().Luck
 end
 

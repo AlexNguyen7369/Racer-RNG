@@ -154,4 +154,10 @@ function Workshop.OfflineGain(stat, speedMulti, level, workshopMulti, seconds)
 	return math.min(gain, RaceConfig.MAX_STAT - stat)
 end
 
+-- Offline Money is a deterministic companion credit based on the same capped Speed interval.
+function Workshop.OfflineMoney(stat, speedMulti, level, workshopMulti, seconds)
+	local speedGain = Workshop.OfflineGain(stat, speedMulti, level, workshopMulti, seconds)
+	return math.floor(speedGain * WorkshopConfig.OFFLINE_MONEY_FRACTION)
+end
+
 return Workshop

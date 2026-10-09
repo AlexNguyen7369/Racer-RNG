@@ -35,6 +35,7 @@ for level = 2, 10 do
 end
 WorkshopConfig.MAX_LEVEL = #WorkshopConfig.Levels
 WorkshopConfig.OFFLINE_FRACTION = 0.25
+WorkshopConfig.OFFLINE_MONEY_FRACTION = 0.10 -- Money credit is 10% of the integrated offline Speed credit.
 WorkshopConfig.OFFLINE_CAP = 8 * 60 * 60
 WorkshopConfig.UPGRADE_DISTANCE = 12
 WorkshopConfig.REMOTE_COOLDOWN = 0.5

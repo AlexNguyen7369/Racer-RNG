@@ -41,6 +41,7 @@ local WALL_HEIGHT = 5
 local WALL_THICKNESS = 2
 local WALL_GAP = 0.5 -- clear space between the last wall and the checkpoint apron
 local GROUND_TOP = -1
+local SUPPORT_CLEARANCE = 0.05 -- keep a horizontal support just below the lowest sloped road underside
 
 local COLORS = {
 	Road = Color3.fromRGB(120, 130, 150),
@@ -378,7 +379,10 @@ function TrackBuilder.Build(spec, origin)
 		end
 
 		-- Hills: fill from the ground up to the middle of the road slab, so the road is not on stilts
-		local slabY = (origin * piece.CFrame).Position.Y - ROAD_THICKNESS / 2
+		local slabY = (origin * piece.CFrame).Position.Y
+			- ROAD_THICKNESS / 2
+			- math.abs(pieceCF.LookVector.Y) * piece.Length / 2
+			- SUPPORT_CLEARANCE
 		if piece.Support and slabY > GROUND_TOP + 1 then
 			local flatLook = Vector3.new(pieceCF.LookVector.X, 0, pieceCF.LookVector.Z)
 			local footprint = CFrame.lookAt(Vector3.zero, flatLook)

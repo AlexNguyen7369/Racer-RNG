@@ -3,9 +3,50 @@
 PROJECT CONTEXT - Idle Vehicle Simulator (read me first)
 Shown in Studio at: ServerScriptService > ProjectContext   (source file: context/ProjectContext.luau)
 Do NOT edit this in Studio: edit the file on disk, Rojo syncs it. Claude updates it at the end of every loop.
-Last updated: 2026-10-08 (compatibility gate verified; live DataStore API probe passed)
+Last updated: 2026-10-09 (owner-authorized commit/push exception; compatibility gate not green)
 
-CURRENT DOING IMPLEMENTATION - 2026-10-07
+DELIVERY SNAPSHOT - 2026-10-09
+- The complete current worktree is being committed and pushed on `main` at the
+  owner's explicit request. The pre-push compatibility hook is intentionally
+  bypassed for this delivery; this must not be interpreted as a green gate.
+- Included changes cover Level/XP progression, rebirth, potion inventory and
+  purchases, daily login rewards, duplicate-roll Money, workshop offline Money,
+  Market effects, Hill support geometry, Racer UI/roll-toast behavior, related
+  specs, and dashboard metadata. New source files include BoostDailyUi,
+  BoostService, DailyLoginService, LevelService, RebirthService, BoostConfig,
+  DailyLoginConfig, and LevelConfig.
+- Dashboard API was unavailable during this snapshot (`Connection refused`),
+  while the local agent bus was available. Fresh Studio/Rojo validation and
+  stale test-expectation reconciliation remain pending.
+
+CURRENT DOING IMPLEMENTATION - 2026-10-09
+- Progression systems now include server-owned RebirthService (Money-only reset with permanent
+  Rebirth multiplier and design-doc Level milestone gates), LevelService (Speed-based XP and saved
+  player levels), BoostService (one-minute Luck/Money/Speed I/II/III
+  consumables with saved inventory and expirations),
+  DailyLoginService (UTC streak rewards and day-7 guaranteed rare index grant), and direct duplicate-car
+  scrap Money payouts from GachaService. PlayerData save VERSION is 7. New shared configs are
+  BoostConfig, DailyLoginConfig, and LevelConfig; new remotes are Rebirth, PurchaseBoost, UseBoost and DailyClaim.
+- The rebirth panel is live-bound in RacerUiController; BoostDailyUi provides Bag and Daily Rewards modals.
+- Rebirth preserves Speed and resets only Money.
+- Rebirth now follows the design milestones: Level 10, 25, 50, 75, 100, then every 25 levels. Level starts at 1;
+  XP gain is based on sqrt(current Speed), and XP to next level is 100 x 1.15^(level-1). Speed remains preserved
+  across rebirth per the owner request, despite the design PDF's older reset proposal.
+- Each rebirth permanently increases passive Speed gain and roll Luck by 10% per rebirth level; the Luck bonus is
+  included in the server-owned GachaService roll multiplier.
+- Bag purchases/uses potion tiers in the modal. Daily Rewards shows all seven fixed days, remains manual while
+  the next UTC claim timer is running, and opens automatically when the claim window becomes available.
+- Static checks after this round: StyLua, Selene, Rojo build, and git diff --check pass. Studio full
+  harness/UI/multiplayer/world validation has not yet been run for this source fingerprint.
+- Current Studio Edit inspection still shows the prior synced server tree without the three new progression
+  services; reconnect Rojo at localhost:34872 before treating any Play run as evidence for VERSION 6.
+- The existing CarTest save-version expectation remains VERSION 5 until test-writer updates it; no test files
+  were edited by Codex.
+- Track wins now award a deterministic potion through `BoostConfig.WinReward`: track 1/4/... Luck, track
+  2/5/... Money, and track 3/6/... Speed. The compact boost HUD refreshes active countdowns every second.
+- Hill supports now account for each sloped piece's full vertical span and sit 0.05 studs below the lowest
+  road underside (`TrackBuilder.SUPPORT_CLEARANCE`), addressing the Support12 poke reported by world-tester.
+  This geometry change still needs the required full track/world Studio run.
 - OWNER SPEED BALANCE (started 2026-10-08): equipped car models now multiply the player's current
   base/cruise race speed only. Passive racing Speed gain uses the server-owned RebirthLevel multiplier;
   car models and stat-allocation multipliers do not affect it. Workshop gain is independent of car model.
@@ -14,7 +55,8 @@ CURRENT DOING IMPLEMENTATION - 2026-10-07
   WorkshopRate HUD, offline welcome panel, and replicated weather banner. Workshop stat allocation is enabled.
 - Workshop defaults are configurable: ten levels, level 2 costs $500, subsequent cost x5, Speed gain x2 per level.
   Owner balancing feedback remains pending. Offline gain is exactly integrated at 25%, capped at eight hours;
-  OfflineAt is claimed with UpdateAsync before exposing rewards, so reconnecting cannot replay a saved absence.
+  Money is credited at 10% of that Speed result. OfflineAt is claimed with UpdateAsync before exposing either
+  reward, so reconnecting cannot replay a saved absence. The welcome panel displays both credits.
 - WeatherService schedules Rain / Night Race / Gold Rush every 10-20 minutes for three minutes, applies luck,
   Money and NPC speed server-side, restores lighting on expiry, and pauses scheduling during harness runs.
   Three event-only permanent catalog IDs reuse existing meshes: rain_runner, midnight_kart, golden_racer.

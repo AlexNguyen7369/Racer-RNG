@@ -319,6 +319,7 @@ local function buildBody(_parent, z)
 		return b
 	end
 	local newBadge = badge("NewBadge", "NEW!", Color3.fromRGB(60, 255, 60), 0.66)
+	local scrapBadge = badge("ScrapBadge", "SCRAP", Color3.fromRGB(255, 190, 60), 0.49)
 	local turboBadge = badge("TurboBadge", "TURBO", TURBO_BLUE, 0.83)
 
 	local flames = make("Frame", {
@@ -362,6 +363,7 @@ local function buildBody(_parent, z)
 		SpeedMulti = speedMulti,
 		Rarity = rarity,
 		NewBadge = newBadge,
+		ScrapBadge = scrapBadge,
 		TurboBadge = turboBadge,
 		Flames = flames,
 		FlameGradient = flameGradient,
@@ -621,7 +623,7 @@ local cards = { toast, card }
 
 -- State ---------------------------------------------------------------------------------------------------------
 
-local latest = nil -- { Spec, IsNew, Turbo, Emphasized } of the roll playing or last played
+local latest = nil -- { Spec, IsNew, Turbo, Emphasized, ScrapMoney } of the roll playing or last played
 local serial = 0 -- RollResults received
 local phase = "Idle"
 local tweens = {} -- running tweens of the current roll (cancelled when a new roll starts)
@@ -776,6 +778,9 @@ local function resetBody(b, roll)
 		b.Aliases.Rarity.Text = ""
 		b.Aliases.Odds.Text = "?"
 		b.NewBadge.Visible = false
+		if b.ScrapBadge then
+			b.ScrapBadge.Visible = false
+		end
 		local turbo = roll.Turbo > 1
 		b.TurboBadge.Visible = turbo
 		b.TurboBadge.Text = "TURBO x" .. tostring(roll.Turbo)
@@ -813,6 +818,12 @@ local function fillResult(b, roll)
 		b.Rarity.TextStrokeColor3 = spec.Rarity == "Secret" and color or BLACK
 		b.Rarity.TextStrokeTransparency = spec.Rarity == "Secret" and 0 or 0.4
 		b.NewBadge.Visible = roll.IsNew
+		if b.ScrapBadge then
+			b.ScrapBadge.Visible = not roll.IsNew and (roll.ScrapMoney or 0) > 0
+			if b.ScrapBadge.Visible then
+				b.ScrapBadge.Text = "+" .. HudFormat.MoneyText(roll.ScrapMoney)
+			end
+		end
 		b.Aliases.Name.Text = spec.Name
 		b.Aliases.Speed.Text = tostring(spec.SpeedMulti or 1) .. "x Speed"
 		b.Aliases.Rarity.Text = spec.Rarity
@@ -1256,7 +1267,7 @@ local function drainRollQueue()
 	playingRoll = false
 end
 
-rollRemote.OnClientEvent:Connect(function(id, isNew, turboMulti, emphasized)
+rollRemote.OnClientEvent:Connect(function(id, isNew, turboMulti, emphasized, scrapMoney)
 	local spec = CarCatalog.Get(id)
 	if not spec then
 		return
@@ -1266,6 +1277,7 @@ rollRemote.OnClientEvent:Connect(function(id, isNew, turboMulti, emphasized)
 		IsNew = isNew == true,
 		Turbo = (type(turboMulti) == "number" and turboMulti > 1) and turboMulti or 1,
 		Emphasized = emphasized == true,
+		ScrapMoney = type(scrapMoney) == "number" and scrapMoney or 0,
 	})
 	task.spawn(drainRollQueue)
 end)

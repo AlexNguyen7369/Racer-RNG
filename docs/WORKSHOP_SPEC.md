@@ -20,7 +20,7 @@ Numbers marked *placeholder* are tunable in `Shared/WorkshopConfig` and remain p
   gamepasses add a permanent W boost (monetization, later).
 - The zone check is done **on the server on a timer** from the character's position, never from client touch events.
 - The `Workshop` stat point (`Alloc_Workshop`, +0.2x per point, `GachaConfig.PER_POINT`) boosts workshop gain only.
-- Offline earnings: 25 % of workshop gain, capped at 8 h, with a welcome-back screen (phase 2 implemented).
+- Offline earnings: 25 % of workshop Speed gain, capped at 8 h, plus Money equal to 10 % of that integrated Speed credit, with a welcome-back screen (phase 2 implemented).
 
 ## 1. Layout (`Shared/SpawnArea` + `Shared/WorkshopConfig`)
 All positions are local (x, z) of Track 1's flattened Start, like the rest of the spawn area. Track 1 (Oval) turns LEFT
@@ -121,7 +121,7 @@ Studio: Game Settings > Places > Server Size (Max Players) = **7** (Rojo can not
 
 Ten levels are configured, with level 2 costing $500 and subsequent prices growing ×5. Every level doubles W. These are configurable defaults pending owner feedback, rather than a record of approved balancing. The E prompt on an owned plot opens the upgrade modal; the server checks load state, ownership, life, racing state, distance and Money before buying the next level. No client price or requested level is accepted.
 
-The HUD shows the server's current workshop rate, and Workshop stat allocation is enabled. Offline earnings integrate the diminishing gain formula at 25%, capped at eight hours. Saves include `OfflineAt`; an atomic DataStore claim persists the credited Speed and new timestamp before exposing rewards. Missing or invalid legacy timestamps grant no offline reward. Repeated loads do not replay rewards or reset live progress. The welcome panel reports the credited Speed and capped duration. Workshop harness scenarios passed on the synced sources; UI diagnostics, full compatibility and real-store verification remain pending.
+The HUD shows the server's current workshop rate, and Workshop stat allocation is enabled. Offline earnings integrate the diminishing gain formula at 25%, capped at eight hours; Money is credited at 10% of that Speed result. Saves include `OfflineAt`; an atomic DataStore claim persists the credited Speed, Money, and new timestamp before exposing rewards. Missing or invalid legacy timestamps grant no offline reward. Repeated loads do not replay rewards or reset live progress. The welcome panel reports both credited rewards and the capped duration. Workshop harness scenarios passed on the synced sources; UI diagnostics, full compatibility and real-store verification remain pending.
 
 ## Open questions for the owner
 - `BASE_RATE` (1 Speed/s now; driving at base speed gains ~1.5/s): should idling beat racing for Speed?

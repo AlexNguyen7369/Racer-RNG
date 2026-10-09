@@ -10,7 +10,9 @@
       "fit": "The Speed stat already has diminishing returns, so late players stall. Rebirth turns that stall into the next goal and gives a reason to rerun Track 1 fast.",
       "effort": "M",
       "dependsOn": "Money upgrade tree (so rebirth can reset or keep tiers on purpose)",
-      "status": "open"
+      "status": "added",
+      "decidedBy": "Alex Nguyen",
+      "decidedAt": "2026-10-08T23:02:57-07:00"
     },
     {
       "id": "weather-events",
@@ -32,7 +34,9 @@
       "fit": "Gives Money a second use besides the upgrade tree and makes the turbo-luck rhythm more exciting.",
       "effort": "S",
       "dependsOn": "",
-      "status": "open"
+      "status": "added",
+      "decidedBy": "Alex Nguyen",
+      "decidedAt": "2026-10-08T23:03:12-07:00"
     },
     {
       "id": "sell-duplicates",
@@ -42,7 +46,9 @@
       "fit": "Every roll then has value, even late game when the index is mostly full. Needs a save field for Parts (PlayerData VERSION bump).",
       "effort": "S",
       "dependsOn": "",
-      "status": "open"
+      "status": "added",
+      "decidedBy": "Alex Nguyen",
+      "decidedAt": "2026-10-08T23:03:26-07:00"
     },
     {
       "id": "offline-earnings",
@@ -52,7 +58,9 @@
       "fit": "This is an idle game; offline progress is the main reason idle players come back. The server already knows the save time.",
       "effort": "S",
       "dependsOn": "",
-      "status": "open"
+      "status": "added",
+      "decidedBy": "Alex Nguyen",
+      "decidedAt": "2026-10-08T23:03:32-07:00"
     },
     {
       "id": "daily-streak",
@@ -62,7 +70,9 @@
       "fit": "Cheap retention; rewards reuse existing systems (Money, rolls).",
       "effort": "S",
       "dependsOn": "Potions (optional)",
-      "status": "open"
+      "status": "added",
+      "decidedBy": "Alex Nguyen",
+      "decidedAt": "2026-10-08T23:03:35-07:00"
     },
     {
       "id": "steal-rival",

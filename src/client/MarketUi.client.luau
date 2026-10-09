@@ -137,13 +137,15 @@ local function folderButton(kind, label, y)
 			end
 		end
 		status.Text = kind == "Trail" and "Trails leave a visible wake behind your car."
-			or "Auras surround your car with light and sparks."
+			or kind == "Aura" and "Auras surround your car with light and sparks."
+			or "Buy consumable potions here; purchased potions appear in your Bag."
 		refresh()
 	end)
 	return button
 end
 folderButton("Trail", "TRAILS", 55)
 folderButton("Aura", "AURA", 108)
+folderButton("Potion", "POTIONS", 161)
 
 local function preview(parent, item, kind)
 	local viewport = make("ViewportFrame", "Preview", parent, {
@@ -186,7 +188,7 @@ local function preview(parent, item, kind)
 		ring.Color = item.Accent or item.Color
 		ring.Material = Enum.Material.Neon
 		ring.Parent = world
-	else
+	elseif kind == "Trail" then
 		for index = 1, 4 do
 			local spark = Instance.new("Part")
 			spark.Anchored = true
@@ -231,9 +233,7 @@ refresh = function()
 			Text = item.Description
 				.. "\n"
 				.. Format.MoneyText(item.Price)
-				.. "  •  x"
-				.. item.SpeedMulti
-				.. " speed",
+				.. (selectedKind == "Potion" and "  •  Consumable" or ("  •  x" .. item.SpeedMulti .. " speed")),
 			Font = Enum.Font.Gotham,
 			TextSize = 12,
 			TextColor3 = Color3.fromRGB(193, 205, 225),
@@ -252,14 +252,15 @@ refresh = function()
 			BackgroundColor3 = Color3.fromRGB(70, 175, 105),
 		})
 		make("UICorner", "Corner", button, { CornerRadius = UDim.new(0, 7) })
-		local isOwned = owned(selectedKind, item.Id)
+		local isOwned = selectedKind == "Potion" and ((player:GetAttribute("Boost_" .. item.Id) or 0) > 0)
+			or owned(selectedKind, item.Id)
 		local equipped = player:GetAttribute("Equipped" .. selectedKind) == item.Id
-		button.Text = equipped and "EQUIPPED" or isOwned and "EQUIP" or "BUY"
+		button.Text = selectedKind == "Potion" and "BUY" or (equipped and "EQUIPPED" or isOwned and "EQUIP" or "BUY")
 		button.BackgroundColor3 = equipped and Color3.fromRGB(55, 110, 180) or Color3.fromRGB(70, 175, 105)
 		button.Activated:Connect(function()
 			button.Active = false
 			local ok, message
-			if isOwned then
+			if isOwned and selectedKind ~= "Potion" then
 				ok, message = remotes.MarketEquip:InvokeServer(selectedKind, item.Id)
 			else
 				ok, message = remotes.MarketPurchase:InvokeServer(selectedKind, item.Id)

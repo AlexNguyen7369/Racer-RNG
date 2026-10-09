@@ -39,7 +39,7 @@
     {
       "id": "workshop-phase2",
       "title": "Workshop phase 2: HUD line, level upgrades, offline earnings",
-      "detail": "IMPLEMENTED 2026-10-08, NOT FULLY VERIFIED: WorkshopRate HUD, owner E prompt/modal, guarded next-level purchase, enabled Workshop points, ten configurable levels (level 2 $500, later costs x5, gain x2), exact 25% offline gain capped at 8h, atomic OfflineAt claims and welcome panel. test-writer added workshop_offline/workshop_phase2; ui-test-writer added progression and purchase checks. Full Studio tests blocked by execute_luau approval policy never; real DataStore access disabled. Pricing remains configurable pending owner feedback.",
+      "detail": "IMPLEMENTED 2026-10-08, NOT FULLY VERIFIED: WorkshopRate HUD, owner E prompt/modal, guarded next-level purchase, enabled Workshop points, ten configurable levels (level 2 $500, later costs x5, gain x2), exact 25% offline Speed plus 10% offline Money capped at 8h, atomic OfflineAt claims and welcome panel. test-writer added workshop_offline/workshop_phase2; ui-test-writer added progression and purchase checks. Full Studio tests blocked by execute_luau approval policy never; real DataStore access disabled. Pricing remains configurable pending owner feedback.",
       "status": "done",
       "source": "docs/WORKSHOP_SPEC.md section 8",
       "by": "Claude",
@@ -177,12 +177,17 @@
     {
       "id": "hill-supports",
       "title": "Hill supports poke above the road",
-      "detail": "world-tester: some Hill upslope support tops are up to 0.17 studs above the road surface (Support12 under right-lane waypoint 20). Small suspension bumps; track-designer via /build-track.",
-      "status": "backlog",
+      "detail": "IMPLEMENTED 2026-10-08, NOT LIVE-VERIFIED: TrackBuilder support tops now account for the full sloped piece vertical span and keep 0.05 studs of clearance below the lowest road underside, addressing Support12 under Hill right-lane waypoint 20. Full track/world run still required.",
+      "status": "doing",
       "source": "compat-check 2026-10-05",
       "by": "Alex Nguyen",
       "added": "2026-10-05T21:00:00-07:00",
-      "updated": "2026-10-05T21:00:00-07:00"
+      "updated": "2026-10-08T23:02:31-07:00",
+      "updatedBy": "Alex Nguyen",
+      "branch": "feature/alex/hill-supports-poke-above-the-road",
+      "featureId": "5f62430e",
+      "owner": "Alex Nguyen",
+      "ownerGithub": "AlexNguyen7369"
     },
     {
       "id": "team-branches",
@@ -238,11 +243,16 @@
       "id": "178d5653",
       "title": "Automatic bus delivery for Codex",
       "detail": "Claude receives bus messages via a hook; Codex only when it follows AGENTS.md and runs agent_bus.py context. If the Codex CLI's hook support covers session start / prompt submit, wire `agent_bus.py hook --agent codex` there. Also: edits made via shell commands (sed, heredoc, python rewrites) are not attributed; consider attributing via git diff snapshots per tool call.",
-      "status": "backlog",
+      "status": "doing",
       "source": "claude",
       "by": "Claude",
       "added": "2026-10-06T17:44:01-07:00",
-      "updated": "2026-10-06T17:44:01-07:00"
+      "updated": "2026-10-08T23:02:33-07:00",
+      "updatedBy": "Alex Nguyen",
+      "branch": "feature/alex/automatic-bus-delivery-for-codex",
+      "featureId": "fffa72e5",
+      "owner": "Alex Nguyen",
+      "ownerGithub": "AlexNguyen7369"
     },
     {
       "id": "c0b03fca",
@@ -272,11 +282,16 @@
       "id": "7c111020",
       "title": "Implement workshop upgrades with E interaction",
       "detail": "After the current compatibility check passes and changes are pushed, let the owner approach the Upgrade slab and press E to open an upgrade modal. Show the next workshop level and required Money; increase workshop Speed/s exponentially as level rises, with a correspondingly increasing cost. Define and document the exact progression before implementation.",
-      "status": "backlog",
+      "status": "doing",
       "source": "manual",
       "by": "Alex Nguyen",
       "added": "2026-10-07T00:12:36-07:00",
-      "updated": "2026-10-07T00:12:36-07:00"
+      "updated": "2026-10-08T23:02:42-07:00",
+      "updatedBy": "Alex Nguyen",
+      "branch": "feature/alex/implement-workshop-upgrades-with-e-inter",
+      "featureId": "62159c08",
+      "owner": "Alex Nguyen",
+      "ownerGithub": "AlexNguyen7369"
     },
     {
       "id": "65b8cc63",
@@ -361,6 +376,81 @@
       "updated": "2026-10-08T20:24:20-07:00",
       "updatedBy": "Alex Nguyen",
       "done": "2026-10-08T20:24:20-07:00"
+    },
+    {
+      "id": "ac1becc5",
+      "title": "Rebirth / prestige with a permanent multiplier",
+      "detail": "IMPLEMENTED 2026-10-08, NOT LIVE-VERIFIED: RebirthService validates a Money-or-Speed threshold, resets Money and Speed, preserves index/upgrades/workshop/market, increments a saved leaderboard Rebirth counter, and applies a permanent Speed-gain and Money multiplier. Rebirth is blocked during Auto Race.\n\nFits this game: The Speed stat already has diminishing returns, so late players stall.\nInspired by: Most idle simulators (Race Clicker, Sonic Speed Simulator)",
+      "status": "doing",
+      "source": "suggestion:rebirth",
+      "by": "Alex Nguyen",
+      "added": "2026-10-08T23:02:57-07:00",
+      "updated": "2026-10-08T23:03:44-07:00",
+      "updatedBy": "Alex Nguyen",
+      "branch": "feature/alex/rebirth-prestige-with-a-permanent-multip",
+      "featureId": "2b25c661",
+      "owner": "Alex Nguyen",
+      "ownerGithub": "AlexNguyen7369"
+    },
+    {
+      "id": "c739ab23",
+      "title": "Timed boosts (luck / money / speed potions)",
+      "detail": "IMPLEMENTED 2026-10-08, NOT LIVE-VERIFIED: server-owned Luck/Money/Speed potions persist inventory and expiry timestamps, are awarded by track wins/daily rewards or purchased with Money, extend an active boost's remaining duration, and feed server-side roll, payout, and Speed gain multipliers. Compact UI exposes all three potion actions and live countdown timers.\n\nFits this game: Gives Money a second use besides the upgrade tree and makes the turbo-luck rhythm more exciting.\nInspired by: Sol's RNG and Cars RNG luck items",
+      "status": "doing",
+      "source": "suggestion:potions",
+      "by": "Alex Nguyen",
+      "added": "2026-10-08T23:03:12-07:00",
+      "updated": "2026-10-08T23:03:52-07:00",
+      "updatedBy": "Alex Nguyen",
+      "branch": "feature/alex/timed-boosts-luck-money-speed-potions",
+      "featureId": "17dc5416",
+      "owner": "Alex Nguyen",
+      "ownerGithub": "AlexNguyen7369"
+    },
+    {
+      "id": "ce665d47",
+      "title": "Scrap duplicate cars for Money",
+      "detail": "IMPLEMENTED 2026-10-08: duplicate rolls now award direct Money based on rarity (Common $100 through Secret $250,000), persist through the existing Money save field, and show the payout in the roll card. No Parts currency is introduced.\nInspired by: Cars RNG (sell unwanted cars)",
+      "status": "doing",
+      "source": "suggestion:sell-duplicates",
+      "by": "Alex Nguyen",
+      "added": "2026-10-08T23:03:26-07:00",
+      "updated": "2026-10-08T23:03:47-07:00",
+      "updatedBy": "Alex Nguyen",
+      "branch": "feature/alex/scrap-duplicate-cars-for-parts",
+      "featureId": "03567402",
+      "owner": "Alex Nguyen",
+      "ownerGithub": "AlexNguyen7369"
+    },
+    {
+      "id": "d5c1b40f",
+      "title": "Offline earnings",
+      "detail": "IMPLEMENTED 2026-10-08, NOT LIVE-VERIFIED: existing PlayerData atomically claims OfflineAt and awards capped Speed plus Money (10% of the integrated Speed credit) through the Workshop offline formula, with a welcome popup showing both credited rewards and away duration.\n\nFits this game: This is an idle game; offline progress is the main reason idle players come back.\nInspired by: Horse RNG and Grow a Garden (progress while away)",
+      "status": "doing",
+      "source": "suggestion:offline-earnings",
+      "by": "Alex Nguyen",
+      "added": "2026-10-08T23:03:32-07:00",
+      "updated": "2026-10-08T23:03:51-07:00",
+      "updatedBy": "Alex Nguyen",
+      "branch": "feature/alex/offline-earnings",
+      "featureId": "0c3dd5f3",
+      "owner": "Alex Nguyen",
+      "ownerGithub": "AlexNguyen7369"
+    },
+    {
+      "id": "8140822a",
+      "title": "Daily login streak and rewards",
+      "detail": "IMPLEMENTED 2026-10-08, NOT LIVE-VERIFIED: DailyLoginService stores a UTC-day streak, rejects duplicate claims, resets after a missed day, awards Money and potions, and grants the rarest undiscovered non-common car on day 7.\n\nFits this game: Cheap retention; rewards reuse existing systems (Money, rolls).\nInspired by: Grow a Garden, Adopt Me!",
+      "status": "doing",
+      "source": "suggestion:daily-streak",
+      "by": "Alex Nguyen",
+      "added": "2026-10-08T23:03:35-07:00",
+      "updated": "2026-10-08T23:03:49-07:00",
+      "updatedBy": "Alex Nguyen",
+      "branch": "feature/alex/daily-login-streak-and-rewards",
+      "featureId": "d08f107c",
+      "owner": "Alex Nguyen",
+      "ownerGithub": "AlexNguyen7369"
     }
   ]
 }

@@ -1,6 +1,7 @@
 --!strict
 -- Money purchases described by the design document's "What Money buys" section.
 local MarketConfig = {}
+local BoostConfig = require(script.Parent.BoostConfig)
 
 MarketConfig.Items = {
 	Aura = {
@@ -61,7 +62,25 @@ MarketConfig.Items = {
 			Description = "A dark neon wake that flickers at the edges.",
 		},
 	},
+	Potion = {},
 }
+
+for _, category in BoostConfig.Order do
+	for _, boost in BoostConfig.ItemsFor(category) do
+		table.insert(MarketConfig.Items.Potion, {
+			Id = boost.Id,
+			Name = boost.Name,
+			Price = boost.Price,
+			Color = category == "Luck" and Color3.fromRGB(190, 105, 255)
+				or category == "Money" and Color3.fromRGB(255, 205, 65)
+				or Color3.fromRGB(70, 190, 255),
+			Accent = Color3.fromRGB(255, 255, 255),
+			Description = string.format("%s multiplier for %d seconds. Added to your Bag.", category, boost.Duration),
+			Category = category,
+			Tier = boost.Tier,
+		})
+	end
+end
 
 local byId = {}
 for kind, items in MarketConfig.Items do

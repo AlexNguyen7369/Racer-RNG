@@ -34,6 +34,7 @@ local index = require(Ui.RacerIndex).Bind(playerGui)
 local stats = require(Ui.RacerStats).Bind(playerGui)
 local settings = require(Ui.RacerSettings).Bind(playerGui)
 local rebirth = require(Ui.RacerRebirth).Bind(playerGui)
+local rebirthConfig = require(Shared.RebirthConfig)
 -- Catalog additions extend the saved gallery without waiting forever for an old seven-car bake.
 local gallery = index.GridHost:FindFirstChild("Gallery")
 for _, spec in catalog.All() do
@@ -74,6 +75,71 @@ for name, refs in pairs(racerPanels) do
 		PanelSwitch.Close(name)
 	end)
 end
+
+-- The original baked panel was a coming-soon placeholder. Keep its layout and
+-- bind the live server-owned prestige action into it at runtime.
+rebirth.ComingSoon.Visible = false
+local rebirthStatus = Instance.new("TextLabel")
+rebirthStatus.Name = "Status"
+rebirthStatus.Position = UDim2.fromOffset(28, 92)
+rebirthStatus.Size = UDim2.new(1, -56, 0, 110)
+rebirthStatus.BackgroundTransparency = 1
+rebirthStatus.Font = Enum.Font.GothamBold
+rebirthStatus.TextColor3 = Color3.new(1, 1, 1)
+rebirthStatus.TextSize = 18
+rebirthStatus.TextWrapped = true
+rebirthStatus.Parent = rebirth.Panel
+local rebirthButton = Instance.new("TextButton")
+rebirthButton.Name = "RebirthButton"
+rebirthButton.Position = UDim2.new(0.5, -110, 1, -62)
+rebirthButton.Size = UDim2.fromOffset(220, 42)
+rebirthButton.BackgroundColor3 = GREEN
+rebirthButton.TextColor3 = Color3.new(1, 1, 1)
+rebirthButton.Font = Enum.Font.GothamBold
+rebirthButton.TextSize = 18
+rebirthButton.Text = "REBIRTH"
+rebirthButton.Parent = rebirth.Panel
+Instance.new("UICorner", rebirthButton).CornerRadius = UDim.new(0, 8)
+local rebirthBusy = false
+local function refreshRebirth()
+	local level = player:GetAttribute("RebirthLevel") or 0
+	local required = rebirthConfig.Requirements(level)
+	local playerLevel = player:GetAttribute("Level") or 1
+	local eligible = playerLevel >= required.Level
+	rebirthStatus.Text = string.format(
+		"REBIRTH LEVEL %d  •  +%d%% Speed gain  •  +%d%% Luck\nSpeed is preserved; Money resets.\nReach PLAYER LEVEL %d",
+		level,
+		level * rebirthConfig.GAIN_PER_LEVEL * 100 + rebirthConfig.GAIN_PER_LEVEL * 100,
+		level * rebirthConfig.LUCK_GAIN_PER_LEVEL * 100 + rebirthConfig.LUCK_GAIN_PER_LEVEL * 100,
+		required.Level
+	)
+	rebirthButton.Active = eligible and not rebirthBusy and level < rebirthConfig.MAX_LEVEL
+	rebirthButton.AutoButtonColor = rebirthButton.Active
+	rebirthButton.BackgroundColor3 = rebirthButton.Active and GREEN or GRAY
+end
+rebirthButton.Activated:Connect(function()
+	if not rebirthButton.Active or rebirthBusy then
+		return
+	end
+	rebirthBusy = true
+	local ok, success, message = pcall(function()
+		return remotes:WaitForChild("Rebirth"):InvokeServer()
+	end)
+	rebirthStatus.Text = ok and (success and ("REBIRTH COMPLETE • LEVEL " .. tostring(message)) or tostring(message))
+		or "Connection error; try again"
+	rebirthBusy = false
+	refreshRebirth()
+end)
+for _, attr in { "RebirthLevel" } do
+	player:GetAttributeChangedSignal(attr):Connect(refreshRebirth)
+end
+task.spawn(function()
+	local statsFolder = player:WaitForChild("leaderstats")
+	statsFolder:WaitForChild("Money").Changed:Connect(refreshRebirth)
+	statsFolder:WaitForChild("Speed").Changed:Connect(refreshRebirth)
+	player:GetAttributeChangedSignal("Level"):Connect(refreshRebirth)
+end)
+refreshRebirth()
 
 local function label(button, value)
 	if button:IsA("TextLabel") or button:IsA("TextButton") then

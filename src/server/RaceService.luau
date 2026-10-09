@@ -30,6 +30,9 @@ local PlayerData = require(script.Parent.PlayerData)
 local GachaService = require(script.Parent.GachaService)
 local UpgradeService = require(script.Parent.UpgradeService)
 local MarketConfig = require(Shared.MarketConfig)
+local BoostConfig = require(Shared.BoostConfig)
+local BoostService = require(script.Parent.BoostService)
+local LevelService = require(script.Parent.LevelService)
 
 local RaceService = {}
 
@@ -133,6 +136,12 @@ function RaceService.NewRun(car, raceRoute, player, options)
 		Losses = 0,
 		Resets = 0,
 	}
+
+	local function rewardTrackWin(trackNumber)
+		local id = BoostConfig.WinReward(trackNumber)
+		BoostService.Add(player, id, 1)
+		player:SetAttribute("LastWinBoost", id)
+	end
 	local npcMode = options.Npc == true and type(raceRoute.Tracks) == "table" and #raceRoute.Tracks > 0
 	local loseSeconds = options.LoseScreenSeconds or NpcConfig.LOSE_SCREEN_SECONDS
 	local race = nil -- { Index, Number, Started, NpcTime }
@@ -212,6 +221,7 @@ function RaceService.NewRun(car, raceRoute, player, options)
 			run.BankedTotal += amount
 			setUnbanked(run.Unbanked + amount)
 			reachTrack(player, track.Number)
+			rewardTrackWin(track.Number)
 		else
 			setUnbanked(0) -- a lost race loses what was not banked yet
 		end
@@ -266,6 +276,7 @@ function RaceService.NewRun(car, raceRoute, player, options)
 				if amount > 0 then
 					run.Payouts += 1
 					run.PaidTotal += amount
+					rewardTrackWin(entry.Number)
 				end
 			end
 		end
@@ -396,7 +407,8 @@ function RaceService.NewRun(car, raceRoute, player, options)
 		-- Car models affect cruise speed only; they never multiply this gain.
 		pending += RaceConfig.GainPerSecond(stat, chassis.AssemblyLinearVelocity.Magnitude) * GachaService.SpeedGainMulti(
 			player
-		) * dt
+		) * require(script.Parent.BoostService).Multiplier(player, "Speed") * dt
+		LevelService.Tick(player, dt)
 		sinceCommit += dt
 		if sinceCommit >= RaceService.COMMIT_INTERVAL then
 			sinceCommit = 0

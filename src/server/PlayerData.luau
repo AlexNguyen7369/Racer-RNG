@@ -17,11 +17,15 @@ local MoneyService = require(script.Parent.MoneyService)
 local GachaService = require(script.Parent.GachaService)
 local UpgradeService = require(script.Parent.UpgradeService)
 local MarketService = require(script.Parent.MarketService)
+local RebirthService = require(script.Parent.RebirthService)
+local BoostService = require(script.Parent.BoostService)
+local DailyLoginService = require(script.Parent.DailyLoginService)
+local LevelService = require(script.Parent.LevelService)
 
 local PlayerData = {}
 
 local STORE_NAME = "PlayerStats_v1"
-local VERSION = 5 -- 3: car gacha; 4: upgrade tree/workshop; 5: market ownership and equipment
+local VERSION = 7 -- 3: gacha; 4: upgrades/workshop; 5: market; 6: rebirth/boosts/daily login; 7: level/xp
 local MAX_MONEY = 1e12
 local MAX_ADD = 1e6 -- most a single AddSpeed call may add
 local AUTOSAVE_SECONDS = 60
@@ -90,7 +94,11 @@ end
 
 -- Creates leaderstats with Money and Speed (idempotent). Works on any Instance.
 function PlayerData.Setup(player)
+	LevelService.Setup(player)
 	MoneyService.Setup(player)
+	RebirthService.Setup(player)
+	BoostService.Setup(player)
+	DailyLoginService.Setup(player)
 	if player:GetAttribute("RebirthLevel") == nil then
 		player:SetAttribute("RebirthLevel", RebirthConfig.DEFAULT_LEVEL)
 	end
@@ -125,7 +133,10 @@ function PlayerData.Load(player, userId)
 	UpgradeService.Apply(player, data) -- version 3 and older: no tiles, BestTrack 0, TurboCount from Rolls % 10
 	MarketService.Apply(player, data)
 	player:SetAttribute("WorkshopLevel", Workshop.CleanLevel(data.WorkshopLevel)) -- missing = the starter workshop
-	player:SetAttribute("RebirthLevel", RebirthConfig.CleanLevel(data.RebirthLevel))
+	RebirthService.Apply(player, data)
+	BoostService.Apply(player, data)
+	DailyLoginService.Apply(player, data)
+	LevelService.Apply(player, data)
 	local at = clock()
 	local offlineAt = data.OfflineAt
 	local seconds = type(offlineAt) == "number"
@@ -135,18 +146,24 @@ function PlayerData.Load(player, userId)
 			and math.min(at - offlineAt, Workshop.Config.OFFLINE_CAP)
 		or 0
 	local gain = Workshop.OfflineGain(speed.Value, 1, data.WorkshopLevel, GachaService.WorkshopMulti(player), seconds)
-	if gain > 0 then
+	local moneyGain =
+		Workshop.OfflineMoney(speed.Value, 1, data.WorkshopLevel, GachaService.WorkshopMulti(player), seconds)
+	if gain > 0 or moneyGain > 0 then
 		-- Persist the claim before exposing it. UpdateAsync retries can never award the same saved absence twice.
 		local claimed = 0
+		local claimedMoney = 0
 		local claimOk, updated = pcall(function()
 			return dataStore:UpdateAsync(PlayerData.KeyFor(userId), function(current)
 				claimed = 0
+				claimedMoney = 0
 				if type(current) ~= "table" or current.OfflineAt ~= offlineAt then
 					return nil
 				end
 				local result = table.clone(current)
 				claimed = gain
+				claimedMoney = moneyGain
 				result.Speed = cleanStat(cleanStat(current.Speed) + gain)
+				result.Money = cleanInt(cleanInt(current.Money, 0, MAX_MONEY, 0) + moneyGain, 0, MAX_MONEY, 0)
 				result.OfflineAt = at
 				return result
 			end)
@@ -165,10 +182,15 @@ function PlayerData.Load(player, userId)
 		UpgradeService.Apply(player, updated)
 		MarketService.Apply(player, updated)
 		player:SetAttribute("WorkshopLevel", Workshop.CleanLevel(updated.WorkshopLevel))
-		player:SetAttribute("RebirthLevel", RebirthConfig.CleanLevel(updated.RebirthLevel))
+		RebirthService.Apply(player, updated)
+		BoostService.Apply(player, updated)
+		DailyLoginService.Apply(player, updated)
+		LevelService.Apply(player, updated)
 		gain = claimed
+		moneyGain = claimedMoney
 	end
 	player:SetAttribute("OfflineSpeed", gain)
+	player:SetAttribute("OfflineMoney", moneyGain)
 	player:SetAttribute("OfflineSeconds", seconds)
 	player:SetAttribute("DataFailed", nil)
 	player:SetAttribute("DataLoaded", true)
@@ -192,6 +214,9 @@ function PlayerData.Save(player, userId)
 	local gacha = GachaService.Snapshot(player)
 	local upgrades = UpgradeService.Snapshot(player)
 	local market = MarketService.Snapshot(player)
+	local boosts = BoostService.Snapshot(player)
+	local daily = DailyLoginService.Snapshot(player)
+	local level = LevelService.Snapshot(player)
 	local payload = {
 		Money = cleanInt(money.Value, 0, MAX_MONEY, 0),
 		Speed = cleanStat(speed.Value),
@@ -204,6 +229,12 @@ function PlayerData.Save(player, userId)
 		TurboCount = upgrades.TurboCount,
 		WorkshopLevel = Workshop.CleanLevel(player:GetAttribute("WorkshopLevel")),
 		RebirthLevel = RebirthConfig.CleanLevel(player:GetAttribute("RebirthLevel")),
+		Boosts = boosts.Boosts,
+		ActiveBoosts = boosts.ActiveBoosts,
+		DailyStreak = daily.DailyStreak,
+		DailyLast = daily.DailyLast,
+		Level = level.Level,
+		XP = level.XP,
 		OwnedAuras = market.OwnedAuras,
 		OwnedTrails = market.OwnedTrails,
 		EquippedAura = market.EquippedAura,

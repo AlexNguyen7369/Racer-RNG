@@ -296,6 +296,17 @@ AdminService.Commands = {
 			moneyValue(p).Value = 0
 			speedValue(p).Value = 0
 			p:SetAttribute("RebirthLevel", 0)
+			local stats = p:FindFirstChild("leaderstats")
+			local rebirth = stats and stats:FindFirstChild("Rebirth")
+			if rebirth then
+				rebirth.Value = 0
+			end
+			for _, id in { "Luck", "Money", "Speed" } do
+				p:SetAttribute("Boost_" .. id, 0)
+				p:SetAttribute("BoostUntil_" .. id, 0)
+			end
+			p:SetAttribute("DailyStreak", 0)
+			p:SetAttribute("DailyLast", -1)
 			GachaService.Apply(p, {})
 			UpgradeService.Apply(p, {}) -- after the gacha reset, so TurboCount starts from Rolls = 0
 			return true, "wiped"

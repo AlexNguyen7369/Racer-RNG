@@ -52,12 +52,12 @@
         "Click Connect (localhost:34872). Accept the sync if it asks.",
         "Tell Claude \"rojo connected\"."
       ],
-      "status": "done",
+      "status": "open",
       "added": "2026-10-05T20:00:00-07:00",
       "by": "Claude",
-      "doneBy": "Alex Nguyen",
-      "doneAt": "2026-10-08T15:37:09-07:00",
-      "verified": "Studio scripts match the repo (RollToast 33807 bytes with the fly-icon fix)."
+      "updated": "2026-10-08T23:18:38-07:00",
+      "updatedBy": "Codex",
+      "verified": "Current Edit DataModel lacks the new RebirthService, BoostService, and DailyLoginService; reconnect localhost:34872 before live testing."
     },
     {
       "id": "recover-hud-items",

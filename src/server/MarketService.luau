@@ -7,6 +7,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local MarketConfig = require(Shared.MarketConfig)
 local MoneyService = require(script.Parent.MoneyService)
+local BoostService = require(script.Parent.BoostService)
 
 local MarketService = {}
 MarketService.REMOTE_COOLDOWN = 0.25
@@ -69,7 +70,14 @@ end
 
 function MarketService.Purchase(player, kind, id)
 	local item = MarketConfig.Get(kind, id)
-	if not item or owns(player, kind, id) then
+	if not item then
+		return false, "Already owned or unavailable"
+	end
+	if kind == "Potion" then
+		local ok, result = BoostService.Purchase(player, id)
+		return ok, ok and ("Purchased " .. item.Name .. " • Bag x" .. tostring(result)) or result
+	end
+	if owns(player, kind, id) then
 		return false, "Already owned or unavailable"
 	end
 	local money = MoneyService.Setup(player)

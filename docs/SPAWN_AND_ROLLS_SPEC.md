@@ -88,7 +88,9 @@ from the walk spawn; the pad touches the area (gap <= 1 stud) and touches the ro
 - `GachaConfig.IsTurbo(rollNumber)` -> `rollNumber > 0 and rollNumber % TURBO_EVERY == 0`.
 - `GachaConfig.TurboProgress(rolls)` -> `rolls % TURBO_EVERY` (0..TURBO_EVERY-1; rolls done towards the next turbo).
 - `GachaService.Roll(player, roller)` rolls with `Luck * (IsTurbo(Rolls + 1) and TURBO_LUCK or 1)`, then
-  increments `Rolls`, and returns `id, isNew, turboMulti`. `Remotes.RollResult:FireClient(player, id, isNew, turboMulti)`
+  increments `Rolls`, and returns `id, isNew, turboMulti, emphasized, scrapMoney`. Duplicate rolls award direct Money
+  from the car's rarity table; `Remotes.RollResult:FireClient(player, id, isNew, turboMulti, emphasized, scrapMoney)`
+  includes the server-calculated payout for the duplicate card. No Parts currency is created.
   (`turboMulti` = 1 or TURBO_LUCK). Derived from the saved `Rolls`, so nothing new is saved.
 
 ## 5. UI (client only displays)

@@ -56,8 +56,10 @@ Functions:
   or not rollable. Else, if fewer than 5 rollable cars are owned: true. Else: true only when the car is rarer than
   the player's 5th-rarest owned rollable car (rarer = larger `Chance`; the catch-all has no `Chance` and is the least
   rare). Rarity names are never used.
-- `GachaService.Roll(player, roller)` returns `id, isNew, turboMulti, emphasized` and fires
-  `Remotes.RollResult:FireClient(player, id, isNew, turboMulti, emphasized)`.
+- `GachaService.Roll(player, roller)` returns `id, isNew, turboMulti, emphasized, scrapMoney` and fires
+  `Remotes.RollResult:FireClient(player, id, isNew, turboMulti, emphasized, scrapMoney)`.
+  `scrapMoney` is the server-calculated direct Money payout for a duplicate car (zero for a new car); the client may
+  display it but never calculates or awards it.
 - **Global announcement:** an emphasized roll fires `Remotes.RollAnnounce:FireAllClients(userId, displayName, id,
   rolls)` (rolls = the player's `Rolls` after this roll). `Client/RollAnnounce` shows it in `RBXGeneral` with
   `DisplaySystemMessage`: `"<DisplayName> rolled <Car Name> (<HudFormat.Odds(Chance)>)! Total rolls: <n>"`.

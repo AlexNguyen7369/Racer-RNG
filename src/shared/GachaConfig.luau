@@ -33,6 +33,21 @@ GachaConfig.RARITY_COLORS = {
 	Secret = Color3.fromRGB(20, 20, 20),
 }
 
+-- Duplicate rolls become direct Money rewards. Rarer cars are worth more.
+GachaConfig.SCRAP_MONEY = {
+	Common = 100,
+	Uncommon = 250,
+	Rare = 750,
+	Epic = 2500,
+	Legendary = 10000,
+	Mythic = 50000,
+	Secret = 250000,
+}
+
+function GachaConfig.ScrapMoney(spec)
+	return math.max(0, math.floor(GachaConfig.SCRAP_MONEY[spec and spec.Rarity] or 0))
+end
+
 local function count(n)
 	if type(n) ~= "number" or n ~= n or n < 0 or n == math.huge then
 		return 0

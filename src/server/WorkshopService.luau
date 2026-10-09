@@ -15,6 +15,7 @@ local WorkshopConfig = require(Shared.WorkshopConfig)
 local CarService = require(script.Parent.CarService)
 local GachaService = require(script.Parent.GachaService)
 local PlayerData = require(script.Parent.PlayerData)
+local LevelService = require(script.Parent.LevelService)
 
 local WorkshopService = {}
 
@@ -268,6 +269,7 @@ function WorkshopService.Tick(player, dt, character)
 	end
 	setRate(player, true, rate)
 	local gain = rate * dt
+	LevelService.Tick(player, dt)
 	return PlayerData.AddSpeed(player, gain) and gain or 0
 end
 
