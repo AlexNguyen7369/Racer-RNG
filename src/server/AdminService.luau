@@ -295,6 +295,7 @@ AdminService.Commands = {
 		Apply = function(p)
 			moneyValue(p).Value = 0
 			speedValue(p).Value = 0
+			p:SetAttribute("RebirthLevel", 0)
 			GachaService.Apply(p, {})
 			UpgradeService.Apply(p, {}) -- after the gacha reset, so TurboCount starts from Rolls = 0
 			return true, "wiped"

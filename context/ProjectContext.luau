@@ -3,12 +3,13 @@
 PROJECT CONTEXT - Idle Vehicle Simulator (read me first)
 Shown in Studio at: ServerScriptService > ProjectContext   (source file: context/ProjectContext.luau)
 Do NOT edit this in Studio: edit the file on disk, Rojo syncs it. Claude updates it at the end of every loop.
-Last updated: 2026-10-08 (compatibility gate verified; real DataStore access remains blocked in Studio)
+Last updated: 2026-10-08 (compatibility gate verified; live DataStore API probe passed)
 
 CURRENT DOING IMPLEMENTATION - 2026-10-07
-- OWNER FUTURE DEVELOPMENT NOTE: car models should multiply the player's current base/cruise speed,
-  while passive racing speed gain is based entirely on rebirth level. Workshop speed gain is based on
-  workshop level and is independent of car model. This is recorded for future balancing work only.
+- OWNER SPEED BALANCE (started 2026-10-08): equipped car models now multiply the player's current
+  base/cruise race speed only. Passive racing Speed gain uses the server-owned RebirthLevel multiplier;
+  car models and stat-allocation multipliers do not affect it. Workshop gain is independent of car model.
+  Rebirth remains coming soon in the UI; new players default to RebirthLevel 0.
 - Added ProgressionUi: hex upgrade tree with server-owned purchases, badge, hub world pad, workshop E modal,
   WorkshopRate HUD, offline welcome panel, and replicated weather banner. Workshop stat allocation is enabled.
 - Workshop defaults are configurable: ten levels, level 2 costs $500, subsequent cost x5, Speed gain x2 per level.
@@ -20,7 +21,8 @@ CURRENT DOING IMPLEMENTATION - 2026-10-07
 - test-writer added workshop_offline, workshop_phase2 and weather scenarios and expanded catalog assertions while
   preserving the original seven car requirements. ui-test-writer added progression scenarios and real-click contracts.
 - Local checks: StyLua, Selene, and Rojo build pass. Live compatibility is now verified for the current source
-  fingerprint; real DataStore persistence remains unverified because Studio API access is disabled.
+  fingerprint. With Studio API access enabled, a temporary-key SetAsync/GetAsync/RemoveAsync probe against
+  PlayerStats_v1 passed; the long game harness did not emit a terminal result in this session.
 - Rojo is running at localhost:34872. The reopened Racer RNG Studio session now contains WeatherConfig,
   Phase2Tests and ProgressionUi; dedicated script_read confirms the current progression layout and controller.
 - 2026-10-08 live verification: Play started; RacerUiReady=true and all ten gallery entries are present.
@@ -30,8 +32,8 @@ CURRENT DOING IMPLEMENTATION - 2026-10-07
 - Live inspection also found bottom RollControls re-enabled by responsive fits. Added a Visible property guard
   and set RollControls visible=false in the HUD spec. Fresh Play inspection now confirms Visible=false and
   RacerUiReady=true. The generated/baked HUD artifact still needs refresh; gen.py is unavailable in this checkout.
-- Real DataStore persistence is still an independent TODO; it does not invalidate the compatibility suites, which
-  use the documented Studio-access limitation for their data checks.
+- Real DataStore persistence is now an independent verified TODO: the live API probe passed without touching a
+  player record, and the temporary key was removed after the check.
 - Runtime execute_luau permissions are now working. Full 31-scenario harness is running in the same synced
   Play session at fingerprint 64b1ba5787cf; physics-tester monitors it. No final END observed yet.
   Isolated real DataStore read still fails: "Studio access to APIs is not allowed". Owner asked to enable it.

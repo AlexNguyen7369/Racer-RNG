@@ -11,6 +11,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local RaceConfig = require(Shared:WaitForChild("RaceConfig"))
+local RebirthConfig = require(Shared:WaitForChild("RebirthConfig"))
 local Workshop = require(Shared:WaitForChild("Workshop"))
 local MoneyService = require(script.Parent.MoneyService)
 local GachaService = require(script.Parent.GachaService)
@@ -19,7 +20,7 @@ local UpgradeService = require(script.Parent.UpgradeService)
 local PlayerData = {}
 
 local STORE_NAME = "PlayerStats_v1"
-local VERSION = 4 -- 3: car gacha (GachaService); 4: upgrade tree (UpgradeService) and WorkshopLevel
+local VERSION = 4 -- 3: car gacha; 4: upgrade tree and WorkshopLevel; RebirthLevel is an additive field
 local MAX_MONEY = 1e12
 local MAX_ADD = 1e6 -- most a single AddSpeed call may add
 local AUTOSAVE_SECONDS = 60
@@ -89,6 +90,9 @@ end
 -- Creates leaderstats with Money and Speed (idempotent). Works on any Instance.
 function PlayerData.Setup(player)
 	MoneyService.Setup(player)
+	if player:GetAttribute("RebirthLevel") == nil then
+		player:SetAttribute("RebirthLevel", RebirthConfig.DEFAULT_LEVEL)
+	end
 	return speedValue(player)
 end
 
@@ -119,6 +123,7 @@ function PlayerData.Load(player, userId)
 	GachaService.Apply(player, data) -- older saves have no gacha fields: starter car, nothing allocated
 	UpgradeService.Apply(player, data) -- version 3 and older: no tiles, BestTrack 0, TurboCount from Rolls % 10
 	player:SetAttribute("WorkshopLevel", Workshop.CleanLevel(data.WorkshopLevel)) -- missing = the starter workshop
+	player:SetAttribute("RebirthLevel", RebirthConfig.CleanLevel(data.RebirthLevel))
 	local at = clock()
 	local offlineAt = data.OfflineAt
 	local seconds = type(offlineAt) == "number"
@@ -127,13 +132,7 @@ function PlayerData.Load(player, userId)
 			and offlineAt <= at
 			and math.min(at - offlineAt, Workshop.Config.OFFLINE_CAP)
 		or 0
-	local gain = Workshop.OfflineGain(
-		speed.Value,
-		GachaService.SpeedMulti(player),
-		data.WorkshopLevel,
-		GachaService.WorkshopMulti(player),
-		seconds
-	)
+	local gain = Workshop.OfflineGain(speed.Value, 1, data.WorkshopLevel, GachaService.WorkshopMulti(player), seconds)
 	if gain > 0 then
 		-- Persist the claim before exposing it. UpdateAsync retries can never award the same saved absence twice.
 		local claimed = 0
@@ -163,6 +162,7 @@ function PlayerData.Load(player, userId)
 		GachaService.Apply(player, updated)
 		UpgradeService.Apply(player, updated)
 		player:SetAttribute("WorkshopLevel", Workshop.CleanLevel(updated.WorkshopLevel))
+		player:SetAttribute("RebirthLevel", RebirthConfig.CleanLevel(updated.RebirthLevel))
 		gain = claimed
 	end
 	player:SetAttribute("OfflineSpeed", gain)
@@ -199,6 +199,7 @@ function PlayerData.Save(player, userId)
 		BestTrack = upgrades.BestTrack,
 		TurboCount = upgrades.TurboCount,
 		WorkshopLevel = Workshop.CleanLevel(player:GetAttribute("WorkshopLevel")),
+		RebirthLevel = RebirthConfig.CleanLevel(player:GetAttribute("RebirthLevel")),
 		OfflineAt = clock(),
 		Version = VERSION,
 	}

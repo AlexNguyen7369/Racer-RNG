@@ -12,6 +12,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local CarCatalog = require(Shared.CarCatalog)
 local GachaConfig = require(Shared.GachaConfig)
+local RebirthConfig = require(Shared.RebirthConfig)
 local RollAnimConfig = require(Shared.RollAnimConfig)
 local UpgradeService = require(script.Parent.UpgradeService)
 
@@ -221,11 +222,24 @@ function GachaService.Allocate(player, stat)
 	return true
 end
 
--- Equipped car's multi times the Speed stat multi. 1 for a fresh player.
-function GachaService.SpeedMulti(player)
+-- The equipped car changes base/cruise speed only. It must not affect passive
+-- racing or workshop gain.
+function GachaService.CarSpeedMulti(player)
 	local spec = CarCatalog.Get(player:GetAttribute("EquippedCar"))
 	local carMulti = spec and owns(player, spec.Id) and spec.SpeedMulti or 1
-	return carMulti * GachaConfig.Multis(alloc(player), UpgradeService.Bonuses(player)).Speed
+	return carMulti
+end
+
+-- Passive racing gain is determined by rebirth level. Car models and car/stat
+-- allocation do not multiply this value.
+function GachaService.SpeedGainMulti(player)
+	return RebirthConfig.SpeedGainMulti(player:GetAttribute("RebirthLevel"))
+end
+
+-- Compatibility entry point for callers that ask for the passive racing
+-- multiplier. It intentionally excludes the equipped car and stat allocation.
+function GachaService.SpeedMulti(player)
+	return GachaService.SpeedGainMulti(player)
 end
 
 function GachaService.MoneyMulti(player)

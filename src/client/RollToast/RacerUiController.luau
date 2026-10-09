@@ -76,6 +76,10 @@ for name, refs in pairs(racerPanels) do
 end
 
 local function label(button, value)
+	if button:IsA("TextLabel") or button:IsA("TextButton") then
+		button.Text = value
+		return
+	end
 	for _, child in ipairs(button:GetChildren()) do
 		if child:IsA("TextLabel") then
 			child.Text = value

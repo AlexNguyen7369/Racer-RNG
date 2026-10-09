@@ -107,7 +107,7 @@ function RaceService.NewRun(car, raceRoute, player, options)
 	local stat = PlayerData.SpeedStat(player)
 	local physics = CarPhysics.new(car, CarConfig)
 	local driver = PathDriver.new(raceRoute.Path, CarConfig, {
-		TargetSpeed = RaceConfig.SpeedFor(stat),
+		TargetSpeed = RaceConfig.SpeedFor(stat, GachaService.CarSpeedMulti(player)),
 		NoFinalSlow = options.Loop,
 	})
 	local run = {
@@ -315,7 +315,7 @@ function RaceService.NewRun(car, raceRoute, player, options)
 			end
 		end
 		stat = PlayerData.SpeedStat(player) -- the source of truth (also picks up a load finishing)
-		run.TargetSpeed = RaceConfig.SpeedFor(stat)
+		run.TargetSpeed = RaceConfig.SpeedFor(stat, GachaService.CarSpeedMulti(player))
 		driver.TargetSpeed = run.TargetSpeed
 	end
 
@@ -390,9 +390,9 @@ function RaceService.NewRun(car, raceRoute, player, options)
 			run.MaxPathDeviation = math.max(run.MaxPathDeviation, pathDeviation())
 		end
 
-		-- Passive gain: proportional to the ACTUAL speed, smaller the higher the stat, times the equipped
-		-- car's and the stat points' Speed multi (GachaService). The cruise speed does not use the multi.
-		pending += RaceConfig.GainPerSecond(stat, chassis.AssemblyLinearVelocity.Magnitude) * GachaService.SpeedMulti(
+		-- Passive gain is proportional to ACTUAL speed and is boosted by rebirths.
+		-- Car models affect cruise speed only; they never multiply this gain.
+		pending += RaceConfig.GainPerSecond(stat, chassis.AssemblyLinearVelocity.Magnitude) * GachaService.SpeedGainMulti(
 			player
 		) * dt
 		sinceCommit += dt

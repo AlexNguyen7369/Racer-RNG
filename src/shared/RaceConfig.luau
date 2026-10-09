@@ -1,7 +1,8 @@
 --!nonstrict
 -- Economy knobs for the auto race. The Speed stat (a continuous number that grows while the car drives)
--- sets the cruise speed, with diminishing returns. Studs per second. Keep MAX_SPEED under
--- CarConfig.TopSpeed so the car can always hold it.
+-- sets the cruise speed, with diminishing returns. Studs per second. The optional
+-- car multiplier changes the player's base/cruise speed, while speed gain is
+-- handled separately by RebirthConfig.
 
 local RaceConfig = {}
 
@@ -19,10 +20,16 @@ local function cleanStat(stat)
 	return math.min(stat, RaceConfig.MAX_STAT)
 end
 
--- Cruise speed (studs/s) for a Speed stat. Always in [BASE_SPEED, MAX_SPEED).
-function RaceConfig.SpeedFor(stat)
+-- Cruise speed (studs/s) for a Speed stat and optional car multiplier. With no
+-- multiplier it is in [BASE_SPEED, MAX_SPEED).
+function RaceConfig.SpeedFor(stat, carSpeedMulti)
 	stat = cleanStat(stat) or 0
-	return RaceConfig.BASE_SPEED + (RaceConfig.MAX_SPEED - RaceConfig.BASE_SPEED) * stat / (stat + RaceConfig.HALF_STAT)
+	if type(carSpeedMulti) ~= "number" or carSpeedMulti ~= carSpeedMulti or carSpeedMulti <= 0 then
+		carSpeedMulti = 1
+	end
+	local cruise = RaceConfig.BASE_SPEED
+		+ (RaceConfig.MAX_SPEED - RaceConfig.BASE_SPEED) * stat / (stat + RaceConfig.HALF_STAT)
+	return cruise * carSpeedMulti
 end
 
 -- Stat gained per second while driving at an ACTUAL speed (studs/s): proportional to the speed, shrinking as

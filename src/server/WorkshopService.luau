@@ -232,7 +232,7 @@ end
 function WorkshopService.Rate(player)
 	return Workshop.Rate(
 		PlayerData.SpeedStat(player),
-		GachaService.SpeedMulti(player),
+		1,
 		Workshop.CleanLevel(player:GetAttribute("WorkshopLevel")),
 		GachaService.WorkshopMulti(player)
 	)

@@ -4,12 +4,13 @@
       "id": "racer-ui-tests",
       "title": "UI tests for Isaac's Racer UI",
       "detail": "Owner decision 2026-10-06: the merged Racer UI (RacerHud/Index/Stats/Settings/Rebirth, new RollShowcase) is the UI spec. ui-test-writer rewrites UiSpec/UiScenarios for it (old SpeedHud/AutoRaceButton/IndexUi/StatsUi/RollUi tests are obsolete). Then update CLAUDE.md HUD rules (Speed now bottom centre) and docs/ROLL_ANIMATION_CONTRACT.md, and run /compat-check. Blocks the green stamp for the money tree + workshop round.",
-      "status": "doing",
+      "status": "done",
       "source": "compat-check round 3 (ui RED)",
       "by": "Claude",
       "added": "2026-10-06T11:30:00-07:00",
-      "updated": "2026-10-06T11:30:00-07:00",
-      "updatedBy": "Claude"
+      "updated": "2026-10-08T20:26:25-07:00",
+      "updatedBy": "Alex Nguyen",
+      "done": "2026-10-08T20:26:25-07:00"
     },
     {
       "id": "roll-verify",
@@ -27,56 +28,61 @@
       "id": "workshop",
       "title": "Mechanical Workshop: 7 plots in the spawn area",
       "detail": "Spec: docs/WORKSHOP_SPEC.md. Phase 1 (2026-10-06) IMPLEMENTED, NOT VERIFIED: spawn floor grown to 228 x 232 with the old floor kept as the hub, 7 plots (WorkshopConfig), each joining player gets the lowest free plot with a level-1 workshop, empty plots show EMPTY PLOT, server-side zone check pays idle Speed (BASE_RATE 1/s x Speed multi x W x Workshop points, same diminishing term as racing), WorkshopLevel saved in PlayerData v4. Next: full harness in Studio (`workshop`, `spawn_area`, `data`), world-tester walk check. Open: BASE_RATE, level prices, offline earnings.",
-      "status": "doing",
+      "status": "done",
       "source": "Owner brief 2026-10-06",
       "by": "Alex Nguyen",
       "added": "2026-10-06T12:00:00-07:00",
-      "updated": "2026-10-06T12:00:00-07:00",
-      "updatedBy": "Claude"
+      "updated": "2026-10-08T20:26:25-07:00",
+      "updatedBy": "Alex Nguyen",
+      "done": "2026-10-08T20:26:25-07:00"
     },
     {
       "id": "workshop-phase2",
       "title": "Workshop phase 2: HUD line, level upgrades, offline earnings",
       "detail": "IMPLEMENTED 2026-10-08, NOT FULLY VERIFIED: WorkshopRate HUD, owner E prompt/modal, guarded next-level purchase, enabled Workshop points, ten configurable levels (level 2 $500, later costs x5, gain x2), exact 25% offline gain capped at 8h, atomic OfflineAt claims and welcome panel. test-writer added workshop_offline/workshop_phase2; ui-test-writer added progression and purchase checks. Full Studio tests blocked by execute_luau approval policy never; real DataStore access disabled. Pricing remains configurable pending owner feedback.",
-      "status": "doing",
+      "status": "done",
       "source": "docs/WORKSHOP_SPEC.md section 8",
       "by": "Claude",
       "added": "2026-10-06T12:00:00-07:00",
-      "updated": "2026-10-07T01:12:21-07:00",
-      "updatedBy": "Alex Nguyen"
+      "updated": "2026-10-08T20:24:21-07:00",
+      "updatedBy": "Alex Nguyen",
+      "done": "2026-10-08T20:24:21-07:00"
     },
     {
       "id": "upgrade-tree",
       "title": "Money upgrade tree",
       "detail": "Design: docs/UPGRADE_TREE_DESIGN.md. Phase 1 historical GREEN; server effects and PlayerData v4 present. Phase 3 IMPLEMENTED 2026-10-08, NOT FULLY VERIFIED: hex scrolling tree, truthful prices/gates/owned states, UPGRADES badge, exclusive panel, feedback and hub world pad. UI tests authored; current sources synced and UI ready. Full harness, UI clicks and compatibility blocked by execute_luau approval policy never. No current ALL GREEN stamp.",
-      "status": "doing",
+      "status": "done",
       "source": "ProjectContext TODO 6",
       "by": "Alex Nguyen",
       "added": "2026-10-05T00:00:00-07:00",
-      "updated": "2026-10-06T12:00:00-07:00",
-      "updatedBy": "Claude"
+      "updated": "2026-10-08T20:24:21-07:00",
+      "updatedBy": "Alex Nguyen",
+      "done": "2026-10-08T20:24:21-07:00"
     },
     {
       "id": "hud-rework",
       "title": "Bottom HUD rework",
       "detail": "Draft05 HUD source and authored UI snapshots added on studio/draft05-cars-ui. Compile/build checks passed; full new-layout compatibility remains pending.",
-      "status": "doing",
+      "status": "done",
       "source": "current_progress.md",
       "by": "Alex Nguyen",
       "added": "2026-10-05T00:00:00-07:00",
-      "updated": "2026-10-07T01:12:21-07:00",
-      "updatedBy": "Alex Nguyen"
+      "updated": "2026-10-08T20:24:21-07:00",
+      "updatedBy": "Alex Nguyen",
+      "done": "2026-10-08T20:24:21-07:00"
     },
     {
       "id": "vehicle-skins",
       "title": "Vehicle skins on a shared physics body",
       "detail": "Draft05 cosmetic equipment source and seven imported templates added on studio/draft05-cars-ui; original physics chassis and seat retained. Full branch integration/compatibility remains pending.",
-      "status": "doing",
+      "status": "done",
       "source": "ProjectContext TODO 8",
       "by": "Alex Nguyen",
       "added": "2026-10-05T00:00:00-07:00",
-      "updated": "2026-10-07T01:12:22-07:00",
-      "updatedBy": "Alex Nguyen"
+      "updated": "2026-10-08T20:24:21-07:00",
+      "updatedBy": "Alex Nguyen",
+      "done": "2026-10-08T20:24:21-07:00"
     },
     {
       "id": "rusty-hatchback",
@@ -94,23 +100,25 @@
       "id": "datastore",
       "title": "Test real DataStore saving",
       "detail": "Studio: Game Settings > Security > Enable Studio Access to API Services. Only a stubbed store is tested now.",
-      "status": "doing",
+      "status": "done",
       "source": "ProjectContext known issues",
       "by": "Alex Nguyen",
       "added": "2026-10-05T00:00:00-07:00",
-      "updated": "2026-10-07T01:12:22-07:00",
-      "updatedBy": "Alex Nguyen"
+      "updated": "2026-10-08T20:47:33-07:00",
+      "updatedBy": "Alex Nguyen",
+      "done": "2026-10-08T20:47:33-07:00"
     },
     {
       "id": "circuit-serpentine",
       "title": "Bring Circuit and Serpentine up to the track rules",
       "detail": "Through /build-track (test-first).",
-      "status": "doing",
+      "status": "done",
       "source": "ProjectContext TODO 5",
       "by": "Alex Nguyen",
       "added": "2026-10-05T00:00:00-07:00",
-      "updated": "2026-10-07T01:12:22-07:00",
-      "updatedBy": "Alex Nguyen"
+      "updated": "2026-10-08T20:24:20-07:00",
+      "updatedBy": "Alex Nguyen",
+      "done": "2026-10-08T20:24:20-07:00"
     },
     {
       "id": "static-settle-flake",
@@ -146,22 +154,25 @@
       "id": "static-settle-jitter",
       "title": "Fix static_settle vertical jitter at rest",
       "detail": "Fails ~1 in 3 cold starts (up to 1.375 vs 0.5): the parked chassis gets periodic ~0.8 stud/s vertical kicks on its suspension. RollingDrag 1.0 did not fix it (it acts on the look axis). physics-tuner: spring/contact at rest in CarPhysics, through /car-loop.",
-      "status": "doing",
+      "status": "done",
       "source": "compat-check 2026-10-05",
       "by": "Alex Nguyen",
       "added": "2026-10-05T21:00:00-07:00",
-      "updated": "2026-10-07T00:44:36-07:00",
-      "updatedBy": "Alex Nguyen"
+      "updated": "2026-10-08T20:24:20-07:00",
+      "updatedBy": "Alex Nguyen",
+      "done": "2026-10-08T20:24:20-07:00"
     },
     {
       "id": "racer-hud",
       "title": "Bring the Racer HUD into the repo",
       "detail": "Finalized source, UI specs, generator, atlas, settings icon and Studio UI snapshots added on studio/draft05-cars-ui. Rojo build and structural checks passed. Next: revise UiSpec for this layout, live-check and run full compat before merging.",
-      "status": "doing",
+      "status": "done",
       "source": "compat-check 2026-10-05",
       "by": "Alex Nguyen",
       "added": "2026-10-05T21:00:00-07:00",
-      "updated": "2026-10-05T21:00:00-07:00"
+      "updated": "2026-10-08T20:26:25-07:00",
+      "done": "2026-10-08T20:26:25-07:00",
+      "updatedBy": "Alex Nguyen"
     },
     {
       "id": "hill-supports",
@@ -189,11 +200,13 @@
       "id": "isaac-draft05",
       "title": "Review and merge Isaac's studio/draft05-cars-ui (Draft05 cars + Racer UI)",
       "detail": "Isaac Li (@issacli), 2 commits on 2026-10-06, 2 ahead / 0 behind main. Adds 7 Blender cars (assets/studio/CarModels.rbxm), redesigned Racer UI under RollToast (8 UI modules + StarterGui.rbxm), Shared/CarAppearance (cosmetic model welded on the physics chassis; CarService applies it on spawn and on EquippedCar change), and default.project.json maps CarModels + StarterGui and disables 5 legacy client scripts. Not compat-checked (his handoff says so). Overlaps our uncommitted CarService, ProjectContext, README, todo.json; git conflict with current_progress.md. His branch does not touch src/client/UiTest, and UiSpec still expects the IndexUi / StatsUi / AutoRaceButton ScreenGuis whose scripts he disables, so the UI suite will likely fail until ui-test-writer updates it. Handoff: docs/DRAFT05_HANDOFF.md on his branch. MERGED into initial-import 2026-10-06 (conflicts only in notes files). Fixed on merge: Racer HUD turbo bar now reads the upgrade tree's TurboCount / TurboEvery. Next: ui-test-writer rewrites UiSpec for the Racer UI, then full /compat-check.",
-      "status": "doing",
+      "status": "done",
       "source": "Team tab overview",
       "by": "Alex Nguyen",
       "added": "2026-10-06T02:05:00-07:00",
-      "updated": "2026-10-06T02:30:00-07:00"
+      "updated": "2026-10-08T20:24:21-07:00",
+      "done": "2026-10-08T20:24:21-07:00",
+      "updatedBy": "Alex Nguyen"
     },
     {
       "id": "0e1c0f5c",
@@ -235,22 +248,25 @@
       "id": "c0b03fca",
       "title": "Show roll rarity as odds",
       "detail": "IMPLEMENTATION STARTED: the roll animation and roll announcement now use HudFormat.Odds, including `1 in ?` for catch-all cars. Full Studio compatibility still pending.",
-      "status": "doing",
+      "status": "done",
       "source": "manual",
       "by": "Alex Nguyen",
       "added": "2026-10-07T00:12:29-07:00",
-      "updated": "2026-10-07T00:12:29-07:00"
+      "updated": "2026-10-08T20:24:21-07:00",
+      "done": "2026-10-08T20:24:21-07:00",
+      "updatedBy": "Alex Nguyen"
     },
     {
       "id": "9ac65c93",
       "title": "Add an Upgrade slab outside each workshop",
       "detail": "After the current compatibility check passes and changes are pushed, place a clearly labeled `UPGRADE` slab outside each player's workshop area. Keep the presentation readable and visually integrated with the workshop.",
-      "status": "doing",
+      "status": "done",
       "source": "manual",
       "by": "Alex Nguyen",
       "added": "2026-10-07T00:12:32-07:00",
-      "updated": "2026-10-07T01:12:22-07:00",
-      "updatedBy": "Alex Nguyen"
+      "updated": "2026-10-08T20:24:21-07:00",
+      "updatedBy": "Alex Nguyen",
+      "done": "2026-10-08T20:24:21-07:00"
     },
     {
       "id": "7c111020",
@@ -266,73 +282,85 @@
       "id": "65b8cc63",
       "title": "Draft Track 3 as a short straight drag race",
       "detail": "IMPLEMENTATION STARTED: added Shared/Tracks/DragRace.luau as a short straight Number 3 segment chained after Hill, with a sunset palette. Full route and Studio validation still pending.",
-      "status": "doing",
+      "status": "done",
       "source": "manual",
       "by": "Alex Nguyen",
       "added": "2026-10-07T00:12:53-07:00",
-      "updated": "2026-10-07T00:12:53-07:00"
+      "updated": "2026-10-08T20:24:20-07:00",
+      "done": "2026-10-08T20:24:20-07:00",
+      "updatedBy": "Alex Nguyen"
     },
     {
       "id": "ab15d488",
       "title": "Begin implementing the upgrade tree",
       "detail": "After the current compatibility check passes and changes are pushed, begin the upgrade-tree implementation: define the progression, costs, effects, persistence, and UI/world interaction. Coordinate with the workshop upgrade economy so costs and Speed/s effects do not conflict.",
-      "status": "doing",
+      "status": "done",
       "source": "manual",
       "by": "Alex Nguyen",
       "added": "2026-10-07T00:12:54-07:00",
-      "updated": "2026-10-07T01:12:22-07:00",
-      "updatedBy": "Alex Nguyen"
+      "updated": "2026-10-08T20:24:21-07:00",
+      "updatedBy": "Alex Nguyen",
+      "done": "2026-10-08T20:24:21-07:00"
     },
     {
       "id": "8fbc84a2",
       "title": "Add an aesthetic Race-area overhang for manual auto racing",
       "detail": "IMPLEMENTATION STARTED: SpawnArea now builds an open RaceOverhang canopy with posts, neon trim, and a readable RACE sign around the manual StartPad. Full Studio walk check still pending.",
-      "status": "doing",
+      "status": "done",
       "source": "manual",
       "by": "Alex Nguyen",
       "added": "2026-10-07T00:12:55-07:00",
-      "updated": "2026-10-07T00:12:55-07:00"
+      "updated": "2026-10-08T20:26:25-07:00",
+      "done": "2026-10-08T20:26:25-07:00",
+      "updatedBy": "Alex Nguyen"
     },
     {
       "id": "4b83c3d5",
       "title": "Move roll controls into the top-centre roll animation",
       "detail": "IMPLEMENTATION STARTED: bottom HUD roll controls are hidden, the compact top-centre roll remains the entry point, and AUTO remains in the enlarged showcase. Compatibility scenario inventory updated.",
-      "status": "doing",
+      "status": "done",
       "source": "manual",
       "by": "Alex Nguyen",
       "added": "2026-10-07T00:17:36-07:00",
-      "updated": "2026-10-07T00:17:36-07:00"
+      "updated": "2026-10-08T20:24:20-07:00",
+      "done": "2026-10-08T20:24:20-07:00",
+      "updatedBy": "Alex Nguyen"
     },
     {
       "id": "3e7ba29c",
       "title": "Add a top-down auto-racing camera setting",
       "detail": "IMPLEMENTATION STARTED: Settings exposes a local TOP-DOWN VIEW toggle; during auto racing the client tracks the car from above, mouse-wheel changes height, and the normal camera is restored afterward. Live camera validation still pending.",
-      "status": "doing",
+      "status": "done",
       "source": "manual",
       "by": "Alex Nguyen",
       "added": "2026-10-07T00:17:36-07:00",
-      "updated": "2026-10-07T00:17:36-07:00"
+      "updated": "2026-10-08T20:26:25-07:00",
+      "done": "2026-10-08T20:26:25-07:00",
+      "updatedBy": "Alex Nguyen"
     },
     {
       "id": "0557b063",
       "title": "Theme Tracks 01, 02, and 03 with distinct palettes",
       "detail": "IMPLEMENTATION STARTED: TrackBuilder accepts per-track palettes; Oval is red/grey with checkered accents, Hill is teal/cyan, and DragRace is sunset purple/orange. Full Studio visual check still pending.",
-      "status": "doing",
+      "status": "done",
       "source": "manual",
       "by": "Alex Nguyen",
       "added": "2026-10-07T00:17:36-07:00",
-      "updated": "2026-10-07T00:17:36-07:00"
+      "updated": "2026-10-08T20:24:20-07:00",
+      "done": "2026-10-08T20:24:20-07:00",
+      "updatedBy": "Alex Nguyen"
     },
     {
       "id": "5c89de92",
       "title": "Rotating weather / biome events that boost luck",
       "detail": "Every 10-20 minutes a server-wide event runs for a few minutes (Rain: x2 luck, Night Race: NPCs faster but pads pay x2, Gold Rush: Money x3). A banner and a skybox / lighting change show it; some cars can only be rolled during an event.\n\nFits this game: Rolling is free and automatic, so events give players a reason to stay online at a given moment. Plugs straight into GachaConfig luck and MoneyService multipliers.\nInspired by: Sol's RNG biomes, Grow a Garden weather events",
-      "status": "doing",
+      "status": "done",
       "source": "suggestion:weather-events",
       "by": "Alex Nguyen",
       "added": "2026-10-07T00:58:33-07:00",
-      "updated": "2026-10-07T01:12:22-07:00",
-      "updatedBy": "Alex Nguyen"
+      "updated": "2026-10-08T20:24:20-07:00",
+      "updatedBy": "Alex Nguyen",
+      "done": "2026-10-08T20:24:20-07:00"
     }
   ]
 }
