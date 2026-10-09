@@ -3397,10 +3397,9 @@ local function anyCountAttribute(player)
 end
 
 -- Data: PlayerData saves/loads Money and the float Speed stat through an injected store (no real DataStore is touched).
--- The save version is 4 since upgrade tree phase 2 + workshop phase 1 (2026-10-06, docs/UPGRADE_TREE_DESIGN.md "Data
--- and save", docs/WORKSHOP_SPEC.md section 5): every save writes Version 4; older versions still load.
+-- The save version is 5 since the spawn Market adds owned/equipped auras and trails; older versions still load.
 function Scenarios.data()
-	local DATA_VERSION = 4
+	local DATA_VERSION = 5
 	local checks = {}
 	local PlayerData = serverModule("PlayerData")
 	local RaceConfig = sharedModule("RaceConfig")

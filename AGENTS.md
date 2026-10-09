@@ -3,6 +3,10 @@
 Read `CLAUDE.md` for the shared game architecture, Studio/Rojo rules, compatibility
 gate, feature-branch workflow, and context/TODO upkeep requirements. Preserve
 existing collaborator edits. Read `context/ProjectContext.luau` before game work.
+Read `handoff.md` at the start of every session. Before context limits, pausing,
+or handing work to another agent, update it with the session goal, active files,
+changes made, failed attempts/blockers, and specific resume steps. Keep it factual
+and treat the dashboard Handoff tab as the same shared source of truth.
 
 ## Dashboard
 

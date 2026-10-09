@@ -110,6 +110,27 @@ async function loadGate() {
     `<span class="badge">${esc(g.branch)} · ${esc(g.aheadOfMain)} ahead of main</span>`;
 }
 
+// The handoff is Markdown kept in the repository. Render the small, deliberately
+// limited format used by handoff.md without adding a client-side dependency.
+async function loadHandoff() {
+  const d = await api("/api/handoff");
+  if (!changed("handoff", d)) return;
+  $("handoff-updated").textContent = d.updated ? `updated ${when(d.updated)}` : "not found";
+  const lines = d.content.split(/\r?\n/), out = [];
+  let list = false;
+  const closeList = () => { if (list) { out.push("</ul>"); list = false; } };
+  for (const line of lines) {
+    if (/^### /.test(line)) { closeList(); out.push(`<h4>${esc(line.slice(4))}</h4>`); }
+    else if (/^## /.test(line)) { closeList(); out.push(`<h3>${esc(line.slice(3))}</h3>`); }
+    else if (/^# /.test(line)) { closeList(); out.push(`<h2>${esc(line.slice(2))}</h2>`); }
+    else if (/^- /.test(line)) { if (!list) { out.push("<ul>"); list = true; } out.push(`<li>${esc(line.slice(2))}</li>`); }
+    else if (!line.trim()) { closeList(); }
+    else { closeList(); out.push(`<p>${esc(line)}</p>`); }
+  }
+  closeList();
+  $("handoff").innerHTML = out.join("");
+}
+
 // ------------------------------------------------------------------------------------------------ agents tab
 
 function renderLegend() {
@@ -711,6 +732,7 @@ const LOADERS = {
   manual: [loadManual],
   team: [loadTeam],
   agents: [loadBus, loadAgents, loadTimeline, loadNeedToKnow],
+  handoff: [loadHandoff],
   analytics: [loadAnalytics],
   changes: [loadChanges, loadHistory],
   todo: [loadTodo, loadSuggestions],

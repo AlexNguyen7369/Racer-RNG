@@ -29,6 +29,7 @@ local MoneyService = require(script.Parent.MoneyService)
 local PlayerData = require(script.Parent.PlayerData)
 local GachaService = require(script.Parent.GachaService)
 local UpgradeService = require(script.Parent.UpgradeService)
+local MarketConfig = require(Shared.MarketConfig)
 
 local RaceService = {}
 
@@ -107,7 +108,7 @@ function RaceService.NewRun(car, raceRoute, player, options)
 	local stat = PlayerData.SpeedStat(player)
 	local physics = CarPhysics.new(car, CarConfig)
 	local driver = PathDriver.new(raceRoute.Path, CarConfig, {
-		TargetSpeed = RaceConfig.SpeedFor(stat, GachaService.CarSpeedMulti(player)),
+		TargetSpeed = RaceConfig.SpeedFor(stat, GachaService.CarSpeedMulti(player) * MarketConfig.SpeedMulti(player)),
 		NoFinalSlow = options.Loop,
 	})
 	local run = {
@@ -315,7 +316,8 @@ function RaceService.NewRun(car, raceRoute, player, options)
 			end
 		end
 		stat = PlayerData.SpeedStat(player) -- the source of truth (also picks up a load finishing)
-		run.TargetSpeed = RaceConfig.SpeedFor(stat, GachaService.CarSpeedMulti(player))
+		run.TargetSpeed =
+			RaceConfig.SpeedFor(stat, GachaService.CarSpeedMulti(player) * MarketConfig.SpeedMulti(player))
 		driver.TargetSpeed = run.TargetSpeed
 	end
 

@@ -1,5 +1,14 @@
 # Idle Vehicle Simulator (Roblox)
 
+## Session handoff (required)
+
+Read `handoff.md` at the start of every session, before choosing work or editing
+files. It records the current session goal, active files, changes, failed
+attempts/blockers, and exact next steps. Update it before context limits, when
+pausing, and before handing work to another agent. The dashboard's Handoff tab
+shows this same checked-in file; do not treat a stale dashboard view as newer
+than the file.
+
 Design spec: `Idle Vehicle Simulator — Game Design Requirements.pdf`. Car art pipeline: `CAR_MODELING_WORKFLOW.md`.
 
 ## Project layout (Rojo)

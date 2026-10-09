@@ -25,6 +25,7 @@ local PlayerData = require(script.Parent.PlayerData)
 local RaceService = require(script.Parent.RaceService)
 local UpgradeService = require(script.Parent.UpgradeService)
 local TrackBuilder = require(Shared.TrackBuilder)
+local VehicleEffects = require(Shared.VehicleEffects)
 
 local CarService = {}
 
@@ -272,6 +273,7 @@ local function spawnCar(player, character, gen)
 	local start = spawnCFrame(index)
 	local car = CarFactory.build(CarConfig)
 	CarAppearance.Apply(car, player:GetAttribute("EquippedCar"), CarConfig)
+	VehicleEffects.Apply(car, player)
 	car:PivotTo(start)
 	local chassis = car.PrimaryPart
 	chassis.Anchored = true
@@ -527,8 +529,17 @@ function CarService.Start()
 			local car = cars[player]
 			if car and car.Parent then
 				CarAppearance.Apply(car, player:GetAttribute("EquippedCar"), CarConfig)
+				VehicleEffects.Apply(car, player)
 			end
 		end)
+		for _, attribute in { "EquippedAura", "EquippedTrail" } do
+			player:GetAttributeChangedSignal(attribute):Connect(function()
+				local car = cars[player]
+				if car and car.Parent then
+					VehicleEffects.Apply(car, player)
+				end
+			end)
+		end
 		player.CameraMinZoomDistance = 10
 		player.CameraMaxZoomDistance = 40
 		player.CharacterAdded:Connect(function(character)

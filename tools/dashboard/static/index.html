@@ -38,6 +38,7 @@
   <button data-tab="manual">Needs you <span class="count" id="manual-count" hidden></span></button>
   <button data-tab="team">Team &amp; branches <span class="count" id="team-count" hidden></span></button>
   <button data-tab="agents" class="on">Agents</button>
+  <button data-tab="handoff">Handoff</button>
   <button data-tab="analytics">Analytics</button>
   <button data-tab="changes">Changes &amp; history</button>
   <button data-tab="todo">TODO &amp; ideas</button>
@@ -112,6 +113,17 @@
     <div class="panel">
       <h2>Need to know</h2>
       <div id="ntk"></div>
+    </div>
+  </section>
+
+  <!-- HANDOFF -->
+  <section id="tab-handoff" class="tab">
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Session handoff <span class="muted small">read before starting; update before context limits</span></h2>
+        <span class="muted small" id="handoff-updated"></span>
+      </div>
+      <div id="handoff" class="handoff prose"></div>
     </div>
   </section>
 

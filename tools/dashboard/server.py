@@ -95,6 +95,16 @@ def read_text(path):
         return ""
 
 
+def handoff():
+    """Return the checked-in session bridge without making it dashboard state."""
+    path = os.path.join(ROOT, "handoff.md")
+    try:
+        stat = os.stat(path)
+        return {"path": "handoff.md", "updated": datetime.datetime.fromtimestamp(stat.st_mtime).astimezone().isoformat(timespec="seconds"), "content": read_text(path)}
+    except OSError:
+        return {"path": "handoff.md", "updated": "", "content": "# Agent handoff\n\nNo handoff.md exists yet."}
+
+
 def now_iso():
     return datetime.datetime.now().astimezone().isoformat(timespec="seconds")
 
@@ -1092,6 +1102,7 @@ class Handler(BaseHTTPRequestHandler):
                 "/api/analytics": model_analytics,
                 "/api/gate": gate,
                 "/api/needtoknow": need_to_know,
+                "/api/handoff": handoff,
                 "/api/todo": lambda: read_json(TODO_FILE, {"items": []}),
                 "/api/suggestions": lambda: read_json(SUGGEST_FILE, {"items": []}),
                 "/api/manual": lambda: read_json(MANUAL_FILE, {"items": []}),

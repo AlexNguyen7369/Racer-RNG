@@ -24,6 +24,7 @@ SpawnArea.TOP_Y = 1 -- floor top = road top
 SpawnArea.START_COOLDOWN = 2 -- seconds after a stop or a pad start before the pad can start that player again
 SpawnArea.WALK_ROOT_HEIGHT = 3 -- HumanoidRootPart height above the floor top when standing
 SpawnArea.TAG = "StartPad"
+SpawnArea.MARKET_TAG = "MarketPad"
 
 local THICKNESS = 1
 local EDGE_HEIGHT = 2
@@ -242,6 +243,24 @@ function SpawnArea.Build(startCFrame)
 	upgradeGui.Name = "UpgradeSign"
 	upgradeGui.Text.Text = "UPGRADES"
 	upgradeGui.Parent = upgrade
+
+	local market = slab(model, "MarketPad", startCFrame, Vector2.new(42, -76), Vector2.new(58, -64), top + 0.15, 0.25)
+	market.Color = Color3.fromRGB(255, 190, 65)
+	market.Material = Enum.Material.Neon
+	CollectionService:AddTag(market, SpawnArea.MARKET_TAG)
+	local marketSign = billboard:Clone()
+	marketSign.Name = "MarketSign"
+	marketSign.Text.Text = "MARKET"
+	marketSign.Parent = market
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.Name = "OpenMarket"
+	prompt.ActionText = "Open Market"
+	prompt.ObjectText = "Aura & Trail Market"
+	prompt.KeyboardKeyCode = Enum.KeyCode.E
+	prompt.HoldDuration = 0
+	prompt.MaxActivationDistance = 14
+	prompt.RequiresLineOfSight = false
+	prompt.Parent = market
 	return model
 end
 

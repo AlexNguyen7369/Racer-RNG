@@ -64,6 +64,13 @@ select, input { border: 1px solid var(--line); background: var(--panel); border-
 .tabs button.on { color: var(--text); border-bottom-color: var(--text); font-weight: 600; }
 main { padding: 12px 16px 40px; }
 .tab { display: none; } .tab.on { display: block; }
+.handoff { max-width: 900px; }
+.handoff h2, .handoff h3, .handoff h4 { margin: 0 0 8px; }
+.handoff h3 { margin-top: 24px; border-bottom: 1px solid var(--line); padding-bottom: 6px; }
+.handoff h4 { margin-top: 18px; }
+.handoff p { margin: 6px 0; white-space: pre-wrap; }
+.handoff ul { margin: 6px 0 10px 20px; padding: 0; }
+.handoff li { margin: 5px 0; white-space: pre-wrap; }
 .cols { display: grid; grid-template-columns: minmax(260px, 1fr) 2fr; gap: 12px; }
 @media (max-width: 860px) { .cols { grid-template-columns: 1fr; } }
 .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; margin-bottom: 12px; min-width: 0; }

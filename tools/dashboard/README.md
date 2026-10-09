@@ -14,13 +14,14 @@ does not need to be running. Needs only `python3` and `git` (no packages).
 For board upkeep without background fetching or automatic GitHub branch creation:
 `python3 tools/dashboard/server.py --no-fetch --no-auto-branch`.
 
-Tabs (`#manual`, `#agents`, `#analytics`, `#changes`, `#todo`, `#tests`, `#bugs` in the URL open one directly):
+Tabs (`#manual`, `#agents`, `#handoff`, `#analytics`, `#changes`, `#todo`, `#tests`, `#bugs` in the URL open one directly):
 
 | Tab | Shows | Source |
 |---|---|---|
 | Team & branches | who is on the team; every unmerged branch with who started it (`Initiated-By` trailer, else the first commit's author) and who commits on it, systems touched, ahead/behind main, files that overlap your uncommitted or branch work, real merge conflicts (`git merge-tree`) with your branch and with main, Rojo/Studio warnings, handoff notes, compare-on-GitHub link; Sync with GitHub, Push my branch, Switch to it, and a form that starts a labelled feature branch | git (fetched from origin every 2 min), `tools/collab.py`, `data/team.json` |
 | Needs you | persistent Configs & setup guidance for new collaborators plus tasks only the developer can do by hand (Studio imports, settings, accounts, decisions), each with why, what it unblocks, when, and numbered steps (click a `code` path to copy it); Mark done / Reopen. The header pill counts actionable open tasks, not the reference checklist | `data/manual.json` (Claude adds and closes items) |
 | Agents | Claude subagent cards and Codex main/subagent activity; prompts, messages, tool calls, results, final reports, Need to know; sessions labelled Claude or Codex | Claude transcripts in `~/.claude/projects/<this repo>/`, Codex rollouts in `$CODEX_HOME/sessions` (default `~/.codex/sessions`), `context/ProjectContext.luau`, `current_progress.md` |
+| Handoff | The checked-in session bridge: goal, active files, changes, failed attempts/blockers, and exact resume steps for a new session | `handoff.md` via `GET /api/handoff` |
 | Analytics | graphical Claude/Codex model usage: 14-day output trend, provider task-state bars, model mix, token and tool-call totals, live tasks, inferred paused tasks, recently completed tasks, and authenticated current-window/weekly quota percentages with reset times; scoped to this terminal's workspace and local provider logs | `GET /api/analytics`, Claude transcripts, Claude `/usage`, workspace-filtered Codex rollouts, Codex `account/rateLimits/read` |
 | Changes & history | uncommitted files with diffs; commits on all branches with developer, date and time, files, `green` (that commit's game code passed /compat-check) and `local` (not pushed) | git, `tools/compat.py` |
 | TODO & ideas | Doing / Up next / Backlog / Done board; suggested features that expand and can be added to the backlog or dismissed | `data/todo.json`, `data/suggestions.json` |
@@ -70,7 +71,7 @@ python3 tools/dashboard/client.py todo --json '{"action":"move","id":"<todo-id>"
 python3 tools/dashboard/client.py manual/<task-id> --json '{"action":"done"}'
 ```
 
-GET endpoints: `meta`, `agents`, `messages`, `agent/<id>`, `changes`, `history`,
+GET endpoints: `meta`, `agents`, `messages`, `agent/<id>`, `handoff`, `changes`, `history`,
 `gate`, `needtoknow`, `todo`, `suggestions`, `manual`, `tests`, `team`, `bugs`.
 POST endpoints: `todo` (`add`, `move`, `delete`), `suggestions/<id>` (`add`,
 `dismiss`, `reopen`), `manual/<id>` (`done`, `reopen`), `bugs` (`add` with `name`, `kind`,

@@ -15,6 +15,7 @@ local RaceService = require(script.Parent.RaceService)
 local UpgradeService = require(script.Parent.UpgradeService)
 local WorkshopService = require(script.Parent.WorkshopService)
 local WeatherService = require(script.Parent.WeatherService)
+local MarketService = require(script.Parent.MarketService)
 
 -- Tracks are chained in Number order: each one starts where the previous one's finish checkpoint is.
 local chain = TrackRegistry.Chain()
@@ -49,4 +50,5 @@ GachaService.Start() -- free auto-rolls (after each save loads), the car index a
 MoneyService.Start()
 CarService.Start()
 WorkshopService.Start(track1Start) -- 7 workshop plots in the spawn area, one per player, idle Speed in the zone
+MarketService.Start() -- the spawn-area aura and trail market (physical prompt + client button)
 AdminService.Start() -- chat admin commands (docs/ADMIN_COMMANDS_SPEC.md)

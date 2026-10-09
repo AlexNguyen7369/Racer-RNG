@@ -16,11 +16,12 @@ local Workshop = require(Shared:WaitForChild("Workshop"))
 local MoneyService = require(script.Parent.MoneyService)
 local GachaService = require(script.Parent.GachaService)
 local UpgradeService = require(script.Parent.UpgradeService)
+local MarketService = require(script.Parent.MarketService)
 
 local PlayerData = {}
 
 local STORE_NAME = "PlayerStats_v1"
-local VERSION = 4 -- 3: car gacha; 4: upgrade tree and WorkshopLevel; RebirthLevel is an additive field
+local VERSION = 5 -- 3: car gacha; 4: upgrade tree/workshop; 5: market ownership and equipment
 local MAX_MONEY = 1e12
 local MAX_ADD = 1e6 -- most a single AddSpeed call may add
 local AUTOSAVE_SECONDS = 60
@@ -122,6 +123,7 @@ function PlayerData.Load(player, userId)
 	speed.Value = cleanStat(data.Speed)
 	GachaService.Apply(player, data) -- older saves have no gacha fields: starter car, nothing allocated
 	UpgradeService.Apply(player, data) -- version 3 and older: no tiles, BestTrack 0, TurboCount from Rolls % 10
+	MarketService.Apply(player, data)
 	player:SetAttribute("WorkshopLevel", Workshop.CleanLevel(data.WorkshopLevel)) -- missing = the starter workshop
 	player:SetAttribute("RebirthLevel", RebirthConfig.CleanLevel(data.RebirthLevel))
 	local at = clock()
@@ -161,6 +163,7 @@ function PlayerData.Load(player, userId)
 		money.Value = cleanInt(updated.Money, 0, MAX_MONEY, 0)
 		GachaService.Apply(player, updated)
 		UpgradeService.Apply(player, updated)
+		MarketService.Apply(player, updated)
 		player:SetAttribute("WorkshopLevel", Workshop.CleanLevel(updated.WorkshopLevel))
 		player:SetAttribute("RebirthLevel", RebirthConfig.CleanLevel(updated.RebirthLevel))
 		gain = claimed
@@ -188,6 +191,7 @@ function PlayerData.Save(player, userId)
 	local speed = speedValue(player)
 	local gacha = GachaService.Snapshot(player)
 	local upgrades = UpgradeService.Snapshot(player)
+	local market = MarketService.Snapshot(player)
 	local payload = {
 		Money = cleanInt(money.Value, 0, MAX_MONEY, 0),
 		Speed = cleanStat(speed.Value),
@@ -200,6 +204,10 @@ function PlayerData.Save(player, userId)
 		TurboCount = upgrades.TurboCount,
 		WorkshopLevel = Workshop.CleanLevel(player:GetAttribute("WorkshopLevel")),
 		RebirthLevel = RebirthConfig.CleanLevel(player:GetAttribute("RebirthLevel")),
+		OwnedAuras = market.OwnedAuras,
+		OwnedTrails = market.OwnedTrails,
+		EquippedAura = market.EquippedAura,
+		EquippedTrail = market.EquippedTrail,
 		OfflineAt = clock(),
 		Version = VERSION,
 	}
