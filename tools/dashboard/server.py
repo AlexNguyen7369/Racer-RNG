@@ -16,6 +16,7 @@ Moving a TODO card to Doing starts its feature branch automatically (--no-auto-b
 """
 import argparse
 import datetime
+import difflib
 import glob
 import json
 import os
@@ -37,6 +38,8 @@ TODO_FILE = os.path.join(DATA, "todo.json")
 SUGGEST_FILE = os.path.join(DATA, "suggestions.json")
 MANUAL_FILE = os.path.join(DATA, "manual.json")
 EXPLAIN_FILE = os.path.join(DATA, "tests_explained.json")
+DOCS_FILE = os.path.join(ROOT, "docs", "GAME_DESIGN_REQUIREMENTS.md")
+ORIGINAL_DESIGN_PDF = os.path.join(ROOT, "Idle Vehicle Simulator — Game Design Requirements.pdf")
 TRANSCRIPTS = os.path.join(os.path.expanduser("~"), ".claude", "projects", re.sub(r"[^A-Za-z0-9]", "-", ROOT))
 
 sys.path.insert(0, os.path.join(ROOT, "tools"))
@@ -93,6 +96,89 @@ def read_text(path):
             return f.read()
     except OSError:
         return ""
+
+
+def original_design_doc():
+    """Extract the archival design PDF when no editable Markdown copy exists."""
+    try:
+        r = subprocess.run(["pdftotext", "-layout", ORIGINAL_DESIGN_PDF, "-"], cwd=ROOT,
+                           capture_output=True, text=True, check=True)
+        return r.stdout.replace("\f", "\n\n")
+    except (OSError, subprocess.CalledProcessError):
+        return ""
+
+
+def docs_view():
+    path = DOCS_FILE if os.path.isfile(DOCS_FILE) else ORIGINAL_DESIGN_PDF
+    content = read_text(DOCS_FILE) if os.path.isfile(DOCS_FILE) else original_design_doc()
+    try:
+        updated = datetime.datetime.fromtimestamp(os.stat(path).st_mtime).astimezone().isoformat(timespec="seconds")
+    except OSError:
+        updated = ""
+    editable = os.path.isfile(DOCS_FILE)
+    return {"path": os.path.relpath(path, ROOT), "content": content, "updated": updated,
+            "editable": editable, "source": "editable Markdown (canonical)" if editable else "original PDF",
+            "original": os.path.relpath(ORIGINAL_DESIGN_PDF, ROOT)}
+
+
+def format_markdown_line(line):
+    line = line.rstrip()
+    heading = re.match(r"^(\s{0,3}#{1,6})\s*(.*?)\s*$", line)
+    if heading:
+        return f"{heading.group(1)} {heading.group(2)}".rstrip()
+    bullet = re.match(r"^(\s*)([*+\-])\s*(.*?)\s*$", line)
+    if bullet and bullet.group(3):
+        return f"{bullet.group(1)}- {bullet.group(3)}"
+    ordered = re.match(r"^(\s*)(\d+)[.)]\s*(.*?)\s*$", line)
+    if ordered and ordered.group(3):
+        return f"{ordered.group(1)}{ordered.group(2)}. {ordered.group(3)}"
+    return line
+
+
+def format_markdown_edits(content, previous=""):
+    content = content.replace("\r\n", "\n").replace("\r", "\n")
+    previous = (previous or "").replace("\r\n", "\n").replace("\r", "\n")
+    new_lines = content.split("\n")
+    old_lines = previous.split("\n")
+    matcher = difflib.SequenceMatcher(a=old_lines, b=new_lines, autojunk=False)
+    formatted = list(new_lines)
+    changed = False
+    for tag, _old_start, _old_end, new_start, new_end in matcher.get_opcodes():
+        if tag in ("insert", "replace"):
+            for index in range(new_start, new_end):
+                line = format_markdown_line(formatted[index])
+                changed = changed or line != formatted[index]
+                formatted[index] = line
+    result = "\n".join(formatted)
+    if result and not result.endswith("\n"):
+        result += "\n"
+        changed = True
+    return result, changed
+
+
+def docs_action(body):
+    if body.get("action") != "save":
+        return {"error": "bad action"}
+    content = body.get("content")
+    if not isinstance(content, str):
+        return {"error": "content must be text"}
+    if len(content.encode("utf-8")) > 1_000_000:
+        return {"error": "document is limited to 1 MB"}
+    previous = body.get("previous") if isinstance(body.get("previous"), str) else read_text(DOCS_FILE)
+    content, formatted = format_markdown_edits(content, previous)
+    os.makedirs(os.path.dirname(DOCS_FILE), exist_ok=True)
+    with WRITE_LOCK:
+        tmp = f"{DOCS_FILE}.{uuid.uuid4().hex}.tmp"
+        try:
+            with open(tmp, "w", encoding="utf-8") as f:
+                f.write(content)
+            os.replace(tmp, DOCS_FILE)
+        finally:
+            if os.path.exists(tmp):
+                os.unlink(tmp)
+    result = docs_view()
+    result["formatted"] = formatted
+    return result
 
 
 def handoff():
@@ -1103,6 +1189,7 @@ class Handler(BaseHTTPRequestHandler):
                 "/api/gate": gate,
                 "/api/needtoknow": need_to_know,
                 "/api/handoff": handoff,
+                "/api/docs": docs_view,
                 "/api/todo": lambda: read_json(TODO_FILE, {"items": []}),
                 "/api/suggestions": lambda: read_json(SUGGEST_FILE, {"items": []}),
                 "/api/manual": lambda: read_json(MANUAL_FILE, {"items": []}),
@@ -1156,6 +1243,8 @@ class Handler(BaseHTTPRequestHandler):
                     r = {**(started.get("todo") or r), "started": started.get("started"), "branchError": started.get("error")}
         elif p == "/api/bus":
             r = bus_action(body)
+        elif p == "/api/docs":
+            r = docs_action(body)
         elif p.startswith("/api/manual/"):
             r = manual_action(p.rsplit("/", 1)[1], body)
         elif p == "/api/bugs" or p.startswith("/api/bugs/"):

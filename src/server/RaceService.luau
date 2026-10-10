@@ -6,9 +6,8 @@
 -- the last finish the car is put back at the start of Track 1 and keeps racing.
 --
 -- NPC races (options.Npc, on for players): every track is a race against that track's NPC (Shared/NpcConfig,
--- Shared/NpcRacer). The NPC's time for the track is known when the player starts it; if the player's car reaches
--- the finish later than that, the player lost: the race plays out, the client shows the loser screen, and after
--- LOSE_SCREEN_SECONDS the car goes back to the start of Track 1.
+-- Shared/NpcRacer). If the NPC reaches a checkpoint first, the player loses at that checkpoint and is immediately
+-- teleported back to the start of Track 1; the client is told which checkpoint was lost.
 -- Banked winnings (docs/SPAWN_AND_ROLLS_SPEC.md): winning a track adds its pad's value (MoneyService.Quote) to the
 -- run's bank (run.Unbanked, mirrored in the player attribute Unbanked) instead of paying; a loss empties the bank;
 -- run:CashOut() (also done by run:Destroy, so Stop, death and leaving) pays it into leaderstats.Money.
@@ -111,7 +110,7 @@ function RaceService.NewRun(car, raceRoute, player, options)
 	local stat = PlayerData.SpeedStat(player)
 	local physics = CarPhysics.new(car, CarConfig)
 	local driver = PathDriver.new(raceRoute.Path, CarConfig, {
-		TargetSpeed = RaceConfig.SpeedFor(stat, MarketConfig.SpeedMulti(player)),
+		TargetSpeed = RaceConfig.SpeedFor(stat, GachaService.CarSpeedMulti(player) * MarketConfig.SpeedMulti(player)),
 		NoFinalSlow = options.Loop,
 	})
 	local run = {
@@ -143,10 +142,7 @@ function RaceService.NewRun(car, raceRoute, player, options)
 		player:SetAttribute("LastWinBoost", id)
 	end
 	local npcMode = options.Npc == true and type(raceRoute.Tracks) == "table" and #raceRoute.Tracks > 0
-	local loseSeconds = options.LoseScreenSeconds or NpcConfig.LOSE_SCREEN_SECONDS
 	local race = nil -- { Index, Number, Started, NpcTime }
-	local held = false -- the car waits at the finish while the loser screen shows
-	local lossGen = 0 -- bumped by JumpToTrack so a pending lose-screen reset never fires after a jump
 	local alive = true
 	local paid = {} -- pad entry -> already paid this pass
 	local pending, sinceCommit = 0, 0
@@ -252,18 +248,12 @@ function RaceService.NewRun(car, raceRoute, player, options)
 			end
 		else
 			run.Losses += 1
-			held = true
-			local gen = lossGen
-			task.delay(loseSeconds, function()
-				if not alive or not car.Parent or gen ~= lossGen then
-					return
-				end
-				backToStart()
-				held = false
-				run.Resets += 1
-				emit({ Type = "Reset", Track = raceRoute.Tracks[1].Number })
-				startRace(1)
-			end)
+			-- The loser screen is presentation-only; the authoritative car reset is
+			-- immediate and names the checkpoint that was lost.
+			backToStart()
+			run.Resets += 1
+			emit({ Type = "Reset", Track = raceRoute.Tracks[1].Number, LostAt = track.Number })
+			startRace(1)
 		end
 	end
 
@@ -293,6 +283,34 @@ function RaceService.NewRun(car, raceRoute, player, options)
 			best = math.min(best, (pos - (a + ab * t)).Magnitude)
 		end
 		return best
+	end
+
+	-- Auto-race is a server-authoritative rail. Steering/friction alone lets
+	-- lateral momentum leave the authored route at high speed, so project the
+	-- chassis onto the nearest path segment every step and cancel lateral speed.
+	local function constrainToPath()
+		local index = math.clamp(driver.Index, 1, #wps - 1)
+		local first = math.max(1, index - 2)
+		local last = math.min(#wps - 1, index + 2)
+		local bestPoint, bestDir, bestDistance = nil, nil, math.huge
+		for k = first, last do
+			local a, b = wps[k], wps[k + 1]
+			local ab = b - a
+			local t = math.clamp((chassis.Position - a):Dot(ab) / math.max(ab:Dot(ab), 1e-6), 0, 1)
+			local point = a + ab * t
+			local distance = (chassis.Position - point).Magnitude
+			if distance < bestDistance then
+				bestPoint, bestDir, bestDistance = point, ab.Unit, distance
+			end
+		end
+		if not bestPoint or not bestDir then
+			return
+		end
+		local position = bestPoint + Vector3.new(0, chassis.Position.Y - bestPoint.Y, 0)
+		local forwardSpeed = math.max(0, chassis.AssemblyLinearVelocity:Dot(bestDir))
+		car:PivotTo(CFrame.lookAt(position, position + bestDir))
+		chassis.AssemblyLinearVelocity = bestDir * forwardSpeed
+		chassis.AssemblyAngularVelocity = Vector3.zero
 	end
 
 	-- A flipped car is put back upright on the path, facing along it
@@ -328,7 +346,7 @@ function RaceService.NewRun(car, raceRoute, player, options)
 		end
 		stat = PlayerData.SpeedStat(player) -- the source of truth (also picks up a load finishing)
 		run.TargetSpeed =
-			RaceConfig.SpeedFor(stat, MarketConfig.SpeedMulti(player))
+			RaceConfig.SpeedFor(stat, GachaService.CarSpeedMulti(player) * MarketConfig.SpeedMulti(player))
 		driver.TargetSpeed = run.TargetSpeed
 	end
 
@@ -364,8 +382,6 @@ function RaceService.NewRun(car, raceRoute, player, options)
 				paid[entry] = true
 			end
 		end
-		lossGen += 1
-		held = false
 		flippedFor = 0
 		run.Finished = false
 		if npcMode then
@@ -381,10 +397,8 @@ function RaceService.NewRun(car, raceRoute, player, options)
 			return
 		end
 		local control = driver:Control(chassis, dt)
-		if held then
-			control = { Throttle = 0, Steer = control.Steer, Brake = 1, Handbrake = false }
-		end
 		physics:Step(control, dt)
+		constrainToPath()
 		run.OffTrackSeconds = driver.OffTrackSeconds
 		runTime += dt
 		if npcMode then
@@ -403,10 +417,10 @@ function RaceService.NewRun(car, raceRoute, player, options)
 			run.MaxPathDeviation = math.max(run.MaxPathDeviation, pathDeviation())
 		end
 
-		-- Passive gain uses the same car/stat/tree SpeedMulti as the workshop.
-		pending += RaceConfig.GainPerSecond(stat, chassis.AssemblyLinearVelocity.Magnitude)
-			* GachaService.SpeedMulti(player)
-			* require(script.Parent.BoostService).Multiplier(player, "Speed") * dt
+		-- Passive gain uses stat/tree SpeedMulti only; the car model changes cruise speed.
+		pending += RaceConfig.GainPerSecond(stat, chassis.AssemblyLinearVelocity.Magnitude) * GachaService.SpeedMulti(
+			player
+		) * require(script.Parent.BoostService).Multiplier(player, "Speed") * dt
 		LevelService.Tick(player, dt)
 		sinceCommit += dt
 		if sinceCommit >= RaceService.COMMIT_INTERVAL then

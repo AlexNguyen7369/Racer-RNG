@@ -1,5 +1,66 @@
 # Agent handoff
 
+## 2026-10-10 full reconciliation and commit
+
+- User requested all current changes be reconciled and committed. Preserved the
+  workshop Luck changes in `WorkshopConfig` and `WORKSHOP_SPEC`, and reconciled
+  the shared `CarTest/Scenarios` edits with the server rail, car-independent
+  gain, car-scaled cruise, immediate NPC reset, and workshop expectations.
+- Current implementation includes the server-authoritative high-speed path rail,
+  no lateral/angular drift, forward tangent orientation, uncapped diminishing
+  cruise speed, cheap duplicate auto-sell, workshop Luck while inside the zone,
+  and immediate checkpoint loss reset.
+- Validation: Stylua, Selene, Rojo build, `git diff --check`, dashboard unittest
+  integration (13/13), Python compile, Node syntax check, and TODO JSON parse all
+  pass. Fresh Studio isolated `race` and `index` scenarios previously passed;
+  the broad suite still has unrelated spawn-area fixture failures.
+- All current tracked worktree changes are intentionally in scope for the user’s
+  requested commit, including dashboard/docs updates. No files were reverted.
+
+## 2026-10-10 verification continuation
+
+- Rechecked the current worktree and dashboard. The dashboard reports a prior
+  full harness `[CARTEST] END pass=31 fail=0`, UI 22/22, multiplayer/world/
+  regression green, but its stamp is for the older fingerprint `5409afe68c88`
+  at commit `3c661e394f`; the current source gate is stale and cannot certify
+  the rail changes.
+- Roblox Studio is installed and the dashboard is now running at
+  `http://127.0.0.1:8765`, but this Codex session has no Studio MCP/control
+  tool exposed. No fresh Play run was claimed. Static source validation still
+  passes: StyLua, Selene, Rojo build, and diff check.
+- Goal remains active until a fresh current-source high-speed run proves the
+  max-stat car finishes, remains within path deviation/off-track limits, keeps
+  forward alignment >= 0.95 through corners, and does not reverse or leave the
+  track.
+
+## 2026-10-10 design-rule audit and high-speed rail work
+
+- User-requested design document `docs/GAME_DESIGN_REQUIREMENTS.md` was committed
+  and pushed as `9a69831` (`Update game design requirements`). The normal main
+  pre-push gate rejected it because no exact compatibility stamp existed; the
+  owner explicitly requested the doc-only push, so the hook was bypassed. This
+  must not be treated as a green compatibility gate.
+- Source changes are uncommitted and active in `RaceService`, `GachaService`,
+  `GachaConfig`, `WorkshopConfig`, `NpcRacerView`, and the CarTest scenarios.
+  Car models now affect only cruise/base speed; Speed gain uses stat/tree and
+  rebirth multipliers. Race cruise targets combine the equipped car multiplier
+  with aura multiplier. Duplicate auto-sell values now start at $5 and scale
+  modestly by rarity. Workshop level adds Luck only while the server reports
+  `InWorkshop`. NPC losses reset immediately and identify `LostAt` checkpoint.
+- High-speed auto-race now has a server-authoritative rail correction each
+  simulation step: nearest authored segment projection, lateral velocity
+  cancellation, forward-only speed, and tangent-facing orientation. The race
+  scenario now checks forward alignment >= 0.95 in addition to path deviation.
+- Static validation passed after the changes: StyLua, Selene, Rojo build to
+  `/tmp/racer-codex-highspeed.rbxlx`, and `git diff --check`. Live Studio high-
+  speed corner testing and the full CarTest harness have not run in this
+  session; `tools/compat.py status` remains NOT GREEN for that reason.
+- Resume steps: reconnect Rojo to a fresh Studio Play session, run the full
+  CarTest suite and inspect the MAX_STAT/high-speed corner scenario. Confirm
+  `MaxPathDeviation`, `OffTrackSeconds`, and new forward-alignment assertions,
+  verify a high car model changes cruise target but not gain rate, verify NPC
+  loss teleport is same-frame and names the checkpoint, then run `/compat-check`.
+
 ## 2026-10-10 compatibility review
 
 - Added `urgent-auto-race-path-stability` to `tools/dashboard/data/todo.json`
@@ -635,3 +696,27 @@ Resume commands:
   contained `refreshLevel`. Added the Level/XP meter directly to the live baked
   HUD, hid legacy `RollControls`, started a fresh Play session, and verified the
   visible `LEVEL 1 0/100 XP` bar above Turbo in a Studio screenshot.
+
+- 2026-10-10 high-speed verification: built `/tmp/racer-codex-highspeed.rbxlx`
+  from the current source and opened it in a fresh Studio instance through
+  StudioMCP. The live Server Play model contained `RaceService.constrainToPath`.
+  The max-speed race completed with target 478.46, 0 flips, 0 off-track seconds,
+  0.994 minimum forward alignment, and 1.953 studs maximum path deviation;
+  standard race also passed with 0 flips, 0 off-track seconds, 0.993 alignment,
+  and 1.937 studs deviation. This directly validates the strict rail against
+  the 180-degree turn failure mode.
+- The full CarTest run exposed stale expectations in `CarTest/Scenarios.luau`:
+  the index scenario still expected car models to double gain and leave cruise
+  unchanged, contrary to the design rule. Updated those expectations to require
+  gain independence and cruise scaling, and allowed the strict rail's immediate
+  sideways correction to count as recovery. Stylua, Selene, Rojo build, and
+  `git diff --check` pass. The full suite also has unrelated pre-existing
+  `spawn_area` geometry failures; rerun the complete gate after collaborator
+  reconciliation.
+- 2026-10-10 isolated completion audit: a fresh build was run in Studio Play
+  through StudioMCP. Direct `Scenarios.Run("race")` passed all checks, including
+  the max-speed run at target 478.46: 0 flips, 0 off-track seconds, 0.993 minimum
+  forward alignment, and 1.946 studs maximum path deviation. Direct
+  `Scenarios.Run("index")` also passed: car-independent gain ratio 0.998/1.002
+  and car-scaled cruise target 60 versus 30. Play was stopped afterward.
+  Final Stylua, Selene, Rojo build, and diff checks pass.

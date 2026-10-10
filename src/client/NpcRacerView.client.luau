@@ -93,7 +93,7 @@ local function showLoser(event)
 			and current.Model:GetAttribute("TrackNumber") == event.Track
 			and NpcConfig.For(event.Track).Label
 		or "The NPC"
-	detail.Text = ("%s was faster. Back to the start!"):format(who)
+	detail.Text = ("You lost at checkpoint %d to %s. Back to the start!"):format(event.Track or 0, who)
 	gui.Enabled = true
 	task.delay(NpcConfig.LOSE_SCREEN_SECONDS, function()
 		if loseToken == token then
@@ -107,7 +107,6 @@ remote.OnClientEvent:Connect(function(event)
 		return
 	end
 	if event.Type == "Start" then
-		gui.Enabled = false
 		startNpc(event)
 	elseif event.Type == "Result" and event.Result == "Lose" then
 		showLoser(event)

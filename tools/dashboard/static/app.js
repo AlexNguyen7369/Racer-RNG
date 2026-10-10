@@ -131,6 +131,17 @@ async function loadHandoff() {
   $("handoff").innerHTML = out.join("");
 }
 
+// The editable Markdown copy is canonical; the server falls back to the archival PDF.
+async function loadDocs() {
+  const d = await api("/api/docs");
+  if (!changed("docs", d)) return;
+  $("docs-editor").value = d.content || "";
+  state.docsContent = d.content || "";
+  $("docs-updated").textContent = d.updated ? `updated ${when(d.updated)}` : "not found";
+  $("docs-source").textContent = `${d.source} · ${d.path}`;
+  $("docs-save").textContent = d.editable ? "Save requirements" : "Save editable copy";
+}
+
 // ------------------------------------------------------------------------------------------------ agents tab
 
 function renderLegend() {
@@ -733,6 +744,7 @@ const LOADERS = {
   team: [loadTeam],
   agents: [loadBus, loadAgents, loadTimeline, loadNeedToKnow],
   handoff: [loadHandoff],
+  docs: [loadDocs],
   analytics: [loadAnalytics],
   changes: [loadChanges, loadHistory],
   todo: [loadTodo, loadSuggestions],
@@ -788,6 +800,17 @@ $("bus-form").addEventListener("submit", async (e) => {
     $("bus-text").value = "";
     state.busJump = true;
     await loadBus();
+  } catch (err) { toast(err.message); }
+});
+$("docs-save").addEventListener("click", async () => {
+  try {
+    const d = await api("/api/docs", { action: "save", content: $("docs-editor").value, previous: state.docsContent || "" });
+    state.last.docs = null;
+    $("docs-updated").textContent = d.updated ? `updated ${when(d.updated)}` : "saved";
+    $("docs-source").textContent = `${d.source} · ${d.path}`;
+    $("docs-save").textContent = "Save requirements";
+    toast(d.formatted ? "Game design requirements saved and formatted" : "Game design requirements saved");
+    await loadDocs();
   } catch (err) { toast(err.message); }
 });
 $("f-branch").addEventListener("change", loadHistory);

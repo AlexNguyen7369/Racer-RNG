@@ -243,9 +243,8 @@ end
 
 function GachaService.SpeedGainMulti(player)
 	local multis = GachaConfig.Multis(alloc(player), UpgradeService.Bonuses(player))
-	return GachaService.CarSpeedMulti(player)
-		* multis.Speed
-		* RebirthConfig.SpeedGainMulti(player:GetAttribute("RebirthLevel"))
+	-- Car models affect cruise/base speed only, never passive Speed gain.
+	return multis.Speed * RebirthConfig.SpeedGainMulti(player:GetAttribute("RebirthLevel"))
 end
 
 function GachaService.SpeedMulti(player)
@@ -260,10 +259,15 @@ function GachaService.MoneyMulti(player)
 end
 
 function GachaService.Luck(player)
-	return GachaConfig.Multis(alloc(player), UpgradeService.Bonuses(player)).Luck
+	local luck = GachaConfig.Multis(alloc(player), UpgradeService.Bonuses(player)).Luck
 		* RebirthConfig.LuckMulti(player:GetAttribute("RebirthLevel"))
 		* require(script.Parent.BoostService).Multiplier(player, "Luck")
 		* require(script.Parent.WeatherService).Multipliers().Luck
+	if player:GetAttribute("InWorkshop") == true then
+		local WorkshopConfig = require(Shared.WorkshopConfig)
+		luck *= WorkshopConfig.LuckMulti(player:GetAttribute("WorkshopLevel"))
+	end
+	return luck
 end
 
 -- The Workshop multi: Workshop stat points (the tree has no Workshop branch). Used by WorkshopService.

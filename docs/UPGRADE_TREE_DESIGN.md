@@ -25,7 +25,7 @@ The server decides everything. The client sends only a tile id; it never sends a
 |---|---|---|
 | Money % | `GachaService.MoneyMulti` = `GachaConfig.Multis(alloc).Money` | `GachaConfig.Multis(alloc, UpgradeService.Bonuses(player))`: every multi = 1 + points bonus + tree bonus |
 | Luck % | `GachaService.Luck` | same |
-| Speed % (stat gain) | `GachaService.SpeedMulti` = car multi x points multi | car multi x (1 + points + tree). Never cruise speed or physics |
+| Speed % (stat gain) | `GachaService.SpeedMulti` = points multi x rebirth multi | (1 + points + tree) x rebirth. Car models affect cruise/base speed only |
 | Roll speed | `GachaConfig.ROLL_INTERVAL` (3 s) in `StartAutoRoll` / `WaitAfter` | `UpgradeService.RollInterval(player)` = 3 / (1 + bonus), floor 2 s, read every roll |
 | Turbo | `IsTurbo(Rolls)` = every 10th roll ever, x5 | saved `TurboCount` (rolls since the last turbo roll). Turbo when `TurboCount + 1 >= Every`; then reset to 0. Tier sets `Every` and `Multi`. Buying a tier keeps progress, capped at `Every - 1`. Old saves: `TurboCount = Rolls % 10` |
 | Walkspeed | Humanoid default 16 | `CarService` sets `Humanoid.WalkSpeed = UpgradeService.WalkSpeed(player)` on spawn, Stop and after each purchase |

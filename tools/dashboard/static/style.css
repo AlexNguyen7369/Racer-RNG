@@ -71,6 +71,8 @@ main { padding: 12px 16px 40px; }
 .handoff p { margin: 6px 0; white-space: pre-wrap; }
 .handoff ul { margin: 6px 0 10px 20px; padding: 0; }
 .handoff li { margin: 5px 0; white-space: pre-wrap; }
+.docs-editor { display: block; width: 100%; min-height: 72vh; resize: vertical; border: 1px solid var(--line); border-radius: 8px; background: var(--code-bg); color: var(--text); padding: 12px; font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; tab-size: 2; }
+.docs-actions { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
 .cols { display: grid; grid-template-columns: minmax(260px, 1fr) 2fr; gap: 12px; }
 @media (max-width: 860px) { .cols { grid-template-columns: 1fr; } }
 .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px; margin-bottom: 12px; min-width: 0; }

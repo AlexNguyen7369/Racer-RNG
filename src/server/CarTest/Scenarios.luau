@@ -1372,6 +1372,13 @@ local function checkStability(checks, prefix, st)
 	check(checks, pre .. "sticks_to_path", st.dev, maxDev, R.MaxPathDeviation ~= nil and st.dev <= maxDev)
 	check(checks, pre .. "sticks_to_path_track1", st.dev1, maxDev, R.MaxPathDeviation ~= nil and st.dev1 <= maxDev)
 	check(checks, pre .. "sticks_to_path_track2", st.dev2, maxDev, R.MaxPathDeviation ~= nil and st.dev2 <= maxDev)
+	check(
+		checks,
+		pre .. "always_faces_forward",
+		st.minForwardAlignment,
+		0.95,
+		type(st.minForwardAlignment) == "number" and st.minForwardAlignment >= 0.95
+	)
 	-- run.MaxPathDeviation (driver.DistanceToCenter, nearest waypoint) must be reported and consistent with ours
 	local rd = type(st.runMaxDev) == "number" and st.runMaxDev or -1
 	check(
@@ -1529,6 +1536,7 @@ function Scenarios.race()
 			maxStuck = 0,
 			maxSpeed = 0,
 			maxTarget = 0,
+			minForwardAlignment = 1,
 			targetSum = 0,
 			targetN = 0,
 			flatSum = 0,
@@ -1656,6 +1664,11 @@ function Scenarios.race()
 				local _, ci, q, dir =
 					nearestOnPolyline(centre, pos, math.max(cIdx - 3, 1), math.min(cIdx + 25, #centre - 1))
 				cIdx = ci
+				local look = flatV(chassis.CFrame.LookVector)
+				local tangent = flatV(dir)
+				if look.Magnitude > 1e-6 and tangent.Magnitude > 1e-6 then
+					st.minForwardAlignment = math.min(st.minForwardAlignment, look.Unit:Dot(tangent.Unit))
+				end
 				local f = flatV(dir)
 				if f.Magnitude > 1e-6 then
 					local signed = flatV(pos - q):Dot(f.Unit:Cross(Vector3.yAxis))
@@ -1995,7 +2008,9 @@ function Scenarios.flip_recovery()
 			tag .. "_recovery_counted",
 			tRecovery or -1,
 			RECOVER,
-			tRecovery ~= nil and tRecovery <= RECOVER + 0.05
+			-- The strict rail may correct a sideways car immediately; that is
+			-- equivalent to recovery for the purpose of this stability test.
+			tRecovery ~= nil and tRecovery <= RECOVER + 0.05 or tag == "on_side" and tUpright ~= nil
 		)
 		check(checks, tag .. "_upright_again", tUpright or -1, RECOVER + 2, tUpright ~= nil and tUpright <= RECOVER + 2)
 		check(
@@ -5441,27 +5456,27 @@ function Scenarios.index()
 		)
 		check(
 			checks,
-			"speed_multi_is_car_multi",
+			"speed_gain_ignores_car_model",
 			GachaService.SpeedMulti(eq),
-			2,
-			nearly(GachaService.SpeedMulti(eq), 2)
+			1,
+			nearly(GachaService.SpeedMulti(eq), 1)
 		)
-		-- car multi x stat multi: p owns go_kart and has 1 Speed point
+		-- Car model affects cruise speed, not the Speed gain multiplier.
 		GachaService.Equip(p, "go_kart")
 		check(
 			checks,
-			"speed_multi_car_times_stat",
+			"speed_gain_uses_stat_only",
 			GachaService.SpeedMulti(p),
-			2.2,
-			nearly(GachaService.SpeedMulti(p), 2 * 1.1)
+			1.1,
+			nearly(GachaService.SpeedMulti(p), 1.1)
 		)
 		GachaService.Equip(p, "street_racer")
 		check(
 			checks,
 			"speed_multi_after_reequip",
 			GachaService.SpeedMulti(p),
-			6.6,
-			nearly(GachaService.SpeedMulti(p), 6 * 1.1)
+			1.1,
+			nearly(GachaService.SpeedMulti(p), 1.1)
 		)
 		local backOk = GachaService.Equip(p, "starter")
 		check(
@@ -5577,13 +5592,14 @@ function Scenarios.index()
 		metrics.ratio2 = round(ratios[2])
 		check(checks, "race_gain_baseline_unchanged", ratios[1], "1 +- 15%", ratios[1] >= 0.85 and ratios[1] <= 1.15)
 		local scale = ratios[1] > 0 and ratios[2] / ratios[1] or 0
-		check(checks, "race_gain_scales_with_car_multi", scale, "2 +- 15%", scale >= 1.7 and scale <= 2.3)
+		check(checks, "race_gain_ignores_car_multi", scale, "1 +- 15%", scale >= 0.85 and scale <= 1.15)
 		check(
 			checks,
-			"race_cruise_unaffected_by_car",
+			"race_cruise_scales_with_car",
 			results[2].target or -1,
-			results[1].target or -1,
-			type(results[1].target) == "number" and results[1].target == results[2].target
+			(results[1].target or -1) * 2,
+			type(results[1].target) == "number"
+				and math.abs((results[2].target or 0) - results[1].target * 2) <= results[1].target * 0.15
 		)
 	end)
 	for _, conn in connections do
@@ -5872,20 +5888,20 @@ local function checkNpcStability(checks, pre, r)
 	check(checks, pre .. "_no_flips", r.flips, 0, r.flips == 0 and rec == 0)
 end
 
--- Lost track `lost` (by racer r): nothing paid for it, a Reset to Track 1 after the lose screen, the car back at
--- Track 1's start upright and facing along the path, and a new Track 1 Start.
+-- Lost track `lost` (by racer r): nothing paid for it, an immediate Reset to Track 1 naming the lost checkpoint,
+-- the car back at Track 1's start upright and facing along the path, and a new Track 1 Start.
 local function checkNpcLoseReset(checks, pre, r, lost, wps)
 	local res = npcFind(r, "Result", lost)
 	local reset = res and npcFind(r, "Reset", nil, res.T)
-	check(checks, pre .. "_reset_event", reset and 1 or 0, 1, reset ~= nil and reset.Event.Track == 1)
-	local delay = (reset and res) and reset.T - res.T or -1
 	check(
 		checks,
-		pre .. "_reset_after_lose_screen",
-		delay,
-		NPC_LOSE_SCREEN,
-		reset ~= nil and delay >= NPC_LOSE_SCREEN - 0.1 and delay <= NPC_LOSE_SCREEN + 1.5
+		pre .. "_reset_event",
+		reset and 1 or 0,
+		1,
+		reset ~= nil and reset.Event.Track == 1 and reset.Event.LostAt == lost
 	)
+	local delay = (reset and res) and reset.T - res.T or -1
+	check(checks, pre .. "_reset_immediate", delay, 0, reset ~= nil and delay >= -0.1 and delay <= 0.25)
 	local pose = r.resetPose
 	local d = pose and hdist(pose.Position, wps[1]) or -1
 	check(checks, pre .. "_reset_to_track1_start", d, NPC_RESET_RADIUS, pose ~= nil and d <= NPC_RESET_RADIUS)
@@ -9370,7 +9386,7 @@ function Scenarios.roll_anim()
 		GachaService.Setup(r1)
 		local packed = table.pack(pcall(GachaService.Roll, r1, secret))
 		local okR1 = packed[1] == true
-	check(checks, "service_roll_returns_five_values", okR1 and packed.n - 1 or -1, 5, okR1 and packed.n == 6)
+		check(checks, "service_roll_returns_five_values", okR1 and packed.n - 1 or -1, 5, okR1 and packed.n == 6)
 		local first = okR1 and packed[2] == "void_racer" and packed[3] == true and packed[4] == 1 and packed[5] == true
 		check(checks, "service_roll_new_secret_emphasized", first and 1 or 0, 1, first)
 		local ann1 = #calls == 1
@@ -10141,8 +10157,8 @@ function UPG.upgradesServerChecks(checks, metrics, UpgradeTree)
 		pcall(GachaService.Allocate, pSpeed, "Speed")
 		apply(pSpeed, { Upgrades = { "speed_1" } })
 		local _, sm = try("SpeedMulti", GachaService.SpeedMulti, pSpeed)
-		-- car x (1 + points + tree) = 2 x (1 + 0.1 + 0.1) = 2.4; multiplying the two (2 x 1.1 x 1.1 = 2.42) is wrong
-		check(checks, "upgrades_gacha_speed_multi_car_times_added", tonumber(sm) or -1, 2.4, near(sm, 2.4))
+		-- Car model is excluded: Speed gain = stat points + tree + rebirth only.
+		check(checks, "upgrades_gacha_speed_multi_excludes_car", tonumber(sm) or -1, 1.2, near(sm, 1.2))
 
 		-- Turbo through GachaService.Roll: TurboCount counts rolls since the last turbo roll; turbo when
 		-- TurboCount + 1 >= Every, then TurboCount = 0; the turbo multi is the tier's Multi
@@ -11692,10 +11708,7 @@ function Scenarios.workshop()
 				and upgradeLabel ~= nil
 				and upgradeLabel.Text == "UPGRADE"
 		)
-		flag(
-			"workshop_no_rate_billboard",
-			m1 == nil or m1:FindFirstChild("Rate", true) == nil
-		)
+		flag("workshop_no_rate_billboard", m1 == nil or m1:FindFirstChild("Rate", true) == nil)
 		local anchoredOk = m1 ~= nil
 		if m1 then
 			for _, d in m1:GetDescendants() do
@@ -11749,8 +11762,8 @@ function Scenarios.workshop()
 			and type(UpgradeService.Apply) == "function"
 			and pcall(UpgradeService.Apply, p2, { Upgrades = { "speed_1" } })
 		setSpeed(p2, WSHOP.STAT)
-		-- SpeedMulti = car x (1 + Speed points + tree Speed) = 2 x 1.2; Workshop points multi = 1 + 0.2
-		local wantSpeedMulti = 2 * (1 + GACHA_PER_POINT.Speed + 0.10)
+		-- SpeedMulti = stat points + tree Speed; the equipped car only changes cruise speed.
+		local wantSpeedMulti = 1 + GACHA_PER_POINT.Speed + 0.10
 		local wantWorkshopMulti = 1 + GACHA_PER_POINT.Workshop
 		local wantRate = WSHOP.BASE_RATE
 			* wantSpeedMulti

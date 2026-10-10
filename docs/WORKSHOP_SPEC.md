@@ -80,7 +80,8 @@ Every `WorkshopConfig.TICK` (0.5 s) for each player with a plot:
 - While in the zone: `PlayerData.AddSpeed(player, rate * dt)`, with
   `rate = BASE_RATE x GachaService.SpeedMulti(player) x LevelMulti(level) x WorkshopPointsMulti / (1 + stat / RaceConfig.GAIN_SOFT)`
   - `BASE_RATE` = 1 Speed/s (*placeholder*, design doc "B")
-  - `SpeedMulti` = equipped car x (Speed points + upgrade tree Speed %), the same multi racing uses
+  - `SpeedMulti` = Speed points + upgrade tree Speed % + rebirth Speed gain; the equipped car is **not** included
+    because car models affect cruise/base speed only
   - `LevelMulti` = W of the workshop level (level 1 = 1)
   - `WorkshopPointsMulti` = `GachaConfig.Multis(alloc).Workshop` (1 + 0.2 per point)
   - divided by the same diminishing-returns term racing uses, so idling and racing climb the same curve and cruise speed
@@ -88,6 +89,9 @@ Every `WorkshopConfig.TICK` (0.5 s) for each player with a plot:
     preserving the midpoint at `HALF_STAT`; higher stats continue increasing
     with logarithmic diminishing returns
 - Player attribute `WorkshopRate` = the current rate (shown in the Workshop upgrade panel when it is open).
+- While `InWorkshop` is true, Luck also receives `WorkshopConfig.LuckMulti(level)`; level 1 is 1x and each
+  additional workshop level adds 0.1x. The server zone check owns this state, so merely owning a workshop does not
+  grant the boost.
 - Leaving the zone stops the gain at the next tick. Nothing a client sends changes the rate or the zone check.
 
 ## 5. Levels and purchases

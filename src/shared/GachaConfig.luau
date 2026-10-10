@@ -33,15 +33,16 @@ GachaConfig.RARITY_COLORS = {
 	Secret = Color3.fromRGB(20, 20, 20),
 }
 
--- Duplicate rolls become direct Money rewards. Rarer cars are worth more.
+-- Duplicate rolls auto-sell into direct Money rewards. Cars are intentionally
+-- cheap: the common/start-model tier begins at $5 and rises modestly by model.
 GachaConfig.SCRAP_MONEY = {
-	Common = 100,
-	Uncommon = 250,
-	Rare = 750,
-	Epic = 2500,
-	Legendary = 10000,
-	Mythic = 50000,
-	Secret = 250000,
+	Common = 5,
+	Uncommon = 10,
+	Rare = 25,
+	Epic = 50,
+	Legendary = 100,
+	Mythic = 250,
+	Secret = 500,
 }
 
 function GachaConfig.ScrapMoney(spec)

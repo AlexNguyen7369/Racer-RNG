@@ -39,6 +39,7 @@
   <button data-tab="team">Team &amp; branches <span class="count" id="team-count" hidden></span></button>
   <button data-tab="agents" class="on">Agents</button>
   <button data-tab="handoff">Handoff</button>
+  <button data-tab="docs">Docs</button>
   <button data-tab="analytics">Analytics</button>
   <button data-tab="changes">Changes &amp; history</button>
   <button data-tab="todo">TODO &amp; ideas</button>
@@ -124,6 +125,22 @@
         <span class="muted small" id="handoff-updated"></span>
       </div>
       <div id="handoff" class="handoff prose"></div>
+    </div>
+  </section>
+
+  <!-- DESIGN DOCUMENT -->
+  <section id="tab-docs" class="tab">
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Game design requirements <span class="muted small">the shared source of truth for game rules and decisions</span></h2>
+        <span class="muted small" id="docs-updated"></span>
+      </div>
+      <p class="muted small">The checked-in Markdown copy is the canonical design source. Add decisions or corrections here; the original PDF remains preserved as the archival source. Keep this document aligned with the implementation and detailed specs, and resolve proposals here before changing game logic.</p>
+      <textarea id="docs-editor" class="docs-editor" spellcheck="false" aria-label="Game design requirements"></textarea>
+      <div class="docs-actions">
+        <button class="primary" id="docs-save">Save requirements</button>
+        <span class="muted small" id="docs-source"></span>
+      </div>
     </div>
   </section>
 

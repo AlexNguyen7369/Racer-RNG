@@ -69,8 +69,9 @@ Also returns `StartIndices[i]` and `FinishIndices[i]` (route waypoint index of e
     player starts track n (spawn on Track 1, after crossing track n-1's finish, after a reset).
   - `{ Type = "Result", Track = n, Result = "Win" | "Lose", PlayerTime, NpcTime, Paid }` when the player's car
     reaches track n's finish (`FinishIndex`). Win if the player's time on the track < the NPC's `TotalTime`.
-  - `{ Type = "Reset", Track = 1 }` after a loss: after `LoseScreenSeconds` the car is put back at the start of
-    Track 1 (upright, facing along the path) and a new Track 1 `Start` follows.
+  - `{ Type = "Reset", Track = 1, LostAt = n }` is emitted immediately after a loss: the server puts the car
+    back at the start of Track 1 (upright, facing along the path), then emits a new Track 1 `Start`. The loser
+    screen duration is presentation-only and must not delay the authoritative reset.
 - Run fields: `run.RaceTrack` (current track number), `run.Results` (list of Result events), `run.Wins`,
   `run.Losses`, `run.Resets`, plus all existing fields (`PaidTotal`, `Payouts`, `MinUpY`, `MaxPathDeviation`, ...).
 - Money in NPC mode: track n's pad pays (`MoneyService.Collect`) exactly once, at its finish, only on a Win.

@@ -25,6 +25,7 @@ WorkshopConfig.ZONE_SIZE = Vector3.new(32, 12, 32)
 
 WorkshopConfig.TICK = 0.5 -- seconds between server zone checks
 WorkshopConfig.BASE_RATE = 1 -- Speed per second at level 1, stat 0, no multis (placeholder, design doc "B")
+WorkshopConfig.LUCK_PER_LEVEL = 0.10 -- Workshop luck while standing in the zone; level 1 is 1x.
 
 -- Configurable progression defaults: each level doubles W; next prices grow fivefold from $500.
 WorkshopConfig.Levels = {
@@ -39,6 +40,14 @@ WorkshopConfig.OFFLINE_MONEY_FRACTION = 0.10 -- Money credit is 10% of the integ
 WorkshopConfig.OFFLINE_CAP = 8 * 60 * 60
 WorkshopConfig.UPGRADE_DISTANCE = 12
 WorkshopConfig.REMOTE_COOLDOWN = 0.5
+
+function WorkshopConfig.LuckMulti(level)
+	if type(level) ~= "number" or level ~= level or level == math.huge or level == -math.huge then
+		level = 1
+	end
+	level = math.clamp(math.floor(level), 1, WorkshopConfig.MAX_LEVEL)
+	return 1 + (level - 1) * WorkshopConfig.LUCK_PER_LEVEL
+end
 
 WorkshopConfig.SIGN_DISTANCE = 120 -- MaxDistance of the plot signs
 WorkshopConfig.EMPTY_TEXT = "EMPTY PLOT"

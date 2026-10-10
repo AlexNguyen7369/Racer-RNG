@@ -30,7 +30,7 @@ Room is left at the ends of branches and between them for future tiles (more tie
 |---|---|---|---|---|
 | Money | I-V | +10, +10, +15, +15, +20 % | +70 % | Money multi: track winnings (`MoneyService.Quote` / `Collect`) |
 | Luck | I-V | +10, +15, +20, +25, +30 % | +100 % | Luck multi in every roll (`GachaService.Luck`) |
-| Speed | I-V | +10, +10, +15, +15, +20 % | +70 % | Speed-stat GAIN multi (`GachaService.SpeedMulti`). Never the car's cruise speed or physics (stability rule) |
+| Speed | I-V | +10, +10, +15, +15, +20 % | +70 % | Speed-stat GAIN multi (`GachaService.SpeedMulti`), alongside rebirths. Car models affect cruise/base speed only |
 | Roll Speed | I-V | +10 % each | +50 % | roll interval = 3 s / (1 + bonus): 2.73, 2.50, 2.31, 2.14, **2.00 s** (the cap) |
 | Walkspeed | I-V | 16 -> 18, 20, 23, 26, 30 | +14 | on-foot WalkSpeed (each step about +12 %, noticeable) |
 | Turbo | I-IV | see section 4 | | turbo multi and rolls needed per turbo |
