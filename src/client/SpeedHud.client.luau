@@ -1,4 +1,11 @@
 --!nonstrict
+if script.Parent:FindFirstChild("RollToast") then
+	return
+end
+if script.Parent:FindFirstChild("RollToast") then
+	return
+end
+
 -- Stats panel on the left of the screen. It shows the Speed stat (leaderstats.Speed, grown by the server
 -- while the car drives) with Money (leaderstats.Money) under it and the run's banked winnings (player attribute
 -- Unbanked, paid into Money when auto racing stops) under that; all count smoothly as they change.

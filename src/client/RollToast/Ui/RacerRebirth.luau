@@ -343,10 +343,14 @@ end
 
 function Ui.Bind(playerGui)
 	local saved = playerGui:WaitForChild("RacerRebirth")
-	assert(
-		saved:IsA("ScreenGui") and saved:GetAttribute("SpecHash") == "872eec02bc4b",
-		"Saved UI is stale; regenerate and bake it in Edit mode"
-	)
+	if not saved:IsA("ScreenGui") then
+		saved:Destroy()
+		return Ui.Build(playerGui)
+	end
+	if saved:GetAttribute("SpecHash") ~= Ui.SpecHash then
+		saved:Destroy()
+		return Ui.Build(playerGui)
+	end
 	-- Bind looks up the baked instances under the same names the builder above creates them with.
 	-- selene: allow(shadowing)
 	local function new(className, props, parent)

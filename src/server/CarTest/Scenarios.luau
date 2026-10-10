@@ -3282,25 +3282,25 @@ function Scenarios.economy()
 	end
 	check(checks, "speed_for_bad_input_is_base", badOk and 1 or 0, 1, badOk)
 	local samples = { 0, 1, 10, 100, 500, 1000, 2000, 5000, 1e5, 1e6, maxStat }
-	local increasing, bounded, prev = true, true, -1
+	local increasing, unbounded, prev = true, true, -1
 	for _, s in samples do
 		local v = sf(s)
 		if not num(v) then
-			increasing, bounded = false, false
+			increasing, unbounded = false, false
 			break
 		end
 		if v <= prev then
 			increasing = false
 		end
-		if v > top or v >= CarConfig.TopSpeed then
-			bounded = false
+		if s == maxStat and v <= CarConfig.TopSpeed then
+			unbounded = false
 		end
 		prev = v
 	end
 	check(checks, "speed_for_strictly_increasing", increasing and 1 or 0, 1, increasing)
-	check(checks, "speed_for_bounded_by_max", bounded and 1 or 0, 1, bounded)
+	check(checks, "speed_for_high_stat_exceeds_car_baseline", unbounded and 1 or 0, 1, unbounded)
 	local atMax = sf(maxStat)
-	check(checks, "speed_for_max_stat_near_max", atMax or -1, top - 0.05, num(atMax) and atMax >= top - 0.05)
+	check(checks, "speed_for_max_stat_above_reference", atMax or -1, top, num(atMax) and atMax > top)
 	local d1, d2 = (sf(2000) or 0) - (sf(1000) or 0), (sf(1000) or 0) - (sf(0) or 0)
 	check(checks, "speed_for_diminishing", d1, d2, d1 > 0 and d1 < d2)
 
@@ -3397,9 +3397,9 @@ local function anyCountAttribute(player)
 end
 
 -- Data: PlayerData saves/loads Money and the float Speed stat through an injected store (no real DataStore is touched).
--- The save version is 5 since the spawn Market adds owned/equipped auras and trails; older versions still load.
+-- The current save version is 7 (market, rebirth/boosts/daily login, and level/XP); older versions still load.
 function Scenarios.data()
-	local DATA_VERSION = 5
+	local DATA_VERSION = 7
 	local checks = {}
 	local PlayerData = serverModule("PlayerData")
 	local RaceConfig = sharedModule("RaceConfig")
@@ -9370,7 +9370,7 @@ function Scenarios.roll_anim()
 		GachaService.Setup(r1)
 		local packed = table.pack(pcall(GachaService.Roll, r1, secret))
 		local okR1 = packed[1] == true
-		check(checks, "service_roll_returns_four_values", okR1 and packed.n - 1 or -1, 4, okR1 and packed.n == 5)
+	check(checks, "service_roll_returns_five_values", okR1 and packed.n - 1 or -1, 5, okR1 and packed.n == 6)
 		local first = okR1 and packed[2] == "void_racer" and packed[3] == true and packed[4] == 1 and packed[5] == true
 		check(checks, "service_roll_new_secret_emphasized", first and 1 or 0, 1, first)
 		local ann1 = #calls == 1
@@ -11692,14 +11692,9 @@ function Scenarios.workshop()
 				and upgradeLabel ~= nil
 				and upgradeLabel.Text == "UPGRADE"
 		)
-		local rateGui = m1 and m1:FindFirstChild("Rate", true)
-		local rateLabel = rateGui and rateGui:IsA("BillboardGui") and rateGui:FindFirstChildWhichIsA("TextLabel", true)
 		flag(
-			"workshop_rate_billboard",
-			rateLabel ~= nil
-				and string.find(rateLabel.Text, "Speed/s", 1, true) ~= nil
-				and rateGui.MaxDistance > 0
-				and rateGui.MaxDistance < math.huge
+			"workshop_no_rate_billboard",
+			m1 == nil or m1:FindFirstChild("Rate", true) == nil
 		)
 		local anchoredOk = m1 ~= nil
 		if m1 then

@@ -18,7 +18,11 @@ Storage: tools/dashboard/data/bugs.json (checked in, so the team shares it).
 import argparse
 import contextlib
 import datetime
-import fcntl
+try:
+    import fcntl
+except ImportError:  # Windows
+    fcntl = None
+    import msvcrt
 import json
 import os
 import subprocess
@@ -48,8 +52,18 @@ def developer():
 def locked():
     os.makedirs(os.path.dirname(LOCK_FILE), exist_ok=True)
     with open(LOCK_FILE, "w") as lk:
-        fcntl.flock(lk, fcntl.LOCK_EX)
-        yield
+        if fcntl:
+            fcntl.flock(lk, fcntl.LOCK_EX)
+        else:
+            msvcrt.locking(lk.fileno(), msvcrt.LK_LOCK, 1)
+        try:
+            yield
+        finally:
+            if fcntl:
+                fcntl.flock(lk, fcntl.LOCK_UN)
+            else:
+                lk.seek(0)
+                msvcrt.locking(lk.fileno(), msvcrt.LK_UNLCK, 1)
 
 
 def load():

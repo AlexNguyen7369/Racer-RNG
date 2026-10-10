@@ -118,6 +118,7 @@ function Tests.workshop_phase2()
 	local data = module(Server, "PlayerData")
 	local gacha = module(Server, "GachaService")
 	local carService = module(Server, "CarService")
+	local workshop = module(Shared, "Workshop")
 	local config = module(Shared, "WorkshopConfig")
 	local race = module(Shared, "RaceConfig")
 	local api = service and data and gacha and carService and config and race
@@ -276,7 +277,8 @@ function Tests.workshop_phase2()
 			store.claims == 1
 				and near(initial.Speed, want, 0.002)
 				and initial.OfflineAt == at
-				and initial.Money == 41
+				and initial.Money
+					== 41 + Workshop.OfflineMoney(2500, gacha.SpeedMulti(p), 1, gacha.WorkshopMulti(p), 3600)
 				and initial.WorkshopLevel == 1
 		)
 		flag(
@@ -327,7 +329,7 @@ function Tests.workshop_phase2()
 		flag("offline_save_succeeds", data.Save(p, 74002) == true)
 		flag(
 			"offline_at_saved_unix_timestamp",
-			saved ~= nil and type(saved.OfflineAt) == "number" and saved.OfflineAt == clock and saved.Version == 5
+			saved ~= nil and type(saved.OfflineAt) == "number" and saved.OfflineAt == clock and saved.Version == 7
 		)
 		local afterSave = player("ReconnectAfterSave")
 		data.Load(afterSave, 74002)

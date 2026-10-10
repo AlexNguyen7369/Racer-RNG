@@ -111,7 +111,7 @@ function RaceService.NewRun(car, raceRoute, player, options)
 	local stat = PlayerData.SpeedStat(player)
 	local physics = CarPhysics.new(car, CarConfig)
 	local driver = PathDriver.new(raceRoute.Path, CarConfig, {
-		TargetSpeed = RaceConfig.SpeedFor(stat, GachaService.CarSpeedMulti(player) * MarketConfig.SpeedMulti(player)),
+		TargetSpeed = RaceConfig.SpeedFor(stat, MarketConfig.SpeedMulti(player)),
 		NoFinalSlow = options.Loop,
 	})
 	local run = {
@@ -328,7 +328,7 @@ function RaceService.NewRun(car, raceRoute, player, options)
 		end
 		stat = PlayerData.SpeedStat(player) -- the source of truth (also picks up a load finishing)
 		run.TargetSpeed =
-			RaceConfig.SpeedFor(stat, GachaService.CarSpeedMulti(player) * MarketConfig.SpeedMulti(player))
+			RaceConfig.SpeedFor(stat, MarketConfig.SpeedMulti(player))
 		driver.TargetSpeed = run.TargetSpeed
 	end
 
@@ -403,11 +403,10 @@ function RaceService.NewRun(car, raceRoute, player, options)
 			run.MaxPathDeviation = math.max(run.MaxPathDeviation, pathDeviation())
 		end
 
-		-- Passive gain is proportional to ACTUAL speed and is boosted by rebirths.
-		-- Car models affect cruise speed only; they never multiply this gain.
-		pending += RaceConfig.GainPerSecond(stat, chassis.AssemblyLinearVelocity.Magnitude) * GachaService.SpeedGainMulti(
-			player
-		) * require(script.Parent.BoostService).Multiplier(player, "Speed") * dt
+		-- Passive gain uses the same car/stat/tree SpeedMulti as the workshop.
+		pending += RaceConfig.GainPerSecond(stat, chassis.AssemblyLinearVelocity.Magnitude)
+			* GachaService.SpeedMulti(player)
+			* require(script.Parent.BoostService).Multiplier(player, "Speed") * dt
 		LevelService.Tick(player, dt)
 		sinceCommit += dt
 		if sinceCommit >= RaceService.COMMIT_INTERVAL then

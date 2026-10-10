@@ -209,7 +209,10 @@ function CarPhysics:Step(input, dt)
 			-- Longitudinal: drive (with torque taper), brakes, coasting drag
 			local fLong = 0
 			if w.Cfg.Drive and throttle ~= 0 then
-				local top = throttle > 0 and cfg.TopSpeed or cfg.ReverseTopSpeed
+				-- Auto-race supplies a stat-derived target that may exceed the
+				-- vehicle's legacy baseline TopSpeed. Keep the baseline for all
+				-- other inputs and preserve the separate reverse limit.
+				local top = throttle > 0 and (input.TargetSpeed or cfg.TopSpeed) or cfg.ReverseTopSpeed
 				local taper = math.clamp(1 - math.abs(fwdSpeed) / top, 0, 1)
 				fLong += throttle * cfg.EngineAccel * mass / driveCount * taper
 			end

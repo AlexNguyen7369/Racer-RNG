@@ -1,27 +1,46 @@
 --!nonstrict
--- Builds the workshop plots and the workshops on them (docs/WORKSHOP_SPEC.md section 2), procedurally like
--- CarFactory: placeholder look until real models exist. Every part is anchored. A plot CFrame
+-- Builds workshop plots with a Blender-authored garage and unchanged gameplay targets.
+-- Every part is anchored. A plot CFrame
 -- (Workshop.PlotCFrame) sits at the plot centre on the floor top, LookVector = the open front (toward the hub), so in
 -- plot space the front edge is at z = -PLOT_SIZE / 2 and the back at +PLOT_SIZE / 2.
 
+local AssetService = game:GetService("AssetService")
 local CollectionService = game:GetService("CollectionService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local WorkshopConfig = require(script.Parent.WorkshopConfig)
+local WorkshopMeshAssets = require(script.Parent.WorkshopMeshAssets)
+
+-- Prepare once during module loading, before assignment or a purchase can run.
+-- Rojo hot updates can leave existing MeshParts with empty MeshContent. A mesh
+-- id/size in XML alone does not guarantee the native geometry exists in Studio.
+local garageTemplate = ReplicatedStorage:WaitForChild("RacingGarage"):Clone()
+for _, mesh in garageTemplate:GetDescendants() do
+	if mesh:IsA("MeshPart") then
+		local assetId = WorkshopMeshAssets[mesh.Name]
+		assert(assetId, "Missing workshop mesh asset: " .. mesh.Name)
+		if mesh.MeshId ~= assetId or mesh.MeshSize.Magnitude == 0 then
+			local texture = mesh.TextureID
+			local loaded = AssetService:CreateMeshPartAsync(Content.fromUri(assetId), {
+				CollisionFidelity = Enum.CollisionFidelity.Box,
+			})
+			mesh:ApplyMesh(loaded)
+			mesh.TextureID = texture
+			loaded:Destroy()
+		end
+		assert(mesh.MeshId == assetId and mesh.MeshSize.Magnitude > 0, "Workshop mesh failed to load: " .. mesh.Name)
+	end
+end
 
 local WorkshopBuilder = {}
 
 local PLOT_COLOR = Color3.fromRGB(105, 50, 170) -- a shade darker than the spawn floor
 local FLOOR_COLOR = Color3.fromRGB(150, 150, 155)
-local WALL_COLOR = Color3.fromRGB(70, 75, 85)
 local TRIM_COLOR = Color3.fromRGB(255, 200, 40)
-local BENCH_COLOR = Color3.fromRGB(120, 80, 45)
-local TYRE_COLOR = Color3.fromRGB(25, 25, 25)
 local UPGRADE_COLOR = Color3.fromRGB(70, 190, 255)
 
 local BASE_HEIGHT = 0.2
 local BASE_LIFT = 0.05 -- base top above the floor top, so the two never z-fight
-local WALL_HEIGHT = 12
-local WALL_THICKNESS = 1
 local SHELL = 36 -- the workshop's square footprint (walls on three sides, front open)
 local SIGN_HEIGHT = 16
 
@@ -91,8 +110,8 @@ function WorkshopBuilder.SetSign(plotModel, ownerName)
 end
 
 -- The workshop of a level on a plot (level 1 = the starter workshop): a `Workshop` model with a concrete floor,
--- back and side walls (front open toward the hub), roof beams, a workbench, a tyre stack, a neon outline around the
--- gain zone and the `Zone` part itself (invisible, no collision, touch or query) with the `Rate` billboard.
+-- Blender garage (front open toward the hub), perimeter racing props, a neon outline around the
+-- gain zone and the `Zone` part itself (invisible, no collision, touch or query).
 function WorkshopBuilder.BuildWorkshop(level, plotCFrame)
 	local model = Instance.new("Model")
 	model.Name = "Workshop"
@@ -105,49 +124,59 @@ function WorkshopBuilder.BuildWorkshop(level, plotCFrame)
 
 	local floor =
 		part(model, "Floor", Vector3.new(SHELL, 0.2, SHELL), at(0, 0.1, 0), FLOOR_COLOR, Enum.Material.Concrete)
-	local wallY = 0.2 + WALL_HEIGHT / 2
-	part(
-		model,
-		"BackWall",
-		Vector3.new(SHELL, WALL_HEIGHT, WALL_THICKNESS),
-		at(0, wallY, half - WALL_THICKNESS / 2),
-		WALL_COLOR,
-		Enum.Material.Metal
-	)
-	for _, side in { -1, 1 } do
-		part(
-			model,
-			side < 0 and "LeftWall" or "RightWall",
-			Vector3.new(WALL_THICKNESS, WALL_HEIGHT, SHELL),
-			at(side * (half - WALL_THICKNESS / 2), wallY, 0),
-			WALL_COLOR,
-			Enum.Material.Metal
-		)
+	-- The imported template faces +Z; turn it toward plot-local -Z.
+	-- Mesh groups are decorative only. The original Floor remains the walk surface.
+	local visual = garageTemplate:Clone()
+	visual.Name = "Visual"
+	local placement = at(0, 0.2, 0) * CFrame.Angles(0, math.pi, 0)
+	for _, mesh in visual:GetDescendants() do
+		if mesh:IsA("BasePart") then
+			mesh.CFrame = placement * mesh.CFrame
+			mesh.Anchored = true
+			mesh.CanCollide = false
+			mesh.CanTouch = false
+			mesh.CanQuery = false
+			if mesh:IsA("MeshPart") then
+				mesh.DoubleSided = true
+			end
+		end
 	end
-	-- Roof frame: beams only, so the camera never clips a roof
-	for i, z in { -half + 1, 0, half - 1 } do
-		part(
-			model,
-			"RoofBeam" .. i,
-			Vector3.new(SHELL, 1, 1),
-			at(0, 0.2 + WALL_HEIGHT + 0.5, z),
-			TRIM_COLOR,
-			Enum.Material.Metal
-		)
+	visual.Parent = model
+	-- Preserve the original three wall collision boundaries beneath the mesh shell.
+	local walls = {
+		BackWall = { Vector3.new(SHELL, 12, 1), Vector3.new(0, 6.2, half - 0.5) },
+		LeftWall = { Vector3.new(1, 12, SHELL), Vector3.new(-half + 0.5, 6.2, 0) },
+		RightWall = { Vector3.new(1, 12, SHELL), Vector3.new(half - 0.5, 6.2, 0) },
+	}
+	for name, spec in walls do
+		local wall = part(model, name, spec[1], at(spec[2].X, spec[2].Y, spec[2].Z), FLOOR_COLOR)
+		wall.Transparency = 1
+	end
+	-- Three local, shadow-free lights; no changes to global Lighting/weather.
+	for _, x in { -10, 0, 10 } do
+		local mount = Instance.new("Attachment")
+		mount.Name = "TaskLight"
+		mount.Position = Vector3.new(x, 10.3, 14)
+		mount.Parent = floor
+		local light = Instance.new("PointLight")
+		light.Color = Color3.fromRGB(255, 202, 126)
+		light.Brightness = 1.4
+		light.Range = 18
+		light.Shadows = false
+		light.Parent = mount
 	end
 
-	-- Props against the back wall
-	part(model, "Workbench", Vector3.new(10, 3, 3), at(-8, 1.7, half - 3), BENCH_COLOR, Enum.Material.Wood)
-	for i = 1, 3 do
-		local tyre = part(
-			model,
-			"Tyre" .. i,
-			Vector3.new(1.4, 3.6, 3.6),
-			at(10, 0.2 + 0.7 + (i - 1) * 1.4, half - 4) * CFrame.Angles(0, 0, math.rad(90)),
-			TYRE_COLOR
-		)
-		tyre.Shape = Enum.PartType.Cylinder
-	end
+	-- Caged entrance lantern makes the garage mouth readable from the hub.
+	local lantern = Instance.new("Attachment")
+	lantern.Name = "EntranceLantern"
+	lantern.Position = Vector3.new(0, 10.7, -16.8)
+	lantern.Parent = floor
+	local entranceLight = Instance.new("PointLight")
+	entranceLight.Color = Color3.fromRGB(255, 183, 76)
+	entranceLight.Brightness = 1.6
+	entranceLight.Range = 15
+	entranceLight.Shadows = false
+	entranceLight.Parent = lantern
 
 	-- The gain zone and its neon outline on the floor
 	local zs = WorkshopConfig.ZONE_SIZE
@@ -168,10 +197,6 @@ function WorkshopBuilder.BuildWorkshop(level, plotCFrame)
 		local line = part(model, name, spec[1], at(spec[2].X, 0.25, spec[2].Z), TRIM_COLOR, Enum.Material.Neon)
 		line.CanCollide = false
 	end
-	local rate = billboard(zone, "Rate", Vector3.new(0, 2, 0), UDim2.fromOffset(200, 40))
-	rate.Text = ""
-	rate.TextColor3 = TRIM_COLOR
-
 	-- The upgrade interaction is implemented separately, but every owned workshop
 	-- gets a readable world target now. It sits just beyond the open front, inside
 	-- the plot, so it does not block the workshop zone or the hub approach.

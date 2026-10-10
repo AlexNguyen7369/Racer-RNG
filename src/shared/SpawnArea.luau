@@ -1,14 +1,36 @@
 --!nonstrict
 -- The spawn area (docs/SPAWN_AND_ROLLS_SPEC.md): a large purple floor beside the start of Track 1 with the game's only
--- SpawnLocation, and the StartPad that joins it to the road. Players join and respawn here on foot, Stop sends them
+-- SpawnLocation, and the StartPad pavilion within the hub. Players join and respawn here on foot, Stop sends them
 -- back here, and walking onto the StartPad starts auto racing (Server/CarService).
 -- Everything is placed in the local space of Track 1's Start part (forward -Z, right +X). Track 1's finish and
--- Track 2 pass behind the start line, so the area sits to the RIGHT of the start straight and the pad fills the
--- gap right behind the start line.
+-- Track 2 pass behind the start line, so the area sits to the RIGHT of the start straight.
 -- Workshop plots (docs/WORKSHOP_SPEC.md, owner 2026-10-06): the floor was grown outward (+X) and forward (-Z) to hold
 -- the 7 plots (Shared/WorkshopConfig) in an L around the HUB, the old 160 x 144 floor, which keeps the spawn.
 
+local AssetService = game:GetService("AssetService")
 local CollectionService = game:GetService("CollectionService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RaceStartMeshAssets = require(script.Parent.RaceStartMeshAssets)
+local MarketplaceBuilder = require(script.Parent.MarketplaceBuilder)
+
+-- Match WorkshopBuilder's native-mesh safeguard before Main builds the area.
+local raceTemplate = ReplicatedStorage:WaitForChild("RaceStartPavilion"):Clone()
+for _, mesh in raceTemplate:GetDescendants() do
+	if mesh:IsA("MeshPart") then
+		local assetId = RaceStartMeshAssets[mesh.Name]
+		assert(assetId, "Missing race start mesh asset: " .. mesh.Name)
+		if mesh.MeshId ~= assetId or mesh.MeshSize.Magnitude == 0 then
+			local texture = mesh.TextureID
+			local loaded = AssetService:CreateMeshPartAsync(Content.fromUri(assetId), {
+				CollisionFidelity = Enum.CollisionFidelity.Box,
+			})
+			mesh:ApplyMesh(loaded)
+			mesh.TextureID = texture
+			loaded:Destroy()
+		end
+		assert(mesh.MeshId == assetId and mesh.MeshSize.Magnitude > 0, "Race start mesh failed to load: " .. mesh.Name)
+	end
+end
 
 local SpawnArea = {}
 
@@ -18,8 +40,10 @@ SpawnArea.AREA_MIN = Vector2.new(24, -188) -- local (x, z) corners of the floor:
 SpawnArea.AREA_MAX = Vector2.new(252, 44)
 SpawnArea.HUB_MIN = Vector2.new(24, -100) -- the part of the floor kept free of plots: spawn, StartPad side, upgrade pad
 SpawnArea.HUB_MAX = Vector2.new(184, 44)
-SpawnArea.PAD_MIN = Vector2.new(-20, 2) -- local (x, z) corners of the start platform: behind the start line,
-SpawnArea.PAD_MAX = Vector2.new(24, 38) -- from the road's left wall to the area
+SpawnArea.PAD_MIN = Vector2.new(-20, 2) -- authored pavilion coordinates; placement is controlled by PadBase
+SpawnArea.PAD_MAX = Vector2.new(24, 38)
+SpawnArea.PAD_CENTER = Vector2.new(34.3031235, 28.4993916) -- owner's on-foot position in the hub
+SpawnArea.PAD_FRONT = Vector2.new(1, 0) -- square to the hub: sign faces +X, right entrance faces -Z
 SpawnArea.TOP_Y = 1 -- floor top = road top
 SpawnArea.START_COOLDOWN = 2 -- seconds after a stop or a pad start before the pad can start that player again
 SpawnArea.WALK_ROOT_HEIGHT = 3 -- HumanoidRootPart height above the floor top when standing
@@ -32,7 +56,6 @@ local EDGE_WIDTH = 1
 local PAD_RAISE = 0.2
 local SPAWN_SIZE = 12
 local LABEL_DISTANCE = 150
-local RACE_CANOPY_HEIGHT = 11
 
 -- Track 1's start, flattened: yaw only, at ground level (the local space every spawn-area and plot position uses)
 local function base(startCFrame)
@@ -45,25 +68,38 @@ end
 
 SpawnArea.Base = base
 
+-- Move the entire entrance (pad, meshes, boundaries, lights) together independently of the road.
+function SpawnArea.PadBase(startCFrame)
+	local c = SpawnArea.PAD_CENTER
+	local front = SpawnArea.PAD_FRONT.Unit
+	local position = Vector3.new(c.X, 0, c.Y)
+	local facing = CFrame.lookAt(position, position - Vector3.new(front.X, 0, front.Y))
+	local authoredCentre = (SpawnArea.PAD_MIN + SpawnArea.PAD_MAX) / 2
+	return base(startCFrame) * facing * CFrame.new(-authoredCentre.X, 0, -authoredCentre.Y)
+end
+
 local function world(startCFrame, x, z, y)
 	local p = base(startCFrame):PointToWorldSpace(Vector3.new(x, 0, z))
 	return Vector3.new(p.X, y or SpawnArea.TOP_Y, p.Z)
 end
 
 local function rect(startCFrame, min, max)
-	local a = world(startCFrame, min.X, min.Y)
-	local b = world(startCFrame, max.X, max.Y)
-	return {
-		Min = Vector3.new(math.min(a.X, b.X), SpawnArea.TOP_Y, math.min(a.Z, b.Z)),
-		Max = Vector3.new(math.max(a.X, b.X), SpawnArea.TOP_Y, math.max(a.Z, b.Z)),
-	}
+	local lowX, highX, lowZ, highZ = math.huge, -math.huge, math.huge, -math.huge
+	for _, x in { min.X, max.X } do
+		for _, z in { min.Y, max.Y } do
+			local p = world(startCFrame, x, z)
+			lowX, highX = math.min(lowX, p.X), math.max(highX, p.X)
+			lowZ, highZ = math.min(lowZ, p.Z), math.max(highZ, p.Z)
+		end
+	end
+	return { Min = Vector3.new(lowX, SpawnArea.TOP_Y, lowZ), Max = Vector3.new(highX, SpawnArea.TOP_Y, highZ) }
 end
 
 -- World corners (Y = TOP_Y) of the floor and of the start platform.
 function SpawnArea.Bounds(startCFrame)
 	return {
 		Area = rect(startCFrame, SpawnArea.AREA_MIN, SpawnArea.AREA_MAX),
-		Pad = rect(startCFrame, SpawnArea.PAD_MIN, SpawnArea.PAD_MAX),
+		Pad = rect(SpawnArea.PadBase(startCFrame), SpawnArea.PAD_MIN, SpawnArea.PAD_MAX),
 	}
 end
 
@@ -77,7 +113,7 @@ function SpawnArea.WalkCFrame(startCFrame)
 	local pad = centre(SpawnArea.PAD_MIN, SpawnArea.PAD_MAX)
 	local y = SpawnArea.TOP_Y + SpawnArea.WALK_ROOT_HEIGHT
 	local pos = world(startCFrame, c.X, c.Y, y)
-	local look = world(startCFrame, pad.X, pad.Y, y)
+	local look = world(SpawnArea.PadBase(startCFrame), pad.X, pad.Y, y)
 	return CFrame.lookAt(pos, look)
 end
 
@@ -111,6 +147,21 @@ function SpawnArea.Build(startCFrame)
 		EdgeNear = { Vector2.new(amin.X, amax.Y - EDGE_WIDTH), Vector2.new(amax.X, amax.Y) },
 		EdgeOuter = { Vector2.new(amax.X - EDGE_WIDTH, amin.Y), Vector2.new(amax.X, amax.Y) },
 	}
+	-- Open only the low curb section crossed by the relocated platform.
+	local padBounds = SpawnArea.Bounds(CFrame.new()).Pad
+	if padBounds.Min.Z < amax.Y and padBounds.Max.Z > amax.Y - EDGE_WIDTH then
+		local gapMin = math.max(amin.X, padBounds.Min.X - EDGE_WIDTH * 2)
+		local gapMax = math.min(amax.X, padBounds.Max.X + EDGE_WIDTH * 2)
+		if gapMax > gapMin then
+			edges.EdgeNear = nil
+			if gapMin > amin.X then
+				edges.EdgeNearBefore = { Vector2.new(amin.X, amax.Y - EDGE_WIDTH), Vector2.new(gapMin, amax.Y) }
+			end
+			if gapMax < amax.X then
+				edges.EdgeNear = { Vector2.new(gapMax, amax.Y - EDGE_WIDTH), Vector2.new(amax.X, amax.Y) }
+			end
+		end
+	end
 	for name, corners in edges do
 		local edge = slab(model, name, startCFrame, corners[1], corners[2], top + EDGE_HEIGHT, EDGE_HEIGHT)
 		edge.Color = SpawnArea.COLOR:Lerp(Color3.new(0, 0, 0), 0.35)
@@ -138,7 +189,8 @@ function SpawnArea.Build(startCFrame)
 		decal:Destroy()
 	end
 
-	local pad = slab(model, "StartPad", startCFrame, SpawnArea.PAD_MIN, SpawnArea.PAD_MAX, top + PAD_RAISE, 1)
+	local padFrame = SpawnArea.PadBase(startCFrame)
+	local pad = slab(model, "StartPad", padFrame, SpawnArea.PAD_MIN, SpawnArea.PAD_MAX, top + PAD_RAISE, 1)
 	pad.Color = SpawnArea.PAD_COLOR
 	pad.Material = Enum.Material.Neon
 	CollectionService:AddTag(pad, SpawnArea.TAG)
@@ -160,78 +212,65 @@ function SpawnArea.Build(startCFrame)
 	text.TextStrokeTransparency = 0.3
 	text.Parent = billboard
 
-	-- A small overhang makes the manual race entrance read as a destination instead of
-	-- an isolated neon pad. It stays open on every side so the start trigger remains
-	-- easy to approach on foot.
-	local canopy = Instance.new("Model")
+	-- Blender meshes are decorative; the original pad remains the touch trigger.
+	local canopy = raceTemplate:Clone()
 	canopy.Name = "RaceOverhang"
+	local placement = padFrame * CFrame.new(0, top + PAD_RAISE, 0)
+	for _, mesh in canopy:GetDescendants() do
+		if mesh:IsA("BasePart") then
+			mesh.CFrame = placement * mesh.CFrame
+			mesh.Anchored = true
+			mesh.CanCollide = false
+			mesh.CanTouch = false
+			mesh.CanQuery = false
+			mesh.CastShadow = false
+			if mesh:IsA("MeshPart") then
+				mesh.DoubleSided = true
+			end
+		end
+	end
 	canopy.Parent = model
-	local raceBase = base(startCFrame)
-	local function canopyPart(name, size, localPosition, color, material)
-		local beam = Instance.new("Part")
-		beam.Name = name
-		beam.Anchored = true
-		beam.Size = size
-		beam.CFrame = raceBase * CFrame.new(localPosition.X, localPosition.Y, localPosition.Z)
-		beam.Color = color
-		beam.Material = material or Enum.Material.Metal
-		beam.TopSurface = Enum.SurfaceType.Smooth
-		beam.BottomSurface = Enum.SurfaceType.Smooth
-		beam.Parent = canopy
-		return beam
+
+	-- Box boundaries cover rail gaps and column detail without snagging avatars.
+	-- The hub entrance stays open from z=10..30; both 18.5-stud lanes stay clear.
+	local boundaries = Instance.new("Folder")
+	boundaries.Name = "RaceBoundaries"
+	boundaries.Parent = model
+	local function boundary(name, min, max, height)
+		local collider = slab(boundaries, name, padFrame, min, max, top + PAD_RAISE + height, height)
+		collider.Transparency = 1
+		collider.CanTouch = false
+		collider.CastShadow = false
 	end
-	local canopyTrim = SpawnArea.PAD_COLOR:Lerp(Color3.new(1, 1, 1), 0.2)
-	for _, x in { -20, 20 } do
-		canopyPart(
-			"Post" .. x,
-			Vector3.new(1.2, RACE_CANOPY_HEIGHT, 1.2),
-			Vector3.new(x, RACE_CANOPY_HEIGHT / 2, 18),
-			canopyTrim
-		)
+	boundary("LeftRail", Vector2.new(-21.85, 2), Vector2.new(-20.15, 38), 3.35)
+	boundary("HubRailForward", Vector2.new(22.15, 2), Vector2.new(23.85, 10), 3.35)
+	boundary("HubRailRear", Vector2.new(22.15, 30), Vector2.new(23.85, 38), 3.35)
+	for _, x in { -20.5, 20.5 } do
+		for _, z in { 7, 33 } do
+			boundary(
+				"Column_" .. x .. "_" .. z,
+				Vector2.new(x - 1.65, z - 1.65),
+				Vector2.new(x + 1.65, z + 1.65),
+				12.75
+			)
+		end
 	end
-	canopyPart(
-		"Roof",
-		Vector3.new(42, 1.2, 19),
-		Vector3.new(0, RACE_CANOPY_HEIGHT, 18),
-		SpawnArea.COLOR:Lerp(Color3.new(1, 1, 1), 0.15)
-	)
-	canopyPart(
-		"RoofTrim",
-		Vector3.new(43, 0.35, 0.7),
-		Vector3.new(0, RACE_CANOPY_HEIGHT + 0.7, 8.7),
-		canopyTrim,
-		Enum.Material.Neon
-	)
-	canopyPart(
-		"RoofTrimBack",
-		Vector3.new(43, 0.35, 0.7),
-		Vector3.new(0, RACE_CANOPY_HEIGHT + 0.7, 27.3),
-		canopyTrim,
-		Enum.Material.Neon
-	)
-	local canopySign = Instance.new("BillboardGui")
-	canopySign.Name = "RaceSign"
-	canopySign.Size = UDim2.fromOffset(250, 60)
-	canopySign.StudsOffsetWorldSpace = Vector3.new(0, 1.6, 18)
-	canopySign.MaxDistance = LABEL_DISTANCE
-	canopySign.AlwaysOnTop = false
-	canopySign.Parent = canopyPart(
-		"SignMount",
-		Vector3.new(18, 0.4, 0.4),
-		Vector3.new(0, RACE_CANOPY_HEIGHT - 1.5, 8),
-		SpawnArea.PAD_COLOR,
-		Enum.Material.Neon
-	)
-	local signText = Instance.new("TextLabel")
-	signText.Name = "Text"
-	signText.Size = UDim2.fromScale(1, 1)
-	signText.BackgroundTransparency = 1
-	signText.Text = "RACE"
-	signText.Font = Enum.Font.GothamBlack
-	signText.TextScaled = true
-	signText.TextColor3 = Color3.new(1, 1, 1)
-	signText.TextStrokeTransparency = 0.25
-	signText.Parent = canopySign
+
+	-- Local, shadow-free lights leave the global Lighting/weather system intact.
+	local padCentre = centre(SpawnArea.PAD_MIN, SpawnArea.PAD_MAX)
+	for _, x in { -12, 0, 12 } do
+		local mount = Instance.new("Attachment")
+		mount.Name = "CanopyLight_" .. x
+		mount.Position = Vector3.new(x - padCentre.X, 11.5 + pad.Size.Y / 2, 0)
+		mount.Parent = pad
+		local light = Instance.new("PointLight")
+		light.Name = "RaceGlow"
+		light.Color = Color3.fromRGB(80, 240, 255)
+		light.Brightness = 1.2
+		light.Range = 20
+		light.Shadows = false
+		light.Parent = mount
+	end
 
 	model.PrimaryPart = floor
 	local upgrade =
@@ -261,6 +300,21 @@ function SpawnArea.Build(startCFrame)
 	prompt.MaxActivationDistance = 14
 	prompt.RequiresLineOfSight = false
 	prompt.Parent = market
+	-- Keep the original market tag and interaction while the modular stalls frame it.
+	market.Transparency = 1
+	market.CanCollide = false
+	market.CanTouch = false
+	marketSign.Enabled = false
+	prompt.Enabled = false -- the three vendor anchors open the same existing browser
+	local marketCenter = MarketplaceBuilder.CENTER
+	local marketplace = MarketplaceBuilder.Build(
+		base(startCFrame)
+			* CFrame.new(marketCenter.X, top, marketCenter.Y)
+			* CFrame.Angles(0, math.rad(MarketplaceBuilder.ROTATION), 0)
+	)
+	marketplace.Parent = model
+	-- Dimensional lettering replaces the pad label; cloned hub labels stay enabled.
+	billboard.Enabled = false
 	return model
 end
 

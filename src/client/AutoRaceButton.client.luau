@@ -1,4 +1,11 @@
 --!nonstrict
+if script.Parent:FindFirstChild("RollToast") then
+	return
+end
+if script.Parent:FindFirstChild("RollToast") then
+	return
+end
+
 -- The "Stop Auto" / "Auto Race" button at the top centre of the screen. It only asks: the server
 -- (CarService.SetAutoRace) decides, and the label always follows the server's player attribute AutoRacing,
 -- so the button can never show a state the game is not in.

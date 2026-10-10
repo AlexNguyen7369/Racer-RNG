@@ -380,7 +380,7 @@
     {
       "id": "ac1becc5",
       "title": "Rebirth / prestige with a permanent multiplier",
-      "detail": "IMPLEMENTED 2026-10-08, NOT LIVE-VERIFIED: RebirthService validates a Money-or-Speed threshold, resets Money and Speed, preserves index/upgrades/workshop/market, increments a saved leaderboard Rebirth counter, and applies a permanent Speed-gain and Money multiplier. Rebirth is blocked during Auto Race.\n\nFits this game: The Speed stat already has diminishing returns, so late players stall.\nInspired by: Most idle simulators (Race Clicker, Sonic Speed Simulator)",
+      "detail": "IMPLEMENTED 2026-10-08, NOT LIVE-VERIFIED: RebirthService validates the designed Level milestone, resets Money while preserving Speed and index/upgrades/workshop/market, increments a saved leaderboard Rebirth counter, and applies permanent Speed-gain and Luck multipliers. Rebirth is blocked during Auto Race.\n\nFits this game: The Speed stat already has diminishing returns, so late players stall.\nInspired by: Most idle simulators (Race Clicker, Sonic Speed Simulator)",
       "status": "doing",
       "source": "suggestion:rebirth",
       "by": "Alex Nguyen",
@@ -451,6 +451,18 @@
       "featureId": "d08f107c",
       "owner": "Alex Nguyen",
       "ownerGithub": "AlexNguyen7369"
+    },
+    {
+      "id": "urgent-auto-race-path-stability",
+      "title": "URGENT: Lock high-speed auto racing to the track path",
+      "detail": "High Speed can cause auto-race physics to drift wide, spin 180 degrees, and leave the track. Preserve the higher speed progression, but add an auto-race-only server-authoritative path constraint that corrects lateral offset/heading and prevents movement away from the authored route. Add a high-speed corner regression for bounded path deviation, no reversal, and no off-track exit. Compatibility-check the result with the recent UI and uncapped-speed changes before publishing.",
+      "status": "doing",
+      "source": "owner handoff 2026-10-10",
+      "by": "Codex",
+      "added": "2026-10-10T02:10:00-07:00",
+      "updated": "2026-10-10T02:10:00-07:00",
+      "updatedBy": "Alex Nguyen",
+      "urgent": true
     }
   ]
 }

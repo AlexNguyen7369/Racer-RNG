@@ -233,22 +233,21 @@ function GachaService.Allocate(player, stat)
 	return true
 end
 
--- The equipped car changes base/cruise speed only. It must not affect passive
--- racing or workshop gain.
+-- Cruise speed and Speed-stat gain are separate progression paths. The car
+-- affects gain through SpeedMulti, while CarSpeedMulti remains cruise-only.
 function GachaService.CarSpeedMulti(player)
 	local spec = CarCatalog.Get(player:GetAttribute("EquippedCar"))
 	local carMulti = spec and owns(player, spec.Id) and spec.SpeedMulti or 1
 	return carMulti
 end
 
--- Passive racing gain is determined by rebirth level. Car models and car/stat
--- allocation do not multiply this value.
 function GachaService.SpeedGainMulti(player)
-	return RebirthConfig.SpeedGainMulti(player:GetAttribute("RebirthLevel"))
+	local multis = GachaConfig.Multis(alloc(player), UpgradeService.Bonuses(player))
+	return GachaService.CarSpeedMulti(player)
+		* multis.Speed
+		* RebirthConfig.SpeedGainMulti(player:GetAttribute("RebirthLevel"))
 end
 
--- Compatibility entry point for callers that ask for the passive racing
--- multiplier. It intentionally excludes the equipped car and stat allocation.
 function GachaService.SpeedMulti(player)
 	return GachaService.SpeedGainMulti(player)
 end

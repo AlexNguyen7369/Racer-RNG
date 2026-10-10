@@ -109,19 +109,13 @@ function WorkshopService.BuildPlots(newStartCFrame, parent)
 	return folder
 end
 
--- The plot's Rate sign always shows what the zone pays: "+N Speed/s" while the owner stands in it, "Stand here: +N
--- Speed/s" otherwise.
+-- The client displays the rate inside the Workshop upgrade panel. Keep the authoritative values on player attributes;
+-- there is intentionally no world-space speed-gain label in the workshop.
 local function setRate(player, inZone, rate)
 	player:SetAttribute("InWorkshop", inZone)
-	player:SetAttribute("WorkshopRate", inZone and rate or 0)
-	local index = plotOf[player]
-	local workshop = index and plots[index] and plots[index]:FindFirstChild("Workshop")
-	local zone = workshop and workshop:FindFirstChild("Zone")
-	local gui = zone and zone:FindFirstChild("Rate")
-	local text = gui and gui:FindFirstChild("Text")
-	if text then
-		text.Text = string.format(inZone and "+%.1f Speed/s" or "Stand here: +%.1f Speed/s", rate)
-	end
+	-- Keep the current rate available even when the player is standing at the upgrade pad. The UI can
+	-- show it when the Workshop panel opens without requiring the player to stand in the gain zone.
+	player:SetAttribute("WorkshopRate", rate)
 end
 
 -- Gives the player the lowest free plot and builds their workshop. Returns the plot index (0 = none free).
@@ -233,7 +227,7 @@ end
 function WorkshopService.Rate(player)
 	return Workshop.Rate(
 		PlayerData.SpeedStat(player),
-		1,
+		GachaService.SpeedMulti(player),
 		Workshop.CleanLevel(player:GetAttribute("WorkshopLevel")),
 		GachaService.WorkshopMulti(player)
 	)

@@ -3,7 +3,113 @@
 PROJECT CONTEXT - Idle Vehicle Simulator (read me first)
 Shown in Studio at: ServerScriptService > ProjectContext   (source file: context/ProjectContext.luau)
 Do NOT edit this in Studio: edit the file on disk, Rojo syncs it. Claude updates it at the end of every loop.
-Last updated: 2026-10-09 (owner-authorized commit/push exception; compatibility gate not green)
+Last updated: 2026-10-10 (Ropilot delta inventory and stale-UI repair; no publish/push)
+
+COMPATIBILITY REVIEW - 2026-10-10
+- Added urgent dashboard TODO `urgent-auto-race-path-stability` in Doing with
+  `urgent: true`; dashboard API returned 404, so todo.json was updated directly
+  and README TODO was regenerated.
+- Dashboard tests 13/13 pass; todo.json parses; README sync, Rojo build, and
+  git diff --check pass.
+- Static compatibility review found no remaining SPEED_MARGIN or old bounded
+  SpeedFor assertions. Recent UI cleanup/readout changes and uncapped speed
+  TargetSpeed plumbing are structurally compatible.
+- No ALL GREEN stamp: fresh Studio/Play validation remains required for live
+  HUD behavior, Auto Race toggle/exit, high-speed corners, and off-track safety.
+
+LATEST HANDOFF - SPEED CEILING REPAIR (2026-10-10)
+- Roblox speed was stuck near 80-81 because three independent limits existed:
+  RaceConfig.SpeedFor asymptoted at 75, PathDriver capped targets at 92% of
+  CarConfig.TopSpeed (82.8), and CarPhysics tapered forward throttle to
+  CarConfig.TopSpeed (90).
+- RaceConfig now uses logarithmic diminishing returns that preserve the old
+  midpoint at HALF_STAT but continue above the old MAX_SPEED reference.
+- PathDriver no longer applies the fixed 92% ceiling and includes TargetSpeed
+  in its control input; CarPhysics uses that target for forward throttle taper.
+- Economy scenario/docs were updated to assert high-stat speed can exceed the
+  legacy car baseline. Source changes are uncommitted and still need test,
+  Rojo build, and fresh Studio/Play validation.
+- Next session must also recheck the existing UI repair: Auto Race toggle and
+  exit, exact Speed/Money readouts, Level bar, and removal of stale bottom-right
+  controls. Do not publish/push before live verification.
+
+HIGH-SPEED AUTO-RACE PATH NOTE - 2026-10-10
+- User reports that once Speed is high, car physics carries too much lateral
+  momentum through turns; the car drifts, can rotate 180 degrees, and leaves
+  the track.
+- Requirement: preserve high speed but make auto-race static to the authored
+  route. The car must not drift or move away from its absolute path.
+- Not implemented yet (user requested this as a note only in the current turn).
+  Next implementation should be auto-race-only and server authoritative, using
+  nearest path segment/tangent correction plus lateral-velocity cancellation
+  and safe orientation recovery without removing forward speed. Add a high-
+  speed corner regression for path deviation, reversal, and off-track exit.
+
+ROpilot delta versus origin/main 3c661e3
+- Progression/data: Level/XP and save VERSION 7, LevelService, level-gated
+  rebirth with permanent Speed/Luck bonuses, potion inventory and expiry,
+  daily login, duplicate-car scrap Money, offline Money, and race/workshop
+  integration. Main files: PlayerData, LevelService, RebirthService,
+  BoostService, DailyLoginService, GachaService, RaceService and
+  WorkshopService, plus phase-2 test expectations.
+- Racer UI: regenerated RacerHud/specs and UI modules, Level/XP display,
+  runtime HUD baking, RacerUiController/progression updates, and UI test/spec
+  changes. StarterGui.rbxm was not regenerated, leaving an old baked UI in
+  Studio and causing the recent missing Level/duplicate-controls symptoms.
+- World/art: marketplace, race-start pavilion and workshop garage templates,
+  mesh manifests, default.project mappings, and SpawnArea/WorkshopBuilder
+  native-mesh preparation.
+- Documentation/tooling: README, Workshop spec, handoff, dashboard metadata,
+  UI verification and Windows agent-bus changes.
+
+CURRENT UI REPAIR - 2026-10-10
+- Generated UI Bind functions rebuild stale ScreenGuis when SpecHash does not
+  match the current module, so an old baked StarterGui no longer aborts the
+  Racer controller.
+- RacerUiController removes stale top-level legacy GUIs; legacy AutoRaceButton,
+  SpeedHud, StatsUi, RollUi and IndexUi scripts also self-disable whenever the
+  canonical RollToast client exists.
+- Speed/Money/Unbanked readouts now update directly from replicated server
+  values instead of exponential smoothing that visibly lagged behind them.
+- Auto Race remains server-authoritative via SetAutoRace and AutoRacing; fresh
+  Play must verify on/off toggling and stop/cash-out behavior.
+
+SPAWN MARKETPLACE - 2026-10-10
+- SpawnArea now builds Blender-authored Marketplace at original Market center
+  (50,-70): three modular timber/striped-awning vendors, stone courtyard, Aura
+  displays, workshop counter and fuel/parts displays. Source blender/marketplace;
+  template ReplicatedStorage.SpawnMarketplace; MarketplaceBuilder and mesh manifest.
+- 37 native mesh groups/34,796 triangles, anchored/double-sided cosmetic art,
+  smooth box boundaries,24stud central entrance,5 local shadow-free lanterns.
+  Vendor E prompts use existing Market browser; named NPC/button/display points.
+- Runtime spawn/native mesh validation and11 collision-route casts PASS including
+  vehicle-sized central entry. Actual walking/prompt/UI interaction UNVERIFIED
+  due input timeout/disconnected or stale test context. See handoff exact routes.
+  Build/Python compile/diff checks pass. Temporary art previews removed.
+
+WORKSHOP WHITE-BOX FIX - 2026-10-10
+- Original seven synced MeshParts lost MeshId/native geometry at runtime.
+  WorkshopBuilder now prepares geometry once with CreateMeshPartAsync/ApplyMesh
+  using WorkshopMeshAssets, retains textures and clones the prepared cache.
+- Fresh runtime all13 meshes have matching ids/positive MeshSize. Garage front
+  rendered correctly in Studio preview; preview removed. Workshop56/56 and
+  purchase guards passed. Removed plugin-only runtime fidelity writes in SpawnArea
+  that blocked startup. Play stopped. Existing phase2 line281 oracle error remains.
+
+WORKSHOP REFERENCE GARAGE - 2026-10-10
+- Rojo maps assets/studio/RacingGarage.rbxmx into ReplicatedStorage.RacingGarage.
+  Builder clones13 cosmetic mesh groups and adds4 warm lights; Blender source
+  and packed textures are under blender/workshop. Bolted steel/copper portal,
+  caged lanterns, workbench/tools, cabinets/tires, rear-right flywheel/dyno,
+  cyan chambers, floor grate and racing signage complete the reference pass.
+- Gameplay plots/ownership/Zone/Pad/wall boundaries/prices are unchanged.
+  Real player plus6 fixture owners verified all7 owned garages and release/reuse.
+  Workshop regression56/56 and server purchase/guard checks passed. Art builds
+  at levels1/2/10 all retain13 meshes/four lights and original Zone/Pad geometry.
+- Client Lua timeouts prevent real E/Buy/navigation validation. Existing phase2
+  test still fails at line281 on undefined Workshop.OfflineMoney (bug99c953ae).
+- Owner reports setting place capacity to7. Studio still reads60; published
+  setting is not independently confirmed. No publish, push or data reset.
 
 DELIVERY SNAPSHOT - 2026-10-09
 - The complete current worktree is being committed and pushed on `main` at the

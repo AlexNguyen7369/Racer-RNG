@@ -241,6 +241,34 @@ end
 
 function Components.BakeHud(refs)
 	round(refs.TurboFill)
+	-- StarterGui contains a baked HUD from before the Level/XP meter was added.
+	-- Add the meter at runtime as well, so an asset/Rojo resync is not required
+	-- for the progression HUD to appear in an existing place.
+	if not refs.LevelFill or not refs.LevelLabel then
+		local level = face(
+			"Frame",
+			"Level",
+			UDim2.new(0.5, 0, 1, -60),
+			UDim2.fromOffset(250, 32),
+			DARK,
+			refs.Gui
+		)
+		level.AnchorPoint = Vector2.new(0.5, 1)
+		level.BackgroundTransparency = 0
+		local fill = make("Frame", {
+			Name = "LevelFill",
+			Size = UDim2.fromScale(0, 1),
+			BackgroundColor3 = Color3.fromRGB(30, 216, 255),
+			BorderSizePixel = 0,
+			ZIndex = 4,
+		}, level)
+		round(fill)
+		local text = label(level, "LevelLabel", "LEVEL 1  0/100 XP", UDim2.new(), UDim2.fromScale(1, 1), 18)
+		text.TextXAlignment = Enum.TextXAlignment.Center
+		refs.Level = level
+		refs.LevelFill = fill
+		refs.LevelLabel = text
+	end
 	local badge = make("TextLabel", {
 		Name = "PointsBadge",
 		Position = UDim2.new(1, -16, 0, -10),

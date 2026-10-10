@@ -14,7 +14,6 @@ local LOOKAHEAD_MIN = 14
 local LOOKAHEAD_TIME = 0.3
 local SEARCH_WINDOW = 25
 local BRAKE_PREVIEW = 70
-local SPEED_MARGIN = 0.92
 local BOT_GRIP_FRACTION = 0.55 -- bot only uses this share of the tyre budget in corners
 
 -- path: { WorldWaypoints, Curvature, Closed, Width }. options: { TargetSpeed?, NoFinalSlow? }
@@ -102,7 +101,10 @@ function PathDriver:Control(chassis, dt)
 
 	-- Speed: slow for the tightest corner in the next BRAKE_PREVIEW studs
 	local latAccel = cfg.Mu * workspace.Gravity * BOT_GRIP_FRACTION
-	local targetSpeed = math.min(cfg.TopSpeed * SPEED_MARGIN, self.TargetSpeed or math.huge)
+	-- A player's Speed stat is allowed to exceed the old fixed car ceiling. The
+	-- physics step receives this target and uses it for acceleration tapering;
+	-- cfg.TopSpeed remains the fallback for bots/manual drivers without a target.
+	local targetSpeed = self.TargetSpeed or cfg.TopSpeed
 	local ahead, k, p = 0, self.Index, wps[self.Index]
 	while ahead < BRAKE_PREVIEW do
 		local curv = self.Curvature[k]
@@ -132,7 +134,13 @@ function PathDriver:Control(chassis, dt)
 		brake = math.clamp(-err * 0.15, 0, 1)
 	end
 
-	return { Throttle = throttle, Steer = steer, Brake = brake, Handbrake = false }
+	return {
+		Throttle = throttle,
+		Steer = steer,
+		Brake = brake,
+		Handbrake = false,
+		TargetSpeed = targetSpeed,
+	}
 end
 
 -- Joins the tracks of the chain into one path. entries = { { Layout, Origin, Model?, Number? }, ... } in

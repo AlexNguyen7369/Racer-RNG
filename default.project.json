@@ -8,6 +8,15 @@
       },
       "CarModels": {
         "$path": "assets/studio/CarModels.rbxm"
+      },
+      "RacingGarage": {
+        "$path": "assets/studio/RacingGarage.rbxmx"
+      },
+      "RaceStartPavilion": {
+        "$path": "assets/studio/RaceStartPavilion.rbxmx"
+      },
+      "SpawnMarketplace": {
+        "$path": "assets/studio/SpawnMarketplace.rbxmx"
       }
     },
     "ServerScriptService": {

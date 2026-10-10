@@ -353,7 +353,6 @@ UiSpec.RacerPanelBand = {
 -- (Visible false) then. When = "any": any PanelSwitch panel open; "other_than:<panel>": any panel but that one.
 UiSpec.HiddenWhilePanelOpen = {
 	["RollToast/Toast"] = "any", -- RollToast refreshToast: show requires not PanelSwitch.AnyOpen()
-	["RacerProgression/WorkshopRate"] = "any", -- ProgressionUi: rate.Visible = not AnyOpen()
 	["RacerProgression/UpgradeButton"] = "other_than:RacerUpgrades/Panel", -- ProgressionUi: hidden over other panels
 	["RacerProgression/UpgradeButton/Badge"] = "other_than:RacerUpgrades/Panel", -- inside UpgradeButton
 }
@@ -559,13 +558,6 @@ UiSpec.Billboards = {
 		EmptyText = "WorkshopConfig.EMPTY_TEXT", -- "EMPTY PLOT" when the plot's Owner attribute is 0
 		OwnedText = "%s's Workshop", -- the owner's DisplayName
 		MaxDistance = "WorkshopConfig.SIGN_DISTANCE", -- 120
-	},
-	WorkshopRate = {
-		Path = "Workshop/Zone/Rate", -- only on an owned plot
-		Outside = "^Stand here: %+([%d%.]+) Speed/s$", -- the owner is not in the zone
-		Inside = "^%+([%d%.]+) Speed/s$", -- the owner stands in it: the number is the WorkshopRate attribute
-		Step = 0.05, -- one formatting step ("%.1f")
-		MaxDistance = "WorkshopConfig.SIGN_DISTANCE",
 	},
 }
 
@@ -1253,9 +1245,9 @@ UiSpec.Clicks = {
 -- Progression contract agreed with main, 2026-10-07. These are additions to the Racer UI gate.
 UiSpec.Guis.RacerProgression = {
 	Source = "Client/ProgressionUi",
-	AlwaysOn = { "UpgradeButton", "UpgradeButton/Badge", "WorkshopRate", "WeatherBanner" },
-	Readouts = { "UpgradeButton/Badge", "WorkshopRate", "WeatherBanner" },
-	NonInteractiveParts = { "WorkshopRate", "WeatherBanner" },
+	AlwaysOn = { "UpgradeButton", "UpgradeButton/Badge", "WeatherBanner" },
+	Readouts = { "UpgradeButton/Badge", "WeatherBanner" },
+	NonInteractiveParts = { "WeatherBanner" },
 	Buttons = { { Path = "UpgradeButton", Does = "toggle_panel", Panel = "RacerUpgrades/Panel", Text = "UPGRADES" } },
 }
 UiSpec.Guis.RacerUpgrades = {

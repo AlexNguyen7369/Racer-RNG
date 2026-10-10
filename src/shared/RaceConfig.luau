@@ -7,7 +7,7 @@
 local RaceConfig = {}
 
 RaceConfig.BASE_SPEED = 30 -- cruise speed at Speed stat 0
-RaceConfig.MAX_SPEED = 75 -- asymptote: the stat can push the speed towards this, never past it
+RaceConfig.MAX_SPEED = 75 -- reference cruise speed at HALF_STAT; higher stats continue increasing beyond it
 RaceConfig.HALF_STAT = 1000 -- stat at which the cruise speed is halfway between BASE_SPEED and MAX_SPEED
 RaceConfig.GAIN_PER_STUD = 0.05 -- stat gained per stud travelled when the stat is 0
 RaceConfig.GAIN_SOFT = 2000 -- gain is divided by (1 + stat / GAIN_SOFT): the higher the stat, the slower it grows
@@ -20,15 +20,17 @@ local function cleanStat(stat)
 	return math.min(stat, RaceConfig.MAX_STAT)
 end
 
--- Cruise speed (studs/s) for a Speed stat and optional car multiplier. With no
--- multiplier it is in [BASE_SPEED, MAX_SPEED).
+-- Cruise speed (studs/s) for a Speed stat and optional car multiplier. MAX_SPEED
+-- is the midpoint reference, not a hard cap: higher stats keep adding speed with
+-- diminishing returns so progression cannot get stuck at the car's old ceiling.
 function RaceConfig.SpeedFor(stat, carSpeedMulti)
 	stat = cleanStat(stat) or 0
 	if type(carSpeedMulti) ~= "number" or carSpeedMulti ~= carSpeedMulti or carSpeedMulti <= 0 then
 		carSpeedMulti = 1
 	end
 	local cruise = RaceConfig.BASE_SPEED
-		+ (RaceConfig.MAX_SPEED - RaceConfig.BASE_SPEED) * stat / (stat + RaceConfig.HALF_STAT)
+		+ (RaceConfig.MAX_SPEED - RaceConfig.BASE_SPEED)
+			* math.log(1 + stat / RaceConfig.HALF_STAT) / (2 * math.log(2))
 	return cruise * carSpeedMulti
 end
 

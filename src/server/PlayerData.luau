@@ -145,9 +145,21 @@ function PlayerData.Load(player, userId)
 			and offlineAt <= at
 			and math.min(at - offlineAt, Workshop.Config.OFFLINE_CAP)
 		or 0
-	local gain = Workshop.OfflineGain(speed.Value, 1, data.WorkshopLevel, GachaService.WorkshopMulti(player), seconds)
+	local gain = Workshop.OfflineGain(
+		speed.Value,
+		GachaService.SpeedMulti(player),
+		data.WorkshopLevel,
+		GachaService.WorkshopMulti(player),
+		seconds
+	)
 	local moneyGain =
-		Workshop.OfflineMoney(speed.Value, 1, data.WorkshopLevel, GachaService.WorkshopMulti(player), seconds)
+		Workshop.OfflineMoney(
+			speed.Value,
+			GachaService.SpeedMulti(player),
+			data.WorkshopLevel,
+			GachaService.WorkshopMulti(player),
+			seconds
+		)
 	if gain > 0 or moneyGain > 0 then
 		-- Persist the claim before exposing it. UpdateAsync retries can never award the same saved absence twice.
 		local claimed = 0

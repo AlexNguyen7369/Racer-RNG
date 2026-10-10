@@ -1,4 +1,11 @@
 --!nonstrict
+if script.Parent:FindFirstChild("RollToast") then
+	return
+end
+if script.Parent:FindFirstChild("RollToast") then
+	return
+end
+
 -- Stat points: a STATS button on the right opens a panel with the free points (player attribute StatPoints,
 -- earned from the index, see GachaConfig) and one row per stat with a "+" that asks the server to spend a
 -- point (Remotes.AllocateStat). The server decides; the rows always show its attributes.

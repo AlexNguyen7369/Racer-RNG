@@ -1,4 +1,11 @@
 --!nonstrict
+if script.Parent:FindFirstChild("RollToast") then
+	return
+end
+if script.Parent:FindFirstChild("RollToast") then
+	return
+end
+
 -- The TURBO LUCK bar at the bottom centre (docs/SPAWN_AND_ROLLS_SPEC.md): it fills one step per auto roll and every
 -- N-th roll gets M times the luck (the server's TurboEvery / TurboMulti attributes: x5 every 10 with no Turbo upgrade,
 -- docs/UPGRADE_TREE_SPEC.md section 4); on that roll it flashes and pops "TURBO xM!", then starts empty again. The server decides every roll (Remotes.RollResult); this only displays. The roll toast

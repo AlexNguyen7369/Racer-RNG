@@ -1,4 +1,11 @@
 --!nonstrict
+if script.Parent:FindFirstChild("RollToast") then
+	return
+end
+if script.Parent:FindFirstChild("RollToast") then
+	return
+end
+
 -- The car index: an INDEX button on the right opens a grid of every catalog car (Shared/CarCatalog) in
 -- index order. Undiscovered cars are dark "?" tiles that show only their rarity and odds; discovered cars
 -- show a transparent "?" placeholder (no models yet) with name and multi, and can be equipped.

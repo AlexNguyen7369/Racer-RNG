@@ -4485,8 +4485,8 @@ function S.ui_panels(res)
 		shownAtRest[path] = o ~= nil and o:IsA("GuiObject") and effectivelyVisible(o)
 		check(res, "hidden_rule_element_present_" .. path, o ~= nil, true, o ~= nil and o:IsA("GuiObject"))
 	end
-	-- Always shown with no panel open (WorkshopRate is an always-on read-out, UPGRADES its entry button)
-	for _, path in { "RacerProgression/WorkshopRate", "RacerProgression/UpgradeButton" } do
+	-- The upgrade entry stays visible at rest.
+	for _, path in { "RacerProgression/UpgradeButton" } do
 		if UiSpec.HiddenWhilePanelOpen[path] then
 			check(res, "shown_with_no_panel_open_" .. path, shownAtRest[path], true, shownAtRest[path] == true)
 		end

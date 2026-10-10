@@ -241,33 +241,32 @@ function Progression.Build(h)
 		end
 	end
 	function scenarios.ui_progression_hud(res)
-		-- The read-out hides while any panel is open (ProgressionUi, 0.25 s poll): close every panel (an earlier
-		-- scenario may have left one open) and wait for it to show before reading it
-		local restore = h.setPanels({})
-		local rateLabel = h.find("RacerProgression/WorkshopRate")
+		-- The workshop rate is intentionally shown only inside the Workshop upgrade panel.
+		local restore = h.setPanels({ "RacerWorkshop/Panel" })
+		local rateLabel = h.find("RacerWorkshop/Panel/Rate")
 		local deadline = os.clock() + Spec.HiddenWhilePanelOpenWait
 		while rateLabel and not h.visible(rateLabel) and os.clock() < deadline do
 			h.frames(1)
 		end
 		h.check(
 			res,
-			"workshop_hud_shown_with_no_panel_open",
+			"workshop_rate_shown_in_upgrade_panel",
 			rateLabel ~= nil and h.visible(rateLabel),
 			true,
 			rateLabel ~= nil and h.visible(rateLabel)
 		)
 		local rate = h.player:GetAttribute("WorkshopRate")
-		local text = label(res, "RacerProgression/WorkshopRate")
+		local text = label(res, "RacerWorkshop/Panel/Rate")
 		local shown = tonumber(string.match(text, "%+([%d%.]+)"))
 		h.check(
 			res,
-			"workshop_hud_server_rate",
+			"workshop_panel_server_rate",
 			shown or "missing",
 			rate or "missing",
 			type(rate) == "number" and shown ~= nil and math.abs(shown - rate) <= Spec.Progression.WorkshopRateStep
 		)
 		local inside = h.player:GetAttribute("InWorkshop") == true
-		expect(res, "workshop_hud_inside_state", string.find(text, "IN WORKSHOP", 1, true) ~= nil, inside)
+		expect(res, "workshop_panel_active_state", string.find(text, "ACTIVE", 1, true) ~= nil, inside)
 		local button = h.find("RacerProgression/UpgradeButton")
 		if button then
 			expect(res, "upgrade_button_width", button.Size.X.Offset, 110)

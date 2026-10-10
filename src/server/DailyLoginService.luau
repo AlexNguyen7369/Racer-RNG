@@ -12,6 +12,13 @@ local CarCatalog = require(ReplicatedStorage.Shared.CarCatalog)
 local Daily = { REMOTE_COOLDOWN = 0.5 }
 local lastRequest = setmetatable({}, { __mode = "k" })
 
+local function cleanDay(value)
+	if type(value) ~= "number" or value ~= value or value == math.huge or value == -math.huge then
+		return -1
+	end
+	return math.floor(value)
+end
+
 local function dayNumber(at)
 	return math.floor((at or os.time()) / 86400)
 end
@@ -27,15 +34,23 @@ end
 
 function Daily.Apply(player, saved)
 	saved = type(saved) == "table" and saved or {}
-	player:SetAttribute("DailyStreak", math.clamp(math.floor(tonumber(saved.DailyStreak) or 0), 0, #Config.Rewards))
-	player:SetAttribute("DailyLast", math.floor(tonumber(saved.DailyLast) or -1))
+	local streak = tonumber(saved.DailyStreak)
+	if type(streak) ~= "number" or streak ~= streak or streak == math.huge or streak == -math.huge then
+		streak = 0
+	end
+	player:SetAttribute("DailyStreak", math.clamp(math.floor(streak), 0, #Config.Rewards))
+	player:SetAttribute("DailyLast", cleanDay(tonumber(saved.DailyLast)))
 	Daily.Setup(player)
 end
 
 function Daily.Snapshot(player)
+	local streak = tonumber(player:GetAttribute("DailyStreak")) or 0
+	if streak ~= streak or streak == math.huge or streak == -math.huge then
+		streak = 0
+	end
 	return {
-		DailyStreak = math.clamp(math.floor(player:GetAttribute("DailyStreak") or 0), 0, #Config.Rewards),
-		DailyLast = math.floor(player:GetAttribute("DailyLast") or -1),
+		DailyStreak = math.clamp(math.floor(streak), 0, #Config.Rewards),
+		DailyLast = cleanDay(tonumber(player:GetAttribute("DailyLast"))),
 	}
 end
 

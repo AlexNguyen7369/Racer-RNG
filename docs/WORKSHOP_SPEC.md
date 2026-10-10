@@ -63,7 +63,7 @@ spawn area:
   so the camera never clips), a workbench and tyre stack props, and a neon outline marking the `Zone`.
   - `Zone`: invisible, `CanCollide = false`, `CanQuery = false`, `CanTouch = false` part showing the gain zone
     (`WorkshopConfig.ZONE_SIZE` = 32 x 12 x 32, centred in the plot). The server uses the maths rect, not the part.
-  - A `BillboardGui` `Rate` above the zone: "+N Speed/s" (the owner's rate, server-written text).
+  - No world-space speed-gain label; the current rate is shown only in the Workshop upgrade panel.
 
 ## 3. Assignment (`Server/WorkshopService`)
 - **Join:** after `PlayerData` finishes loading, the player gets the lowest free plot (`Plot` attribute on the
@@ -84,8 +84,10 @@ Every `WorkshopConfig.TICK` (0.5 s) for each player with a plot:
   - `LevelMulti` = W of the workshop level (level 1 = 1)
   - `WorkshopPointsMulti` = `GachaConfig.Multis(alloc).Workshop` (1 + 0.2 per point)
   - divided by the same diminishing-returns term racing uses, so idling and racing climb the same curve and cruise speed
-    (`RaceConfig.SpeedFor`) still never passes `MAX_SPEED` (stability rules untouched)
-- Player attribute `WorkshopRate` = the current rate (shown on the plot's `Rate` billboard and HUD line).
+    (`RaceConfig.SpeedFor`) uses `MAX_SPEED` as the scale reference while
+    preserving the midpoint at `HALF_STAT`; higher stats continue increasing
+    with logarithmic diminishing returns
+- Player attribute `WorkshopRate` = the current rate (shown in the Workshop upgrade panel when it is open).
 - Leaving the zone stops the gain at the next tick. Nothing a client sends changes the rate or the zone check.
 
 ## 5. Levels and purchases
@@ -127,3 +129,76 @@ The HUD shows the server's current workshop rate, and Workshop stat allocation i
 - `BASE_RATE` (1 Speed/s now; driving at base speed gains ~1.5/s): should idling beat racing for Speed?
 - Level prices and how many levels; do workshop levels reset on rebirth?
 - Offline earnings: yes/no, percent and cap.
+
+## Visual garage revision (2026-10-10)
+
+`WorkshopBuilder` clones the Blender-authored `ReplicatedStorage.RacingGarage`
+template mapped by Rojo from `assets/studio/RacingGarage.rbxmx`. Source and four
+packed surface textures are in `blender/workshop/RacingGarage.blend` and its folder.
+Thirteen material-group meshes provide steel portal posts, pitched open roof framing,
+rear roof/vent, copper wall ribs and collars, RACING / SERVICE lettering, wooden
+workbench and vise, pegboard wrenches, red drawer cabinets, two tire stacks, a spare
+wheel, exhaust riser, pressure gauges, checkered banner and cyan entrance strips.
+Three warm shadow-free task lights illuminate the rear perimeter and one warm
+entrance light illuminates the caged front lantern. Global Lighting
+and weather are unchanged. Decorative meshes are anchored, double-sided and have
+collision, touch and query disabled; the original concrete Floor remains walkable.
+The roof covers the rear only, preserving the open-front approach and center camera
+space. Imported bounds are 37.1 x 17 x 37 studs, inside the 48-stud plot.
+
+Plot layout/ownership, floor, Zone dimensions/placement/flags, absence of world-space rate text, neon zone outline,
+UpgradePad placement/tag/sign and all prices, prompts, server earning and upgrade
+logic are unchanged. Upgrading rebuilds the same cosmetic template at every level.
+
+Validation for the visual revision: Rojo build, focused StyLua and diff checks pass.
+Studio server workshop regression passed 56/56 checks, including zone gain/exit,
+layout, assignment, ownership, anchoring and pad contracts. Upgrade purchase and
+rejection checks passed; complete phase2 was 17/18 because the existing test at
+line 281 accesses undefined global `Workshop.OfflineMoney`. Real client navigation
+and the E/purchase UI could not be verified because client execution timed out.
+
+### Reference completion and player lifecycle
+
+The final reference pass adds segmented copper rafter cladding, bolted connection
+plates with hex heads, three caged lanterns, a rear-right flywheel/dyno assembly,
+cyan energy chambers and pipe collars, segmented foundation edging and a front
+floor grate. All 13 meshes are below 20,000 triangles each. The rear-right machine
+leaves the front/central walking route clear; every decorative mesh remains
+noncolliding, untouchable, unqueryable and double-sided.
+
+`Main.server` starts `WorkshopService` with Track 1's start. On join (and for players
+already connected when Start runs), the service waits for loaded/failed data,
+assigns the lowest available one of seven fixed plots, sets its Owner and player
+Plot, updates the owner sign, and builds the complete garage at the saved level.
+An upgrade rebuilds the complete garage. Leaving destroys only that owner's
+garage and frees the slot. Empty slots stay empty. Required server capacity is seven
+players, matching the original seven fixed plot positions. Live inspection found
+MaxPlayers = 60; the place setting must be set to 7 before claiming capacity-wide
+one-garage-per-player coverage. MaxPlayers is read-only from scripts.
+
+Reference-completion verification: a real Studio player plus six temporary fixture
+owners filled all seven slots with unique ownership and 13-mesh garages. Release
+and reassignment reused the freed slot. Workshop regression passed 56/56; existing
+server purchase/guard checks passed. Art-builder levels 1, 2 and 10 all produced
+13 meshes/four lights and preserved Zone/Pad offsets. Client input continues to
+time out. The owner reports setting server size to seven, while fresh Studio
+runtime still reports 60; published capacity is not independently confirmed.
+
+### Empty-geometry rendering fix (2026-10-10)
+
+A user playtest exposed white boxes: the original seven synced MeshParts had empty
+MeshId and zero MeshSize in the server, while the six later detail meshes were
+valid. Counting MeshPart instances had missed this. WorkshopBuilder now prepares
+a private template once during module initialization. WorkshopMeshAssets records
+the published Blender mesh ids; missing or mismatched native geometry is loaded
+with AssetService.CreateMeshPartAsync and copied with ApplyMesh, preserving the
+saved TextureID. Geometry is validated before plots/purchases use the template.
+Every garage clones this prepared template; asset loading never occurs inside the
+upgrade transaction. No plot/Zone/Pad/economy rules changed.
+
+Fix verification: fresh player garage has all 13 expected mesh ids and positive
+MeshSize, with textures/colors retained. Workshop regression passed 56/56 and
+server purchase/guard checks passed. A temporary Studio preview rendered the
+correct garage front and was removed. Startup also required removing plugin-only
+runtime fidelity setters from the race canopy. Full phase2 remains interrupted
+by its unrelated undefined Workshop reference at line 281. Playtest stopped.

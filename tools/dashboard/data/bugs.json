@@ -315,6 +315,96 @@
       "foundBy": "physics-tester",
       "foundAt": "2026-10-08T17:08:40-07:00",
       "loggedBy": "Alex Nguyen"
+    },
+    {
+      "id": "99c953ae",
+      "name": "Workshop phase2 harness OfflineMoney nil",
+      "kind": "failure",
+      "status": "open",
+      "file": "src\\server\\CarTest\\Phase2Tests.luau",
+      "line": 281,
+      "endLine": 281,
+      "snippet": {
+        "from": 277,
+        "lines": [
+          "\t\t\tstore.claims == 1",
+          "\t\t\t\tand near(initial.Speed, want, 0.002)",
+          "\t\t\t\tand initial.OfflineAt == at",
+          "\t\t\t\tand initial.Money",
+          "\t\t\t\t\t== 41 + Workshop.OfflineMoney(2500, gacha.SpeedMulti(p), 1, gacha.WorkshopMulti(p), 3600)",
+          "\t\t\t\tand initial.WorkshopLevel == 1",
+          "\t\t)",
+          "\t\tflag(",
+          "\t\t\t\"offline_welcome_attributes\","
+        ]
+      },
+      "summary": "Purchase checks passed; phase2 suite interrupted at OfflineMoney nil access after offline credit check",
+      "error": "attempt to index nil with OfflineMoney",
+      "foundBy": "roblox_tester",
+      "foundAt": "2026-10-10T00:56:15-07:00",
+      "loggedBy": "Alex Nguyen"
+    },
+    {
+      "id": "d4ec7b85",
+      "name": "Garage synced meshes lose native geometry",
+      "kind": "failure",
+      "status": "fixed",
+      "file": "src\\shared\\WorkshopBuilder.luau",
+      "line": 106,
+      "endLine": 106,
+      "snippet": {
+        "from": 102,
+        "lines": [
+          "-- Sets a plot's sign: the owner's name, or EMPTY_TEXT when `ownerName` is nil.",
+          "function WorkshopBuilder.SetSign(plotModel, ownerName)",
+          "\tlocal base = plotModel:FindFirstChild(\"Base\")",
+          "\tlocal sign = base and base:FindFirstChild(\"Sign\")",
+          "\tlocal text = sign and sign:FindFirstChild(\"Text\")",
+          "\tif text then",
+          "\t\ttext.Text = ownerName and (ownerName .. \"'s Workshop\") or WorkshopConfig.EMPTY_TEXT",
+          "\tend",
+          "end"
+        ]
+      },
+      "summary": "Original seven synced garage MeshParts have empty MeshId and MeshSize0; user sees white bounding boxes",
+      "error": "",
+      "foundBy": "codex",
+      "foundAt": "2026-10-10T01:13:54-07:00",
+      "loggedBy": "Alex Nguyen",
+      "fixedAt": "2026-10-10T01:16:58-07:00",
+      "fixedBy": "Alex Nguyen",
+      "fixNote": "Fresh runtime all13 ids match manifest and MeshSize>0; edit screenshot renders garage; workshop56/56 and purchases pass"
+    },
+    {
+      "id": "f3095a8a",
+      "name": "Race canopy runtime mesh fidelity startup error",
+      "kind": "failure",
+      "status": "fixed",
+      "file": "src\\shared\\SpawnArea.luau",
+      "line": 176,
+      "endLine": 176,
+      "snippet": {
+        "from": 172,
+        "lines": [
+          "\t\t\tmesh.CanQuery = false",
+          "\t\t\tmesh.CastShadow = false",
+          "\t\t\tif mesh:IsA(\"MeshPart\") then",
+          "\t\t\t\tmesh.DoubleSided = true",
+          "\t\t\tend",
+          "\t\tend",
+          "\tend",
+          "\tcanopy.Parent = model",
+          ""
+        ]
+      },
+      "summary": "Runtime CollisionFidelity assignment lacks PluginOrOpenCloud capability and prevents workshop startup",
+      "error": "",
+      "foundBy": "roblox_tester",
+      "foundAt": "2026-10-10T01:13:54-07:00",
+      "loggedBy": "Alex Nguyen",
+      "fixedAt": "2026-10-10T01:16:58-07:00",
+      "fixedBy": "Alex Nguyen",
+      "fixNote": "Removed runtime plugin-only fidelity writes; fresh startup passed"
     }
   ]
 }

@@ -98,7 +98,6 @@ local badge = text("Badge", upgrades, UDim2.new(1, -26, 0, 0), UDim2.fromOffset(
 badge.BackgroundTransparency = 0
 badge.BackgroundColor3 = RED
 make("UICorner", "Corner", badge, { CornerRadius = UDim.new(1, 0) })
-local rate = text("WorkshopRate", hud, UDim2.new(0.5, -150, 0.8, 0), UDim2.fromOffset(300, 24), "+0.0 Speed/s")
 local weather = text("WeatherBanner", hud, UDim2.fromOffset(16, 12), UDim2.fromOffset(220, 42), "")
 weather.TextXAlignment = Enum.TextXAlignment.Left
 local treePanel = panel("Upgrades", "MONEY UPGRADE TREE")
@@ -184,11 +183,24 @@ for _, tile in Tree.Tiles() do
 	end)
 end
 local workshopPanel = panel("Workshop", "WORKSHOP UPGRADE")
+local workshopTitle = workshopPanel:FindFirstChild("Title")
+if workshopTitle then
+	workshopTitle.Font = Enum.Font.Gotham
+	workshopTitle.TextSize = 14
+end
 local levelLabel = text("Level", workshopPanel, UDim2.new(0, 12, 0.22, 0), UDim2.new(1, -24, 0, 36), "")
 local priceLabel = text("Price", workshopPanel, UDim2.new(0, 12, 0.42, 0), UDim2.new(1, -24, 0, 36), "")
-local workshopResult = text("Result", workshopPanel, UDim2.new(0, 12, 0.62, 0), UDim2.new(1, -24, 0, 28), "")
+local workshopRate = text("Rate", workshopPanel, UDim2.new(0, 12, 0.58, 0), UDim2.new(1, -24, 0, 26), "")
+local workshopResult = text("Result", workshopPanel, UDim2.new(0, 12, 0.72, 0), UDim2.new(1, -24, 0, 24), "")
+for _, label in { levelLabel, priceLabel, workshopRate, workshopResult } do
+	label.Font = Enum.Font.Gotham
+	label.TextSize = 13
+	label.TextColor3 = Color3.fromRGB(218, 224, 235)
+end
 local buyWorkshop =
 	button("Buy", workshopPanel, UDim2.new(0.5, -90, 1, -48), UDim2.fromOffset(180, 36), "BUY NEXT LEVEL")
+buyWorkshop.Font = Enum.Font.Gotham
+buyWorkshop.TextSize = 12
 local welcome = panel("Welcome", "WELCOME BACK")
 local earnings = text("Earnings", welcome, UDim2.new(0, 12, 0.3, 0), UDim2.new(1, -24, 0, 40), "")
 local away = text("Away", welcome, UDim2.new(0, 12, 0.55, 0), UDim2.new(1, -24, 0, 40), "")
@@ -237,12 +249,12 @@ local function refresh()
 	buyWorkshop.Selectable = buyWorkshop.Active
 	buyWorkshop.BackgroundColor3 = buyWorkshop.Active and GREEN or DARK
 	local inWorkshop = player:GetAttribute("InWorkshop") == true
-	rate.Text = string.format(
-		"%s +%.1f Speed/s",
-		inWorkshop and "IN WORKSHOP" or "WORKSHOP",
-		player:GetAttribute("WorkshopRate") or 0
+	workshopRate.Text = string.format(
+		"Current gain  +%.1f Speed/s%s",
+		player:GetAttribute("WorkshopRate") or 0,
+		inWorkshop and "  •  ACTIVE" or ""
 	)
-	rate.TextColor3 = inWorkshop and GREEN or Color3.fromRGB(160, 174, 195)
+	workshopRate.TextColor3 = inWorkshop and GREEN or Color3.fromRGB(160, 174, 195)
 end
 upgrades.Activated:Connect(function()
 	Switch.Toggle("Upgrades")
@@ -359,7 +371,6 @@ RunService.Heartbeat:Connect(function(dt)
 	-- workshop line over the panel body.
 	local otherOpen = Switch.AnyOpen() and not treePanel.Visible
 	upgrades.Visible = not otherOpen
-	rate.Visible = not Switch.AnyOpen()
 	local camera = workspace.CurrentCamera
 	if camera and camera.ViewportSize.X > 1 then
 		local viewport = camera.ViewportSize
@@ -399,22 +410,6 @@ RunService.Heartbeat:Connect(function(dt)
 				p.Position = UDim2.new(0.5, 0, 0, toastBottom + 8)
 				p.Size = UDim2.fromOffset(width, math.max(112, bottom - toastBottom - 8))
 			end
-		end
-		rate.Size = UDim2.fromOffset(math.min(300, viewport.X - 24), 24)
-		rate.TextSize = 16
-		rate.TextXAlignment = Enum.TextXAlignment.Center
-		local speed = racerHud and racerHud:FindFirstChild("Speed")
-		local rateTop = speed and speed.AbsolutePosition.Y + inset - 28 or viewport.Y * 0.7 - 28
-		rate.Position = UDim2.new(0.5, -rate.Size.X.Offset / 2, 0, rateTop)
-		-- Short screens: above Speed would be inside the compact roll, so sit right of the Speed group instead.
-		if speed and toast and rateTop < toast.AbsolutePosition.Y + inset + toast.AbsoluteSize.Y + 4 then
-			local left = speed.AbsolutePosition.X + speed.AbsoluteSize.X + 8
-			local sideWidth = math.max(60, viewport.X - left - 12)
-			rate.Size = UDim2.fromOffset(sideWidth, 24)
-			rate.TextSize = 12
-			rate.TextXAlignment = Enum.TextXAlignment.Left
-			local centreY = speed.AbsolutePosition.Y + inset + speed.AbsoluteSize.Y / 2
-			rate.Position = UDim2.fromOffset(left, centreY - 12)
 		end
 		weather.Size = UDim2.fromOffset(math.min(220, viewport.X * 0.28), 42)
 		weather.TextSize = viewport.X < 600 and 12 or 16

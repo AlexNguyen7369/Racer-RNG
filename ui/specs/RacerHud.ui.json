@@ -617,6 +617,132 @@
       ]
     },
     {
+      "id": "Level",
+      "kind": "panel",
+      "color": "dark",
+      "anchor": [
+        0.5,
+        1
+      ],
+      "pos": [
+        [
+          0.5,
+          0
+        ],
+        [
+          1,
+          -60
+        ]
+      ],
+      "size": [
+        [
+          0,
+          250
+        ],
+        [
+          0,
+          32
+        ]
+      ],
+      "purpose": "Live player level XP progress meter",
+      "phone": {
+        "pos": [
+          [
+            0.5,
+            0
+          ],
+          [
+            1,
+            -52
+          ]
+        ],
+        "size": [
+          [
+            0,
+            200
+          ],
+          [
+            0,
+            30
+          ]
+        ]
+      },
+      "children": [
+        {
+          "id": "LevelFill",
+          "kind": "divider",
+          "color": "index",
+          "pos": [
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ]
+          ],
+          "size": [
+            [
+              0,
+              0
+            ],
+            [
+              1,
+              0
+            ]
+          ],
+          "purpose": "Server XP progress fill",
+          "allowOverlap": [
+            "LevelLabel"
+          ]
+        },
+        {
+          "id": "LevelLabel",
+          "kind": "text",
+          "text": "LEVEL 1  0/100 XP",
+          "pos": [
+            [
+              0,
+              0
+            ],
+            [
+              0,
+              0
+            ]
+          ],
+          "size": [
+            [
+              0,
+              250
+            ],
+            [
+              0,
+              32
+            ]
+          ],
+          "textSize": 18,
+          "allowOverlap": [
+            "LevelFill"
+          ],
+          "phone": {
+            "size": [
+              [
+                0,
+                200
+              ],
+              [
+                0,
+                30
+              ]
+            ],
+            "textSize": 16
+          }
+        }
+      ],
+      "center": "x"
+    },
+    {
       "id": "Turbo",
       "kind": "panel",
       "color": "dark",

@@ -13,6 +13,23 @@ local format = require(Shared.HudFormat)
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
+
+-- There is only one supported HUD. Remove baked copies from older Studio
+-- places before binding the current generated UI, including copies cloned on
+-- a later respawn from an old StarterGui.
+local legacyNames = { "AutoRaceButton", "SpeedHud", "StatsUi", "RollUi", "IndexUi", "RacerHudConcept" }
+local function removeLegacy(child)
+	if table.find(legacyNames, child.Name) then
+		child:Destroy()
+	end
+end
+for _, name in legacyNames do
+	local legacy = playerGui:FindFirstChild(name)
+	if legacy then
+		legacy:Destroy()
+	end
+end
+playerGui.ChildAdded:Connect(removeLegacy)
 local Ui = script.Parent:WaitForChild("Ui")
 local Components = require(Ui.RacerComponents)
 require(Ui.RacerMotion).Attach(playerGui)
@@ -387,6 +404,31 @@ remotes.RollResult.OnClientEvent:Connect(function(_, _, turbo)
 	end
 end)
 
+local levelTween
+local function refreshLevel()
+	local level = math.max(1, math.floor(tonumber(player:GetAttribute("Level")) or 1))
+	local xp = math.max(0, tonumber(player:GetAttribute("XP")) or 0)
+	local nextXp = math.max(1, tonumber(player:GetAttribute("XPToNext")) or 100)
+	local progress = math.clamp(xp / nextXp, 0, 1)
+	hud.LevelLabel.Text = string.format("LEVEL %d  %d/%d XP", level, math.floor(xp), math.floor(nextXp))
+	if levelTween then
+		levelTween:Cancel()
+	end
+	local size = UDim2.fromScale(progress, 1)
+	levelTween = TweenService:Create(hud.LevelFill, TweenInfo.new(0.2), { Size = size })
+	levelTween:Play()
+	local tweenRef = levelTween
+	task.delay(0.25, function()
+		if levelTween == tweenRef then
+			hud.LevelFill.Size = size
+		end
+	end)
+end
+for _, attr in { "Level", "XP", "XPToNext" } do
+	player:GetAttributeChangedSignal(attr):Connect(refreshLevel)
+end
+refreshLevel()
+
 local leaderstats = player:WaitForChild("leaderstats")
 local speed = leaderstats:WaitForChild("Speed")
 local money = leaderstats:WaitForChild("Money")
@@ -470,16 +512,21 @@ local function clearSpeedOfToast(group)
 	group.Position = UDim2.new(position.X.Scale, position.X.Offset, position.Y.Scale, speedSetOffset)
 end
 
-RunService.Heartbeat:Connect(function(dt)
-	fitPanels()
-	shownSpeed = format.Approach(shownSpeed, speed.Value, dt)
-	shownMoney = format.Approach(shownMoney, money.Value, dt)
-	-- Unbanked is a live round result, so never leave the sublabel behind the
-	-- authoritative value while the money/speed readouts are animating.
+local function refreshReadouts()
+	shownSpeed = speed.Value
+	shownMoney = money.Value
 	shownBank = player:GetAttribute("Unbanked") or 0
 	hud.SpeedValue.Text = readable(shownSpeed, false) .. " SPEED"
 	hud.MoneyValue.Text = readable(shownMoney, true)
 	hud.Unbanked.Text = "UNBANKED " .. readable(shownBank, true)
+end
+speed.Changed:Connect(refreshReadouts)
+money.Changed:Connect(refreshReadouts)
+player:GetAttributeChangedSignal("Unbanked"):Connect(refreshReadouts)
+
+RunService.Heartbeat:Connect(function(_dt)
+	fitPanels()
+	refreshReadouts()
 	-- Align to the visible icon + left-aligned text, not the label's unused width.
 	local icon = hud.SpeedIcon
 	local right = hud.SpeedValue.AbsolutePosition.X + hud.SpeedValue.TextBounds.X
@@ -495,10 +542,6 @@ RunService.Heartbeat:Connect(function(dt)
 		wrapper.Position = UDim2.new(0.5, 0, position.Y.Scale, position.Y.Offset)
 	end
 end)
-player:GetAttributeChangedSignal("Unbanked"):Connect(function()
-	shownBank = player:GetAttribute("Unbanked") or 0
-end)
-
 -- Session-local audio preference: preserve authored volumes and mute new sounds too.
 local muted = false
 local volumes = setmetatable({}, { __mode = "k" })

@@ -16,7 +16,11 @@ Storage (per machine, git-ignored like transcripts): .agents/messages.jsonl, .ag
 import argparse
 import contextlib
 import datetime
-import fcntl
+try:
+    import fcntl
+except ImportError:  # Windows
+    fcntl = None
+    import msvcrt
 import json
 import os
 import re
@@ -44,11 +48,18 @@ def now_iso():
 @contextlib.contextmanager
 def locked():
     with open(os.path.join(bus_dir(), ".lock"), "w") as f:
-        fcntl.flock(f, fcntl.LOCK_EX)
+        if fcntl:
+            fcntl.flock(f, fcntl.LOCK_EX)
+        else:
+            msvcrt.locking(f.fileno(), msvcrt.LK_LOCK, 1)
         try:
             yield
         finally:
-            fcntl.flock(f, fcntl.LOCK_UN)
+            if fcntl:
+                fcntl.flock(f, fcntl.LOCK_UN)
+            else:
+                f.seek(0)
+                msvcrt.locking(f.fileno(), msvcrt.LK_UNLCK, 1)
 
 
 def _read_json(name, default):

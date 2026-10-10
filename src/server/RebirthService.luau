@@ -1,6 +1,6 @@
 --!nonstrict
 -- Server-owned prestige reset. Cars, upgrades and workshop ownership survive;
--- Money and Speed reset and the permanent rebirth level increases.
+-- Money resets, Speed is preserved, and the permanent rebirth level increases.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -21,16 +21,8 @@ function RebirthService.Setup(player)
 	if player:GetAttribute("RebirthLevel") == nil then
 		player:SetAttribute("RebirthLevel", Config.DEFAULT_LEVEL)
 	end
-	local folder = player:FindFirstChild("leaderstats")
-	if folder then
-		local value = folder:FindFirstChild("Rebirth")
-		if not value then
-			value = Instance.new("IntValue")
-			value.Name = "Rebirth"
-			value.Parent = folder
-		end
-		value.Value = Config.CleanLevel(player:GetAttribute("RebirthLevel"))
-	end
+	-- Rebirth is replicated as an attribute; leaderstats is reserved for Money
+	-- and Speed, the two HUD stats.
 end
 
 function RebirthService.Apply(player, saved)

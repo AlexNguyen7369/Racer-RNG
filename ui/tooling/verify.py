@@ -10,6 +10,7 @@ import hashlib
 import json
 import shutil
 import subprocess
+import sys
 import tempfile
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -104,7 +105,7 @@ def main():
         root = Path(temp)
         print(f"Temporary output root: {root}")
         for path in specs:
-            result = subprocess.run(["python3", "-B", str(tooling / "gen_atlas.py"), str(path),
+            result = subprocess.run([sys.executable, "-B", str(tooling / "gen_atlas.py"), str(path),
                                      "--root", str(root), "--no-png"], capture_output=True, text=True)
             assert result.returncode == 0, result.stdout + result.stderr
             spec = U.load_spec(path)
