@@ -124,7 +124,7 @@ local function refreshRebirth()
 	local playerLevel = player:GetAttribute("Level") or 1
 	local eligible = playerLevel >= required.Level
 	rebirthStatus.Text = string.format(
-		"REBIRTH LEVEL %d  •  +%d%% Speed gain  •  +%d%% Luck\nSpeed is preserved; Money resets.\nReach PLAYER LEVEL %d",
+		"REBIRTH LEVEL %d  •  +%d%% Speed gain  •  +%d%% Luck\nMoney and Speed reset.\nReach PLAYER LEVEL %d",
 		level,
 		level * rebirthConfig.GAIN_PER_LEVEL * 100 + rebirthConfig.GAIN_PER_LEVEL * 100,
 		level * rebirthConfig.LUCK_GAIN_PER_LEVEL * 100 + rebirthConfig.LUCK_GAIN_PER_LEVEL * 100,

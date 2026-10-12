@@ -81,9 +81,6 @@ because the multi grows with it):
 | Turbo III | x500 | 500 | 25 min | 16 min 40 s |
 | Turbo IV | x1000 | 1000 | 50 min | 33 min 20 s |
 
-Code today still has the 2026-10-02 values (x5 / 10, then x10 / 15, x50 / 25, x100 / 40, x1000 / 100) until TODO
-`turbo-10x` lands test-first.
-
 The bar becomes "TURBO LUCK n/N" with the tier's N and pops "TURBO xM!". Progress is kept when buying a tier
 (capped below the new N).
 

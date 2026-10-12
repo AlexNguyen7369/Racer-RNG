@@ -12,11 +12,23 @@
   Card `spawn-pad-spec-stale` done; card `75e286a3` retitled to the duel.
 - Owner decisions 2026-10-12: design doc wins and the code is fixed now for rebirth (resets Speed), Money only
   from races (remove offline Money and daily-login Money), session-locked saves. Duel: build it, no stake.
-- OPEN QUESTION for the owner (blocks card `turbo-10x` only): every Turbo tier changes both the roll count and
-  the multi; must the count go DOWN per tier (design flag) or may it rise as today (15 / 25 / 40 / 100)?
-- Next: Phase 1 on a new branch, test-first (`test-writer` red, then implement): cards
-  `conflict-rebirth-speed`, `conflict-money-sources`, `conflict-session-lock`. Then weather sky, leaderboards,
-  duels, live checks, `/compat-check`.
+- Turbo answered by the owner: 10 rolls / x10, then 50 / x50, 200 / x200, 500 / x500, 1000 / x1000 (longer wait
+  is fine when the multi is much bigger). In the design doc and `docs/UPGRADE_TREE_SPEC.md` section 4.
+- Phase 1 on branch `design-doc-conflicts` (from `docs-hard-rules`): contract `docs/SAVE_SPEC.md`; red tests by
+  `test-writer` committed alone as `6579b81` (new scenarios `rebirth`, `daily_login`; `data`, `gacha`, `upgrades`,
+  `workshop_phase2` updated). Then implemented: `RebirthService` (Speed to 0), `PlayerData` (VERSION 8, session
+  lock through `UpdateAsync`, `MoneyEarned`, `DuelWins`, no offline Money), `MoneyService.Award` (`MoneyEarned`),
+  `DailyLoginConfig` / `DailyLoginService` (no Money), `Workshop` / `WorkshopConfig` (no `OfflineMoney`),
+  `UpgradeConfig` / `GachaConfig` (turbo), client texts (`ProgressionUi`, `BoostDailyUi`, `RacerUiController`).
+- BLOCKER: no Studio connected to the MCP and no `rojo serve` (physics-tester, 2026-10-12). NOTHING has been run:
+  not the red run, not a green run, no UI suite. Static checks only (stylua on touched files, selene 0 errors,
+  rojo build). Needs-you item `rojo-connect` is open. Not cleared for `main`, nothing pushed.
+- Do NOT run `stylua src` and commit the result: it reformats unrelated files (RacerHud, RacerComponents,
+  MarketplaceBuilder, RaceConfig). Format only the files you touched.
+- Resume: (1) `rojo serve`, connect Studio; (2) optional red proof: check out `6579b81`, run `data`, `gacha`,
+  `upgrades`, `workshop_phase2`, `rebirth`, `daily_login`; (3) on the branch head run the full harness to
+  `[CARTEST] END fail=0`, then `test-writer` audit; (4) Phase 2 weather sky, Phase 3 leaderboards, Phase 4 duels
+  (specs exist), Phase 5 live NPC / LoserScreen check and `/compat-check`.
 
 ## 2026-10-11 smooth rail, test reconciliation, Codex bus hook (Claude)
 

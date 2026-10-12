@@ -312,7 +312,7 @@ UiSpec.Turbo = {
 	LabelFormat = "TURBO LUCK %d/%d",
 	PopFormat = "TURBO x%s!",
 	FillTolerance = 0.03, -- |Fill width / bar width - TurboCount / TurboEvery|
-	FallbackMulti = 5, -- UpgradeConfig.BASE_TURBO.Multi (no Turbo tier owned)
+	FallbackMulti = 10, -- UpgradeConfig.BASE_TURBO.Multi (no Turbo tier owned)
 }
 
 -- Pop-up panels are mutually exclusive: opening one hides the others (Client/PanelSwitch, used by the buttons).

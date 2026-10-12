@@ -44,18 +44,19 @@
       "id": "rojo-connect",
       "title": "Click Connect in Studio's Rojo plugin",
       "priority": "high",
-      "why": "Rojo is running again (rojo serve) but Studio has to connect to it so the place runs exactly the repo code for /compat-check. It will replace Studio's RollToast with the repo version (the Studio versions are saved on branch studio/racer-hud-ui).",
-      "blocks": "Finishing /compat-check and pushing to main",
-      "when": "Now (Studio in Edit mode).",
+      "why": "Claude can not open Studio or click Connect. On 2026-10-12 no Studio was connected to the MCP and `rojo serve` was not running, so the red tests and the design-doc fixes (rebirth, Money sources, session-locked saves, turbo) have never been run.",
+      "blocks": "TODO: conflict-rebirth-speed, conflict-money-sources, conflict-session-lock, turbo-10x; every later phase (weather sky, leaderboards, duels) and /compat-check",
+      "when": "Before the next Claude session continues this work.",
       "steps": [
-        "In Studio, open the Plugins tab > Rojo.",
-        "Click Connect (localhost:34872). Accept the sync if it asks.",
-        "Tell Claude \"rojo connected\"."
+        "Run `rojo serve` in the project root (branch design-doc-conflicts).",
+        "Open the Racer RNG place in Roblox Studio with the Roblox Studio MCP plugin active.",
+        "Click Connect in the Rojo plugin.",
+        "Tell Claude \"studio connected\"."
       ],
       "status": "open",
       "added": "2026-10-05T20:00:00-07:00",
       "by": "Claude",
-      "updated": "2026-10-08T23:18:38-07:00",
+      "updated": "2026-10-12T00:50:26-07:00",
       "updatedBy": "Codex",
       "verified": "Current Edit DataModel lacks the new RebirthService, BoostService, and DailyLoginService; reconnect localhost:34872 before live testing."
     },

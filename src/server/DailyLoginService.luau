@@ -4,7 +4,6 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Config = require(ReplicatedStorage.Shared.DailyLoginConfig)
-local MoneyService = require(script.Parent.MoneyService)
 local GachaService = require(script.Parent.GachaService)
 local BoostService = require(script.Parent.BoostService)
 local CarCatalog = require(ReplicatedStorage.Shared.CarCatalog)
@@ -91,12 +90,11 @@ function Daily.Claim(player)
 	local reward = Config.Rewards[streak]
 	player:SetAttribute("DailyLast", today)
 	player:SetAttribute("DailyStreak", streak)
-	local paid = MoneyService.Award(player, reward.Money or 0) or 0
 	if reward.Boost then
 		BoostService.Add(player, reward.Boost, reward.BoostCount or 1)
 	end
 	local rare = reward.GuaranteedRare and grantRare(player) or nil
-	return true, { Day = streak, Money = paid, Boost = reward.Boost, Rare = rare }
+	return true, { Day = streak, Boost = reward.Boost, BoostCount = reward.BoostCount or 1, Rare = rare }
 end
 
 function Daily.Start()

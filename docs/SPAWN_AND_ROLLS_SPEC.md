@@ -90,7 +90,7 @@ longer spans the road centre or touches Track 1's Start: walking onto it starts 
 | Constant | Value |
 |---|---|
 | `GachaConfig.TURBO_EVERY` | `10`: every 10th roll (Rolls = 10, 20, ...) is a turbo roll |
-| `GachaConfig.TURBO_LUCK` | `5`: the turbo roll's luck is `Luck * 5` |
+| `GachaConfig.TURBO_LUCK` | `10`: the turbo roll's luck is `Luck * 10` (owner, 2026-10-12; upgrade tiers: `docs/UPGRADE_TREE_SPEC.md` section 4) |
 
 - `GachaConfig.IsTurbo(rollNumber)` -> `rollNumber > 0 and rollNumber % TURBO_EVERY == 0`.
 - `GachaConfig.TurboProgress(rolls)` -> `rolls % TURBO_EVERY` (0..TURBO_EVERY-1; rolls done towards the next turbo).

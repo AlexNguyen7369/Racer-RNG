@@ -14,9 +14,19 @@ DESIGN DOCS ARE HARD RULES - 2026-10-12 (Claude, docs only, no test run)
   Jett Fuel / TURBO starts at every 10 rolls for x10; new sections Duels, Global leaderboards, Weather events.
 - New contracts: docs/DUEL_SPEC.md, docs/LEADERBOARD_SPEC.md (both NOT BUILT). WEATHER_EVENTS_SPEC gained
   the sky rule (not built). SPAWN_AND_ROLLS_SPEC section 1 now matches the moved StartPad.
-- CODE STILL AGAINST THE DESIGN DOC (TODO cards, fix test-first): rebirth keeps Speed (conflict-rebirth-speed),
-  offline workshop Money and daily-login Money (conflict-money-sources), saves have no session lock
-  (conflict-session-lock), base turbo is x5 (turbo-10x, waits for the owner's tier answer).
+- DESIGN-DOC FIXES IMPLEMENTED, UNVERIFIED (branch design-doc-conflicts, tests written first by test-writer):
+  * RebirthService.Rebirth sets Money AND Speed to 0.
+  * Money only from race cash-outs and duplicate sales: Workshop.OfflineMoney / OFFLINE_MONEY_FRACTION and the
+    OfflineMoney attribute are gone; DailyLoginConfig has no Money (days 1-2 are a Luck and a Money potion).
+  * PlayerData VERSION 8, session lock (docs/SAVE_SPEC.md): Load and Save are one UpdateAsync each with
+    Lock = { Id, At }; LOCK_TIMEOUT 120, LOAD_RETRIES 3, LOAD_RETRY_WAIT 2; leave / BindToClose release the lock.
+    New saved fields MoneyEarned (MoneyService.Award) and DuelWins. API: SessionId, SetSessionId.
+  * Turbo: BASE_TURBO 10 rolls / x10, tiers 50/x50, 200/x200, 500/x500, 1000/x1000; GachaConfig.TURBO_LUCK 10.
+  * New harness scenarios: rebirth, daily_login. data / gacha / upgrades / workshop_phase2 expectations updated.
+- TEST RESULT: NONE. Studio was not connected and rojo serve was not running on 2026-10-12, so neither the red
+  run nor a green run happened. Static only: stylua, selene (0 errors), rojo build. Red state = commit 6579b81.
+- UNVERIFIED RISK: the load transform applies the save to the player inside UpdateAsync (must not yield in a
+  real DataStore); only the fake store path is covered, and it has not run either.
 - Plan for all of it: ~/.claude/plans/look-at-dashboard-todo-zazzy-knuth.md (phases 0-5).
 
 SMOOTH RAIL + TEST RECONCILIATION - 2026-10-11 (Claude)

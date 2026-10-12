@@ -1,6 +1,6 @@
 --!nonstrict
 -- Server-owned prestige reset. Cars, upgrades and workshop ownership survive;
--- Money resets, Speed is preserved, and the permanent rebirth level increases.
+-- Money and Speed reset (design doc, "Rebirth system"), and the permanent rebirth level increases.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -48,7 +48,7 @@ function RebirthService.Rebirth(player)
 	if player:GetAttribute("AutoRacing") == true then
 		return false, "Stop Auto before rebirthing"
 	end
-	local folder, money = stats(player)
+	local folder, money, speed = stats(player)
 	if not folder or not money then
 		return false, "Stats not ready"
 	end
@@ -63,7 +63,9 @@ function RebirthService.Rebirth(player)
 	end
 	local nextLevel = level + 1
 	money.Value = 0
-	-- Speed is lifetime progression and survives rebirth.
+	if speed then
+		speed.Value = 0
+	end
 	player:SetAttribute("RebirthLevel", nextLevel)
 	local rebirth = folder:FindFirstChild("Rebirth")
 	if rebirth then

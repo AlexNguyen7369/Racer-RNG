@@ -280,25 +280,20 @@ end)
 local lastCredit = nil
 local function refreshWelcome()
 	local credit = player:GetAttribute("OfflineSpeed") or 0
-	local moneyCredit = player:GetAttribute("OfflineMoney") or 0
 	local seconds = math.floor(player:GetAttribute("OfflineSeconds") or 0)
-	if credit <= 0 and moneyCredit <= 0 then
+	if credit <= 0 then
 		Switch.Close("Welcome")
 		lastCredit = nil
 	end
-	earnings.Text = string.format(
-		"+%s Speed  •  +%s Money earned while away",
-		Format.SpeedText(credit),
-		Format.MoneyText(moneyCredit)
-	)
+	earnings.Text = string.format("+%s Speed earned while away", Format.SpeedText(credit))
 	away.Text = string.format(
 		"Away %dh %dm %ds • 25%% gain • 8h maximum",
 		math.floor(seconds / 3600),
 		math.floor(seconds / 60) % 60,
 		seconds % 60
 	)
-	local rewardKey = tostring(credit) .. ":" .. tostring(moneyCredit)
-	if (credit > 0 or moneyCredit > 0) and rewardKey ~= lastCredit then
+	local rewardKey = tostring(credit)
+	if credit > 0 and rewardKey ~= lastCredit then
 		lastCredit = rewardKey
 		if not welcome.Visible then
 			Switch.Toggle("Welcome")
@@ -308,7 +303,7 @@ end
 for _, attr in { "BestTrack", "UpgradesBuyable", "WorkshopLevel", "InWorkshop", "WorkshopRate" } do
 	player:GetAttributeChangedSignal(attr):Connect(refresh)
 end
-for _, attr in { "OfflineSpeed", "OfflineMoney", "OfflineSeconds" } do
+for _, attr in { "OfflineSpeed", "OfflineSeconds" } do
 	player:GetAttributeChangedSignal(attr):Connect(refreshWelcome)
 end
 task.spawn(function()

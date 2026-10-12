@@ -29,8 +29,9 @@
 26. 2026-10-11 — Alex Nguyen — Fixed the Daily Rewards modal reopening every second after being closed by auto-opening it only once per UTC day, pushed without a live test or compatibility run at the owner's request.
 27. 2026-10-12 — Alex Nguyen — Made the design docs hard rules in CLAUDE.md and AGENTS.md, recorded the owner's 2026-10-12 decisions in the design doc (Money sources, Jett Fuel base, duels, leaderboards, weather), added the duel and leaderboard specs and corrected the spawn spec for the moved StartPad (docs only, no test run, branch docs-hard-rules).
 28. 2026-10-12 — Alex Nguyen — Added the save contract (docs/SAVE_SPEC.md), the owner's turbo table (10/x10 to 1000/x1000) in the design doc and tree spec, and the red tests for rebirth resetting Speed, Money only from races, session-locked saves and the turbo values (written first; not yet run because Studio and Rojo were closed).
+29. 2026-10-12 — Alex Nguyen — Implemented the design-doc fixes against the red tests: rebirth resets Speed, no offline or daily-login Money, session-locked saves with MoneyEarned and DuelWins (PlayerData VERSION 8) and the new turbo values (static checks only; no Studio run yet).
 
 ## What's next
-**Implement the code the red tests describe: rebirth resets Speed, no offline or daily-login Money, session-locked saves with MoneyEarned and DuelWins (PlayerData VERSION 8), and the new turbo values; then run the harness red-to-green in Studio.**
+**Run the harness in Studio on branch design-doc-conflicts until `[CARTEST] END fail=0`, then have test-writer audit the suite.**
 
-**Why this is next:** the tests and contracts are committed and fail by design until this code exists; leaderboards and duels build on the VERSION 8 fields and locked saves.
+**Why this is next:** the VERSION 8 save rewrite and the other design-doc fixes have never been executed; weather sky, leaderboards and duels must not be built on unverified saves.

@@ -196,13 +196,8 @@ local function showDaily()
 	local last = player:GetAttribute("DailyLast") or -1
 	local claimedToday = last == math.floor(os.time() / 86400)
 	for day, reward in ipairs(dailyConfig.Rewards) do
-		local details = "+$" .. tostring(reward.Money)
-		if reward.Boost then
-			details ..= "  •  " .. reward.Boost .. " Potion I"
-		end
-		if reward.GuaranteedRare then
-			details ..= "  •  Guaranteed rare car"
-		end
+		local details = reward.GuaranteedRare and "Guaranteed rare car"
+			or ("%d x %s Potion I"):format(reward.BoostCount or 1, reward.Boost)
 		local row = make("TextLabel", "Day" .. day, content, {
 			Size = UDim2.new(1, -8, 0, 38),
 			BackgroundColor3 = day <= streak and Color3.fromRGB(48, 110, 78) or Color3.fromRGB(42, 54, 84),
@@ -232,7 +227,7 @@ local function showDaily()
 			return ReplicatedStorage.Remotes:WaitForChild("DailyClaim"):InvokeServer()
 		end)
 		if ok and success then
-			status.Text = "Claimed Day " .. tostring(reward.Day) .. " • +$" .. tostring(reward.Money)
+			status.Text = "Claimed Day " .. tostring(reward.Day)
 			showDaily()
 		else
 			status.Text = ok and tostring(reward) or "Connection error"
