@@ -27,8 +27,9 @@
 24. 2026-10-06 — Alex Nguyen — Added Codex dashboard session/timeline integration, a local read/write client, shared AGENTS.md instructions and a Claude handoff on feature/alex/codex-dashboard, verified seven integration tests and live board edits, and reviewed the change for sensitive information.
 25. 2026-10-11 — Alex Nguyen — Smoothed the auto-race server rail (Hermite curve applied in PostSimulation, flips and tilt measured before correction), added a rail heading smoothness check, reconciled five stale scenarios to a 31/31 harness run, and wired the Codex agent-bus hook with shell-edit attribution, pushed without the full compatibility gate at the owner's request.
 26. 2026-10-11 — Alex Nguyen — Fixed the Daily Rewards modal reopening every second after being closed by auto-opening it only once per UTC day, pushed without a live test or compatibility run at the owner's request.
+27. 2026-10-12 — Alex Nguyen — Made the design docs hard rules in CLAUDE.md and AGENTS.md, recorded the owner's 2026-10-12 decisions in the design doc (Money sources, Jett Fuel base, duels, leaderboards, weather), added the duel and leaderboard specs and corrected the spawn spec for the moved StartPad (docs only, no test run, branch docs-hard-rules).
 
 ## What's next
-**Run the full /compat-check (UI, multiplayer, world and regression suites) on the smooth-rail and daily-modal commits.**
+**Fix the three places where the code contradicts the design doc, test-first: rebirth resets Speed, Money only from race cash-outs and duplicate sales, session-locked saves (PlayerData VERSION 8).**
 
-**Why this is next:** both changes were pushed to main without the gate (the daily-modal fix without any live test), so the suites must certify them before further gameplay work builds on main.
+**Why this is next:** the design doc is now the hard rule and the owner chose to fix the code now; leaderboards and duels build on the new saved fields (MoneyEarned, DuelWins) and on reliable locked saves.

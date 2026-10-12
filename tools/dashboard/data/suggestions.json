@@ -82,7 +82,9 @@
       "fit": "Uses the existing per-player NPC ghost and the banked-money rule, and makes banking a real decision. Server decides everything, so it stays exploit-safe.",
       "effort": "L",
       "dependsOn": "",
-      "status": "open"
+      "status": "added",
+      "decidedBy": "Alex Nguyen",
+      "decidedAt": "2026-10-12T00:23:35-07:00"
     },
     {
       "id": "garage-showroom",
@@ -112,7 +114,9 @@
       "fit": "Cheap, and gives top players a visible goal. Server-only.",
       "effort": "S",
       "dependsOn": "Real DataStore saving tested",
-      "status": "open"
+      "status": "added",
+      "decidedBy": "Alex Nguyen",
+      "decidedAt": "2026-10-12T00:23:38-07:00"
     },
     {
       "id": "codes",

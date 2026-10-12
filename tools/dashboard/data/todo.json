@@ -134,11 +134,12 @@
       "id": "npc-loser-live",
       "title": "Live-check the NPC client view and LoserScreen",
       "detail": "ui-tester / multiplayer-tester have not checked them live.",
-      "status": "backlog",
+      "status": "doing",
       "source": "ProjectContext known issues",
       "by": "Alex Nguyen",
       "added": "2026-10-05T00:00:00-07:00",
-      "updated": "2026-10-05T00:00:00-07:00"
+      "updated": "2026-10-12T00:23:09-07:00",
+      "updatedBy": "Alex Nguyen"
     },
     {
       "id": "slack",
@@ -370,13 +371,13 @@
     {
       "id": "5c89de92",
       "title": "Rotating weather / biome events that boost luck",
-      "detail": "Every 10-20 minutes a server-wide event runs for a few minutes (Rain: x2 luck, Night Race: NPCs faster but pads pay x2, Gold Rush: Money x3). A banner and a skybox / lighting change show it; some cars can only be rolled during an event.\n\nFits this game: Rolling is free and automatic, so events give players a reason to stay online at a given moment. Plugs straight into GachaConfig luck and MoneyService multipliers.\nInspired by: Sol's RNG biomes, Grow a Garden weather events",
-      "status": "done",
+      "detail": "Every 10-20 minutes a server-wide event runs for a few minutes (Rain: x2 luck, Night Race: NPCs faster but pads pay x2, Gold Rush: Money x3). A banner and a skybox / lighting change show it; some cars can only be rolled during an event.\n\nFits this game: Rolling is free and automatic, so events give players a reason to stay online at a given moment. Plugs straight into GachaConfig luck and MoneyService multipliers.\nInspired by: Sol's RNG biomes, Grow a Garden weather events\n\nReopened 2026-10-12: add the sky change (Atmosphere / Clouds / stars, docs/WEATHER_EVENTS_SPEC.md) and run the pending live verification.",
+      "status": "doing",
       "source": "suggestion:weather-events",
       "by": "Alex Nguyen",
       "added": "2026-10-07T00:58:33-07:00",
-      "updated": "2026-10-08T20:24:20-07:00",
-      "updatedBy": "Alex Nguyen",
+      "updated": "2026-10-12T00:38:15-07:00",
+      "updatedBy": "Claude",
       "done": "2026-10-08T20:24:20-07:00"
     },
     {
@@ -475,12 +476,76 @@
     {
       "id": "spawn-pad-spec-stale",
       "title": "Update spawn spec and CLAUDE.md for the moved StartPad",
-      "detail": "The StartPad was moved and squared on 2026-10-10 (PAD_CENTER 34.30, 28.50, front +X, c3aa863) but docs/SPAWN_AND_ROLLS_SPEC.md and the Spawn area paragraph in CLAUDE.md still say it sits right behind the start line joining the area to the road. spawn_area tests now assert the placed footprint.",
-      "status": "backlog",
+      "detail": "The StartPad was moved and squared on 2026-10-10 (PAD_CENTER 34.30, 28.50, front +X, c3aa863) but docs/SPAWN_AND_ROLLS_SPEC.md and the Spawn area paragraph in CLAUDE.md still say it sits right behind the start line joining the area to the road. spawn_area tests now assert the placed footprint. 2026-10-12: docs/SPAWN_AND_ROLLS_SPEC.md section 1 and the CLAUDE.md Spawn paragraph now describe PAD_CENTER / PAD_FRONT / PadBase and the 228 x 232 floor.",
+      "status": "done",
       "source": "test-writer audit",
       "by": "Claude",
       "added": "2026-10-11T23:55:00-07:00",
-      "updated": "2026-10-11T23:55:00-07:00"
+      "updated": "2026-10-12T00:38:15-07:00",
+      "updatedBy": "Claude",
+      "done": "2026-10-12T00:38:15-07:00"
+    },
+    {
+      "id": "75e286a3",
+      "title": "Duels: challenge another player to a race (request, accept/decline, track pick)",
+      "detail": "Owner redefined the rival card on 2026-10-12: a separate multiplayer feature. A player requests a duel (ProximityPrompt on the other player), is asked at once which track (only tracks both players unlocked), the other player accepts or declines, both cars race that one track, first to the finish wins. No stake, no Money moves; the winner's saved DuelWins goes up. Contract: docs/DUEL_SPEC.md; design doc section 'Duels (player vs player)'.",
+      "status": "doing",
+      "source": "suggestion:steal-rival",
+      "by": "Alex Nguyen",
+      "added": "2026-10-12T00:23:35-07:00",
+      "updated": "2026-10-12T00:38:15-07:00",
+      "updatedBy": "Claude"
+    },
+    {
+      "id": "487b1922",
+      "title": "Global leaderboards in the spawn area",
+      "detail": "OrderedDataStore boards for Speed, Money earned, rolls and rarest car, shown on signs in the spawn area.\n\nFits this game: Cheap, and gives top players a visible goal. Server-only.\nInspired by: Most top simulators\n\nContract: docs/LEADERBOARD_SPEC.md (2026-10-12).",
+      "status": "doing",
+      "source": "suggestion:leaderboards",
+      "by": "Alex Nguyen",
+      "added": "2026-10-12T00:23:38-07:00",
+      "updated": "2026-10-12T00:38:15-07:00",
+      "updatedBy": "Claude"
+    },
+    {
+      "id": "conflict-rebirth-speed",
+      "title": "Rebirth must reset Speed (design doc)",
+      "detail": "Design doc: rebirthing resets Money AND Speed. RebirthService keeps Speed. Fix test-first: Rebirth() sets Speed to 0; update the Rebirth panel text and README pillar wording.",
+      "status": "next",
+      "source": "design doc conflict (owner, 2026-10-12)",
+      "by": "Claude",
+      "added": "2026-10-12T00:38:15-07:00",
+      "updated": "2026-10-12T00:38:15-07:00"
+    },
+    {
+      "id": "conflict-money-sources",
+      "title": "Money only from race cash-outs and duplicate sales",
+      "detail": "Design doc Economy (owner 2026-10-12). Remove the offline workshop Money credit (PlayerData.Load, Workshop.OfflineMoney, OFFLINE_MONEY_FRACTION, welcome panel) and the Money in daily login rewards (days 1-2 become potions).",
+      "status": "next",
+      "source": "design doc conflict (owner, 2026-10-12)",
+      "by": "Claude",
+      "added": "2026-10-12T00:38:15-07:00",
+      "updated": "2026-10-12T00:38:15-07:00"
+    },
+    {
+      "id": "conflict-session-lock",
+      "title": "Session-locked saves (PlayerData VERSION 8)",
+      "detail": "Design doc: DataStores with session locking. PlayerData uses plain GetAsync/SetAsync. Load and Save through UpdateAsync with Lock = { Id, At }, LOCK_TIMEOUT 120 s, released on leave and BindToClose. Adds MoneyEarned and DuelWins.",
+      "status": "next",
+      "source": "design doc conflict (owner, 2026-10-12)",
+      "by": "Claude",
+      "added": "2026-10-12T00:38:15-07:00",
+      "updated": "2026-10-12T00:38:15-07:00"
+    },
+    {
+      "id": "turbo-10x",
+      "title": "Turbo luck starts at every 10 rolls for x10",
+      "detail": "Owner 2026-10-12: base turbo is 10 rolls / x10 (code: x5), and every upgrade tier changes both the roll count and the multi. Needs the owner's answer first: must the roll count go down each tier, or may it rise as in the current tree (15 / 25 / 40 / 100)?",
+      "status": "next",
+      "source": "design doc conflict (owner, 2026-10-12)",
+      "by": "Claude",
+      "added": "2026-10-12T00:38:15-07:00",
+      "updated": "2026-10-12T00:38:15-07:00"
     }
   ]
 }

@@ -3,7 +3,21 @@
 PROJECT CONTEXT - Idle Vehicle Simulator (read me first)
 Shown in Studio at: ServerScriptService > ProjectContext   (source file: context/ProjectContext.luau)
 Do NOT edit this in Studio: edit the file on disk, Rojo syncs it. Claude updates it at the end of every loop.
-Last updated: 2026-10-11 (smooth Hermite rail, test reconciliation, Codex bus hook; harness 31/31, full gate not run)
+Last updated: 2026-10-12 (design docs are hard rules; duel + leaderboard specs; no game code changed, no test run)
+
+DESIGN DOCS ARE HARD RULES - 2026-10-12 (Claude, docs only, no test run)
+- RULE: docs/GAME_DESIGN_REQUIREMENTS.md is the top rule; docs/*_SPEC.md are hard rules for their feature.
+  Read them before any gameplay / economy / data / UI work. Only "placeholder", "proposed" and "open
+  question" values are tunable. On a conflict: stop and ask the owner. New feature = design doc + spec first.
+  (CLAUDE.md and AGENTS.md, section "Design docs are hard rules".)
+- Design doc changed (owner, 2026-10-12): Money comes ONLY from race cash-outs and duplicate car sales;
+  Jett Fuel / TURBO starts at every 10 rolls for x10; new sections Duels, Global leaderboards, Weather events.
+- New contracts: docs/DUEL_SPEC.md, docs/LEADERBOARD_SPEC.md (both NOT BUILT). WEATHER_EVENTS_SPEC gained
+  the sky rule (not built). SPAWN_AND_ROLLS_SPEC section 1 now matches the moved StartPad.
+- CODE STILL AGAINST THE DESIGN DOC (TODO cards, fix test-first): rebirth keeps Speed (conflict-rebirth-speed),
+  offline workshop Money and daily-login Money (conflict-money-sources), saves have no session lock
+  (conflict-session-lock), base turbo is x5 (turbo-10x, waits for the owner's tier answer).
+- Plan for all of it: ~/.claude/plans/look-at-dashboard-todo-zazzy-knuth.md (phases 0-5).
 
 SMOOTH RAIL + TEST RECONCILIATION - 2026-10-11 (Claude)
 - RaceService rail: cubic Hermite curve through the path waypoints, applied in PostSimulation
@@ -16,7 +30,7 @@ SMOOTH RAIL + TEST RECONCILIATION - 2026-10-11 (Claude)
   push without the full gate). No ALL GREEN stamp.
 - Codex bus hook: .codex/hooks.json (needs the developer to trust it in Codex); shell-edit attribution
   via agent_bus.py shell.
-- Known: SPAWN_AND_ROLLS_SPEC / CLAUDE.md still describe the old StartPad position.
+- (Fixed 2026-10-12) SPAWN_AND_ROLLS_SPEC / CLAUDE.md described the old StartPad position.
 
 COMPATIBILITY REVIEW - 2026-10-10
 - Added urgent dashboard TODO `urgent-auto-race-path-stability` in Doing with

@@ -8,6 +8,17 @@ or handing work to another agent, update it with the session goal, active files,
 changes made, failed attempts/blockers, and specific resume steps. Keep it factual
 and treat the dashboard Handoff tab as the same shared source of truth.
 
+## Design docs are hard rules
+
+`docs/GAME_DESIGN_REQUIREMENTS.md` is the top rule for the game (the PDF is an older
+export; the `.md` wins). The feature specs in `docs/*_SPEC.md` are hard rules for
+their feature and must not contradict it. Read the design doc and the feature's
+spec before planning or editing gameplay, economy, saved data or UI. Only values
+the doc marks "placeholder", "proposed" or "open question" are tunable. On any
+conflict (request, code or spec against the doc) stop, report it and ask the
+owner; never choose silently. A new feature is written into the design doc and a
+spec before any code. The full rule is in `CLAUDE.md`.
+
 ## Dashboard
 
 The dashboard works independently of Claude. See `tools/dashboard/README.md`.

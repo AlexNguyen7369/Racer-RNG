@@ -9,7 +9,16 @@ pausing, and before handing work to another agent. The dashboard's Handoff tab
 shows this same checked-in file; do not treat a stale dashboard view as newer
 than the file.
 
-Design spec: `Idle Vehicle Simulator — Game Design Requirements.pdf`. Car art pipeline: `CAR_MODELING_WORKFLOW.md`.
+## Design docs are hard rules (required)
+
+- `docs/GAME_DESIGN_REQUIREMENTS.md` is the top rule for the game. `Idle Vehicle Simulator — Game Design Requirements.pdf` is an older export of it; where they differ, the `.md` wins.
+- The feature specs in `docs/*_SPEC.md` are hard rules for their feature. A spec must never contradict the design doc.
+- Read the design doc and the feature's spec BEFORE planning or editing anything that touches gameplay, economy, saved data or UI. Every plan names the rules it relies on.
+- Values the design doc itself marks "placeholder", "proposed" or "open question" are tunable. Everything else is fixed.
+- On a conflict (a request against the doc, the code against the doc, a spec against the doc): stop, report it and ask the owner. Never choose silently, and never change the code or a test to match a rule that the doc does not state.
+- A new feature is written into the design doc (and its own spec) before any code. Only the owner changes a rule; record the change in the doc with its date.
+
+Car art pipeline: `CAR_MODELING_WORKFLOW.md`.
 
 ## Project layout (Rojo)
 `default.project.json` maps files to the DataModel:
@@ -47,7 +56,7 @@ selene src            # lint
 - `Server/CarService` replaces the player's avatar with the car when auto racing starts: the character is hidden and seated in the car's `VehicleSeat`. Keep the Humanoid, since Roblox needs it for camera and respawn. `Server/RaceService` then takes over the car and drives it (auto race, see below).
 
 ### Spawn area (spec: `docs/SPAWN_AND_ROLLS_SPEC.md`)
-- `Shared/SpawnArea` (built by `Main` after the chain): a purple 228 x 232 floor to the RIGHT of Track 1's start straight (Track 1's finish and Track 2 pass behind the start line). The old 160 x 144 floor is the HUB (`HUB_MIN`/`HUB_MAX`, kept free of plots) with the game's only `SpawnLocation` at its centre; the 7 workshop plots sit in an L around it. The green `StartPad` (tag `StartPad`, "RACE" sign) right behind the start line joins the area to the road. Never overlaps any track.
+- `Shared/SpawnArea` (built by `Main` after the chain): a purple 228 x 232 floor to the RIGHT of Track 1's start straight (Track 1's finish and Track 2 pass behind the start line). The old 160 x 144 floor is the HUB (`HUB_MIN`/`HUB_MAX`, kept free of plots) with the game's only `SpawnLocation` at its centre; the 7 workshop plots sit in an L around it. The green `StartPad` (tag `StartPad`, "RACE START" pavilion) stands INSIDE the hub since 2026-10-10: centre `PAD_CENTER` (34.30, 28.50), sign facing `PAD_FRONT` (+X), placed by `SpawnArea.PadBase`; it no longer touches the road. Never overlaps any track.
 - Players join and respawn ON FOOT there (`CarService.OnCharacter`); "Stop Auto" always sends them back (`CarService.WalkSpawnCFrame` = `SpawnArea.WalkCFrame`). Walking onto the StartPad starts auto racing (`CarService.PadTouched`, cooldown `SpawnArea.START_COOLDOWN` after any start/stop); the "Auto Race" button still works too.
 - The car is auto-raced (no player steering). The old manual controls (W/S, A/D, Space, R via `VehicleSeat`) still exist in `Client/CarController` for cars without the `AutoRace` attribute.
 
@@ -129,7 +138,7 @@ Only `test-writer` edits tests. Never change `PhysicsTargets.luau` to make a tes
 `README.md`'s TODO section (between the `TODO:START`/`TODO:END` markers) is generated from `todo.json` by `tools/readme_sync.py`; the dashboard, a PostToolUse hook and `.githooks/pre-commit` run it, so never edit that block by hand. When a feature ships, also update the hand-written "Features implemented" section of `README.md`.
 
 ## Conventions
-- `.luau` files, tabs, `--!nonstrict` header. Server decides every number that matters; the client only displays (see the design doc's technical section).
+- `.luau` files, tabs, `--!nonstrict` header. Server decides every number that matters; the client only displays (`docs/GAME_DESIGN_REQUIREMENTS.md`, "Technical and data requirements").
 - Studio work goes through the Roblox Studio MCP; Blender work through the Blender MCP.
 
 ## Progress tracking (required after every commit or push)

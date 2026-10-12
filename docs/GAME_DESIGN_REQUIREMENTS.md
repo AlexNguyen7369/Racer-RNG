@@ -359,9 +359,14 @@ Idle Vehicle Simulator — Game Design Requirements
 
 Money can also be made from auto selling duplicate cars (already discovered cars) Cars should be relativley cheap when sold (about 5 dollars for starter car and scale up but small)
 
+  Owner decision, 2026-10-12: these two are the ONLY sources of Money. Nothing else pays Money:
+  not the workshop, not offline earnings (Speed only), not daily login rewards (potions and a
+  guaranteed rare car only), not duels. A weather event's Money multiplier scales a race payout;
+  it is not a new source.
+
   Source: race cash-outs, multiplied by the Base Money Multi stat and the 2x Money
-  gamepass. Idle players earn Speed but no Money, which pushes everyone to race. Confirm
-  that's intended.
+  gamepass. Idle players earn Speed but no Money, which pushes everyone to race
+  (confirmed by the owner, 2026-10-12).
 
 
 
@@ -470,38 +475,18 @@ Idle Vehicle Simulator — Game Design Requirements
   Every roll must return something, so the table needs a catch-all common. The brainstorm's
   1-in-10 Wooden Car leaves 90% of rolls undefined otherwise.
 
-  Jett Fuel (luck burst)
+  Jett Fuel (luck burst, shown in game as TURBO LUCK)
 
-       Every 50 auto-rolls, the next roll gets 10x luck, stacked on top of the player's normal
-       luck.
-       Upgradeable with Money. Brainstorm example: upgraded to every 1,000 rolls for 100x
-       luck.
+  Owner decision, 2026-10-12 (replaces the brainstorm's "every 50 rolls, 10x"):
 
-  Design flag: that upgrade example is a downgrade. Over 1,000 rolls, the base version
-  gives 20 boosted rolls at 10x. The upgrade gives 1 roll at 100x. For any rare car, that's half
-  the expected hits. Fix: upgrades should raise the multiplier or shorten the interval, never
-  lengthen it.
+       It starts at every 10 auto-rolls: the 10th roll gets 10x luck, stacked on top of the
+       player's normal luck.
+       Upgradeable with Money (the Turbo branch of the upgrade tree). Every tier upgrades both
+       numbers: the roll count per burst and the luck multi.
+       The tier values live in docs/UPGRADE_TREE_SPEC.md section 4.
 
-
-
-                                                                                                Page 9 of 14
-
-
-Idle Vehicle Simulator — Game Design Requirements
-
-
-
-
-     Jett Fuel level            Triggers every      Luck on that roll    Cost (placeholder)
-
-     1 (start)                  50 rolls            10x                  Free
-
-     2                          40 rolls            15x                  $50K
-
-     3                          30 rolls            25x                  $5M
-
-     4                          20 rolls            50x                  $500M
-
+  Design flag (still stands): an upgrade must never lower the expected number of boosted
+  hits. Whether a tier may raise the roll count is an open question (see Open questions).
 
   Rules for paid luck. Roblox treats paid luck boosts as paid random items (Creator Hub).
   That covers the luck gamepasses and Server Luck:
@@ -583,6 +568,35 @@ Idle Vehicle Simulator — Game Design Requirements
        timer resumes and runs out normally.
 
 
+  Duels (player vs player)
+  Owner decision, 2026-10-12. Contract: docs/DUEL_SPEC.md.
+
+       A player can request a duel against another player in the same server.
+       The challenger is asked at once which track to race. Only tracks BOTH players have
+       unlocked can be picked.
+       The other player accepts or declines. No answer counts as a decline.
+       Both cars race that one track at the same time. The first car to reach the finish wins;
+       the server decides it.
+       There is no stake. No Money moves and nobody loses anything. The winner's saved Duel
+       Wins count goes up by one.
+       Both players keep earning Speed during the duel, like any race.
+
+  Global leaderboards
+  Owner decision, 2026-10-12. Contract: docs/LEADERBOARD_SPEC.md.
+
+       Signs in the spawn area show the top players across all servers for: Speed, Money
+       earned (lifetime), rolls, and rarest car.
+       Server-only: the server writes and reads the boards; clients only see the signs.
+       A rebirth never lowers a player's place on the Speed board (it shows the best Speed
+       reached).
+
+  Weather events
+  Contract: docs/WEATHER_EVENTS_SPEC.md.
+
+       Every 10 to 20 minutes a server-wide event runs for a few minutes (Rain, Night Race,
+       Gold Rush). It changes luck, race payouts or NPC speed, and the sky and lighting.
+       Luck from an event is free, but the displayed odds must still update while it is active.
+
   Technical and data requirements
   The server decides every number (Speed, Money, rolls, race results) and the client only
   displays it. That's the main defense against exploiters.
@@ -623,6 +637,8 @@ Idle Vehicle Simulator — Game Design Requirements
        Workshop upgrade level, Jett Fuel level, roll counter
        Developer product purchase records (receipt IDs)
        Last logout time, for offline earnings
+       Lifetime Money earned and Duel Wins (leaderboards, duels)
+       Session lock (which server holds the save, and since when)
 
 
   Open questions
@@ -660,7 +676,9 @@ Idle Vehicle Simulator — Game Design Requirements
          Are workshop money upgrades and the Gold/Diamond/Void passes one track or two?
          Does "open gacha" mean free rolls with public odds?
          Inventory: size cap, duplicates, auto-delete below a chosen rarity?
-         Jett Fuel upgrades: raise the multiplier, shorten the interval, or both?
+         Jett Fuel upgrades: every tier changes both the roll count and the multiplier (decided
+         2026-10-12). Still open: must the roll count go DOWN each tier (design flag), or may it
+         go up as in the current tree (10 -> 15 -> 25 -> 40 -> 100 rolls)?
 
   Monetization
 

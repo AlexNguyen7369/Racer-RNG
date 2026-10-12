@@ -1,5 +1,23 @@
 # Agent handoff
 
+## 2026-10-12 design docs as hard rules + 5 Doing cards (Claude)
+
+- Goal: the five cards the owner moved to Doing (spawn pad docs, NPC/Loser live check, weather sky, global
+  leaderboards, duels) plus the owner's decision that design docs are hard rules and the code must follow them.
+  Approved plan, phases 0-5: `~/.claude/plans/look-at-dashboard-todo-zazzy-knuth.md`.
+- Phase 0 DONE on branch `docs-hard-rules` (docs only, no game code, no test run): "Design docs are hard rules"
+  sections in `CLAUDE.md` and `AGENTS.md`; `docs/GAME_DESIGN_REQUIREMENTS.md` (Money sources, Jett Fuel 10 rolls
+  x10, Duels, Global leaderboards, Weather events, saved data); new `docs/DUEL_SPEC.md` and
+  `docs/LEADERBOARD_SPEC.md`; sky rule in `docs/WEATHER_EVENTS_SPEC.md`; `docs/SPAWN_AND_ROLLS_SPEC.md` section 1.
+  Card `spawn-pad-spec-stale` done; card `75e286a3` retitled to the duel.
+- Owner decisions 2026-10-12: design doc wins and the code is fixed now for rebirth (resets Speed), Money only
+  from races (remove offline Money and daily-login Money), session-locked saves. Duel: build it, no stake.
+- OPEN QUESTION for the owner (blocks card `turbo-10x` only): every Turbo tier changes both the roll count and
+  the multi; must the count go DOWN per tier (design flag) or may it rise as today (15 / 25 / 40 / 100)?
+- Next: Phase 1 on a new branch, test-first (`test-writer` red, then implement): cards
+  `conflict-rebirth-speed`, `conflict-money-sources`, `conflict-session-lock`. Then weather sky, leaderboards,
+  duels, live checks, `/compat-check`.
+
 ## 2026-10-11 smooth rail, test reconciliation, Codex bus hook (Claude)
 
 - Goal: finish the three Doing cards (rail stability, workshop E upgrades, Codex bus delivery).
