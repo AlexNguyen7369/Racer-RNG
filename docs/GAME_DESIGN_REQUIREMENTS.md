@@ -481,12 +481,20 @@ Idle Vehicle Simulator — Game Design Requirements
 
        It starts at every 10 auto-rolls: the 10th roll gets 10x luck, stacked on top of the
        player's normal luck.
-       Upgradeable with Money (the Turbo branch of the upgrade tree). Every tier upgrades both
-       numbers: the roll count per burst and the luck multi.
-       The tier values live in docs/UPGRADE_TREE_SPEC.md section 4.
+       Upgradeable with Money (the Turbo branch of the upgrade tree). Every tier raises both
+       numbers: the rolls needed per burst and the luck multi.
 
-  Design flag (still stands): an upgrade must never lower the expected number of boosted
-  hits. Whether a tier may raise the roll count is an open question (see Open questions).
+     Jett Fuel level            Triggers every      Luck on that roll
+
+     Start (no upgrade)         10 rolls            10x
+     Turbo I                    50 rolls            50x
+     Turbo II                   200 rolls           200x
+     Turbo III                  500 rolls           500x
+     Turbo IV                   1,000 rolls         1,000x
+
+  Owner decision, 2026-10-12: a longer wait is fine as long as the multi is a lot bigger. This
+  overrides the earlier design flag about never lengthening the interval. Prices: the upgrade
+  tree's price table (docs/UPGRADE_TREE_SPEC.md).
 
   Rules for paid luck. Roblox treats paid luck boosts as paid random items (Creator Hub).
   That covers the luck gamepasses and Server Luck:
@@ -676,9 +684,8 @@ Idle Vehicle Simulator — Game Design Requirements
          Are workshop money upgrades and the Gold/Diamond/Void passes one track or two?
          Does "open gacha" mean free rolls with public odds?
          Inventory: size cap, duplicates, auto-delete below a chosen rarity?
-         Jett Fuel upgrades: every tier changes both the roll count and the multiplier (decided
-         2026-10-12). Still open: must the roll count go DOWN each tier (design flag), or may it
-         go up as in the current tree (10 -> 15 -> 25 -> 40 -> 100 rolls)?
+         Jett Fuel upgrades: DECIDED 2026-10-12. Each tier raises both the roll count and the
+         multiplier: 10/10x, 50/50x, 200/200x, 500/500x, 1,000/1,000x.
 
   Monetization
 

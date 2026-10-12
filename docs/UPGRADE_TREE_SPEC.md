@@ -9,8 +9,8 @@ badge next to ROLL) and `references/upgrade_tree/rng_heroes_upgrade_tree.png` (h
 branches per stat, roman-numeral tiers, price under each buyable tile, locked "?" tiles beyond, Close button at the bottom).
 
 ## Owner's brief and answers
-An upgrade tree bought with Money that increases Luck %, roll speed, Speed %, turbo luck (x10 -> x50 -> x100 -> x1000,
-more auto rolls needed per turbo each upgrade), player walkspeed and Money %.
+An upgrade tree bought with Money that increases Luck %, roll speed, Speed %, turbo luck (x10 -> x50 -> x200 -> x500 -> x1000,
+more auto rolls needed per turbo each upgrade; numbers updated 2026-10-12), player walkspeed and Money %.
 1. Prices scale with progression (money per checkpoint), early upgrades come quickly, later ones slowly. The game will
    have many more tracks than 2, so prices must keep scaling as income grows.
 2. Turbo roll counts: confirmed as in section 4.
@@ -68,17 +68,21 @@ and it tightens by itself as tracks are added. A gated tile shows "Reach Track N
 Shown as a percentage on the tile ("Roll Speed II: +20 % (2.50 s)"). Interval = `3 / (1 + bonus)`, never below 2 s.
 `GachaService.StartAutoRoll` reads the player's interval every roll (no restart needed after a purchase).
 
-## 4. Turbo luck (confirmed)
-Today: every 10th auto roll is a "turbo roll" that rolls with x5 luck (the TURBO LUCK bar fills 1/10 per roll).
-Each Turbo upgrade makes the turbo roll much luckier but makes you wait for MORE rolls between turbo rolls:
+## 4. Turbo luck (owner, 2026-10-12; replaces the 2026-10-02 table)
+Without a Turbo tier every 10th auto roll is a "turbo roll" that rolls with x10 luck. Each Turbo upgrade makes the
+turbo roll much luckier and makes you wait for MORE rolls between turbo rolls (the owner accepts the longer wait
+because the multi grows with it):
 
 | Tier | Turbo multi | Turbo every N rolls | At 3 s / roll | At 2 s / roll |
 |---|---|---|---|---|
-| today | x5 | 10 | 30 s | 20 s |
-| Turbo I | x10 | 15 | 45 s | 30 s |
-| Turbo II | x50 | 25 | 75 s | 50 s |
-| Turbo III | x100 | 40 | 2 min | 80 s |
-| Turbo IV | x1000 | 100 | 5 min | 200 s |
+| none | x10 | 10 | 30 s | 20 s |
+| Turbo I | x50 | 50 | 2 min 30 s | 1 min 40 s |
+| Turbo II | x200 | 200 | 10 min | 6 min 40 s |
+| Turbo III | x500 | 500 | 25 min | 16 min 40 s |
+| Turbo IV | x1000 | 1000 | 50 min | 33 min 20 s |
+
+Code today still has the 2026-10-02 values (x5 / 10, then x10 / 15, x50 / 25, x100 / 40, x1000 / 100) until TODO
+`turbo-10x` lands test-first.
 
 The bar becomes "TURBO LUCK n/N" with the tier's N and pops "TURBO xM!". Progress is kept when buying a tier
 (capped below the new N).

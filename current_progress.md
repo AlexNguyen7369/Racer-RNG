@@ -28,8 +28,9 @@
 25. 2026-10-11 — Alex Nguyen — Smoothed the auto-race server rail (Hermite curve applied in PostSimulation, flips and tilt measured before correction), added a rail heading smoothness check, reconciled five stale scenarios to a 31/31 harness run, and wired the Codex agent-bus hook with shell-edit attribution, pushed without the full compatibility gate at the owner's request.
 26. 2026-10-11 — Alex Nguyen — Fixed the Daily Rewards modal reopening every second after being closed by auto-opening it only once per UTC day, pushed without a live test or compatibility run at the owner's request.
 27. 2026-10-12 — Alex Nguyen — Made the design docs hard rules in CLAUDE.md and AGENTS.md, recorded the owner's 2026-10-12 decisions in the design doc (Money sources, Jett Fuel base, duels, leaderboards, weather), added the duel and leaderboard specs and corrected the spawn spec for the moved StartPad (docs only, no test run, branch docs-hard-rules).
+28. 2026-10-12 — Alex Nguyen — Added the save contract (docs/SAVE_SPEC.md), the owner's turbo table (10/x10 to 1000/x1000) in the design doc and tree spec, and the red tests for rebirth resetting Speed, Money only from races, session-locked saves and the turbo values (written first; not yet run because Studio and Rojo were closed).
 
 ## What's next
-**Fix the three places where the code contradicts the design doc, test-first: rebirth resets Speed, Money only from race cash-outs and duplicate sales, session-locked saves (PlayerData VERSION 8).**
+**Implement the code the red tests describe: rebirth resets Speed, no offline or daily-login Money, session-locked saves with MoneyEarned and DuelWins (PlayerData VERSION 8), and the new turbo values; then run the harness red-to-green in Studio.**
 
-**Why this is next:** the design doc is now the hard rule and the owner chose to fix the code now; leaderboards and duels build on the new saved fields (MoneyEarned, DuelWins) and on reliable locked saves.
+**Why this is next:** the tests and contracts are committed and fail by design until this code exists; leaderboards and duels build on the VERSION 8 fields and locked saves.

@@ -35,5 +35,7 @@ return {
 		"workshop_offline",
 		"workshop_phase2",
 		"weather",
+		"rebirth",
+		"daily_login",
 	},
 }

@@ -244,13 +244,17 @@ function Tests.workshop_phase2()
 			saved = payload
 			initial = payload
 		end
+		-- docs/SAVE_SPEC.md section 1 (VERSION 8): Load and Save are one UpdateAsync each. It returns the new value
+		-- and writes nothing (returning nil, like the real DataStore) when the transform returns nil.
 		function store:UpdateAsync(_key, transform)
 			self.claims += 1
 			local updated = transform(table.clone(initial))
-			if updated ~= nil then
-				initial = updated
+			if updated == nil then
+				return nil
 			end
-			return initial
+			saved = updated
+			initial = updated
+			return updated
 		end
 		data.SetStore(store)
 		local p = player("OfflineLoad")
@@ -265,8 +269,9 @@ function Tests.workshop_phase2()
 			race
 		)
 		local want = initial.Speed + offlineGain
-		-- Money credit: 10% of the integrated Speed credit, floored (WORKSHOP_SPEC); the oracle, not Workshop.OfflineMoney
-		local wantMoney = 41 + math.floor(offlineGain * 0.10)
+		-- Owner, 2026-10-12 (docs/SAVE_SPEC.md section 3): offline earnings are Speed ONLY. Money after the load is
+		-- the saved Money exactly (was: + 10% of the Speed credit).
+		local wantMoney = 41
 		flag("offline_load_succeeds", data.Load(p, 74002, at) == true)
 		flag(
 			"offline_load_credits_exact_integral",
@@ -279,10 +284,24 @@ function Tests.workshop_phase2()
 			store.claims == 1
 				and near(initial.Speed, want, 0.002)
 				and initial.OfflineAt == at
-				and initial.Money == wantMoney
-				and workshop ~= nil
-				and 41 + workshop.OfflineMoney(2500, gacha.SpeedMulti(p), 1, gacha.WorkshopMulti(p), 3600) == wantMoney
 				and initial.WorkshopLevel == 1
+		)
+		flag(
+			"offline_load_credits_no_money",
+			p.leaderstats.Money.Value == wantMoney,
+			p.leaderstats.Money.Value,
+			wantMoney
+		)
+		flag(
+			"offline_claim_leaves_saved_money",
+			initial.Money == wantMoney,
+			type(initial.Money) == "number" and initial.Money or -1,
+			wantMoney
+		)
+		flag("offline_money_attribute_not_set", p:GetAttribute("OfflineMoney") == nil)
+		flag(
+			"offline_money_api_removed",
+			workshop ~= nil and workshop.OfflineMoney == nil and config.OFFLINE_MONEY_FRACTION == nil
 		)
 		flag(
 			"offline_welcome_attributes",
@@ -305,7 +324,10 @@ function Tests.workshop_phase2()
 		end
 		function racedStore:UpdateAsync(_key, transform)
 			local updated = transform(table.clone(claimed))
-			return updated or claimed
+			if updated ~= nil then
+				claimed = updated
+			end
+			return updated
 		end
 		data.SetStore(racedStore)
 		local raced = player("ConcurrentClaim")
@@ -315,6 +337,7 @@ function Tests.workshop_phase2()
 			raceLoaded == true
 					and near(raced.leaderstats.Speed.Value, want, 0.002)
 					and raced:GetAttribute("OfflineSpeed") == 0
+					and raced.leaderstats.Money.Value == wantMoney
 				or raceLoaded == false
 					and raced:GetAttribute("DataFailed") == true
 					and raced:GetAttribute("DataLoaded") ~= true
@@ -332,13 +355,15 @@ function Tests.workshop_phase2()
 		flag("offline_save_succeeds", data.Save(p, 74002) == true)
 		flag(
 			"offline_at_saved_unix_timestamp",
-			saved ~= nil and type(saved.OfflineAt) == "number" and saved.OfflineAt == clock and saved.Version == 7
+			saved ~= nil and type(saved.OfflineAt) == "number" and saved.OfflineAt == clock and saved.Version == 8
 		)
 		local afterSave = player("ReconnectAfterSave")
 		data.Load(afterSave, 74002)
 		flag(
 			"offline_save_does_not_replay_previous_absence",
-			near(afterSave.leaderstats.Speed.Value, once, 0.002) and afterSave:GetAttribute("OfflineSpeed") == 0
+			near(afterSave.leaderstats.Speed.Value, once, 0.002)
+				and afterSave:GetAttribute("OfflineSpeed") == 0
+				and afterSave.leaderstats.Money.Value == wantMoney
 		)
 		clock = at
 		for _, case in { { "Legacy", nil }, { "Future", at + 3600 }, { "Malformed", "bad" } } do
@@ -376,6 +401,9 @@ function Tests.workshop_phase2()
 		end
 		data.SetStore(store)
 		function store:GetAsync(_key)
+			error("injected load failure")
+		end
+		function store:UpdateAsync(_key, _transform) -- VERSION 8: the load is this call
 			error("injected load failure")
 		end
 		local failed = player("Failed")
@@ -755,6 +783,236 @@ function Tests.weather()
 	p:Destroy()
 	pad:Destroy()
 	flag("weather_no_runtime_error", ok, nil, ok and 1 or tostring(err))
+	return r
+end
+
+-- BRIEF (owner, 2026-10-12; docs/GAME_DESIGN_REQUIREMENTS.md "Rebirth system", docs/SAVE_SPEC.md sections 2 and 3):
+-- "Rebirthing resets Money and Speed." RebirthService.Rebirth(player) sets BOTH leaderstats.Money and
+-- leaderstats.Speed to 0. A refused rebirth changes nothing. The rebirth level, cars, upgrades, workshop level,
+-- Level / XP, MoneyEarned and DuelWins survive.
+function Tests.rebirth()
+	local r, flag = report("rebirth")
+	local service = module(Server, "RebirthService")
+	local data = module(Server, "PlayerData")
+	local gacha = module(Server, "GachaService")
+	local upgrades = module(Server, "UpgradeService")
+	local config = module(Shared, "RebirthConfig")
+	local api = service
+		and data
+		and gacha
+		and upgrades
+		and config
+		and type(service.Rebirth) == "function"
+		and type(config.Requirements) == "function"
+		and type(upgrades.Apply) == "function"
+		and type(upgrades.Snapshot) == "function"
+	flag("rebirth_api_exists", api == true)
+	if not api then
+		return r
+	end
+	local players = {}
+	local oldCooldown = service.REMOTE_COOLDOWN
+	local ok, err = pcall(function()
+		service.REMOTE_COOLDOWN = 0 -- the remote's rate limit is tested on its own below
+		local need = config.Requirements(0).Level
+		local function ready(name, level)
+			local p = fake("Rebirth" .. name, data, gacha)
+			table.insert(players, p)
+			p:SetAttribute("DataLoaded", true)
+			p:SetAttribute("Level", level)
+			p:SetAttribute("XP", 37)
+			p:SetAttribute("WorkshopLevel", 1)
+			p:SetAttribute("MoneyEarned", 9000)
+			p:SetAttribute("DuelWins", 3)
+			p.leaderstats.Money.Value = 5000
+			p.leaderstats.Speed.Value = 321.5
+			gacha.Grant(p, "wooden_car")
+			gacha.Grant(p, "go_kart")
+			gacha.Equip(p, "go_kart")
+			upgrades.Apply(p, { Upgrades = { "money_1", "rollspeed_1" }, BestTrack = 2, TurboCount = 7 })
+			return p
+		end
+		local function untouched(p, money, speed, level)
+			return p.leaderstats.Money.Value == money
+				and near(p.leaderstats.Speed.Value, speed)
+				and p:GetAttribute("RebirthLevel") == level
+		end
+		-- every refusal leaves Money, Speed and the rebirth level alone
+		local function refused(label, p, change, restore)
+			change()
+			local accepted = service.Rebirth(p)
+			flag("rebirth_refused_" .. label, accepted == false)
+			flag(
+				"rebirth_refused_" .. label .. "_keeps_money_and_speed",
+				untouched(p, 5000, 321.5, 0),
+				p.leaderstats.Speed.Value,
+				321.5
+			)
+			restore()
+		end
+		local low = ready("Low", need - 1)
+		refused("below_level", low, function() end, function() end)
+		local p = ready("Main", need)
+		refused("unloaded", p, function()
+			p:SetAttribute("DataLoaded", false)
+		end, function()
+			p:SetAttribute("DataLoaded", true)
+		end)
+		refused("failed_load", p, function()
+			p:SetAttribute("DataFailed", true)
+		end, function()
+			p:SetAttribute("DataFailed", nil)
+		end)
+		refused("auto_racing", p, function()
+			p:SetAttribute("AutoRacing", true)
+		end, function()
+			p:SetAttribute("AutoRacing", nil)
+		end)
+
+		local carsBefore = gacha.Snapshot(p)
+		local upgradesBefore = upgrades.Snapshot(p)
+		local accepted, newLevel = service.Rebirth(p)
+		flag("rebirth_accepted_at_required_level", accepted == true and newLevel == 1)
+		flag("rebirth_level_raised", p:GetAttribute("RebirthLevel") == 1, p:GetAttribute("RebirthLevel"), 1)
+		flag("rebirth_resets_money", p.leaderstats.Money.Value == 0, p.leaderstats.Money.Value, 0)
+		flag("rebirth_resets_speed", p.leaderstats.Speed.Value == 0, p.leaderstats.Speed.Value, 0)
+		flag("rebirth_speed_stat_is_0", data.SpeedStat(p) == 0, data.SpeedStat(p), 0)
+		local carsAfter = gacha.Snapshot(p)
+		flag(
+			"rebirth_keeps_cars",
+			#carsAfter.Cars == #carsBefore.Cars
+				and table.find(carsAfter.Cars, "wooden_car") ~= nil
+				and table.find(carsAfter.Cars, "go_kart") ~= nil
+				and carsAfter.Equipped == "go_kart"
+				and p:GetAttribute("EquippedCar") == "go_kart"
+		)
+		local upgradesAfter = upgrades.Snapshot(p)
+		flag(
+			"rebirth_keeps_upgrades",
+			#upgradesAfter.Upgrades == #upgradesBefore.Upgrades
+				and table.find(upgradesAfter.Upgrades, "money_1") ~= nil
+				and table.find(upgradesAfter.Upgrades, "rollspeed_1") ~= nil
+				and upgradesAfter.BestTrack == 2
+				and upgradesAfter.TurboCount == 7
+		)
+		flag("rebirth_keeps_workshop_level", p:GetAttribute("WorkshopLevel") == 1)
+		flag("rebirth_keeps_level_and_xp", p:GetAttribute("Level") == need and p:GetAttribute("XP") == 37)
+		flag("rebirth_keeps_money_earned", p:GetAttribute("MoneyEarned") == 9000, p:GetAttribute("MoneyEarned"), 9000)
+		flag("rebirth_keeps_duel_wins", p:GetAttribute("DuelWins") == 3, p:GetAttribute("DuelWins"), 3)
+
+		-- the next rebirth needs the next milestone: refused, and the stats earned since are not wiped
+		p.leaderstats.Money.Value = 60
+		p.leaderstats.Speed.Value = 50
+		local again = service.Rebirth(p)
+		flag(
+			"rebirth_refused_next_milestone_keeps_money_and_speed",
+			again == false and untouched(p, 60, 50, 1),
+			p.leaderstats.Speed.Value,
+			50
+		)
+		-- rate limit: a second request inside REMOTE_COOLDOWN is refused and changes nothing
+		service.REMOTE_COOLDOWN = 60
+		local spam = ready("Spam", need - 1)
+		service.Rebirth(spam) -- refused (level), starts the cooldown
+		spam:SetAttribute("Level", need)
+		local spammed = service.Rebirth(spam)
+		flag("rebirth_refused_cooldown_keeps_money_and_speed", spammed == false and untouched(spam, 5000, 321.5, 0))
+	end)
+	service.REMOTE_COOLDOWN = oldCooldown
+	for _, p in players do
+		p:Destroy()
+	end
+	flag("rebirth_no_runtime_error", ok, nil, ok and 1 or tostring(err))
+	return r
+end
+
+-- BRIEF (owner, 2026-10-12; docs/GAME_DESIGN_REQUIREMENTS.md "Economy (Money)", docs/SAVE_SPEC.md section 3): Money
+-- comes ONLY from race cash-outs and duplicate car sales. "Daily login rewards contain no Money (no Money field on
+-- any day; every day grants a potion or the guaranteed rare car). DailyLoginService.Claim never changes
+-- leaderstats.Money." Seven days.
+function Tests.daily_login()
+	local r, flag = report("daily_login")
+	local service = module(Server, "DailyLoginService")
+	local config = module(Shared, "DailyLoginConfig")
+	local boostConfig = module(Shared, "BoostConfig")
+	local boosts = module(Server, "BoostService")
+	local data = module(Server, "PlayerData")
+	local gacha = module(Server, "GachaService")
+	local api = service
+		and config
+		and boostConfig
+		and boosts
+		and data
+		and gacha
+		and type(service.Claim) == "function"
+		and type(config.Rewards) == "table"
+		and type(boostConfig.Get) == "function"
+		and type(boosts.Count) == "function"
+		and type(gacha.UniqueCount) == "function"
+	flag("daily_login_api_exists", api == true)
+	if not api then
+		return r
+	end
+	local DAYS = 7
+	flag("daily_rewards_seven_days", #config.Rewards == DAYS, #config.Rewards, DAYS)
+	for day = 1, DAYS do
+		local reward = config.Rewards[day]
+		local isTable = type(reward) == "table"
+		flag("daily_reward_" .. day .. "_has_no_money", isTable and reward.Money == nil)
+		local potion = isTable and type(reward.Boost) == "string" and boostConfig.Get(reward.Boost) ~= nil
+		flag("daily_reward_" .. day .. "_grants_potion_or_rare", isTable and (potion or reward.GuaranteedRare == true))
+	end
+	local players = {}
+	local oldCooldown = service.REMOTE_COOLDOWN
+	local ok, err = pcall(function()
+		service.REMOTE_COOLDOWN = 0
+		for day = 1, DAYS do
+			local reward = config.Rewards[day]
+			local p = fake("Daily" .. day, data, gacha)
+			table.insert(players, p)
+			p:SetAttribute("DataLoaded", true)
+			p.leaderstats.Money.Value = 1234
+			-- yesterday's claim was day - 1, so this claim is `day` (UTC day number, as the service counts it)
+			p:SetAttribute("DailyLast", math.floor(os.time() / 86400) - 1)
+			p:SetAttribute("DailyStreak", day - 1)
+			local potionsBefore = type(reward) == "table" and reward.Boost and boosts.Count(p, reward.Boost) or 0
+			local carsBefore = gacha.UniqueCount(p)
+			local claimed, info = service.Claim(p)
+			flag(
+				"daily_claim_" .. day .. "_succeeds",
+				claimed == true and type(info) == "table" and info.Day == day,
+				type(info) == "table" and tonumber(info.Day) or -1,
+				day
+			)
+			flag(
+				"daily_claim_" .. day .. "_money_unchanged",
+				p.leaderstats.Money.Value == 1234,
+				p.leaderstats.Money.Value,
+				1234
+			)
+			local resultMoney = type(info) == "table" and info.Money or nil
+			flag(
+				"daily_claim_" .. day .. "_result_has_no_money",
+				type(info) == "table" and not (type(resultMoney) == "number" and resultMoney > 0)
+			)
+			flag("daily_claim_" .. day .. "_no_money_earned", (p:GetAttribute("MoneyEarned") or 0) == 0)
+			local gotPotion = type(reward) == "table"
+				and reward.Boost ~= nil
+				and boosts.Count(p, reward.Boost) == potionsBefore + (reward.BoostCount or 1)
+			local gotCar = type(reward) == "table"
+				and reward.GuaranteedRare == true
+				and gacha.UniqueCount(p) == carsBefore + 1
+			flag("daily_claim_" .. day .. "_grants_potion_or_rare", gotPotion or gotCar)
+			-- a second claim the same day is refused and still pays nothing
+			local twice = service.Claim(p)
+			flag("daily_claim_" .. day .. "_once_per_day", twice == false and p.leaderstats.Money.Value == 1234)
+		end
+	end)
+	service.REMOTE_COOLDOWN = oldCooldown
+	for _, p in players do
+		p:Destroy()
+	end
+	flag("daily_login_no_runtime_error", ok, nil, ok and 1 or tostring(err))
 	return r
 end
 

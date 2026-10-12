@@ -138,7 +138,7 @@ updates automatically whenever the board changes; do not edit this block by hand
 - **Rebirth must reset Speed (design doc)**: Design doc: rebirthing resets Money AND Speed. RebirthService keeps Speed. Fix test-first: Rebirth() sets Speed to 0; update the Rebirth panel text and README pillar wording.
 - **Money only from race cash-outs and duplicate sales**: Design doc Economy (owner 2026-10-12). Remove the offline workshop Money credit (PlayerData.Load, Workshop.OfflineMoney, OFFLINE_MONEY_FRACTION, welcome panel) and the Money in daily login rewards (days 1-2 become potions).
 - **Session-locked saves (PlayerData VERSION 8)**: Design doc: DataStores with session locking. PlayerData uses plain GetAsync/SetAsync. Load and Save through UpdateAsync with Lock = { Id, At }, LOCK_TIMEOUT 120 s, released on leave and BindToClose. Adds MoneyEarned and DuelWins.
-- **Turbo luck starts at every 10 rolls for x10**: Owner 2026-10-12: base turbo is 10 rolls / x10 (code: x5), and every upgrade tier changes both the roll count and the multi. Needs the owner's answer first: must the roll count go down each tier, or may it rise as in the current tree (15 / 25 / 40 / 100)?
+- **Turbo luck: 10/x10, then 50/x50, 200/x200, 500/x500, 1000/x1000**: Owner 2026-10-12: a longer wait is fine as long as the multi is a lot bigger. UpgradeConfig.BASE_TURBO = { Multi = 10, Every = 10 }, GachaConfig.TURBO_LUCK = 10, Turbo tiers I-IV = 50/50, 200/200, 500/500, 1000/1000 (Every / Multi). Test-first; docs/UPGRADE_TREE_SPEC.md section 4 and the design doc already say so.
 
 ### Backlog (future work) (2)
 
