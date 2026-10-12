@@ -26,8 +26,9 @@
 23. 2026-10-06 — Isaac Li — Restored and live-checked Studio UI handlers and revision-5 car equipment, improved the continuous roll reel, updated ProjectContext, and saved the shared experience with a source-matched native place snapshot.
 24. 2026-10-06 — Alex Nguyen — Added Codex dashboard session/timeline integration, a local read/write client, shared AGENTS.md instructions and a Claude handoff on feature/alex/codex-dashboard, verified seven integration tests and live board edits, and reviewed the change for sensitive information.
 25. 2026-10-11 — Alex Nguyen — Smoothed the auto-race server rail (Hermite curve applied in PostSimulation, flips and tilt measured before correction), added a rail heading smoothness check, reconciled five stale scenarios to a 31/31 harness run, and wired the Codex agent-bus hook with shell-edit attribution, pushed without the full compatibility gate at the owner's request.
+26. 2026-10-11 — Alex Nguyen — Fixed the Daily Rewards modal reopening every second after being closed by auto-opening it only once per UTC day, pushed without a live test or compatibility run at the owner's request.
 
 ## What's next
-**Run the full /compat-check (UI, multiplayer, world and regression suites) on the smooth-rail commit.**
+**Run the full /compat-check (UI, multiplayer, world and regression suites) on the smooth-rail and daily-modal commits.**
 
-**Why this is next:** the rail and test changes were pushed to main on a green harness only, so the UI, multiplayer, world and regression suites must certify them before further gameplay work builds on main.
+**Why this is next:** both changes were pushed to main without the gate (the daily-modal fix without any live test), so the suites must certify them before further gameplay work builds on main.

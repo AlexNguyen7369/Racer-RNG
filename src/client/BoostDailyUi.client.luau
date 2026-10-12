@@ -260,12 +260,15 @@ local function refreshButtons()
 end
 
 refreshButtons()
+local autoShownDay = nil
 task.spawn(function()
 	while screen.Parent do
 		task.wait(1)
 		local last = player:GetAttribute("DailyLast") or -1
-		local ready = last ~= math.floor(os.time() / 86400)
-		if ready and not backdrop.Visible then
+		local today = math.floor(os.time() / 86400)
+		-- Auto-open once per UTC day: after the player closes it, only the button reopens it.
+		if last ~= today and autoShownDay ~= today and not backdrop.Visible then
+			autoShownDay = today
 			showDaily()
 		end
 		refreshButtons()
