@@ -20,15 +20,33 @@
   lock through `UpdateAsync`, `MoneyEarned`, `DuelWins`, no offline Money), `MoneyService.Award` (`MoneyEarned`),
   `DailyLoginConfig` / `DailyLoginService` (no Money), `Workshop` / `WorkshopConfig` (no `OfflineMoney`),
   `UpgradeConfig` / `GachaConfig` (turbo), client texts (`ProgressionUi`, `BoostDailyUi`, `RacerUiController`).
-- BLOCKER: no Studio connected to the MCP and no `rojo serve` (physics-tester, 2026-10-12). NOTHING has been run:
-  not the red run, not a green run, no UI suite. Static checks only (stylua on touched files, selene 0 errors,
-  rojo build). Needs-you item `rojo-connect` is open. Not cleared for `main`, nothing pushed.
+- HARNESS RESULT (physics-tester, commit `f687f40`, place built with `rojo build` and opened in Studio, no
+  `rojo serve`): `[CARTEST] END pass=32 fail=1`, plus the 5 `lap:` scenarios pass. New `rebirth` (23 checks),
+  `daily_login` (59) and `data` (127) pass. No server or client script errors.
+- The 1 failure was a stale test literal: `upgrades_effects_bare_player_base`, `Scenarios.luau:10636`
+  `btu.Multi == 5`. test-writer changed it to 10 (commit after `f687f40`) and audited: suite intact,
+  `PhysicsTargets.luau` unchanged. The `upgrades` scenario has NOT been re-run with that fix.
+- The red run never happened (Studio was closed when the tests were written). Red state = commit `6579b81`.
+- NOT RUN: UI suite, multiplayer-tester, world-tester, regression-tester. No ALL GREEN stamp. Not cleared for
+  `main`. Nothing pushed. Branches are local only: `docs-hard-rules` (`6d4dcab`), `design-doc-conflicts`.
+- Studio state left behind: three Studio instances are open (one with `phase1.rbxlx` = `f687f40`, two that never
+  loaded a place). Close them. A `rojo build` place loads `Workspace.Baseplate` at Y = 0 instead of -8 and
+  buries the spawn floor: set it to Y = -8 in Edit before any run on a built place (cause not investigated).
+  A Script `Source` over 200000 characters can not be set through the MCP, so `Scenarios` can not be patched
+  in Studio; rebuild the place or use `rojo serve`.
 - Do NOT run `stylua src` and commit the result: it reformats unrelated files (RacerHud, RacerComponents,
   MarketplaceBuilder, RaceConfig). Format only the files you touched.
-- Resume: (1) `rojo serve`, connect Studio; (2) optional red proof: check out `6579b81`, run `data`, `gacha`,
-  `upgrades`, `workshop_phase2`, `rebirth`, `daily_login`; (3) on the branch head run the full harness to
-  `[CARTEST] END fail=0`, then `test-writer` audit; (4) Phase 2 weather sky, Phase 3 leaderboards, Phase 4 duels
-  (specs exist), Phase 5 live NPC / LoserScreen check and `/compat-check`.
+- UI coverage gaps (ui-test-writer): ScreenGui `DailyBoosts` is not in `UiSpec`; the Rebirth panel's status text
+  and button are untested; `UiSpec.Rebirth` ("COMING SOON") is stale and unused.
+- Resume, in order:
+  1. `rojo serve`, open the place in ONE Studio, connect Rojo (Needs-you item `rojo-connect`).
+  2. Run the full harness on the branch head; expect `[CARTEST] END fail=0` (only `upgrades` is unconfirmed).
+  3. Update `context/ProjectContext.luau` and the four TODO cards (`conflict-rebirth-speed`,
+     `conflict-money-sources`, `conflict-session-lock`, `turbo-10x`) to done with the result.
+  4. Phase 2 weather sky (card `5c89de92`, `docs/WEATHER_EVENTS_SPEC.md`), Phase 3 leaderboards (card `487b1922`,
+     `docs/LEADERBOARD_SPEC.md`), Phase 4 duels (card `75e286a3`, `docs/DUEL_SPEC.md`): each test-first on its
+     own branch. Phase 5: live NPC / LoserScreen check (card `npc-loser-live`), then `/compat-check`.
+  Full plan: `~/.claude/plans/look-at-dashboard-todo-zazzy-knuth.md`.
 
 ## 2026-10-11 smooth rail, test reconciliation, Codex bus hook (Claude)
 

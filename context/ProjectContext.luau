@@ -23,8 +23,11 @@ DESIGN DOCS ARE HARD RULES - 2026-10-12 (Claude, docs only, no test run)
     New saved fields MoneyEarned (MoneyService.Award) and DuelWins. API: SessionId, SetSessionId.
   * Turbo: BASE_TURBO 10 rolls / x10, tiers 50/x50, 200/x200, 500/x500, 1000/x1000; GachaConfig.TURBO_LUCK 10.
   * New harness scenarios: rebirth, daily_login. data / gacha / upgrades / workshop_phase2 expectations updated.
-- TEST RESULT: NONE. Studio was not connected and rojo serve was not running on 2026-10-12, so neither the red
-  run nor a green run happened. Static only: stylua, selene (0 errors), rojo build. Red state = commit 6579b81.
+- TEST RESULT 2026-10-12 (commit f687f40, rojo-built place): [CARTEST] END pass=32 fail=1, 5 lap scenarios pass.
+  The 1 failure was a stale test literal (upgrades_effects_bare_player_base expected base turbo x5); test-writer
+  fixed it to x10. upgrades NOT re-run after that fix. Red run never happened (red state = commit 6579b81).
+- NOT RUN: UI suite, multiplayer-tester, world-tester, regression-tester. No ALL GREEN stamp.
+- A rojo-built place loads Workspace.Baseplate at Y = 0 (not -8): move it before running tests on a built place.
 - UNVERIFIED RISK: the load transform applies the save to the player inside UpdateAsync (must not yield in a
   real DataStore); only the fake store path is covered, and it has not run either.
 - Plan for all of it: ~/.claude/plans/look-at-dashboard-todo-zazzy-knuth.md (phases 0-5).

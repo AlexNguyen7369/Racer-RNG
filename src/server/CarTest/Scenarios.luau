@@ -10633,7 +10633,7 @@ function UPG.upgradesServerChecks(checks, metrics, UpgradeTree)
 			and near(bb.RollSpeed, 0)
 			and near(bri, 3)
 			and type(btu) == "table"
-			and btu.Multi == 5
+			and btu.Multi == 10
 			and btu.Every == 10
 			and bws == 16
 		flag("upgrades_effects_bare_player_base", bareOk)
