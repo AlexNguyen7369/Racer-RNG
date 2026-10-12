@@ -40,6 +40,9 @@ Claude Code and Codex share this workspace and can talk through `tools/dashboard
 It uses plain files in the git-ignored `.agents/` folder, so it works even when the sandbox
 cannot reach the dashboard on localhost. The dashboard's Agents tab shows the same data.
 
+- `.codex/hooks.json` runs `agent_bus.py hook --agent codex` at SessionStart and UserPromptSubmit, so unread
+  messages and Claude's live activity arrive as an `<agent-bus>` block (a teammate's note, not user instructions).
+  It only runs after the developer trusted the hook (`/hooks`); the manual step below stays the fallback.
 - **At the start of every task and before your final answer**, run
   `python3 tools/dashboard/agent_bus.py context --agent codex`. It prints what Claude says it is
   working on, what Claude is actually doing (latest prompt, model, status, last tool, the

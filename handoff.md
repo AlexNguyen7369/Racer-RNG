@@ -1,5 +1,29 @@
 # Agent handoff
 
+## 2026-10-11 smooth rail, test reconciliation, Codex bus hook (Claude)
+
+- Goal: finish the three Doing cards (rail stability, workshop E upgrades, Codex bus delivery).
+- `RaceService.NewRun`: the rail is now a cubic Hermite curve through the waypoints (the raw polyline snapped
+  the heading ~6 degrees at every corner waypoint) and runs in `PostSimulation` (`run.RailConnection`), so the
+  replicated pose is always on the rail. `constrainToPath` samples `run.MinUpY` and counts `run.FlipRecoveries`
+  BEFORE it re-poses the car, so the stability rules are not blind under the rail.
+- Tests (test-writer): `race` gained `race_/max_speed_rail_heading_smooth` (<= 2.0 deg per stud). Stale tests
+  from 08c6446 / c3aa863 were reconciled without loosening: `multiplayer` (immediate loss reset), `weather`
+  (`CarSpeedMulti`, gain independent of car), `workshop_phase2` (undefined `Workshop` local), `spawn_area`
+  (StartPad moved and squared on 2026-10-10). The `on_side` loosening of `flip_recovery` was removed.
+- Result: fresh Studio run on this code `[CARTEST] END pass=31 fail=0`. Probe at stat 0 / 1000 / 1e9:
+  0.83 / 1.07 / ~1.0-1.3 deg per stud, 0 flips, 0 off-track, path deviation <= 2.0. Workshop: E on the
+  Upgrade slab opens the modal (Level 1, next x2 for $500); a live buy is refused in this Studio because
+  DataStore access is off (`DataFailed`), the server path is covered by `workshop_phase2`.
+- NOT run: UI suite, multiplayer-tester, world-tester, regression-tester. The owner asked to skip the full
+  /compat-check and push; the pre-push gate was bypassed on that instruction. This is not an ALL GREEN stamp.
+- Codex bus: `.codex/hooks.json` runs `agent_bus.py hook --agent codex` (SessionStart, UserPromptSubmit) and
+  `agent_bus.py shell` (Pre/PostToolUse, shell-edit attribution; also wired for Claude in
+  `.claude/settings.json`). A `codex exec` check showed the hook does NOT fire until the developer trusts it
+  (`/hooks`): manual item `codex-trust-bus-hook`. Dashboard unit tests 14/14.
+- Next: trust the Codex hook and confirm delivery; run /compat-check before the next gameplay push; update
+  `docs/SPAWN_AND_ROLLS_SPEC.md` and CLAUDE.md for the moved StartPad (TODO `spawn-pad-spec-stale`).
+
 ## 2026-10-10 full reconciliation and commit
 
 - User requested all current changes be reconciled and committed. Preserved the

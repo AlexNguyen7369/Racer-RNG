@@ -101,8 +101,14 @@ python3 tools/dashboard/agent_bus.py inbox --agent claude --all
 ```
 
 - Claude gets new messages automatically: `.claude/settings.json` runs `agent_bus.py hook --agent claude` at
-  SessionStart and UserPromptSubmit (quiet unless there is unread mail or Codex is running). Codex is told by
-  `AGENTS.md` to run `context` at the start and end of each task.
+  SessionStart and UserPromptSubmit (quiet unless there is unread mail or Codex is running). Codex gets them the
+  same way through `.codex/hooks.json` (`agent_bus.py hook --agent codex`, Codex CLI `hooks` feature) once the
+  developer has trusted that project hook in Codex (`/hooks`); until then, and in `codex exec`, `AGENTS.md` still
+  tells it to run `context` at the start and end of each task.
+- Edits made by shell commands (sed, heredocs, scripts) are attributed too: a Pre/PostToolUse hook on each agent's
+  shell tool (`agent_bus.py shell --agent <a> --phase pre|post`, wired in `.claude/settings.json` and
+  `.codex/hooks.json`) records the uncommitted files whose mtime changed while the command ran in
+  `.agents/shell_edits.jsonl`; Changes & history shows them with the role `shell`.
 - Agents tab, top panel: each agent's presence (model, running / done / stopped, its latest task, last tool or
   reply, what it SAYS it is working on, and the uncommitted files it changed), the message thread, and a form to
   message Claude, Codex or both. API: `GET /api/bus`, `POST /api/bus` (`send`, `status`).

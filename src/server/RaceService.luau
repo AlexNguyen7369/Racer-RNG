@@ -288,26 +288,49 @@ function RaceService.NewRun(car, raceRoute, player, options)
 	-- Auto-race is a server-authoritative rail. Steering/friction alone lets
 	-- lateral momentum leave the authored route at high speed, so project the
 	-- chassis onto the nearest path segment every step and cancel lateral speed.
+	-- The rail itself is a cubic Hermite curve through the waypoints (tangent at a
+	-- waypoint = direction between its neighbours): on the raw polyline the heading
+	-- would snap ~6 degrees at every waypoint of a corner.
+	local function tangentAt(k)
+		return (wps[math.min(k + 1, #wps)] - wps[math.max(k - 1, 1)]).Unit
+	end
 	local function constrainToPath()
 		local index = math.clamp(driver.Index, 1, #wps - 1)
 		local first = math.max(1, index - 2)
 		local last = math.min(#wps - 1, index + 2)
-		local bestPoint, bestDir, bestDistance = nil, nil, math.huge
+		local bestK, bestT, bestDistance = nil, 0, math.huge
 		for k = first, last do
 			local a, b = wps[k], wps[k + 1]
 			local ab = b - a
 			local t = math.clamp((chassis.Position - a):Dot(ab) / math.max(ab:Dot(ab), 1e-6), 0, 1)
-			local point = a + ab * t
-			local distance = (chassis.Position - point).Magnitude
+			local distance = (chassis.Position - (a + ab * t)).Magnitude
 			if distance < bestDistance then
-				bestPoint, bestDir, bestDistance = point, ab.Unit, distance
+				bestK, bestT, bestDistance = k, t, distance
 			end
 		end
-		if not bestPoint or not bestDir then
+		if not bestK then
 			return
 		end
+		local a, b, t = wps[bestK], wps[bestK + 1], bestT
+		local ta, tb = tangentAt(bestK) * (b - a).Magnitude, tangentAt(bestK + 1) * (b - a).Magnitude
+		local t2, t3 = t * t, t * t * t
+		local bestPoint = a * (2 * t3 - 3 * t2 + 1) + ta * (t3 - 2 * t2 + t) + b * (3 * t2 - 2 * t3) + tb * (t3 - t2)
+		local bestDir = (
+			a * (6 * t2 - 6 * t)
+			+ ta * (3 * t2 - 4 * t + 1)
+			+ b * (6 * t - 6 * t2)
+			+ tb * (3 * t2 - 2 * t)
+		).Unit
 		local position = bestPoint + Vector3.new(0, chassis.Position.Y - bestPoint.Y, 0)
 		local forwardSpeed = math.max(0, chassis.AssemblyLinearVelocity:Dot(bestDir))
+		-- Measured BEFORE the correction, or the rail would hide every tilt and flip from the stability rules.
+		local up = chassis.CFrame.UpVector.Y
+		if not physics.LoopAssist and not run.Finished then
+			run.MinUpY = math.min(run.MinUpY, up)
+			if up < RaceService.FLIP_UP_Y then
+				run.FlipRecoveries += 1 -- the rail rights a flipped car at once: still a recovery
+			end
+		end
 		car:PivotTo(CFrame.lookAt(position, position + bestDir))
 		chassis.AssemblyLinearVelocity = bestDir * forwardSpeed
 		chassis.AssemblyAngularVelocity = Vector3.zero
@@ -398,7 +421,6 @@ function RaceService.NewRun(car, raceRoute, player, options)
 		end
 		local control = driver:Control(chassis, dt)
 		physics:Step(control, dt)
-		constrainToPath()
 		run.OffTrackSeconds = driver.OffTrackSeconds
 		runTime += dt
 		if npcMode then
@@ -440,6 +462,14 @@ function RaceService.NewRun(car, raceRoute, player, options)
 		end
 	end)
 
+	-- The rail is applied AFTER the physics step, so the pose that replicates is always on the rail (applied
+	-- before it, every frame would show one step of free steering/tyre yaw that the next frame snaps back).
+	run.RailConnection = RunService.PostSimulation:Connect(function()
+		if car.Parent then
+			constrainToPath()
+		end
+	end)
+
 	-- Pays the bank into leaderstats.Money and empties it. Returns the amount paid (0 if none).
 	function run:CashOut()
 		local amount = run.Unbanked
@@ -464,6 +494,10 @@ function RaceService.NewRun(car, raceRoute, player, options)
 			if npcMode then
 				emit({ Type = "Stop" })
 			end
+		end
+		if self.RailConnection then
+			self.RailConnection:Disconnect()
+			self.RailConnection = nil
 		end
 		if self.Connection then
 			self.Connection:Disconnect()

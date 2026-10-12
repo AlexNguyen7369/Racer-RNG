@@ -192,6 +192,16 @@ class BusTests(unittest.TestCase):
         patcher.start()
         self.addCleanup(patcher.stop)
 
+    def test_shell_command_edits_are_attributed_to_the_agent_that_ran_it(self):
+        with patch.object(agent_bus, "_dirty", return_value={"a.luau": 1, "b.luau": 1}):
+            agent_bus.shell_snapshot("codex", "pre")
+        with patch.object(agent_bus, "_dirty", return_value={"a.luau": 1, "b.luau": 2, "new.py": 3}):
+            changed = agent_bus.shell_snapshot("codex", "post", {"model": "gpt-test", "session_id": "s1"})
+            self.assertEqual(agent_bus.shell_snapshot("claude", "post"), [])  # no pre snapshot of its own
+        self.assertEqual(changed, ["b.luau", "new.py"])
+        self.assertEqual([(r["agent"], r["model"], r["files"]) for r in agent_bus.shell_edits()],
+            [("codex", "gpt-test", ["b.luau", "new.py"])])
+
     def test_messages_reach_only_their_reader_once(self):
         a = agent_bus.send("codex", "claude", "Please review server.py", model="gpt-test")
         b = agent_bus.send("user", "all", "Both: stop at 6")

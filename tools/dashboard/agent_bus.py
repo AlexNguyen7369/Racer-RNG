@@ -10,8 +10,10 @@ can still use it. The dashboard shows the same data on its Agents tab and the us
   python3 tools/dashboard/agent_bus.py status --agent claude --task "what I am doing" [--files a.luau,b.py] [--note ...]
   python3 tools/dashboard/agent_bus.py status --agent claude --clear
   python3 tools/dashboard/agent_bus.py hook --agent claude          (Claude Code hook: prints unread mail + the other agent's activity)
+  python3 tools/dashboard/agent_bus.py shell --agent claude --phase pre|post   (tool hook around shell commands: attributes their edits)
 
-Storage (per machine, git-ignored like transcripts): .agents/messages.jsonl, .agents/status.json, .agents/cursors.json.
+Storage (per machine, git-ignored like transcripts): .agents/messages.jsonl, .agents/status.json, .agents/cursors.json,
+.agents/shell_edits.jsonl.
 """
 import argparse
 import contextlib
@@ -24,6 +26,7 @@ except ImportError:  # Windows
 import json
 import os
 import re
+import subprocess
 import sys
 import uuid
 
@@ -270,6 +273,55 @@ def hook(agent):
         mark_read(agent, mail)
 
 
+# ---------------------------------------------------------------------------------------------------------------
+# edits made by shell commands (sed, heredocs, scripts): the agents' edit tools never see them
+
+
+def _dirty():
+    """{path: mtime} of every uncommitted file (0 = deleted)."""
+    out = subprocess.run(["git", "-C", ROOT, "status", "--porcelain", "-uall", "-z"], capture_output=True, text=True).stdout
+    files = {}
+    for rec in out.split("\0"):
+        if len(rec) > 3:
+            try:
+                files[rec[3:]] = os.path.getmtime(os.path.join(ROOT, rec[3:]))
+            except OSError:
+                files[rec[3:]] = 0
+    return files
+
+
+def shell_snapshot(agent, phase, payload=None):
+    """Pre/PostToolUse hook around a shell command: files whose mtime changed while it ran are that agent's edits."""
+    name, now = f"snap-{agent}.json", _dirty()
+    if phase == "pre":
+        _write_json(name, now)
+        return []
+    before = _read_json(name, None)
+    changed = sorted(p for p, m in now.items() if before.get(p) != m) if isinstance(before, dict) else []
+    if changed:
+        payload = payload if isinstance(payload, dict) else {}
+        row = {"agent": agent, "ts": now_iso(), "model": str(payload.get("model") or ""),
+            "session": str(payload.get("session_id") or ""), "files": changed}
+        with locked():
+            with open(os.path.join(bus_dir(), "shell_edits.jsonl"), "a", encoding="utf-8") as f:
+                f.write(json.dumps(row) + "\n")
+    return changed
+
+
+def shell_edits(limit=2000):
+    out = []
+    try:
+        with open(os.path.join(BUS, "shell_edits.jsonl"), encoding="utf-8") as f:
+            for line in f:
+                try:
+                    out.append(json.loads(line))
+                except ValueError:
+                    pass
+    except OSError:
+        pass
+    return out[-limit:]
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -296,6 +348,9 @@ def main():
         if name == "context":
             p.add_argument("--keep-unread", action="store_true")
             p.add_argument("--json", action="store_true")
+    p = sub.add_parser("shell")
+    p.add_argument("--agent", required=True, choices=AGENTS)
+    p.add_argument("--phase", required=True, choices=("pre", "post"))
     a = ap.parse_args()
 
     if a.cmd == "send":
@@ -325,6 +380,13 @@ def main():
         return 0
     if a.cmd == "hook":
         hook(a.agent)
+        return 0
+    if a.cmd == "shell":
+        try:
+            payload = json.loads(sys.stdin.read() or "{}")  # the hook payload: session id (and model, from Codex)
+        except (OSError, ValueError):
+            payload = {}
+        shell_snapshot(a.agent, a.phase, payload)
         return 0
 
 

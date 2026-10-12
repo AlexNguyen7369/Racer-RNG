@@ -255,16 +255,18 @@ function Tests.workshop_phase2()
 		data.SetStore(store)
 		local p = player("OfflineLoad")
 		gacha.Apply(p, initial)
-		local want = initial.Speed
-			+ integrated(
-				initial.Speed,
-				gacha.SpeedMulti(p),
-				config.Levels[1].Multi,
-				gacha.WorkshopMulti(p),
-				3600,
-				config,
-				race
-			)
+		local offlineGain = integrated(
+			initial.Speed,
+			gacha.SpeedMulti(p),
+			config.Levels[1].Multi,
+			gacha.WorkshopMulti(p),
+			3600,
+			config,
+			race
+		)
+		local want = initial.Speed + offlineGain
+		-- Money credit: 10% of the integrated Speed credit, floored (WORKSHOP_SPEC); the oracle, not Workshop.OfflineMoney
+		local wantMoney = 41 + math.floor(offlineGain * 0.10)
 		flag("offline_load_succeeds", data.Load(p, 74002, at) == true)
 		flag(
 			"offline_load_credits_exact_integral",
@@ -277,8 +279,9 @@ function Tests.workshop_phase2()
 			store.claims == 1
 				and near(initial.Speed, want, 0.002)
 				and initial.OfflineAt == at
-				and initial.Money
-					== 41 + Workshop.OfflineMoney(2500, gacha.SpeedMulti(p), 1, gacha.WorkshopMulti(p), 3600)
+				and initial.Money == wantMoney
+				and workshop ~= nil
+				and 41 + workshop.OfflineMoney(2500, gacha.SpeedMulti(p), 1, gacha.WorkshopMulti(p), 3600) == wantMoney
 				and initial.WorkshopLevel == 1
 		)
 		flag(
@@ -707,13 +710,17 @@ function Tests.weather()
 		weather.SetEvent("", at)
 		local inventory = fake("EntireCatalog", data, gacha)
 		table.insert(extraPlayers, inventory)
+		-- Owner rule: the car model sets cruise speed (CarSpeedMulti) and never the Speed-stat gain (SpeedMulti)
+		local gainMulti = gacha.SpeedMulti(inventory)
 		for _, spec in catalog.All() do
 			flag("catalog_grant_" .. spec.Id, gacha.Grant(inventory, spec.Id) == true)
 			flag(
 				"catalog_equip_after_event_" .. spec.Id,
 				gacha.Equip(inventory, spec.Id) == true
 					and inventory:GetAttribute("EquippedCar") == spec.Id
-					and near(gacha.SpeedMulti(inventory), spec.SpeedMulti)
+					and type(gacha.CarSpeedMulti) == "function"
+					and near(gacha.CarSpeedMulti(inventory), spec.SpeedMulti)
+					and near(gacha.SpeedMulti(inventory), gainMulti)
 			)
 		end
 		flag(

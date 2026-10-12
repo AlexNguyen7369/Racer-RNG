@@ -25,8 +25,9 @@
 22. 2026-10-06 — Isaac Li — Added the finalized Racer UI, seven Draft05 Blender cars and imported templates, cosmetic equipment source, authored UI snapshots, saved place, and Rojo integration on a review branch with compile/build checks but without full compatibility certification.
 23. 2026-10-06 — Isaac Li — Restored and live-checked Studio UI handlers and revision-5 car equipment, improved the continuous roll reel, updated ProjectContext, and saved the shared experience with a source-matched native place snapshot.
 24. 2026-10-06 — Alex Nguyen — Added Codex dashboard session/timeline integration, a local read/write client, shared AGENTS.md instructions and a Claude handoff on feature/alex/codex-dashboard, verified seven integration tests and live board edits, and reviewed the change for sensitive information.
+25. 2026-10-11 — Alex Nguyen — Smoothed the auto-race server rail (Hermite curve applied in PostSimulation, flips and tilt measured before correction), added a rail heading smoothness check, reconciled five stale scenarios to a 31/31 harness run, and wired the Codex agent-bus hook with shell-edit attribution, pushed without the full compatibility gate at the owner's request.
 
 ## What's next
-**Complete the updated Racer UI tests and full compatibility check on the merged Draft05 UI/car work before merging gameplay into main.**
+**Run the full /compat-check (UI, multiplayer, world and regression suites) on the smooth-rail commit.**
 
-**Why this is next:** the dashboard integration is independently verified, but the merged Racer UI and pending workshop/upgrade changes still need current-layout UI, harness, multiplayer and world certification before main can accept the gameplay changes.
+**Why this is next:** the rail and test changes were pushed to main on a green harness only, so the UI, multiplayer, world and regression suites must certify them before further gameplay work builds on main.

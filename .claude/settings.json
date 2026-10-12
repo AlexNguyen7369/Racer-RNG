@@ -18,6 +18,15 @@
             "command": "python3 \"$CLAUDE_PROJECT_DIR/tools/readme_sync.py\" >/dev/null"
           }
         ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/tools/dashboard/agent_bus.py\" shell --agent claude --phase post"
+          }
+        ]
       }
     ],
     "PreToolUse": [
@@ -27,6 +36,15 @@
           {
             "type": "command",
             "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/compat-gate.py\""
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/tools/dashboard/agent_bus.py\" shell --agent claude --phase pre"
           }
         ]
       }

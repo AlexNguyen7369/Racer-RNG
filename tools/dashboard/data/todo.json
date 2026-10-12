@@ -243,13 +243,13 @@
     {
       "id": "178d5653",
       "title": "Automatic bus delivery for Codex",
-      "detail": "Claude receives bus messages via a hook; Codex only when it follows AGENTS.md and runs agent_bus.py context. If the Codex CLI's hook support covers session start / prompt submit, wire `agent_bus.py hook --agent codex` there. Also: edits made via shell commands (sed, heredoc, python rewrites) are not attributed; consider attributing via git diff snapshots per tool call.",
+      "detail": "Claude receives bus messages via a hook; Codex only when it follows AGENTS.md and runs agent_bus.py context. If the Codex CLI's hook support covers session start / prompt submit, wire `agent_bus.py hook --agent codex` there. Also: edits made via shell commands (sed, heredoc, python rewrites) are not attributed; consider attributing via git diff snapshots per tool call. 2026-10-11: wired in .codex/hooks.json (SessionStart, UserPromptSubmit) and shell-edit attribution added (agent_bus.py shell, Pre/PostToolUse in both agents). Codex does not run the project hook until the developer trusts it (Needs you: codex-trust-bus-hook), so delivery is not verified yet.",
       "status": "doing",
       "source": "claude",
       "by": "Claude",
       "added": "2026-10-06T17:44:01-07:00",
-      "updated": "2026-10-08T23:02:33-07:00",
-      "updatedBy": "Alex Nguyen",
+      "updated": "2026-10-11T23:55:00-07:00",
+      "updatedBy": "Claude",
       "branch": "feature/alex/automatic-bus-delivery-for-codex",
       "featureId": "fffa72e5",
       "owner": "Alex Nguyen",
@@ -282,17 +282,18 @@
     {
       "id": "7c111020",
       "title": "Implement workshop upgrades with E interaction",
-      "detail": "After the current compatibility check passes and changes are pushed, let the owner approach the Upgrade slab and press E to open an upgrade modal. Show the next workshop level and required Money; increase workshop Speed/s exponentially as level rises, with a correspondingly increasing cost. Define and document the exact progression before implementation.",
-      "status": "doing",
+      "detail": "After the current compatibility check passes and changes are pushed, let the owner approach the Upgrade slab and press E to open an upgrade modal. Show the next workshop level and required Money; increase workshop Speed/s exponentially as level rises, with a correspondingly increasing cost. Define and document the exact progression before implementation. DONE 2026-10-11: E prompt on the owner's Upgrade slab opens the modal (level, next price, rate); 10 levels, each doubles W, price x5 from $500 (docs/WORKSHOP_SPEC.md). workshop + workshop_phase2 pass; modal checked live. A live purchase needs Studio DataStore access (Needs you: studio-api-access).",
+      "status": "done",
       "source": "manual",
       "by": "Alex Nguyen",
       "added": "2026-10-07T00:12:36-07:00",
-      "updated": "2026-10-08T23:02:42-07:00",
-      "updatedBy": "Alex Nguyen",
+      "updated": "2026-10-11T23:55:00-07:00",
+      "updatedBy": "Claude",
       "branch": "feature/alex/implement-workshop-upgrades-with-e-inter",
       "featureId": "62159c08",
       "owner": "Alex Nguyen",
-      "ownerGithub": "AlexNguyen7369"
+      "ownerGithub": "AlexNguyen7369",
+      "done": "2026-10-11"
     },
     {
       "id": "65b8cc63",
@@ -461,14 +462,25 @@
     {
       "id": "urgent-auto-race-path-stability",
       "title": "URGENT: Lock high-speed auto racing to the track path",
-      "detail": "High Speed can cause auto-race physics to drift wide, spin 180 degrees, and leave the track. Preserve the higher speed progression, but add an auto-race-only server-authoritative path constraint that corrects lateral offset/heading and prevents movement away from the authored route. Add a high-speed corner regression for bounded path deviation, no reversal, and no off-track exit. Compatibility-check the result with the recent UI and uncapped-speed changes before publishing.",
-      "status": "doing",
+      "detail": "High Speed can cause auto-race physics to drift wide, spin 180 degrees, and leave the track. Preserve the higher speed progression, but add an auto-race-only server-authoritative path constraint that corrects lateral offset/heading and prevents movement away from the authored route. Add a high-speed corner regression for bounded path deviation, no reversal, and no off-track exit. Compatibility-check the result with the recent UI and uncapped-speed changes before publishing. DONE 2026-10-11: rail is a cubic Hermite curve applied in PostSimulation (no heading snaps: <= 1.1 deg/stud vs ~12 before), flips and tilt are measured before the correction, race scenario has rail_heading_smooth. Harness 31/31; full /compat-check skipped on the owner's instruction.",
+      "status": "done",
       "source": "owner handoff 2026-10-10",
       "by": "Codex",
       "added": "2026-10-10T02:10:00-07:00",
-      "updated": "2026-10-10T02:10:00-07:00",
-      "updatedBy": "Alex Nguyen",
-      "urgent": true
+      "updated": "2026-10-11T23:55:00-07:00",
+      "updatedBy": "Claude",
+      "urgent": false,
+      "done": "2026-10-11"
+    },
+    {
+      "id": "spawn-pad-spec-stale",
+      "title": "Update spawn spec and CLAUDE.md for the moved StartPad",
+      "detail": "The StartPad was moved and squared on 2026-10-10 (PAD_CENTER 34.30, 28.50, front +X, c3aa863) but docs/SPAWN_AND_ROLLS_SPEC.md and the Spawn area paragraph in CLAUDE.md still say it sits right behind the start line joining the area to the road. spawn_area tests now assert the placed footprint.",
+      "status": "backlog",
+      "source": "test-writer audit",
+      "by": "Claude",
+      "added": "2026-10-11T23:55:00-07:00",
+      "updated": "2026-10-11T23:55:00-07:00"
     }
   ]
 }

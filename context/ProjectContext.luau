@@ -3,7 +3,20 @@
 PROJECT CONTEXT - Idle Vehicle Simulator (read me first)
 Shown in Studio at: ServerScriptService > ProjectContext   (source file: context/ProjectContext.luau)
 Do NOT edit this in Studio: edit the file on disk, Rojo syncs it. Claude updates it at the end of every loop.
-Last updated: 2026-10-10 (Ropilot delta inventory and stale-UI repair; no publish/push)
+Last updated: 2026-10-11 (smooth Hermite rail, test reconciliation, Codex bus hook; harness 31/31, full gate not run)
+
+SMOOTH RAIL + TEST RECONCILIATION - 2026-10-11 (Claude)
+- RaceService rail: cubic Hermite curve through the path waypoints, applied in PostSimulation
+  (run.RailConnection). Heading no longer snaps at waypoints (<= 1.1 deg/stud, was ~12 at base speed).
+  MinUpY and FlipRecoveries are measured before the rail re-poses the car.
+- race scenario: new race_/max_speed_rail_heading_smooth (<= 2.0 deg per stud). multiplayer, weather,
+  workshop_phase2 and spawn_area tests reconciled with the 2026-10-10 rule changes (not loosened).
+- Fresh Studio harness on this code: [CARTEST] END pass=31 fail=0.
+- UNVERIFIED: UI suite, multiplayer-tester, world-tester, regression-tester were not run (owner asked to
+  push without the full gate). No ALL GREEN stamp.
+- Codex bus hook: .codex/hooks.json (needs the developer to trust it in Codex); shell-edit attribution
+  via agent_bus.py shell.
+- Known: SPAWN_AND_ROLLS_SPEC / CLAUDE.md still describe the old StartPad position.
 
 COMPATIBILITY REVIEW - 2026-10-10
 - Added urgent dashboard TODO `urgent-auto-race-path-stability` in Doing with

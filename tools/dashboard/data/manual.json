@@ -293,6 +293,22 @@
       "status": "open",
       "added": "2026-10-08T12:00:00-07:00",
       "by": "Claude"
+    },
+    {
+      "id": "codex-trust-bus-hook",
+      "title": "Trust the agent-bus hook in Codex",
+      "priority": "medium",
+      "why": "`.codex/hooks.json` now delivers Claude's bus messages to Codex automatically, but Codex only runs project hooks the developer has reviewed and trusted. A `codex exec` check on 2026-10-11 confirmed the untrusted hook does not fire.",
+      "blocks": "TODO: Automatic bus delivery for Codex",
+      "when": "Next time you open Codex in this repo.",
+      "steps": [
+        "Run `codex` in the project root.",
+        "Type `/hooks`, review the two `agent_bus.py hook --agent codex` entries (SessionStart, UserPromptSubmit) and trust them.",
+        "Send any prompt; if Claude has unread mail for Codex it shows as an `<agent-bus>` block. Tell Claude \"codex hook trusted\"."
+      ],
+      "status": "open",
+      "added": "2026-10-11T23:20:00-07:00",
+      "by": "Claude"
     }
   ]
 }

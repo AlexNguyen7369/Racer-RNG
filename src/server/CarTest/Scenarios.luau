@@ -1315,6 +1315,8 @@ local RACE_ORIGIN = Vector3.new(-20000, 0, 20000)
 local RACE_LOOKAHEAD_FLAT = 30 -- studs of path that must be level for a "flat straight" sample
 local RACE_LOOKAHEAD_STRAIGHT = 80 -- studs of path that must be curvature-free for a sample
 local RACE_MIN_SAMPLES = 30
+-- deg of heading per stud travelled: the tightest lane radius (~43 studs) is 1.33; a heading snapped to the waypoint polyline is >= 2.4
+local RAIL_MAX_YAW_PER_STUD = 2.0
 
 local function tryRequire(parent, name)
 	local module = parent:FindFirstChild(name)
@@ -1378,6 +1380,15 @@ local function checkStability(checks, prefix, st)
 		st.minForwardAlignment,
 		0.95,
 		type(st.minForwardAlignment) == "number" and st.minForwardAlignment >= 0.95
+	)
+	-- heading must turn continuously along the rail, never snap from one waypoint segment to the next
+	local yps = type(st.maxYawPerStud) == "number" and st.maxYawPerStud or -1
+	check(
+		checks,
+		pre .. "rail_heading_smooth",
+		yps,
+		RAIL_MAX_YAW_PER_STUD,
+		yps >= 0 and yps <= RAIL_MAX_YAW_PER_STUD and (st.yawN or 0) >= RACE_MIN_SAMPLES
 	)
 	-- run.MaxPathDeviation (driver.DistanceToCenter, nearest waypoint) must be reported and consistent with ours
 	local rd = type(st.runMaxDev) == "number" and st.runMaxDev or -1
@@ -1537,6 +1548,9 @@ function Scenarios.race()
 			maxSpeed = 0,
 			maxTarget = 0,
 			minForwardAlignment = 1,
+			maxYawPerStud = 0,
+			maxYawStep = 0,
+			yawN = 0,
 			targetSum = 0,
 			targetN = 0,
 			flatSum = 0,
@@ -1593,6 +1607,7 @@ function Scenarios.race()
 		local idx, stuck, flippedFor, wasFlipped = 1, 0, 0, false
 		local cIdx = 1
 		local lastStat = speedValue.Value
+		local prevPos, prevLook = nil, nil
 		st.elapsed = frames(seconds, function(t, dt)
 			local pos = chassis.Position
 			local speed = chassis.AssemblyLinearVelocity.Magnitude
@@ -1668,6 +1683,20 @@ function Scenarios.race()
 				local tangent = flatV(dir)
 				if look.Magnitude > 1e-6 and tangent.Magnitude > 1e-6 then
 					st.minForwardAlignment = math.min(st.minForwardAlignment, look.Unit:Dot(tangent.Unit))
+				end
+				-- heading change per stud travelled since the previous frame (a teleport starts a new sample)
+				if look.Magnitude > 1e-6 then
+					local ds = prevPos and (pos - prevPos).Magnitude or math.huge
+					if ds <= 30 then
+						local yawStep =
+							math.abs(math.deg(math.atan2(prevLook:Cross(look.Unit).Y, prevLook:Dot(look.Unit))))
+						st.maxYawStep = math.max(st.maxYawStep, yawStep)
+						if ds > 0.25 then
+							st.maxYawPerStud = math.max(st.maxYawPerStud, yawStep / ds)
+							st.yawN += 1
+						end
+					end
+					prevPos, prevLook = pos, look.Unit
 				end
 				local f = flatV(dir)
 				if f.Magnitude > 1e-6 then
@@ -1885,6 +1914,8 @@ function Scenarios.race()
 		target = round(targetHalf),
 		routeLength = round(totalLen),
 		elapsed = fast.elapsed and round(fast.elapsed) or -1,
+		maxYawStepDeg = fast.maxYawStep and round(fast.maxYawStep) or -1,
+		maxYawPerStud = fast.maxYawPerStud and round(fast.maxYawPerStud) or -1,
 		meanFlatSpeed = fast.flatN and fast.flatN > 0 and round(fast.flatSum / fast.flatN) or -1,
 		statGained = fast.finalStat and round(fast.finalStat - HALF) or -1,
 		speedIntegral = fast.integral and round(fast.integral) or -1,
@@ -2008,9 +2039,7 @@ function Scenarios.flip_recovery()
 			tag .. "_recovery_counted",
 			tRecovery or -1,
 			RECOVER,
-			-- The strict rail may correct a sideways car immediately; that is
-			-- equivalent to recovery for the purpose of this stability test.
-			tRecovery ~= nil and tRecovery <= RECOVER + 0.05 or tag == "on_side" and tUpright ~= nil
+			tRecovery ~= nil and tRecovery <= RECOVER + 0.05
 		)
 		check(checks, tag .. "_upright_again", tUpright or -1, RECOVER + 2, tUpright ~= nil and tUpright <= RECOVER + 2)
 		check(
@@ -6784,7 +6813,9 @@ function Scenarios.multiplayer()
 					scanT = 0
 					npcSeen = npcSeen or npcModelInWorkspace()
 				end
-				-- the winner's state just before and 1 s after the loser's reset
+				-- the winner's state just before and 1 s after the loser's reset. The reset is immediate (NPC_RACER_SPEC:
+				-- emitted in the frame of the loss), and both cars reach the finish in the same frame or one apart, so
+				-- "just before" may still be Track 1 with no Result; the winner's own progress is checked instead.
 				local resetB = npcFind(B, "Reset")
 				local now = os.clock() - B.clock0
 				if resetB and not beforeA then
@@ -6794,11 +6825,15 @@ function Scenarios.multiplayer()
 					afterA = {
 						RaceTrack = A.Run.RaceTrack,
 						Results = type(A.Run.Results) == "table" and #A.Run.Results or -1,
+						Index = A.Run.Driver and A.Run.Driver.Index or -1,
+						Resets = A.Run.Resets,
 					}
 				end
 				lastA = {
 					RaceTrack = A.Run.RaceTrack,
 					Results = type(A.Run.Results) == "table" and #A.Run.Results or -1,
+					Index = A.Run.Driver and A.Run.Driver.Index or -1,
+					Resets = A.Run.Resets,
 				}
 				if afterA and npcFind(A, "Result", 1) and B.resetPose and npcFind(B, "Start", 1, resetB.T - 0.05) then
 					stopped = true
@@ -6866,13 +6901,18 @@ function Scenarios.multiplayer()
 		end
 		check(checks, "mp_events_separate_per_player", (aOwn and 1 or 0) + (bOwn and 1 or 0), 2, aOwn and bOwn)
 
-		-- the loser's reset does not touch the winner (on Track 2 with one Win)
+		-- the loser's reset does not touch the winner: 1 s later it is on Track 2 with its one Win, was never reset,
+		-- and is further along the path than just before the reset (which was its own Track 1 or Track 2 state)
 		local unaffected = beforeA ~= nil
 			and afterA ~= nil
-			and beforeA.RaceTrack == 2
+			and ((beforeA.RaceTrack == 2 and beforeA.Results == 1) or (beforeA.RaceTrack == 1 and beforeA.Results == 0))
 			and afterA.RaceTrack == 2
-			and beforeA.Results == 1
 			and afterA.Results == 1
+			and beforeA.Resets == 0
+			and afterA.Resets == 0
+			and type(beforeA.Index) == "number"
+			and beforeA.Index >= 1
+			and afterA.Index > beforeA.Index
 		check(checks, "mp_loser_reset_leaves_winner", num(afterA and afterA.RaceTrack), 2, unaffected)
 		local resetPose = B.resetPose
 		local dB = resetPose and hdist(resetPose.Position, wps[1]) or -1
@@ -6924,8 +6964,18 @@ local SPAWN_LAYOUT = {} -- floor size and hub of the 2026-10-06 layout
 SPAWN_LAYOUT.FLOOR_SIZE = Vector2.new(228, 232)
 SPAWN_LAYOUT.HUB_MIN = Vector2.new(24, -100) -- local (x, z): the hub, 160 x 144
 SPAWN_LAYOUT.HUB_MAX = Vector2.new(184, 44)
-local SPAWN_PAD_MIN = Vector2.new(-20, 2)
+local SPAWN_PAD_MIN = Vector2.new(-20, 2) -- the platform as AUTHORED (44 x 36); still what PAD_MIN / PAD_MAX hold
 local SPAWN_PAD_MAX = Vector2.new(24, 38)
+-- Owner request 2026-10-10 (handoff.md "race entrance reposition"): the whole race platform was moved to the owner's
+-- on-foot position in the hub and turned a square quarter turn (sign outward +X, hub entrance outward -Z). Roads,
+-- start line and waypoints did not move, so the pad no longer spans the road centre or touches Track 1's Start.
+local SPAWN_PAD = {}
+SPAWN_PAD.CENTER = Vector2.new(34.3031235, 28.4993916) -- local (x, z) of the platform centre
+SPAWN_PAD.FRONT = Vector2.new(1, 0)
+SPAWN_PAD.MIN = Vector2.new(34.3031235 - 18, 28.4993916 - 22) -- placed footprint: 36 (x) by 44 (z)
+SPAWN_PAD.MAX = Vector2.new(34.3031235 + 18, 28.4993916 + 22)
+SPAWN_PAD.CURB_GAP = 54.3031235 - 24 -- the only opening in the near (z max) curb: local x = 24 .. 54.303
+SPAWN_PAD.ENTRANCE = 20 -- studs: width of the hub entrance in the platform's side rail (authored z = 10 .. 30)
 local SPAWN_TOP_Y = 1
 local SPAWN_PAD_TOP = 1.2 -- TOP_Y + 0.2
 local SPAWN_START_COOLDOWN = 2
@@ -7063,6 +7113,10 @@ function Scenarios.spawn_area()
 	check(checks, "spawn_hub_bounds_constants", hubConst and 1 or 0, 1, hubConst)
 	local padConst = v2is(A.PAD_MIN, SPAWN_PAD_MIN) and v2is(A.PAD_MAX, SPAWN_PAD_MAX)
 	check(checks, "spawn_pad_bounds_constants", padConst and 1 or 0, 1, padConst)
+	local padPlaced = typeof(A.PAD_CENTER) == "Vector2"
+		and spawnV2Err(A.PAD_CENTER, SPAWN_PAD.CENTER) <= 1e-3
+		and v2is(A.PAD_FRONT, SPAWN_PAD.FRONT)
+	check(checks, "spawn_pad_placement_constants", padPlaced and 1 or 0, 1, padPlaced)
 	check(checks, "spawn_top_y", num(A.TOP_Y), SPAWN_TOP_Y, A.TOP_Y == SPAWN_TOP_Y)
 	check(
 		checks,
@@ -7154,6 +7208,7 @@ function Scenarios.spawn_area()
 	end
 	check(checks, "spawn_edges_exist", #edges, 3, #edges >= 3)
 	local edgeBad = 0
+	local curbInGap = 0 -- studs of near curb left inside the opening the platform needs
 	local cover = { xMax = 0, zMin = 0, zMax = 0 }
 	local onPadSide = 0
 	local inside = 0
@@ -7177,6 +7232,8 @@ function Scenarios.spawn_area()
 		end
 		if math.abs(c.Y - SPAWN_AREA_MAX.Y) <= SPAWN_SIDE_REACH then
 			cover.zMax += spanX()
+			local gapMin, gapMax = SPAWN_AREA_MIN.X, SPAWN_AREA_MIN.X + SPAWN_PAD.CURB_GAP
+			curbInGap += math.max(0, math.min(eMax.X, gapMax) - math.max(eMin.X, gapMin))
 		end
 		if math.abs(c.X - SPAWN_AREA_MIN.X) <= SPAWN_SIDE_REACH and spanZ() > SPAWN_SIDE_REACH then
 			onPadSide += 1
@@ -7191,8 +7248,11 @@ function Scenarios.spawn_area()
 	check(checks, "spawn_edges_low_and_anchored", edgeBad, 0, #edges > 0 and edgeBad == 0)
 	local sideX = SPAWN_AREA_MAX.X - SPAWN_AREA_MIN.X
 	local sideZ = SPAWN_AREA_MAX.Y - SPAWN_AREA_MIN.Y
-	local worstCover = math.min(cover.xMax / sideZ, cover.zMin / sideX, cover.zMax / sideX)
+	-- the near side is whole except for the one opening the relocated platform crosses (owner, 2026-10-10)
+	local nearCover = (cover.zMax - curbInGap) / (sideX - SPAWN_PAD.CURB_GAP)
+	local worstCover = math.min(cover.xMax / sideZ, cover.zMin / sideX, nearCover)
 	check(checks, "spawn_edges_cover_three_outer_sides", worstCover, SPAWN_SIDE_COVER, worstCover >= SPAWN_SIDE_COVER)
+	check(checks, "spawn_near_curb_open_at_pad", curbInGap, SPAWN_GEOM_TOL, curbInGap <= SPAWN_GEOM_TOL)
 	check(checks, "spawn_no_edge_on_pad_side", onPadSide, 0, onPadSide == 0)
 	check(checks, "spawn_no_edge_inside_floor", inside, 0, inside == 0)
 
@@ -7224,11 +7284,12 @@ function Scenarios.spawn_area()
 		check(checks, "spawn_location_in_middle", dMid, SPAWN_MIDDLE, dMid <= SPAWN_MIDDLE)
 	end
 
-	-- StartPad: anchored, bright green Neon, tagged StartPad, touchable, covers PAD_MIN..PAD_MAX, top TOP_Y + 0.2,
-	-- with a "RACE" sign; it touches the area and Track 1's Start, and spans the road's centre line
+	-- StartPad: anchored, bright green Neon, tagged StartPad, touchable, top TOP_Y + 0.2, with a "RACE" sign. It is
+	-- the authored 44 x 36 platform at PAD_CENTER, turned so its front faces +X (owner, 2026-10-10); it touches the
+	-- area, and its 20-stud hub entrance is not blocked by any of the platform's boundary colliders
 	if padOk then
 		local pMin, pMax, pTop = spawnLocalBounds(base, pad)
-		local err = math.max(spawnV2Err(pMin, SPAWN_PAD_MIN), spawnV2Err(pMax, SPAWN_PAD_MAX))
+		local err = math.max(spawnV2Err(pMin, SPAWN_PAD.MIN), spawnV2Err(pMax, SPAWN_PAD.MAX))
 		check(checks, "spawn_pad_covers_bounds", err, SPAWN_GEOM_TOL, err <= SPAWN_GEOM_TOL)
 		check(checks, "spawn_pad_top", pTop, SPAWN_PAD_TOP, math.abs(pTop - SPAWN_PAD_TOP) <= SPAWN_TOP_TOL)
 		check(checks, "spawn_pad_anchored", pad.Anchored and 1 or 0, 1, pad.Anchored)
@@ -7250,15 +7311,32 @@ function Scenarios.spawn_area()
 			end
 		end
 		check(checks, "spawn_pad_race_sign", sign and 1 or 0, 1, sign)
-		local spansCentre = pMin.X <= 0 and pMax.X >= 0
-		check(checks, "spawn_pad_spans_road_centre", spansCentre and 1 or 0, 1, spansCentre)
+		-- the platform's authored +Z (the sign side) points along FRONT: a footprint alone cannot tell a half turn
+		local frontLocal = base:VectorToObjectSpace(-pad.CFrame.LookVector)
+		local frontDot = frontLocal.X * SPAWN_PAD.FRONT.X + frontLocal.Z * SPAWN_PAD.FRONT.Y
+		check(checks, "spawn_pad_front_faces_hub", frontDot, 0.999, frontDot >= 0.999)
+		-- hub entrance: in the pad's own space (authored centre (2, 20)) the side rail at authored x = 22 .. 24 is
+		-- open for authored z = 10 .. 30; no colliding boundary may stand in that opening
+		local blocked = 0
+		local boundaries = area:FindFirstChild("RaceBoundaries")
+		for _, d in boundaries and boundaries:GetDescendants() or {} do
+			if d:IsA("BasePart") and d.CanCollide then
+				local bMin, bMax = spawnLocalBounds(pad.CFrame, d)
+				local half = SPAWN_PAD.ENTRANCE / 2 - SPAWN_OVERLAP_TOL
+				if bMax.X > 18 and bMin.X < 24 and bMax.Y > -half and bMin.Y < half then
+					blocked += 1
+				end
+			end
+		end
+		check(checks, "spawn_pad_hub_entrance_open", blocked, 0, blocked == 0)
 		local padPoly = spawnPartPoly(pad)
 		if floorOk then
 			local gapArea = spawnPolySeparation(padPoly, spawnPartPoly(floor))
 			check(checks, "spawn_pad_touches_area", gapArea, SPAWN_TOUCH_GAP, gapArea <= SPAWN_TOUCH_GAP)
 		end
+		-- moved off the road on purpose (owner, 2026-10-10): it no longer reaches the start line
 		local gapStart = spawnPolySeparation(padPoly, spawnPartPoly(startPart))
-		check(checks, "spawn_pad_touches_track1_start", gapStart, SPAWN_TOUCH_GAP, gapStart <= SPAWN_TOUCH_GAP)
+		check(checks, "spawn_pad_clear_of_track1_start", gapStart, SPAWN_TOUCH_GAP, gapStart > SPAWN_TOUCH_GAP)
 	end
 
 	-- SpawnArea.Bounds(start): world corners of the area and the pad, Y = TOP_Y
@@ -7287,7 +7365,7 @@ function Scenarios.spawn_area()
 			return math.max(e, math.abs(b.Min.Y - SPAWN_TOP_Y), math.abs(b.Max.Y - SPAWN_TOP_Y))
 		end
 		local eA = okB and type(bounds) == "table" and boxErr(bounds.Area, SPAWN_AREA_MIN, SPAWN_AREA_MAX) or math.huge
-		local eP = okB and type(bounds) == "table" and boxErr(bounds.Pad, SPAWN_PAD_MIN, SPAWN_PAD_MAX) or math.huge
+		local eP = okB and type(bounds) == "table" and boxErr(bounds.Pad, SPAWN_PAD.MIN, SPAWN_PAD.MAX) or math.huge
 		check(checks, "spawn_bounds_area", eA == math.huge and -1 or eA, 0.01, eA <= 0.01)
 		check(checks, "spawn_bounds_pad", eP == math.huge and -1 or eP, 0.01, eP <= 0.01)
 	end
@@ -7324,9 +7402,7 @@ function Scenarios.spawn_area()
 	check(checks, "spawn_walk_root_height", walkCF.Position.Y, wantY, math.abs(walkCF.Position.Y - wantY) <= 0.05)
 	local insideHub = spawnInsideLocal(base, walkCF.Position, SPAWN_LAYOUT.HUB_MIN, SPAWN_LAYOUT.HUB_MAX)
 	check(checks, "spawn_walk_inside_area", insideHub and 1 or 0, 1, insideHub)
-	local padCentre = base:PointToWorldSpace(
-		Vector3.new((SPAWN_PAD_MIN.X + SPAWN_PAD_MAX.X) / 2, 0, (SPAWN_PAD_MIN.Y + SPAWN_PAD_MAX.Y) / 2)
-	)
+	local padCentre = base:PointToWorldSpace(Vector3.new(SPAWN_PAD.CENTER.X, 0, SPAWN_PAD.CENTER.Y))
 	local toPad = flatV(padCentre - walkCF.Position)
 	local look = flatV(walkCF.LookVector)
 	local facing = (toPad.Magnitude > 1e-6 and look.Magnitude > 1e-6) and look.Unit:Dot(toPad.Unit) or -1
@@ -7381,7 +7457,7 @@ function Scenarios.spawn_area()
 		{
 			spawnRectPoly(base, SPAWN_AREA_MIN, SPAWN_AREA_MAX),
 			spawnRectPoly(base, SPAWN_LAYOUT.HUB_MIN, SPAWN_LAYOUT.HUB_MAX),
-			spawnRectPoly(base, SPAWN_PAD_MIN, SPAWN_PAD_MAX),
+			spawnRectPoly(base, SPAWN_PAD.MIN, SPAWN_PAD.MAX),
 		}
 	do
 		for _, t in trackParts do
@@ -11164,7 +11240,7 @@ function Scenarios.workshop()
 			and p.Min.Y >= SPAWN_AREA_MIN.Y + WSHOP.EDGE_MARGIN
 			and p.Max.Y <= SPAWN_AREA_MAX.Y - WSHOP.EDGE_MARGIN
 		hubOk = hubOk and WSHOP.workshopRectGap(p.Min, p.Max, SPAWN_LAYOUT.HUB_MIN, SPAWN_LAYOUT.HUB_MAX) > 0
-		padOk = padOk and WSHOP.workshopRectGap(p.Min, p.Max, SPAWN_PAD_MIN, SPAWN_PAD_MAX) > 0
+		padOk = padOk and WSHOP.workshopRectGap(p.Min, p.Max, SPAWN_PAD.MIN, SPAWN_PAD.MAX) > 0
 		local f = p.Front
 		local axis = (math.abs(f.X) == 1 and f.Y == 0) or (f.X == 0 and math.abs(f.Y) == 1)
 		local hubInFront

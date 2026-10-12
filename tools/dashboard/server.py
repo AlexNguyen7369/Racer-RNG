@@ -324,6 +324,12 @@ def attribution():
         for path, ts, model, kind, sid in rows:
             files.setdefault(path, []).append({"agent": agent, "model": agent_bus.model_label(model), "role": kind,
                 "session": sid, "ts": ts})
+    for row in agent_bus.shell_edits():  # edits made by shell commands (agent_bus.py shell hook)
+        model = row.get("model") or (claude_model(os.path.join(TRANSCRIPTS, f"{row.get('session')}.jsonl"))
+            if row.get("agent") == "claude" else "")
+        for path in row.get("files") or []:
+            files.setdefault(path, []).append({"agent": row.get("agent"), "model": agent_bus.model_label(model),
+                "role": "shell", "session": row.get("session"), "ts": row.get("ts")})
     commits = {sha: {"agent": "claude", "model": agent_bus.model_label(m), "role": k} for sha, (m, k) in c_commits.items()}
     commits.update({sha: {"agent": "codex", "model": agent_bus.model_label(m), "role": k} for sha, (m, k) in CODEX.commits().items()})
     _attr.update(at=time.time(), data={"files": files, "commits": commits})
