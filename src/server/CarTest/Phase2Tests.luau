@@ -771,7 +771,176 @@ function Tests.weather()
 			flag("catalog_saved_ownership_" .. spec.Id, owned ~= nil and owned:FindFirstChild(spec.Id) ~= nil)
 		end
 	end)
+	-- BRIEF (owner, 2026-10-12; docs/WEATHER_EVENTS_SPEC.md "Sky"): "Each event also changes the sky, and the
+	-- clear state restores the exact baseline values that WeatherService.Start saved. No uploaded skybox
+	-- textures: the server sets Lighting.Atmosphere (Color, Density, Haze), Terrain.Clouds (Cover, Density,
+	-- Color) and Lighting.Sky.StarCount from WeatherConfig.Events[id].Sky." Table: Rain = grey-blue, dense,
+	-- hazy / heavy cover, dark / 0 stars; Night Race = dark violet, thin / light cover / many stars;
+	-- Gold Rush = warm gold, light haze / thin, golden / 0 stars. Numbers come from the config, never from here.
+	local skyOk, skyErr = pcall(function()
+		local Lighting = game:GetService("Lighting")
+		local ids = { "rain", "night", "gold" }
+		local function only(parent, class)
+			local found, count = nil, 0
+			for _, child in parent:GetChildren() do
+				if child:IsA(class) then
+					found = found or child
+					count += 1
+				end
+			end
+			return found, count
+		end
+		local function num(v)
+			return type(v) == "number" and v == v and math.abs(v) ~= math.huge
+		end
+		local function shaped(sky)
+			return type(sky) == "table"
+				and type(sky.Atmosphere) == "table"
+				and typeof(sky.Atmosphere.Color) == "Color3"
+				and num(sky.Atmosphere.Density)
+				and num(sky.Atmosphere.Haze)
+				and type(sky.Clouds) == "table"
+				and num(sky.Clouds.Cover)
+				and num(sky.Clouds.Density)
+				and typeof(sky.Clouds.Color) == "Color3"
+				and num(sky.StarCount)
+		end
+		local skies, allShaped = {}, true
+		for _, id in ids do
+			local sky = config.Events[id] and config.Events[id].Sky
+			local good = shaped(sky)
+			flag("weather_sky_config_shape_" .. id, good)
+			flag(
+				"weather_sky_config_ranges_" .. id,
+				good
+					and sky.Atmosphere.Density >= 0
+					and sky.Atmosphere.Density <= 1
+					and sky.Atmosphere.Haze >= 0
+					and sky.Clouds.Cover >= 0
+					and sky.Clouds.Cover <= 1
+					and sky.Clouds.Density >= 0
+					and sky.Clouds.Density <= 1
+					and sky.StarCount >= 0
+					and sky.StarCount % 1 == 0
+			)
+			skies[id] = good and sky or nil
+			allShaped = allShaped and good
+		end
+		local rain, night, gold = skies.rain, skies.night, skies.gold
+		flag(
+			"weather_sky_rain_densest_haziest",
+			allShaped
+				and rain.Atmosphere.Density > night.Atmosphere.Density
+				and rain.Atmosphere.Density > gold.Atmosphere.Density
+				and rain.Atmosphere.Haze > night.Atmosphere.Haze
+				and rain.Atmosphere.Haze > gold.Atmosphere.Haze
+		)
+		flag(
+			"weather_sky_rain_heaviest_cloud_cover",
+			allShaped and rain.Clouds.Cover > night.Clouds.Cover and rain.Clouds.Cover > gold.Clouds.Cover
+		)
+		flag(
+			"weather_sky_night_thinnest_atmosphere",
+			allShaped
+				and night.Atmosphere.Density < rain.Atmosphere.Density
+				and night.Atmosphere.Density <= gold.Atmosphere.Density
+		)
+		flag(
+			"weather_sky_stars_only_at_night",
+			allShaped and rain.StarCount == 0 and gold.StarCount == 0 and night.StarCount > 0
+		)
+		flag(
+			"weather_sky_gold_warm_atmosphere",
+			allShaped and gold.Atmosphere.Color.R > gold.Atmosphere.Color.B,
+			allShaped and gold.Atmosphere.Color.R - gold.Atmosphere.Color.B or -1,
+			0
+		)
+		flag(
+			"weather_sky_gold_thin_golden_clouds",
+			allShaped and gold.Clouds.Density < rain.Clouds.Density and gold.Clouds.Color.R > gold.Clouds.Color.B
+		)
+
+		-- Main ran WeatherService.Start() before the harness: the three instances must already exist.
+		weather.SetEvent("")
+		local atmosphere, atmospheres = only(Lighting, "Atmosphere")
+		local skyBox, skyBoxes = only(Lighting, "Sky")
+		local clouds, cloudCount = only(Workspace.Terrain, "Clouds")
+		flag("weather_sky_atmosphere_exists", atmospheres == 1, atmospheres, 1)
+		flag("weather_sky_skybox_exists", skyBoxes == 1, skyBoxes, 1)
+		flag("weather_sky_clouds_exist", cloudCount == 1, cloudCount, 1)
+		local live = atmosphere ~= nil and skyBox ~= nil and clouds ~= nil
+		local function read()
+			return {
+				atmosphere.Color,
+				atmosphere.Density,
+				atmosphere.Haze,
+				clouds.Cover,
+				clouds.Density,
+				clouds.Color,
+				skyBox.StarCount,
+			}
+		end
+		-- The clear state IS the baseline Start saved; a read-back of a property is exact.
+		local baseline = live and read() or nil
+		local function restored()
+			if not (live and allShaped) then
+				return false
+			end
+			local got = read()
+			for i, want in baseline do
+				if got[i] ~= want then
+					return false
+				end
+			end
+			return true
+		end
+		-- Instance properties are 32-bit floats: "exactly the config value" is within one float step.
+		local function applied(id)
+			local sky = skies[id]
+			return live
+				and sky ~= nil
+				and atmosphere.Color == sky.Atmosphere.Color
+				and near(atmosphere.Density, sky.Atmosphere.Density, 1e-5)
+				and near(atmosphere.Haze, sky.Atmosphere.Haze, 1e-5)
+				and near(clouds.Cover, sky.Clouds.Cover, 1e-5)
+				and near(clouds.Density, sky.Clouds.Density, 1e-5)
+				and clouds.Color == sky.Clouds.Color
+				and skyBox.StarCount == sky.StarCount
+		end
+		local at = Workspace:GetServerTimeNow()
+		for _, id in ids do
+			weather.SetEvent(id, at)
+			local _, expiry = weather.Current()
+			flag("weather_sky_applied_" .. id, applied(id))
+			weather.Tick(expiry - 0.001)
+			flag("weather_sky_held_until_expiry_" .. id, applied(id))
+			weather.Tick(expiry)
+			flag("weather_sky_restored_on_expiry_" .. id, weather.Current() == "" and restored())
+			at += config.DURATION + 10
+			weather.SetEvent(id, at)
+			flag("weather_sky_reapplied_" .. id, applied(id))
+			weather.SetEvent("", at)
+			flag("weather_sky_restored_on_clear_" .. id, restored())
+		end
+		-- One event replacing another must not move the baseline: clear restores Start's values, not rain's.
+		weather.SetEvent("rain", at)
+		weather.SetEvent("night", at)
+		flag("weather_sky_switch_applies_new_event", applied("night"))
+		weather.SetEvent("gold", at)
+		weather.SetEvent("", at)
+		flag("weather_sky_restored_after_event_switch", restored())
+		local _, atmospheresAfter = only(Lighting, "Atmosphere")
+		local _, skyBoxesAfter = only(Lighting, "Sky")
+		local _, cloudsAfter = only(Workspace.Terrain, "Clouds")
+		flag(
+			"weather_sky_no_duplicate_instances",
+			atmospheresAfter == 1 and skyBoxesAfter == 1 and cloudsAfter == 1,
+			atmospheresAfter + skyBoxesAfter + cloudsAfter,
+			3
+		)
+	end)
 	weather.SetEvent("")
+	flag("weather_sky_no_runtime_error", skyOk, nil, skyOk and 1 or tostring(skyErr))
 	for i = #resources, 1, -1 do
 		pcall(function()
 			resources[i]:Destroy()
