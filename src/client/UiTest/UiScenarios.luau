@@ -23,6 +23,8 @@ local Workspace = game:GetService("Workspace")
 local UiSpec = require(script.Parent:WaitForChild("UiSpec"))
 local UiResponsive = require(script.Parent:WaitForChild("UiResponsive"))
 local UiLegacyControls = require(script.Parent:WaitForChild("UiLegacyControls"))
+local UiDuel = require(script.Parent:WaitForChild("UiDuel"))
+local UiBoostsRebirth = require(script.Parent:WaitForChild("UiBoostsRebirth"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local HudFormat = require(Shared:WaitForChild("HudFormat"))
 local CarCatalog = require(Shared:WaitForChild("CarCatalog"))
@@ -103,6 +105,11 @@ UiScenarios.Names = {
 	"ui_workshop_modal",
 	"ui_progression_layout",
 	"ui_progression_hud",
+	"ui_rebirth",
+	"ui_daily_boosts",
+	-- At rest here (no duel message yet); after each duel_* server fixture it runs again through
+	-- UiSpec.Duel.FixtureChecks (UiTestScenario) and judges that message.
+	"ui_duel",
 	-- ui_offline_welcome needs its offline_welcome server fixture, so it runs only through
 	-- UiSpec.Progression.FixtureChecks (UiTestScenario), like ui_offline_zero and ui_progression_world.
 	"ui_weather",
@@ -120,6 +127,9 @@ local STATES = {
 	{ Name = "upgrades_open", Open = { "RacerUpgrades/Panel" } },
 	{ Name = "workshop_open", Open = { "RacerWorkshop/Panel" } },
 	{ Name = "welcome_open", Open = { "RacerWelcome/Panel" } },
+	{ Name = "daily_boosts_open", Open = { "DailyBoosts/ModalBackdrop" } },
+	{ Name = "duel_pick_open", Open = { "DuelUi/PickPanel" } },
+	{ Name = "duel_invite_open", Open = { "DuelUi/InvitePanel" } },
 	-- Two panels open at once is NOT a reachable state: ui_panels proves the panels are mutually exclusive
 	-- through the real mechanism (PanelSwitch) and the Clicks open_*_while_*_open prove it through the buttons.
 	-- If exclusivity ever breaks, ui_panels fails, and this state must be added back here.
@@ -343,6 +353,14 @@ local function setPanels(open)
 			o.Visible = v
 		end
 	end
+end
+
+-- The part of a declared panel that is the panel for geometry: the panel itself, or its UiSpec.PanelBody child when
+-- the toggled Frame is only a see-through, click-through dimmer.
+local function panelBody(path)
+	local panel = findPath(path)
+	local body = UiSpec.PanelBody[path]
+	return panel and body and panel:FindFirstChild(body) or panel
 end
 
 ---------------------------------------------------------------------------------------------------------------
@@ -1064,6 +1082,17 @@ function UiScenarios.Init()
 			hits = hitsAt,
 		})
 	end
+	UiDuel.Observe({
+		check = check,
+		checkList = checkList,
+		find = findPath,
+		frames = frames,
+		visible = effectivelyVisible,
+		rect = realRect,
+		viewport = viewport,
+		player = player,
+		playerGui = playerGui,
+	})
 	player:GetAttributeChangedSignal("Rolls"):Connect(function()
 		events.rollsChanged = os.clock()
 	end)
@@ -2161,9 +2190,9 @@ local function elementsFor(open)
 		end
 	end
 	for _, p in open do
-		local panel = findPath(p)
+		local panel = panelBody(p)
 		if panel then
-			table.insert(list, { path = p, obj = panel, panel = true })
+			table.insert(list, { path = pathOf(panel), obj = panel, panel = true })
 			for _, b in buttonsIn(panel) do
 				table.insert(list, { path = pathOf(b), obj = b })
 			end
@@ -2354,9 +2383,14 @@ function S.ui_inventory(res)
 				want = #GachaConfig.STATS
 			elseif spec.Count == "upgrades" then
 				want = #UpgradeTree.Tiles()
+			elseif spec.Count == "duel_tracks" then
+				want = UiDuel.OfferedTracks()
 			end
 			local got = counts[guiName .. "#" .. i] or 0
-			check(res, "button_count_" .. guiName .. "/" .. spec.Path, got, want, got == want)
+			-- "dynamic": the count depends on the view last rendered; ui_daily_boosts and its clicks count the rows
+			if spec.Count ~= "dynamic" then
+				check(res, "button_count_" .. guiName .. "/" .. spec.Path, got, want, got == want)
+			end
 		end
 	end
 
@@ -2779,7 +2813,7 @@ function S.ui_layout(res)
 			end
 			-- An open panel never covers the top controls (Race top centre, Settings top right): both stay clickable
 			for _, panelPath in state.Open do
-				local panel = findPath(panelPath)
+				local panel = panelBody(panelPath)
 				for _, key in { "Race", "Settings" } do
 					local name = "panel_clear_of_top_controls_" .. panelPath .. "_" .. key .. "_" .. vpSpec.Name
 					local control = findPath(UiSpec.TopControls[key])
@@ -2843,6 +2877,43 @@ function S.ui_layout(res)
 						end
 					else
 						check(res, prefix .. "_centred_x" .. tagV, "missing", "panel, Race, Turbo, Navigation", false)
+					end
+				end
+			end
+
+			-- The duel panels (docs/DUEL_SPEC.md section 3): centred horizontally, top at least PanelTopMargin below
+			-- the Race button, bottom at least PanelTopMargin above the TURBO LUCK bar (the progression panels' rule)
+			for _, panelPath in state.Open do
+				local prefix = UiSpec.Duel.Panels[panelPath]
+				if prefix then
+					local p = findPath(panelPath)
+					local race, turbo = findPath(UiSpec.Hud.Race), findPath(UiSpec.Hud.Turbo)
+					local tagV = "_" .. vpSpec.Name
+					if p and race and turbo then
+						local margin = UiSpec.PanelTopMargin
+						local r, root = rectOf(p), rootRect(guiOf(p), vp)
+						local ar, br = rectOf(race), rectOf(turbo)
+						local dx = math.abs(centre(r) - (root.x + root.w / 2))
+						check(res, prefix .. "_centred_x" .. tagV, dx, TOL, dx <= TOL)
+						local minTop = ar.y + ar.h + margin
+						check(res, prefix .. "_below_autorace" .. tagV, r.y, ">= " .. minTop, r.y >= minTop - TOL)
+						local maxBottom = br.y - margin
+						check(
+							res,
+							prefix .. "_above_turbo" .. tagV,
+							r.y + r.h,
+							"<= " .. maxBottom,
+							r.y + r.h <= maxBottom + TOL
+						)
+						check(
+							res,
+							prefix .. "_positive_size" .. tagV,
+							("%dx%d"):format(r.w, r.h),
+							"positive area inside the viewport",
+							r.w > 0 and r.h > 0 and contains(root, r)
+						)
+					else
+						check(res, prefix .. "_centred_x" .. tagV, "missing", "panel, Race, Turbo", false)
 					end
 				end
 			end
@@ -4426,9 +4497,17 @@ function S.ui_panels(res)
 			UiSpec.PanelSwitch.Names[p] ~= nil
 		)
 	end
-	-- Open each panel in turn from every other open panel: exactly the newly opened one is visible
-	for _, a in panels do
-		for _, b in panels do
+	-- Open each panel in turn from every other open panel: exactly the newly opened one is visible. A panel with no
+	-- PanelSwitch name (panel_registered_* failed above) can not be opened through the switch, so it is left out of
+	-- these loops; it stays red on panel_registered_*.
+	local registered = {}
+	for _, p in panels do
+		if UiSpec.PanelSwitch.Names[p] then
+			table.insert(registered, p)
+		end
+	end
+	for _, a in registered do
+		for _, b in registered do
 			if a ~= b then
 				setPanels({})
 				Switch.Toggle(UiSpec.PanelSwitch.Names[a])
@@ -4444,7 +4523,7 @@ function S.ui_panels(res)
 		end
 	end
 	if type(Switch.Close) == "function" then
-		for _, p in panels do
+		for _, p in registered do
 			setPanels({})
 			Switch.Toggle(UiSpec.PanelSwitch.Names[p])
 			Switch.Close(UiSpec.PanelSwitch.Names[p])
@@ -4733,6 +4812,22 @@ for name, fn in progressionChecks do
 	S[name] = fn
 end
 
+-- Duel UI, Rebirth panel and Bag / Daily Rewards scenarios (their own modules, same helpers).
+for name, fn in UiDuel.Build() do
+	S[name] = fn
+end
+local extras = UiBoostsRebirth.Build({
+	check = check,
+	checkList = checkList,
+	find = findPath,
+	visible = effectivelyVisible,
+	setPanels = setPanels,
+	player = player,
+})
+for name, fn in extras.Scenarios do
+	S[name] = fn
+end
+
 -- The UiSpec.Clicks entries marked Manual (owner decision 2026-10-08), in order.
 function UiScenarios.ManualClicks()
 	local list = {}
@@ -4803,6 +4898,7 @@ local function attrSnapshot()
 	for _, stat in GachaConfig.STATS do
 		snap["Alloc_" .. stat] = attr("Alloc_" .. stat) or 0
 	end
+	extras.Snapshot(snap) -- Speed, RebirthLevel, DailyLast, DailyStreak, the fixture potion's count and timer
 	return snap
 end
 
@@ -5075,6 +5171,15 @@ function UiScenarios.RunClick(id)
 		tileId = equipped
 		path = string.gsub(path, "{equipped}", tileId)
 	end
+	local boostId = nil
+	if string.find(path, "{boost}", 1, true) then
+		boostId = extras.BoostToken()
+		if not boostId then
+			stateMissing(res, "target_row", "bag_potion", "the server says the Bag has no row for the fixture potion")
+			return res
+		end
+		path = string.gsub(path, "{boost}", boostId)
+	end
 	local rowStat = spec.Gui == "RacerStats" and splitPath(path)[5] or nil
 	local upgradeId = spec.Gui == "RacerUpgrades" and splitPath(path)[3] or nil
 	local button = findPath(spec.Gui .. "/" .. path)
@@ -5143,15 +5248,36 @@ function UiScenarios.RunClick(id)
 			return res
 		end
 	end
+	if prep.TargetActive ~= nil then
+		-- A view that re-renders (the Bag, once a second) replaces its buttons: read the one there now
+		button = findPath(spec.Gui .. "/" .. path) or button
+		if button.Active ~= prep.TargetActive then
+			stateMissing(
+				res,
+				"target_active_before_click",
+				spec.NeedSetup and spec.NeedSetup[1] or previous,
+				("%s Active=%s, want %s"):format(pathOf(button), tostring(button.Active), tostring(prep.TargetActive))
+			)
+			restore()
+			return res
+		end
+	end
 	local preSpy = readSpy()
 	if not preSpy then
 		stateMissing(res, "spy_installed", "spy", "ReplicatedStorage.UiTestSpy missing")
 		restore()
 		return res
 	end
-	if spec.Expect.Remote and table.find(UiSpec.RemoteFunctions, spec.Expect.Remote.Name) then
+	-- A RemoteFunction this click invokes, or could invoke by mistake (Prepare.Intercept), must be the logging proxy
+	local guarded = prep.Intercept
+		or (
+			spec.Expect.Remote
+			and table.find(UiSpec.RemoteFunctions, spec.Expect.Remote.Name)
+			and spec.Expect.Remote.Name
+		)
+	if guarded then
 		local spyFolder = ReplicatedStorage:FindFirstChild("UiTestSpy")
-		local remote = ReplicatedStorage.Remotes:FindFirstChild(spec.Expect.Remote.Name)
+		local remote = ReplicatedStorage.Remotes:FindFirstChild(guarded)
 		local ready = spyFolder
 			and spyFolder:GetAttribute("ProgressionIntercepted") == true
 			and remote
@@ -5223,6 +5349,8 @@ function UiScenarios.RunClick(id)
 			local o = findPath(p)
 			prePanels[p] = o and o.Visible
 		end
+		-- (a re-rendered view replaced the button: aim at, and judge the press against, the one there now)
+		button = findPath(spec.Gui .. "/" .. path) or button
 		cx, cy = clickPoint()
 		if not cx then
 			check(res, "click_point_exists", spec.ClickAt, "present", false)
@@ -5248,7 +5376,9 @@ function UiScenarios.RunClick(id)
 			then
 				local tl = inset()
 				local px, py = input.Position.X + tl.X, input.Position.Y + tl.Y
+				button = findPath(spec.Gui .. "/" .. path) or button
 				press = { x = px, y = py, hit = topAt(px, py), targetShown = shownNow(button), t = os.clock() }
+				press.target = button
 			end
 		end)
 
@@ -5292,7 +5422,8 @@ function UiScenarios.RunClick(id)
 	clickedAt = press and press.t or os.clock()
 	if done then
 		if press then
-			local landed = press.hit ~= nil and (press.hit == button or button:IsAncestorOf(press.hit))
+			-- press.target: the button at that path at the press (the same instance unless its view re-rendered)
+			local landed = press.hit ~= nil and (press.hit == press.target or press.target:IsAncestorOf(press.hit))
 			check(
 				res,
 				"click_landed_on_button",
@@ -5369,6 +5500,27 @@ function UiScenarios.RunClick(id)
 		end
 		local want = expect.Remote.Name .. "(" .. tostring(wantArg) .. ")"
 		local ok = #fired == 1 and fired[1].name == expect.Remote.Name and fired[1].args[1] == wantArg
+		if expect.Remote.Args then
+			-- The whole argument list, in order: exactly these values and no more
+			local wantArgs, shown = {}, {}
+			for i, v in expect.Remote.Args do
+				wantArgs[i] = v == "{boost}" and boostId or v
+				shown[i] = tostring(wantArgs[i])
+			end
+			want = expect.Remote.Name .. "(" .. table.concat(shown, ", ") .. ")"
+			names = {}
+			for _, f in fired do
+				local parts = {}
+				for i = 1, #f.args do
+					parts[i] = tostring(f.args[i])
+				end
+				table.insert(names, f.name .. "(" .. table.concat(parts, ", ") .. ")")
+			end
+			ok = #fired == 1 and fired[1].name == expect.Remote.Name and #fired[1].args == #wantArgs
+			for i, v in wantArgs do
+				ok = ok and fired[1].args[i] == v
+			end
+		end
 		if ok and (expect.Remote.Arg == "upgrade_id" or expect.Remote.Arg == "none") then
 			ok = #fired[1].args == (expect.Remote.Arg == "none" and 0 or 1)
 		end
@@ -5757,6 +5909,8 @@ function UiScenarios.RunClick(id)
 		elseif cond == "normal_view_back" then
 			checkList(res, "normal_view_buttons_clickable", alwaysOnCovered())
 			checkList(res, "showcase_not_clickable_after_close", showcaseHits())
+		elseif extras.After[cond] then
+			extras.After[cond](res, { pre = pre })
 		else
 			check(res, "unknown_condition_" .. tostring(cond), cond, "known", false)
 		end

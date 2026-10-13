@@ -4,7 +4,8 @@ Owner brief (2026-10-12): a separate multiplayer feature. A player requests a du
 player accepts or declines. The challenger is asked at once which track to race, and both players must have unlocked
 that track. No stake. Design rule: `docs/GAME_DESIGN_REQUIREMENTS.md`, "Duels (player vs player)".
 
-Status: NOT BUILT. This file is the contract; `test-writer` writes the `duel` scenario from it first.
+Status: BUILT 2026-10-13 (server and client source present; full CarTest duel scenario 191/191 passed).
+Live UI and multiplayer flow validation remain pending. This file remains the implementation contract.
 
 ## 1. Rules
 

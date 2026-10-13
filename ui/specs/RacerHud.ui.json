@@ -40,7 +40,7 @@
     {
       "id": "Race",
       "kind": "button",
-      "text": "AUTO RACE",
+      "text": "",
       "pos": [
         [
           0.5,
@@ -177,7 +177,7 @@
         {
           "id": "Stats",
           "kind": "button",
-          "text": "STATS",
+          "text": "",
           "pos": [
             [
               0,

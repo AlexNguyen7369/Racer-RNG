@@ -33,7 +33,7 @@ local autoRollRemote = remotes:WaitForChild("SetAutoRoll")
 local PanelSwitch = require(script.Parent:WaitForChild("PanelSwitch"))
 
 local A = RollAnimConfig
-local SHOWCASE_ORDER = 5 -- above the HUD, below the loser screen (10)
+local SHOWCASE_ORDER = 14 -- above the HUD and DuelUi (12), below the loser screen (20)
 local BLUR_SIZE = 14
 local AUTO_BUTTON_SIZE = Vector2.new(180, 44)
 local AUTO_BUTTON_BOTTOM = 38 -- keeps the toggle below the card on small phones
@@ -490,6 +490,9 @@ local gui = make("ScreenGui", {
 	ResetOnSpawn = false,
 	IgnoreGuiInset = true,
 }, playerGui)
+-- The compact toast must receive clicks above the base HUD, while the enlarged showcase
+-- keeps its separate higher DisplayOrder below LoserScreen.
+gui.DisplayOrder = 3
 gui:SetAttribute("View", "Compact")
 
 local toast = make("TextButton", {
@@ -498,6 +501,7 @@ local toast = make("TextButton", {
 	Position = UDim2.new(0.5, 0, 0, autoRaceBottom() + A.COMPACT_GAP),
 	Size = UDim2.new(A.COMPACT_WIDTH, 0, 0, A.COMPACT_HEIGHT + 44),
 	BackgroundTransparency = 1,
+	ClipsDescendants = true,
 	AutoButtonColor = false,
 	Text = "",
 	Visible = false,
@@ -551,7 +555,11 @@ card.ZIndex = 2
 local CARD_POS = UDim2.fromScale(0.5, 0.46)
 local function cardTargetSize()
 	local camera = workspace.CurrentCamera
-	local phone = camera and camera.ViewportSize.Y <= 500
+	local height = camera and camera.ViewportSize.Y or 0
+	if height <= 1 and showcase.AbsoluteSize.Y > 1 then
+		height = showcase.AbsoluteSize.Y
+	end
+	local phone = height <= 500
 	return phone and UDim2.fromOffset(540, 224) or UDim2.fromOffset(760, 320)
 end
 local enlarged = buildBody(card, 3)

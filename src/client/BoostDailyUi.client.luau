@@ -7,6 +7,7 @@ local player = Players.LocalPlayer
 local gui = player:WaitForChild("PlayerGui")
 local boosts = require(ReplicatedStorage.Shared.BoostConfig)
 local dailyConfig = require(ReplicatedStorage.Shared.DailyLoginConfig)
+local PanelSwitch = require(script.Parent:WaitForChild("PanelSwitch"))
 
 local screen = Instance.new("ScreenGui")
 screen.Name = "DailyBoosts"
@@ -47,11 +48,15 @@ local function button(name, parent, position, size, text)
 	return instance
 end
 
-local bagButton = button("BagButton", screen, UDim2.new(1, -16, 0, 64), UDim2.fromOffset(112, 36), "BAG")
+-- Keep the utility controls in a responsive right-hand stack below the duel/result-toast band.
+-- The scale term follows the HUD's Auto Race / upgrade band on every supported height;
+-- the fixed offsets leave the centred roll and Speed readouts clear on phones.
+local bagButton = button("BagButton", screen, UDim2.new(1, -16, 0.22, 138), UDim2.fromOffset(112, 36), "BAG")
 bagButton.AnchorPoint = Vector2.new(1, 0)
 local dailyButton =
-	button("DailyRewardButton", screen, UDim2.new(1, -16, 0, 106), UDim2.fromOffset(176, 36), "DAILY REWARDS")
+	button("DailyRewardButton", screen, UDim2.new(1, -16, 0.22, 178), UDim2.fromOffset(116, 36), "DAILY REWARDS")
 dailyButton.AnchorPoint = Vector2.new(1, 0)
+dailyButton.TextSize = 12
 
 local backdrop = make("Frame", "ModalBackdrop", screen, {
 	Position = UDim2.fromScale(0, 0),
@@ -60,10 +65,11 @@ local backdrop = make("Frame", "ModalBackdrop", screen, {
 	BackgroundTransparency = 0.35,
 	Visible = false,
 })
+PanelSwitch.Register("Daily", backdrop)
 local modal = make("Frame", "Modal", backdrop, {
-	AnchorPoint = Vector2.new(0.5, 0.5),
-	Position = UDim2.fromScale(0.5, 0.5),
-	Size = UDim2.fromScale(0.86, 0.76),
+	AnchorPoint = Vector2.new(0.5, 0),
+	Position = UDim2.new(0.5, 0, 0, 146),
+	Size = UDim2.fromScale(0.58, 0.24),
 	BackgroundColor3 = Color3.fromRGB(29, 32, 53),
 })
 rounded(modal, 14)
@@ -93,8 +99,9 @@ layout.Padding = UDim.new(0, 8)
 layout.Parent = content
 
 local status = make("TextLabel", "Status", screen, {
-	Position = UDim2.new(1, -300, 0, 146),
-	Size = UDim2.fromOffset(284, 42),
+	AnchorPoint = Vector2.new(1, 0),
+	Position = UDim2.new(1, -16, 1, -130),
+	Size = UDim2.fromOffset(160, 42),
 	BackgroundTransparency = 1,
 	TextColor3 = Color3.new(1, 1, 1),
 	Font = Enum.Font.GothamBold,
@@ -103,6 +110,18 @@ local status = make("TextLabel", "Status", screen, {
 	TextXAlignment = Enum.TextXAlignment.Right,
 	Text = "",
 })
+
+local function refreshChrome()
+	local camera = workspace.CurrentCamera
+	local compact = camera and camera.ViewportSize.Y <= 500
+	local visible = not compact and not PanelSwitch.AnyOpen()
+	bagButton.Visible = visible
+	dailyButton.Visible = visible
+	status.Visible = visible
+end
+
+PanelSwitch.OnChange(refreshChrome)
+backdrop:GetPropertyChangedSignal("Visible"):Connect(refreshChrome)
 
 local function clearContent()
 	for _, child in content:GetChildren() do
@@ -124,7 +143,11 @@ local function formatTime(seconds)
 end
 
 local function showBag()
+	if not backdrop.Visible then
+		PanelSwitch.Toggle("Daily")
+	end
 	backdrop.Visible = true
+	refreshChrome()
 	title.Text = "BAG • CONSUMABLES"
 	clearContent()
 	for _, category in ipairs(boosts.Order) do
@@ -189,7 +212,11 @@ local function showBag()
 end
 
 local function showDaily()
+	if not backdrop.Visible then
+		PanelSwitch.Toggle("Daily")
+	end
 	backdrop.Visible = true
+	refreshChrome()
 	title.Text = "DAILY REWARDS • 7 DAYS"
 	clearContent()
 	local streak = math.clamp(player:GetAttribute("DailyStreak") or 0, 0, 7)
@@ -238,7 +265,17 @@ end
 bagButton.Activated:Connect(showBag)
 dailyButton.Activated:Connect(showDaily)
 close.Activated:Connect(function()
+	PanelSwitch.Close("Daily")
 	backdrop.Visible = false
+	refreshChrome()
+end)
+
+refreshChrome()
+task.spawn(function()
+	while screen.Parent do
+		refreshChrome()
+		task.wait(0.05)
+	end
 end)
 
 local function refreshButtons()

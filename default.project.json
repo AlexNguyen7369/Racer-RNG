@@ -37,6 +37,11 @@
     "StarterGui": {
       "$path": "assets/studio/StarterGui.rbxm"
     },
+    "TextChatService": {
+      "$properties": {
+        "ChatVersion": "TextChatService"
+      }
+    },
     "Workspace": {
       "$className": "Workspace",
       "$properties": {

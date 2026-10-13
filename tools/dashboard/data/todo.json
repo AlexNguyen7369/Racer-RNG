@@ -372,13 +372,13 @@
       "id": "5c89de92",
       "title": "Rotating weather / biome events that boost luck",
       "detail": "Every 10-20 minutes a server-wide event runs for a few minutes (Rain: x2 luck, Night Race: NPCs faster but pads pay x2, Gold Rush: Money x3). A banner and a skybox / lighting change show it; some cars can only be rolled during an event.\n\nFits this game: Rolling is free and automatic, so events give players a reason to stay online at a given moment. Plugs straight into GachaConfig luck and MoneyService multipliers.\nInspired by: Sol's RNG biomes, Grow a Garden weather events\n\nReopened 2026-10-12: add the sky change (Atmosphere / Clouds / stars, docs/WEATHER_EVENTS_SPEC.md) and run the pending live verification.",
-      "status": "doing",
+      "status": "done",
       "source": "suggestion:weather-events",
       "by": "Alex Nguyen",
       "added": "2026-10-07T00:58:33-07:00",
-      "updated": "2026-10-12T00:38:15-07:00",
-      "updatedBy": "Claude",
-      "done": "2026-10-08T20:24:20-07:00"
+      "updated": "2026-10-13T05:44:06-07:00",
+      "updatedBy": "Alex Nguyen",
+      "done": "2026-10-13T05:44:06-07:00"
     },
     {
       "id": "ac1becc5",
@@ -489,23 +489,25 @@
       "id": "75e286a3",
       "title": "Duels: challenge another player to a race (request, accept/decline, track pick)",
       "detail": "Owner redefined the rival card on 2026-10-12: a separate multiplayer feature. A player requests a duel (ProximityPrompt on the other player), is asked at once which track (only tracks both players unlocked), the other player accepts or declines, both cars race that one track, first to the finish wins. No stake, no Money moves; the winner's saved DuelWins goes up. Contract: docs/DUEL_SPEC.md; design doc section 'Duels (player vs player)'.",
-      "status": "doing",
+      "status": "done",
       "source": "suggestion:steal-rival",
       "by": "Alex Nguyen",
       "added": "2026-10-12T00:23:35-07:00",
-      "updated": "2026-10-12T00:38:15-07:00",
-      "updatedBy": "Claude"
+      "updated": "2026-10-13T05:44:06-07:00",
+      "updatedBy": "Alex Nguyen",
+      "done": "2026-10-13T05:44:06-07:00"
     },
     {
       "id": "487b1922",
       "title": "Global leaderboards in the spawn area",
       "detail": "OrderedDataStore boards for Speed, Money earned, rolls and rarest car, shown on signs in the spawn area.\n\nFits this game: Cheap, and gives top players a visible goal. Server-only.\nInspired by: Most top simulators\n\nContract: docs/LEADERBOARD_SPEC.md (2026-10-12).",
-      "status": "doing",
+      "status": "done",
       "source": "suggestion:leaderboards",
       "by": "Alex Nguyen",
       "added": "2026-10-12T00:23:38-07:00",
-      "updated": "2026-10-12T00:38:15-07:00",
-      "updatedBy": "Claude"
+      "updated": "2026-10-13T05:44:06-07:00",
+      "updatedBy": "Alex Nguyen",
+      "done": "2026-10-13T05:44:06-07:00"
     },
     {
       "id": "conflict-rebirth-speed",
@@ -554,6 +556,39 @@
       "updated": "2026-10-12T23:53:02-07:00",
       "done": "2026-10-12T23:53:02-07:00",
       "updatedBy": "Claude"
+    },
+    {
+      "id": "9c8021bf",
+      "title": "Daily Quest System",
+      "detail": "Add a daily quest system with rotating objectives and rewards; define the design/spec before implementation.",
+      "status": "next",
+      "source": "Owner request 2026-10-13",
+      "by": "Alex Nguyen",
+      "added": "2026-10-13T00:05:42-07:00",
+      "updated": "2026-10-13T00:07:07-07:00",
+      "updatedBy": "Alex Nguyen"
+    },
+    {
+      "id": "6f721034",
+      "title": "Redeem Codes section",
+      "detail": "Add a Redeem Codes section projected for the Shop area where the gamepasses are located.",
+      "status": "next",
+      "source": "Owner request 2026-10-13",
+      "by": "Alex Nguyen",
+      "added": "2026-10-13T00:05:42-07:00",
+      "updated": "2026-10-13T00:07:06-07:00",
+      "updatedBy": "Alex Nguyen"
+    },
+    {
+      "id": "ee591f0e",
+      "title": "Friends-in-server boost",
+      "detail": "+10% luck and Money per friend in the same server, up to +40%.\n\nFits this game: Encourages inviting friends; one multiplier in GachaService and MoneyService.\nInspired by: Common in 2025-2026 simulators",
+      "status": "next",
+      "source": "suggestion:friend-boost",
+      "by": "Alex Nguyen",
+      "added": "2026-10-13T00:06:23-07:00",
+      "updated": "2026-10-13T00:07:05-07:00",
+      "updatedBy": "Alex Nguyen"
     }
   ]
 }

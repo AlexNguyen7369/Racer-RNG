@@ -4,7 +4,8 @@ Owner brief (2026-10-12, dashboard card `487b1922`): OrderedDataStore boards for
 rarest car, shown on signs in the spawn area. Server-only. Design rule: `docs/GAME_DESIGN_REQUIREMENTS.md`,
 "Global leaderboards".
 
-Status: NOT BUILT. This file is the contract; `test-writer` writes the `leaderboard` scenario from it first.
+Status: BUILT 2026-10-13 (server source present; full CarTest leaderboard scenario 109/109 passed).
+Live sign visual validation remains pending. This file remains the implementation contract.
 
 ## 1. Boards (`src/shared/LeaderboardConfig.luau`)
 

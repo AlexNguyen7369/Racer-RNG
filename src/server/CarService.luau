@@ -48,6 +48,8 @@ local watched = setmetatable({}, { __mode = "k" }) -- character -> true once its
 local lastToggle = {} -- player -> os.clock() of the last accepted remote request
 local lastPadStart = {} -- player -> os.clock() of the last stop or StartPad start (StartPad cooldown)
 
+local DUEL_SLOT_GAP = 8 -- studs between the two held duel cars (the road is 40 wide)
+
 local function userIdOf(player)
 	local ok, id = pcall(function()
 		return player.UserId
@@ -252,7 +254,10 @@ end
 -- The player attribute RaceEvent shows the step: "Teleporting" during 1-2, "Racing" from 3, "Off" on foot.
 -- If the avatar can not be seated within SEAT_TIMEOUT the race never starts and the player is put back on foot.
 -- Gives up (leaving cleanup to whoever bumped the generation) as soon as a newer request arrives.
-local function spawnCar(player, character, gen)
+-- Duel mode (duel = { Track, Slot, OnSeated }, docs/DUEL_SPEC.md): the car waits at the picked track's start and
+-- stays held after step 2; OnSeated() is called and CarService.ReleaseDuel starts the race. Slot 2 waits
+-- DUEL_SLOT_GAP studs to the left: two cars held on one spot let each seat take the other player's avatar.
+local function spawnCar(player, character, gen, duel)
 	removeCar(player)
 	local humanoid = character:WaitForChild("Humanoid")
 	character:WaitForChild("HumanoidRootPart")
@@ -271,7 +276,13 @@ local function spawnCar(player, character, gen)
 
 	-- 1. The car waits at the start line, held in place
 	local start = spawnCFrame(index)
+	if duel then
+		start = RaceService.TrackStartCFrame(duel.Track) * CFrame.new(-DUEL_SLOT_GAP * ((duel.Slot or 1) - 1), 0, 0)
+	end
 	local car = CarFactory.build(CarConfig)
+	if duel then
+		RaceService.SetCarGroup(car) -- the release puts both cars on the same lane
+	end
 	CarAppearance.Apply(car, player:GetAttribute("EquippedCar"), CarConfig)
 	VehicleEffects.Apply(car, player)
 	car:PivotTo(start)
@@ -308,6 +319,12 @@ local function spawnCar(player, character, gen)
 		task.wait(0.1)
 	end
 	if generation[player] ~= gen or cars[player] ~= car then
+		return
+	end
+
+	if duel then
+		car:PivotTo(start)
+		duel.OnSeated()
 		return
 	end
 
@@ -414,7 +431,8 @@ end
 
 -- Turns auto race on (fresh car at the start) or off (avatar on foot beside the track). Returns the state.
 -- Anything but a boolean is ignored. The last request wins, even while an earlier one is still seating.
-function CarService.SetAutoRace(player, enabled)
+-- `duel` (server only, DuelService): see spawnCar.
+function CarService.SetAutoRace(player, enabled, duel)
 	if type(enabled) ~= "boolean" or enabled == CarService.IsAutoRacing(player) then
 		return CarService.IsAutoRacing(player)
 	end
@@ -425,11 +443,25 @@ function CarService.SetAutoRace(player, enabled)
 	local gen = setState(player, enabled)
 	lastPadStart[player] = os.clock() -- the StartPad waits START_COOLDOWN after any start or stop
 	if enabled then
-		spawnCar(player, character, gen)
+		spawnCar(player, character, gen, duel)
 	else
 		standUp(player, gen) -- removing the car destroys its run, which cashes out the banked winnings
 	end
 	return CarService.IsAutoRacing(player)
+end
+
+-- Releases a held duel car and starts its duel run (duel = { Track, OnFinish }). Returns the run, or nil.
+function CarService.ReleaseDuel(player, duel)
+	local car = cars[player]
+	local route = RaceService.GetRoute()
+	if not (car and car.PrimaryPart and route and racing[player] == true) or runs[player] then
+		return nil
+	end
+	car.PrimaryPart.Anchored = false
+	local run = RaceService.NewRun(car, route, player, { Duel = duel })
+	runs[player] = run
+	player:SetAttribute("RaceEvent", "Racing")
+	return run
 end
 
 -- A part touched the StartPad: if it belongs to `player`'s living, visible avatar that is on foot, auto racing

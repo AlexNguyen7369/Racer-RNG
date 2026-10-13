@@ -468,6 +468,37 @@
       "fixedAt": "2026-10-11T23:14:40-07:00",
       "fixedBy": "Alex Nguyen",
       "fixNote": "constrainToPath counts a flipped car it rights and samples MinUpY before the correction; flip_recovery green (31/31)"
+    },
+    {
+      "id": "494fcd69",
+      "name": "Duel cars held on one spot swap avatars",
+      "kind": "fault",
+      "status": "open",
+      "file": "src/server/CarService.luau",
+      "line": 275,
+      "endLine": 278,
+      "snippet": {
+        "from": 271,
+        "lines": [
+          "\tfor i, p in Players:GetPlayers() do",
+          "\t\tif p == player then",
+          "\t\t\tindex = i",
+          "\t\tend",
+          "\tend",
+          "",
+          "\t-- 1. The car waits at the start line, held in place",
+          "\tlocal start = spawnCFrame(index)",
+          "\tif duel then",
+          "\t\tstart = RaceService.TrackStartCFrame(duel.Track) * CFrame.new(-DUEL_SLOT_GAP * ((duel.Slot or 1) - 1), 0, 0)",
+          "\tend",
+          "\tlocal car = CarFactory.build(CarConfig)"
+        ]
+      },
+      "summary": "Both duel cars were built on the same start point, so each DriverSeat could weld the other player's avatar; seatedIn stayed false, the seat timeout ended the duel after 3 s with no countdown. Two real players accepting a duel could never race.",
+      "error": "",
+      "foundBy": "physics-tester",
+      "foundAt": "2026-10-13T00:33:54-07:00",
+      "loggedBy": "Alex Nguyen"
     }
   ]
 }

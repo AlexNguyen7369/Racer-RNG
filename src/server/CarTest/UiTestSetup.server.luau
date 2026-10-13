@@ -59,6 +59,16 @@ local function indexStates(player)
 	local C = require(Shared.CarCatalog)
 	local GachaConfig = require(Shared.GachaConfig)
 	local rarest = C.Rollable()[1].Id
+	-- Reset the catalog portion first: a reused Studio player can already own every car,
+	-- which would make this fixture unable to establish the required hidden rarest tile.
+	local data = player:FindFirstChild("GachaData")
+	if data then
+		for _, entry in data:GetChildren() do
+			if C.Get(entry.Name) and C.Get(entry.Name).Rollable then
+				entry:Destroy()
+			end
+		end
+	end
 	for _, s in C.All() do
 		if s.Id ~= rarest then
 			G.Grant(player, s.Id)

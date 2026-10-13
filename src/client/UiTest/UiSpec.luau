@@ -53,8 +53,11 @@ UiSpec.TopBar = { Reserved = { X = 0, Y = 0, W = 360, H = 58 } }
 --   Readouts   the AlwaysOn elements that are display only (never take a click; a modal panel may cover them)
 --   Panels     pop-up panels, hidden at rest, opened by a button (the panel is the outer Frame PanelSwitch toggles)
 --   Buttons    every GuiButton: what it must DO when clicked
---              Does = "toggle_panel" | "close_panel" | "remote" | "open_overlay" | "close_overlay" | "local"
---              Count = exact number expected for "*" patterns; Label = the text it must show
+--              Does = "toggle_panel" | "open_panel" | "close_panel" | "remote" | "open_overlay" | "close_overlay"
+--                     | "local" ("open_panel": opens it, a second click leaves it open; only its Close hides it)
+--              Count = exact number expected for "*" patterns ("duel_tracks": the Tracks of the latest PickTrack
+--              message, 0 before any; "dynamic": depends on the view last rendered, its scenario / clicks count it);
+--              Label = the text it must show
 --   Overlay    a declared full-screen overlay (may cover everything while shown)
 --   NonInteractive  nothing inside may be Active or a GuiButton (must never swallow clicks)
 --   NonInteractiveParts  paths (from the gui) of parts of an otherwise interactive gui that must not swallow clicks
@@ -172,7 +175,8 @@ UiSpec.Guis = {
 			},
 		},
 	},
-	-- REBIRTH modal (ui/specs/RacerRebirth.ui.json): "COMING SOON", only a Close button
+	-- REBIRTH modal (ui/specs/RacerRebirth.ui.json + the live parts RacerUiController adds to Panel/Face: the Status
+	-- text and the RebirthButton; the baked "COMING SOON" placeholder is hidden). UiSpec.Rebirth holds its texts.
 	RacerRebirth = {
 		Source = "Client/RollToast/RacerUiController (Ui/RacerRebirth)",
 		Panels = { "Panel" },
@@ -182,6 +186,16 @@ UiSpec.Guis = {
 				Does = "close_panel",
 				Panel = "RacerRebirth/Panel",
 				Text = "X",
+			},
+			{
+				-- Asks the server (RemoteFunction Rebirth, no argument: the server decides everything). Disabled
+				-- (Active false, fires nothing) below the level milestone and at RebirthConfig.MAX_LEVEL.
+				Path = "Panel/Face/RebirthButton",
+				Does = "remote",
+				Remote = "Rebirth",
+				Arg = "none",
+				Text = "REBIRTH",
+				DisabledWhen = "not_eligible",
 			},
 		},
 	},
@@ -261,7 +275,22 @@ UiSpec.Settings = {
 	EffectsText = { [true] = "ON", [false] = "OFF" }, -- [ReduceEffects]
 	ProbeVolume = 0.5, -- the test's own Sound (created and destroyed by the sound clicks) must follow the toggle
 }
-UiSpec.Rebirth = { Title = "REBIRTH", Text = "COMING SOON" }
+-- The Rebirth panel (ui_rebirth, clicks rebirth_*). Numbers come from Shared/RebirthConfig (GAIN_PER_LEVEL,
+-- LUCK_GAIN_PER_LEVEL, Requirements, MAX_LEVEL) and the player's RebirthLevel / Level attributes; the reset sentence
+-- is the design doc's rule ("Rebirthing resets Money and Speed", owner 2026-10-12).
+UiSpec.Rebirth = {
+	Title = "RacerRebirth/Panel/Face/Header/Face/Title",
+	TitleText = "REBIRTH",
+	Placeholder = "RacerRebirth/Panel/Face/ComingSoon", -- the baked "COMING SOON": must not be shown
+	Status = "RacerRebirth/Panel/Face/Status",
+	Button = "RacerRebirth/Panel/Face/RebirthButton",
+	ButtonText = "REBIRTH",
+	LevelText = "REBIRTH LEVEL %d", -- the server's RebirthLevel
+	SpeedText = "+%d%% Speed", -- the NEXT rebirth's Speed-gain bonus: (RebirthLevel + 1) x GAIN_PER_LEVEL
+	LuckText = "+%d%% Luck", -- the NEXT rebirth's Luck bonus: (RebirthLevel + 1) x LUCK_GAIN_PER_LEVEL
+	ResetText = "Money and Speed reset",
+	RequiredText = "LEVEL %d", -- RebirthConfig.Requirements(RebirthLevel).Level
+}
 
 -- The HUD (ui/specs/RacerHud.ui.json). Gaps are the spec's offsets (they are not scaled by the UIScale k).
 UiSpec.Hud = {
@@ -324,6 +353,33 @@ UiSpec.PanelSwitch = {
 		["RacerStats/Panel"] = "Stats",
 		["RacerSettings/Panel"] = "Settings",
 		["RacerRebirth/Panel"] = "Rebirth",
+		["DailyBoosts/ModalBackdrop"] = "Daily",
+		["MarketUi/Backdrop"] = "Market",
+	},
+}
+
+-- Market browser (Client/MarketUi), declared so its live controls are included in the inventory contract.
+UiSpec.Guis.MarketUi = {
+	Source = "Client/MarketUi",
+	AlwaysOn = { "MarketButton" },
+	Buttons = {
+		{ Path = "MarketButton", Does = "open_panel", Panel = "MarketUi/Backdrop", Text = "MARKET" },
+		{ Path = "Backdrop", Does = "close_panel", Panel = "MarketUi/Backdrop", Text = "" },
+		{ Path = "Backdrop/Panel/Close", Does = "close_panel", Panel = "MarketUi/Backdrop", Text = "×" },
+		{
+			Path = "Backdrop/Panel/Folders/*",
+			Does = "local",
+			Effect = "market_category",
+			Panel = "MarketUi/Backdrop",
+			Count = "dynamic",
+		},
+		{
+			Path = "Backdrop/Panel/Items/*/Action",
+			Does = "remote",
+			Remote = "MarketPurchase|MarketEquip",
+			Arg = "item_id",
+			Count = "dynamic",
+		},
 	},
 }
 
@@ -355,6 +411,10 @@ UiSpec.HiddenWhilePanelOpen = {
 	["RollToast/Toast"] = "any", -- RollToast refreshToast: show requires not PanelSwitch.AnyOpen()
 	["RacerProgression/UpgradeButton"] = "other_than:RacerUpgrades/Panel", -- ProgressionUi: hidden over other panels
 	["RacerProgression/UpgradeButton/Badge"] = "other_than:RacerUpgrades/Panel", -- inside UpgradeButton
+	["DailyBoosts/BagButton"] = "any",
+	["DailyBoosts/DailyRewardButton"] = "any",
+	["DailyBoosts/Status"] = "any",
+	["MarketUi/MarketButton"] = "any",
 }
 -- ProgressionUi applies its visibility on a 0.25 s poll: the checks wait up to this long for it.
 UiSpec.HiddenWhilePanelOpenWait = 1
@@ -536,7 +596,8 @@ UiSpec.Announce = {
 UiSpec.ClientScripts = { "RollAnnounce" }
 
 -- Remotes the UI fires or listens to (ReplicatedStorage.Remotes, RemoteEvents).
-UiSpec.Remotes = { "SetAutoRace", "SetAutoRoll", "EquipCar", "AllocateStat", "RollResult", "RollAnnounce", "NpcRace" }
+UiSpec.Remotes =
+	{ "SetAutoRace", "SetAutoRoll", "EquipCar", "AllocateStat", "RollResult", "RollAnnounce", "NpcRace", "Duel" }
 
 -- Created by Roblox, not the game: an explicit list of engine ScreenGui names (never a pattern or wildcard).
 -- ProximityPrompts: the engine's default ProximityPrompt UI (the workshop E prompt), created on first prompt shown.
@@ -709,6 +770,11 @@ Prepare:
  Showcase       required showcase state before the click (true = open); never forced
  SoundProbe     the harness creates its own Sound (Volume UiSpec.Settings.ProbeVolume) before the click and
                 destroys it after the checks
+ TargetActive   the target's Active before the click (true / false), else state_missing: a disabled-button click is
+                never sent to a button that turned out enabled, and the other way round
+ Intercept      a RemoteFunction that must be intercepted (ServerSetup progression_spy) before the click is published,
+                even when Expect.Remote is false: the click may never reach the real handler (Rebirth, DailyClaim,
+                UseBoost change saved state)
  LabelIs        the target's label text before the click (else state_missing: the previous click did not land)
  WaitSeconds    extra wait before publishing
 ClickAt: where to click when it is not the target's centre: "corner" (UiSpec.Showcase.CornerInset px in from the
@@ -724,6 +790,7 @@ Expect:
  Panels   = { [panelPath] = visibleAfter }  (every other declared panel must keep its visibility)
  Showcase = true/false: showcase open after the click (default: unchanged)
  Remote   = { Name, Arg } exactly one call of that remote and no other remote; Remote = false: no remote at all
+            { Name, Args = { ... } }: the call's whole argument list, in order ("{boost}" = the resolved row id)
  After    = post-conditions once the server / UI answered
 ]]
 local CLOSED = {
@@ -746,6 +813,41 @@ local ESCAPE_MANUAL =
 	"VirtualInput::SendKey: Escape is permanently bound to a CoreGUI core action (MCP can not send it)"
 
 UiSpec.Clicks = {
+	{
+		Id = "open_market",
+		Gui = "MarketUi",
+		Path = "MarketButton",
+		Prepare = { Closed = CLOSED },
+		Expect = { Panels = { ["MarketUi/Backdrop"] = true }, Remote = false },
+	},
+	{
+		Id = "close_market_backdrop",
+		Gui = "MarketUi",
+		Path = "Backdrop",
+		Prepare = only("MarketUi/Backdrop"),
+		Expect = { Panels = { ["MarketUi/Backdrop"] = false }, Remote = false },
+	},
+	{
+		Id = "close_market",
+		Gui = "MarketUi",
+		Path = "Backdrop/Panel/Close",
+		Prepare = only("MarketUi/Backdrop"),
+		Expect = { Panels = { ["MarketUi/Backdrop"] = false }, Remote = false },
+	},
+	{
+		Id = "select_market_category",
+		Gui = "MarketUi",
+		Path = "Backdrop/Panel/Folders/TrailFolder",
+		Prepare = { Closed = CLOSED },
+		Expect = { Panels = { ["MarketUi/Backdrop"] = true }, Remote = false },
+	},
+	{
+		Id = "market_item_action",
+		Gui = "MarketUi",
+		Path = "Backdrop/Panel/Items/Trail/Action",
+		Prepare = only("MarketUi/Backdrop"),
+		Expect = { Panels = { ["MarketUi/Backdrop"] = true }, Remote = true },
+	},
 	-- Panels: each opens with its HUD button, closes with a second click and with its X
 	{
 		Id = "open_index",
@@ -1287,7 +1389,9 @@ for _, name in { "Upgrades", "Workshop", "Welcome" } do
 	table.insert(UiSpec.AllowOverlap, { path, "RacerHud/Money" })
 end
 table.insert(UiSpec.ClientScripts, "ProgressionUi")
-UiSpec.RemoteFunctions = { "BuyUpgrade", "WorkshopUpgrade" }
+-- RemoteFunctions the UI invokes. ServerSetup progression_spy replaces every one with a logging proxy that returns
+-- false, "money" (the real handlers never run): Rebirth, UseBoost and DailyClaim would change saved state.
+UiSpec.RemoteFunctions = { "BuyUpgrade", "WorkshopUpgrade", "Rebirth", "UseBoost", "DailyClaim" }
 table.insert(UiSpec.Remotes, "WorkshopOpen")
 for _, item in
 	{
@@ -1434,4 +1538,389 @@ UiSpec.Progression.FixtureChecks = {
 	{ Setup = "weather_gold", Scenario = "ui_weather" },
 	{ Setup = "weather_clear", Scenario = "ui_weather" },
 }
+
+---------------------------------------------------------------------------------------------------------------
+-- Rebirth clicks (gap closed 2026-10-13). progression_spy intercepts the Rebirth RemoteFunction, so no click here can
+-- really rebirth; Prepare.Intercept refuses to publish the click otherwise.
+for _, item in
+	{
+		{
+			Id = "rebirth_eligible",
+			What = "Player attribute Level = RebirthConfig.Requirements(RebirthLevel).Level (the RebirthButton turns "
+				.. "enabled). Snapshot required; restore puts Level back.",
+		},
+		{
+			Id = "rebirth_not_eligible",
+			What = "Player attribute Level = that requirement - 1 (the RebirthButton is disabled). Snapshot required.",
+		},
+	}
+do
+	item.When =
+		"before the rebirth_* click of the same name, after 'snapshot', 'spy' and 'progression_spy'; restore after"
+	table.insert(UiSpec.ServerSetup, item)
+end
+local function rebirthPrepare(active)
+	local prep = only("RacerRebirth/Panel")
+	prep.Intercept = "Rebirth"
+	prep.TargetActive = active
+	return prep
+end
+table.insert(UiSpec.Clicks, {
+	Id = "rebirth_disabled_fires_nothing",
+	Gui = "RacerRebirth",
+	Path = "Panel/Face/RebirthButton",
+	Prepare = rebirthPrepare(false),
+	NeedSetup = { "rebirth_not_eligible", "spy", "progression_spy" },
+	Expect = { Remote = false, After = { "rebirth_not_optimistic" } },
+})
+table.insert(UiSpec.Clicks, {
+	Id = "rebirth_asks_server",
+	Gui = "RacerRebirth",
+	Path = "Panel/Face/RebirthButton",
+	Prepare = rebirthPrepare(true),
+	NeedSetup = { "rebirth_eligible", "spy", "progression_spy" },
+	Expect = { Remote = { Name = "Rebirth", Arg = "none" }, After = { "rebirth_not_optimistic" } },
+})
+
+---------------------------------------------------------------------------------------------------------------
+-- Bag and Daily Rewards (Client/BoostDailyUi, ScreenGui DailyBoosts; gap closed 2026-10-13). Declared as it is built
+-- today, under the same rules as every other gui: two always-on buttons under Settings on the right edge, one modal
+-- (the dimmed ModalBackdrop is what the script shows / hides; UiSpec.PanelBody names the part that is the panel for
+-- geometry) whose Content is re-rendered as the Bag (one row + USE per owned or active potion) or the Daily view
+-- (DAY 1..7 rows + Claim).
+UiSpec.Guis.DailyBoosts = {
+	Source = "Client/BoostDailyUi",
+	AlwaysOn = { "BagButton", "DailyRewardButton", "Status" },
+	Readouts = { "Status" },
+	NonInteractiveParts = { "Status" },
+	Panels = { "ModalBackdrop" },
+	Buttons = {
+		{ Path = "BagButton", Does = "open_panel", Panel = "DailyBoosts/ModalBackdrop", Text = "BAG" },
+		{
+			Path = "DailyRewardButton",
+			Does = "open_panel",
+			Panel = "DailyBoosts/ModalBackdrop",
+			Label = "UiSpec.DailyBoosts.DailyText (follows the server's DailyLast)",
+		},
+		{
+			Path = "ModalBackdrop/Modal/Close",
+			Does = "close_panel",
+			Panel = "DailyBoosts/ModalBackdrop",
+			Text = "×",
+		},
+		{
+			Path = "ModalBackdrop/Modal/Content/*/Use",
+			Does = "remote",
+			Remote = "UseBoost",
+			Arg = "row_boost_id", -- THAT row's BoostConfig item id
+			Count = "dynamic", -- Bag view only: one per potion owned or active (bag_shows_server_inventory)
+			DisabledWhen = "active_or_none_left",
+		},
+		{
+			Path = "ModalBackdrop/Modal/Content/Claim",
+			Does = "remote",
+			Remote = "DailyClaim",
+			Arg = "none",
+			Count = "dynamic", -- Daily view only: exactly one (daily_shows_server_streak)
+			DisabledWhen = "claimed_today",
+		},
+	},
+}
+-- Panels whose toggled Frame is a see-through, click-through dimmer: the overlap / top-control checks use this child
+-- (the drawn, opaque panel) instead of the full-screen dimmer.
+UiSpec.PanelBody = { ["DailyBoosts/ModalBackdrop"] = "Modal" }
+table.insert(UiSpec.AllowOverlap, { "DailyBoosts/ModalBackdrop", "RacerHud/Speed" })
+table.insert(UiSpec.AllowOverlap, { "DailyBoosts/ModalBackdrop", "RacerHud/Money" })
+UiSpec.DailyBoosts = {
+	Bag = "DailyBoosts/BagButton",
+	Daily = "DailyBoosts/DailyRewardButton",
+	Status = "DailyBoosts/Status",
+	Panel = "DailyBoosts/ModalBackdrop",
+	Title = "DailyBoosts/ModalBackdrop/Modal/Title",
+	Close = "DailyBoosts/ModalBackdrop/Modal/Close",
+	Content = "DailyBoosts/ModalBackdrop/Modal/Content",
+	BagTitle = "BAG", -- the Bag view's title contains it; the Daily view's contains DailyTitle
+	DailyTitle = "DAILY REWARDS",
+	-- DailyRewardButton: [claimed today = DailyLast is today's UTC day]; the timer is the time to the next UTC day
+	DailyText = { [false] = "DAILY REWARDS  •  CLAIM", [true] = "NEXT DAILY  %02d:%02d:%02d" },
+	TimerTolerance = 2, -- s between the shown timer and 86400 - os.time() % 86400
+	UseText = "USE", -- a potion that can be used now; an active one shows ActiveText + its remaining time
+	ActiveText = "ACTIVE",
+	CountText = "x%d", -- in the row's Label, next to BoostConfig's item Name
+	DayRow = "Day%d", -- one TextLabel per DailyLoginConfig.Rewards entry, text "DAY <n>", "✓" up to DailyStreak
+	DayText = "DAY %d",
+	DoneMark = "✓",
+	ClaimText = { [false] = "CLAIM DAY %d", [true] = "CLAIMED TODAY" }, -- [claimed today]; %d = min(streak + 1, 7)
+	FixtureBoost = "LuckI", -- the BoostConfig item the bag_* fixtures give
+}
+table.insert(CLOSED, "DailyBoosts/ModalBackdrop")
+for _, item in
+	{
+		{ Id = "bag_potion", What = "Boost_<FixtureBoost> = 1, BoostUntil_<FixtureBoost> = 0: one usable potion." },
+		{
+			Id = "bag_potion_active",
+			What = "Boost_<FixtureBoost> = 1, BoostUntil_<FixtureBoost> = os.time() + 60: the row shows ACTIVE, disabled.",
+		},
+		{ Id = "daily_unclaimed", What = "DailyLast = -1: today's reward can be claimed (the modal may auto-open)." },
+		{ Id = "daily_claimed", What = "DailyLast = today's UTC day: CLAIMED TODAY, the button counts down." },
+	}
+do
+	item.When = "before the bag_* / daily_* click that names it, after 'snapshot'; restore puts the attributes back"
+	table.insert(UiSpec.ServerSetup, item)
+end
+local DAILY = "DailyBoosts/ModalBackdrop"
+local function dailyClick(click)
+	click.Gui = "DailyBoosts"
+	table.insert(UiSpec.Clicks, click)
+end
+-- Run these in THIS order: the Content buttons only exist after the click that renders their view.
+dailyClick({
+	Id = "open_bag",
+	Path = "BagButton",
+	Prepare = { Closed = CLOSED, Showcase = false },
+	NeedSetup = { "bag_potion", "spy", "progression_spy" },
+	Expect = { Panels = { [DAILY] = true }, Remote = false, After = { "bag_shows_server_inventory" } },
+})
+dailyClick({
+	Id = "bag_use",
+	Path = "ModalBackdrop/Modal/Content/{boost}/Use",
+	Prepare = { Open = { DAILY }, Showcase = false, Intercept = "UseBoost", TargetActive = true },
+	NeedSetup = { "bag_potion", "spy", "progression_spy" },
+	Expect = {
+		Remote = { Name = "UseBoost", Args = { "{boost}" } },
+		After = { "boost_not_optimistic", "bag_shows_server_inventory" },
+	},
+})
+dailyClick({
+	-- Re-renders the Bag with the fixture's active potion (a second BAG click leaves the modal open)
+	Id = "open_bag_again",
+	Path = "BagButton",
+	Prepare = { Open = { DAILY }, Showcase = false },
+	NeedSetup = { "bag_potion_active", "spy", "progression_spy" },
+	Expect = { Panels = { [DAILY] = true }, Remote = false, After = { "bag_shows_server_inventory" } },
+})
+dailyClick({
+	Id = "bag_use_active_fires_nothing",
+	Path = "ModalBackdrop/Modal/Content/{boost}/Use",
+	Prepare = { Open = { DAILY }, Showcase = false, Intercept = "UseBoost", TargetActive = false },
+	NeedSetup = { "bag_potion_active", "spy", "progression_spy" },
+	Expect = { Remote = false, After = { "boost_not_optimistic" } },
+})
+dailyClick({
+	Id = "close_daily_modal",
+	Path = "ModalBackdrop/Modal/Close",
+	Prepare = { Open = { DAILY }, Showcase = false },
+	NeedSetup = { "spy" },
+	Expect = { Panels = { [DAILY] = false }, Remote = false },
+})
+dailyClick({
+	Id = "open_daily",
+	Path = "DailyRewardButton",
+	Prepare = { Closed = CLOSED, Showcase = false },
+	NeedSetup = { "daily_unclaimed", "spy", "progression_spy" },
+	Expect = { Panels = { [DAILY] = true }, Remote = false, After = { "daily_shows_server_streak" } },
+})
+dailyClick({
+	Id = "daily_claim",
+	Path = "ModalBackdrop/Modal/Content/Claim",
+	Prepare = { Open = { DAILY }, Showcase = false, Intercept = "DailyClaim", TargetActive = true },
+	NeedSetup = { "daily_unclaimed", "spy", "progression_spy" },
+	Expect = {
+		Remote = { Name = "DailyClaim", Arg = "none" },
+		After = { "daily_not_optimistic", "daily_shows_server_streak" },
+	},
+})
+dailyClick({
+	-- Re-renders the Daily view once the server says today is claimed
+	Id = "open_daily_claimed",
+	Path = "DailyRewardButton",
+	Prepare = { Open = { DAILY }, Showcase = false },
+	NeedSetup = { "daily_claimed", "spy", "progression_spy" },
+	Expect = { Panels = { [DAILY] = true }, Remote = false, After = { "daily_shows_server_streak" } },
+})
+dailyClick({
+	Id = "daily_claim_claimed_fires_nothing",
+	Path = "ModalBackdrop/Modal/Content/Claim",
+	Prepare = { Open = { DAILY }, Showcase = false, Intercept = "DailyClaim", TargetActive = false },
+	NeedSetup = { "daily_claimed", "spy", "progression_spy" },
+	Expect = { Remote = false, After = { "daily_not_optimistic" } },
+})
+
+---------------------------------------------------------------------------------------------------------------
+-- Duels (docs/DUEL_SPEC.md section 3, Client/DuelUi; written 2026-10-13 BEFORE the UI exists: red until it is built).
+-- ScreenGui DuelUi (IgnoreGuiInset): PickPanel (Title, Opponent, Tracks/Track<n>, Close), InvitePanel (Title, Text,
+-- Accept, Decline), Countdown and Toast (TextLabels, never Active). The server drives it with ONE table argument on
+-- Remotes.Duel.OnClientEvent; the buttons answer with Remotes.Duel:FireServer("Pick", n) / ("Respond", boolean).
+UiSpec.Guis.DuelUi = {
+	Source = "Client/DuelUi",
+	AlwaysOn = { "Toast" }, -- its place is kept free of every always-on element even while it is hidden
+	Readouts = { "Toast" },
+	NonInteractiveParts = { "Countdown", "Toast" },
+	Panels = { "PickPanel", "InvitePanel" },
+	Buttons = {
+		{ Path = "PickPanel/Close", Does = "close_panel", Panel = "DuelUi/PickPanel", Text = "X" },
+		{
+			Path = "PickPanel/Tracks/*",
+			Does = "remote",
+			Remote = "Duel",
+			Args = "Pick, <that button's track number>",
+			Count = "duel_tracks",
+			Label = "TRACK <n>",
+		},
+		{ Path = "InvitePanel/Accept", Does = "remote", Remote = "Duel", Args = "Respond, true", Text = "ACCEPT" },
+		{ Path = "InvitePanel/Decline", Does = "remote", Remote = "Duel", Args = "Respond, false", Text = "DECLINE" },
+	},
+}
+UiSpec.Duel = {
+	Gui = "DuelUi",
+	Remote = "Duel",
+	Pick = "DuelUi/PickPanel",
+	Invite = "DuelUi/InvitePanel",
+	Countdown = "DuelUi/Countdown",
+	Toast = "DuelUi/Toast",
+	PickTitle = "PICK A TRACK",
+	OpponentText = "vs %s",
+	TrackName = "Track%d", -- DuelUi/PickPanel/Tracks/<TrackName>
+	TrackText = "TRACK %d",
+	CloseText = "X",
+	InviteTitle = "DUEL REQUEST",
+	InviteText = "%s challenges you on Track %d",
+	AcceptText = "ACCEPT",
+	DeclineText = "DECLINE",
+	GoText = "GO!", -- from ServerStart (workspace:GetServerTimeNow()); before it the whole seconds left: 3, 2, 1
+	GoSeconds = 1, -- the Countdown hides about this long after GO!
+	ResultText = { Win = "YOU WIN!", Lose = "YOU LOSE", Draw = "DRAW" },
+	CancelText = {
+		Declined = "DUEL DECLINED",
+		InviteTimeout = "NO ANSWER",
+		PickTimeout = "DUEL CANCELLED",
+		Left = "OPPONENT LEFT",
+		NotOnFoot = "PLAYER IS RACING",
+		Busy = "PLAYER IS BUSY",
+		Cooldown = "WAIT A MOMENT",
+		NotLoaded = "PLAYER NOT READY",
+	},
+	CancelDefault = "DUEL CANCELLED", -- any other Reason
+	ToastSeconds = 3, -- the Toast hides this long after a Result / Cancelled
+	ShowGrace = 0.3, -- s after a message for the UI to show its state
+	Grace = 0.75, -- s around the "about 1 s" / "3 s" hide times
+	BoundaryGuard = 0.25, -- s around each whole second of the countdown where either text is accepted
+	-- The panels ui_layout places like the other panels: centred horizontally, top at least UiSpec.PanelTopMargin
+	-- below the Race button, bottom at least that far above the TURBO LUCK bar (the rule the progression panels
+	-- already have; no new number). <prefix>_centred_x / _below_autorace / _above_turbo at every viewport.
+	Panels = { ["DuelUi/PickPanel"] = "duel_pick_panel", ["DuelUi/InvitePanel"] = "duel_invite_panel" },
+	-- The server fixtures' message content (UiTestSetup duel_*)
+	Fixture = { Opponent = "UiTestRival", Tracks = { 1, 2, 3 }, Track = 2, SecondTracks = { 2 } },
+	PrepAttr = "UiTestDuelPrep", -- player attribute "<PanelSwitch name>:<nonce>": the harness opens that panel first
+	ProbeField = "UiTestPanelProbe", -- extra message field (ignored by the game): the harness opens that panel
+	ProbeAt = 1, -- s after the message
+}
+for path, name in { ["DuelUi/PickPanel"] = "DuelPick", ["DuelUi/InvitePanel"] = "DuelInvite" } do
+	UiSpec.PanelSwitch.Names[path] = name
+	table.insert(UiSpec.AllowOverlap, { path, "RacerHud/Speed" })
+	table.insert(UiSpec.AllowOverlap, { path, "RacerHud/Money" })
+end
+table.insert(CLOSED, "DuelUi/PickPanel")
+table.insert(CLOSED, "DuelUi/InvitePanel")
+UiSpec.HiddenWhilePanelOpen["DuelUi/Toast"] = "any" -- contract: the result toast hides when a panel opens
+table.insert(UiSpec.ClientScripts, "DuelUi")
+do
+	local what = {
+		duel_pick = "PickTrack { Opponent, Tracks = Fixture.Tracks }.",
+		duel_pick_replaced = "PickTrack with Fixture.Tracks, then PickTrack with Fixture.SecondTracks (old buttons go).",
+		duel_pick_over_index = "Asks the harness to open the Index panel (PrepAttr), then PickTrack.",
+		duel_invite = "Invite { Opponent, Track = Fixture.Track }.",
+		duel_invite_over_stats = "Asks the harness to open the Stats panel (PrepAttr), then Invite.",
+		duel_invite_over_pick = "PickTrack, then Invite: the two duel panels are never open together.",
+		duel_countdown = "Invite, then Countdown { Track, ServerStart = now + DuelConfig.COUNTDOWN }.",
+		duel_result_win = "PickTrack, then Result Win.",
+		duel_result_lose = "PickTrack, then Result Lose.",
+		duel_result_draw = "PickTrack, then Result Draw.",
+		duel_toast_panel = "Result Win with ProbeField = 'Index': the harness opens Index while the toast shows.",
+		duel_cancel_unknown = "Invite, then Cancelled with a Reason the UI does not know.",
+	}
+	for reason in UiSpec.Duel.CancelText do
+		what["duel_cancel_" .. string.lower(reason)] = "Invite, then Cancelled { Reason = '" .. reason .. "' }."
+	end
+	local ids = {}
+	for id in what do
+		table.insert(ids, id)
+	end
+	table.sort(ids)
+	-- Fixture run protocol as UiSpec.Progression.FixtureChecks: Setup, then UiTestScenario = Scenario, read the result
+	-- on the client. No snapshot needed (the fixtures only fire Remotes.Duel at the test client). ui_duel judges the
+	-- LATEST duel message the client received, from samples its recorder took by itself, so a slow trigger is fine;
+	-- wait for the result (up to 12 s: the countdown and the 3 s toast are watched to their end).
+	UiSpec.Duel.FixtureChecks = {}
+	for _, id in ids do
+		table.insert(UiSpec.ServerSetup, {
+			Id = id,
+			When = "then run ui_duel with UiTestScenario (UiSpec.Duel.FixtureChecks)",
+			What = "Fires Remotes.Duel at the test client only (0.6 s between messages): " .. what[id],
+		})
+		table.insert(UiSpec.Duel.FixtureChecks, { Setup = id, Scenario = "ui_duel" })
+	end
+	-- With the real Track buttons present (a script can not create them), the generic geometry rules again
+	table.insert(UiSpec.Duel.FixtureChecks, { Setup = "duel_pick", Scenario = "ui_inventory" })
+	table.insert(UiSpec.Duel.FixtureChecks, { Setup = "duel_pick", Scenario = "ui_layout" })
+	table.insert(UiSpec.Duel.FixtureChecks, { Setup = "duel_pick", Scenario = "ui_hitboxes" })
+end
+local function duelClick(click)
+	if not click.Key then
+		click.Gui = click.Gui or "DuelUi"
+	end
+	click.Prepare = click.Prepare or { Showcase = false, RequireShown = true } -- the fixture opened it, never forced
+	table.insert(UiSpec.Clicks, click)
+end
+duelClick({
+	Id = "duel_pick_track",
+	Path = "PickPanel/Tracks/Track2",
+	NeedSetup = { "spy", "duel_pick" },
+	Expect = { Panels = { ["DuelUi/PickPanel"] = false }, Remote = { Name = "Duel", Args = { "Pick", 2 } } },
+})
+duelClick({
+	Id = "duel_pick_close",
+	Path = "PickPanel/Close",
+	NeedSetup = { "spy", "duel_pick" },
+	Expect = { Panels = { ["DuelUi/PickPanel"] = false }, Remote = false },
+})
+duelClick({
+	Id = "duel_accept",
+	Path = "InvitePanel/Accept",
+	NeedSetup = { "spy", "duel_invite" },
+	Expect = { Panels = { ["DuelUi/InvitePanel"] = false }, Remote = { Name = "Duel", Args = { "Respond", true } } },
+})
+duelClick({
+	Id = "duel_decline",
+	Path = "InvitePanel/Decline",
+	NeedSetup = { "spy", "duel_invite" },
+	Expect = { Panels = { ["DuelUi/InvitePanel"] = false }, Remote = { Name = "Duel", Args = { "Respond", false } } },
+})
+-- Mutually exclusive through the real buttons: a HUD panel button stays reachable over a duel panel and closes it
+duelClick({
+	Id = "open_index_while_duel_pick_open",
+	Gui = "RacerHud",
+	Path = "Navigation/Index/Face",
+	Prepare = only("DuelUi/PickPanel"),
+	NeedSetup = { "spy" },
+	Expect = { Panels = { ["RacerIndex/Panel"] = true, ["DuelUi/PickPanel"] = false }, Remote = false },
+})
+duelClick({
+	Id = "open_settings_while_duel_invite_open",
+	Gui = "RacerHud",
+	Path = "Settings/Face",
+	Prepare = only("DuelUi/InvitePanel"),
+	NeedSetup = { "spy" },
+	Expect = { Panels = { ["RacerSettings/Panel"] = true, ["DuelUi/InvitePanel"] = false }, Remote = false },
+})
+for _, panel in { "PickPanel", "InvitePanel" } do
+	duelClick({
+		Id = "escape_closes_duel_" .. string.lower((string.gsub(panel, "Panel", ""))),
+		Key = "Escape",
+		Manual = ESCAPE_MANUAL,
+		Prepare = only("DuelUi/" .. panel),
+		NeedSetup = { "spy" },
+		Expect = { Panels = { ["DuelUi/" .. panel] = false }, Remote = false },
+	})
+end
 return UiSpec

@@ -12,6 +12,7 @@ local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RaceStartMeshAssets = require(script.Parent.RaceStartMeshAssets)
 local MarketplaceBuilder = require(script.Parent.MarketplaceBuilder)
+local LeaderboardConfig = require(script.Parent.LeaderboardConfig)
 
 -- Match WorkshopBuilder's native-mesh safeguard before Main builds the area.
 local raceTemplate = ReplicatedStorage:WaitForChild("RaceStartPavilion"):Clone()
@@ -315,6 +316,53 @@ function SpawnArea.Build(startCFrame)
 	marketplace.Parent = model
 	-- Dimensional lettering replaces the pad label; cloned hub labels stay enabled.
 	billboard.Enabled = false
+
+	-- Global leaderboard signs (docs/LEADERBOARD_SPEC.md): along the hub's near edge, facing the spawn. The server
+	-- (LeaderboardService) writes the rows.
+	local boards = Instance.new("Model")
+	boards.Name = "Leaderboards"
+	local size = LeaderboardConfig.SIGN_SIZE
+	for i, board in LeaderboardConfig.Boards do
+		local sign = Instance.new("Part")
+		sign.Name = "Board_" .. board.Id
+		sign.Anchored = true
+		sign.Size = size
+		sign.CFrame = base(startCFrame)
+			* CFrame.new(LeaderboardConfig.SIGN_X[i], top + size.Y / 2, LeaderboardConfig.SIGN_Z)
+		sign.Color = Color3.fromRGB(28, 22, 48)
+		sign.Material = Enum.Material.SmoothPlastic
+		sign.TopSurface = Enum.SurfaceType.Smooth
+		sign.BottomSurface = Enum.SurfaceType.Smooth
+		sign.Parent = boards
+		local gui = Instance.new("SurfaceGui")
+		gui.Name = "Board"
+		gui.Face = Enum.NormalId.Front -- the part's front (-Z) looks at the hub centre
+		gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+		gui.PixelsPerStud = 30
+		gui.LightInfluence = 0
+		gui.Parent = sign
+		local function line(name, order, height, colour, font)
+			local label = Instance.new("TextLabel")
+			label.Name = name
+			label.BackgroundTransparency = 1
+			label.Size = UDim2.new(1, -24, height, 0)
+			label.Position = UDim2.new(0, 12, order, 0)
+			label.Font = font
+			label.TextScaled = true
+			label.TextColor3 = colour
+			label.TextXAlignment = Enum.TextXAlignment.Left
+			label.Text = ""
+			label.Parent = gui
+			return label
+		end
+		local title = line("Title", 0.02, 0.14, Color3.fromRGB(255, 214, 90), Enum.Font.GothamBlack)
+		title.TextXAlignment = Enum.TextXAlignment.Center
+		title.Text = board.Title
+		for row = 1, LeaderboardConfig.TOP_N do
+			line("Row" .. row, 0.18 + (row - 1) * 0.08, 0.07, Color3.new(1, 1, 1), Enum.Font.GothamBold)
+		end
+	end
+	boards.Parent = model
 	return model
 end
 

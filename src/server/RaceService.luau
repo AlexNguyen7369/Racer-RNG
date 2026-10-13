@@ -98,6 +98,8 @@ end
 -- options: { Loop = true } puts the car back at the start of the route after the last finish.
 --          { Npc = true } races every track against its NPC. Test hooks: NpcSpeeds = { [number] = speed },
 --          LoseScreenSeconds, OnRaceEvent(event).
+--          { Duel = { Track = n, OnFinish = fn(run, seconds) } } is a duel run (docs/DUEL_SPEC.md): no NPC, starts
+--          on track n, pays no pad, banks nothing, and is Finished (OnFinish called once) at that track's finish.
 function RaceService.NewRun(car, raceRoute, player, options)
 	options = options or {}
 	local chassis = car.PrimaryPart
@@ -142,6 +144,8 @@ function RaceService.NewRun(car, raceRoute, player, options)
 		player:SetAttribute("LastWinBoost", id)
 	end
 	local npcMode = options.Npc == true and type(raceRoute.Tracks) == "table" and #raceRoute.Tracks > 0
+	local duel = not npcMode and type(options.Duel) == "table" and options.Duel or nil
+	local duelIndex = nil -- index in raceRoute.Tracks of the duel's track
 	local race = nil -- { Index, Number, Started, NpcTime }
 	local alive = true
 	local paid = {} -- pad entry -> already paid this pass
@@ -414,6 +418,15 @@ function RaceService.NewRun(car, raceRoute, player, options)
 		return true
 	end
 
+	if duel then
+		for i, track in raceRoute.Tracks or {} do
+			if track.Number == duel.Track then
+				duelIndex = i
+			end
+		end
+		run:JumpToTrack(duel.Track)
+	end
+
 	run.Connection = RunService.PreSimulation:Connect(function(dt)
 		if not car.Parent then
 			run:Destroy()
@@ -429,6 +442,18 @@ function RaceService.NewRun(car, raceRoute, player, options)
 				local last = race.Index == #raceRoute.Tracks
 				if driver.Index >= track.FinishIndex or (last and driver.Done) then
 					finishRace()
+				end
+			end
+		elseif duel then
+			local track = duelIndex and raceRoute.Tracks[duelIndex]
+			local last = duelIndex == #raceRoute.Tracks -- the driver stops just before the route's last waypoint
+			if track and not run.Finished and (driver.Index >= track.FinishIndex or (last and driver.Done)) then
+				run.Finished = true
+				if duel.OnFinish then
+					local ok, err = pcall(duel.OnFinish, run, runTime)
+					if not ok then
+						warn("Duel OnFinish: " .. tostring(err))
+					end
 				end
 			end
 		else
@@ -450,7 +475,7 @@ function RaceService.NewRun(car, raceRoute, player, options)
 			commitStat()
 		end
 
-		if not npcMode and driver.Done and not run.Finished then
+		if not npcMode and not duel and driver.Done and not run.Finished then
 			run.Finished = true
 			run.Laps += 1
 			if options.Loop then
@@ -509,6 +534,20 @@ function RaceService.NewRun(car, raceRoute, player, options)
 end
 
 RaceService.SetCarGroup = setCarGroup
+
+-- Where a car starts track `number` of the live route (START_AHEAD in, in the lane, facing along the path), or nil.
+function RaceService.TrackStartCFrame(number)
+	for _, track in route and route.Tracks or {} do
+		if track.Number == number then
+			local wps = route.Path.WorldWaypoints
+			local s = math.clamp(track.StartIndex, 1, #wps - 1)
+			local dir = (wps[s + 1] - wps[s]).Unit
+			local pos = wps[s] + dir * RaceService.START_AHEAD + Vector3.new(0, CarConfig.RestHeight + 0.5, 0)
+			return CFrame.lookAt(pos, pos + Vector3.new(dir.X, 0, dir.Z))
+		end
+	end
+	return nil
+end
 
 -- Called by CarService once the player's car exists. Returns the run, or nil if there is no route
 -- (then the car is driven manually).

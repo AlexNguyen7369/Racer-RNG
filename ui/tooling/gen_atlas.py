@@ -289,6 +289,11 @@ def build_function(spec, icons, fname):
         "\t\t\treturn",
         "\t\tend",
         "\t\tlocal height = camera.ViewportSize.Y",
+        "\t\t-- Studio can briefly report a placeholder 1x1 camera while PlayerGui is already laid out.",
+        "\t\t-- Use the live GUI height so the first fit does not clamp desktop UI to minimum scale.",
+        "\t\tif height <= 1 and gui.AbsoluteSize.Y > 1 then",
+        "\t\t\theight = gui.AbsoluteSize.Y",
+        "\t\tend",
         f"\t\tlocal phone = height <= {lnum(th['phoneMaxHeight'])}",
         f"\t\tlocal k = if phone then math.clamp(height / {lnum(th['phoneReferenceHeight'])}, {lnum(th['phoneMinScale'])}, {lnum(th['phoneMaxScale'])})",
         f"\t\t\telse math.clamp(height / {lnum(ref_h)}, {lnum(th['minScale'])}, {lnum(th['maxScale'])})",
@@ -302,9 +307,12 @@ def build_function(spec, icons, fname):
         "\t\tend",
         "\tend",
         "\tfit()",
+        "\ttask.defer(fit)",
+        "\ttask.delay(0.1, fit)",
         "\tif workspace.CurrentCamera then",
         '\t\tworkspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(fit)',
         "\tend",
+        '\tgui:GetPropertyChangedSignal("AbsoluteSize"):Connect(fit)',
         "\treturn refs",
         "end",
     ]
@@ -317,7 +325,14 @@ def bind_function(spec, icons):
     body = build_function(spec, icons, 'function Ui.Bind')
     preamble = (
         f'\tlocal saved = playerGui:WaitForChild({lstr(spec["name"])})\n'
-        f'\tassert(saved:IsA("ScreenGui") and saved:GetAttribute("SpecHash") == {lstr(U.spec_hash(spec))}, "Saved UI is stale; regenerate and bake it in Edit mode")\n'
+        f'\tif not saved:IsA("ScreenGui") then\n'
+        f'\t\tsaved:Destroy()\n'
+        f'\t\treturn Ui.Build(playerGui)\n'
+        f'\tend\n'
+        f'\tif saved:GetAttribute("SpecHash") ~= Ui.SpecHash then\n'
+        f'\t\tsaved:Destroy()\n'
+        f'\t\treturn Ui.Build(playerGui)\n'
+        f'\tend\n'
         '\tlocal function new(className, props, parent)\n'
         '\t\tlocal inst = parent:FindFirstChild(props.Name or className)\n'
         '\t\tassert(inst and inst:IsA(className), "Saved UI is missing " .. (props.Name or className))\n'

@@ -366,6 +366,7 @@ task.spawn(function()
 end)
 
 local turboTween
+local turboPopUntil = 0
 -- Rolls done towards the next turbo roll and how many it takes: the server's TurboCount / TurboEvery (upgrade tree),
 -- or the every-10th-roll rule from Rolls before those attributes arrive.
 local function turboState()
@@ -377,7 +378,9 @@ local function turboState()
 end
 local function refreshTurbo()
 	local progress, every = turboState()
-	hud.TurboLabel.Text = string.format("TURBO LUCK %d/%d", progress, every)
+	if os.clock() >= turboPopUntil then
+		hud.TurboLabel.Text = string.format("TURBO LUCK %d/%d", progress, every)
+	end
 	if turboTween then
 		turboTween:Cancel()
 	end
@@ -399,8 +402,14 @@ player:GetAttributeChangedSignal("TurboEvery"):Connect(refreshTurbo)
 refreshTurbo()
 remotes.RollResult.OnClientEvent:Connect(function(_, _, turbo)
 	if type(turbo) == "number" and turbo > 1 then
+		turboPopUntil = os.clock() + 1.2
 		hud.TurboLabel.Text = "TURBO x" .. tostring(turbo) .. "!"
-		task.delay(1.2, refreshTurbo)
+		task.delay(1.2, function()
+			if os.clock() >= turboPopUntil then
+				turboPopUntil = 0
+				refreshTurbo()
+			end
+		end)
 	end
 end)
 
@@ -434,12 +443,6 @@ local speed = leaderstats:WaitForChild("Speed")
 local money = leaderstats:WaitForChild("Money")
 local shownSpeed, shownMoney, shownBank = speed.Value, money.Value, player:GetAttribute("Unbanked") or 0
 local function readable(value, isMoney)
-	local units = { { 1e12, "T" }, { 1e9, "B" }, { 1e6, "M" }, { 1e3, "K" } }
-	for _, unit in ipairs(units) do
-		if value >= unit[1] then
-			return (isMoney and "$" or "") .. string.format("%.1f%s", value / unit[1], unit[2])
-		end
-	end
 	return isMoney and format.MoneyText(value) or format.SpeedText(value)
 end
 -- The Racer panels open in the band between the Race button and the TURBO LUCK bar, centred, clear of the

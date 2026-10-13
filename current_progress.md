@@ -32,8 +32,9 @@
 29. 2026-10-12 — Alex Nguyen — Implemented the design-doc fixes against the red tests: rebirth resets Speed, no offline or daily-login Money, session-locked saves with MoneyEarned and DuelWins (PlayerData VERSION 8) and the new turbo values (static checks only; no Studio run yet).
 30. 2026-10-12 — Alex Nguyen — Ran the full harness on the design-doc fixes (pass=32 fail=1 plus 5 laps passing), had test-writer correct the one stale base-turbo expectation (x5 to x10) and audit the suite, and recorded the state in handoff.md (the corrected upgrades scenario was not re-run).
 31. 2026-10-12 — Alex Nguyen — Re-ran the full harness on the design-doc fixes with Rojo connected to one Studio (`[CARTEST] END pass=38 fail=0`, including the corrected upgrades scenario) and closed the four design-doc TODO cards.
+32. 2026-10-13 — Alex Nguyen — Published the weather-sky, duel, leaderboard, HUD and dashboard updates on `feature/alex/global-leaderboards` under the owner's stale-gate exception, with dashboard/UI/Rojo/static checks passing and the three implemented TODO cards closed.
 
 ## What's next
-**Build the weather sky (card `5c89de92`) test-first on branch feature/alex/weather-sky: per-event Atmosphere, Clouds and StarCount applied by WeatherService and restored exactly on clear.**
+**Open the Racer-RNG place in Studio and run the remaining live NPC/LoserScreen, UI, multiplayer, world and regression verification for the pushed fingerprint.**
 
-**Why this is next:** it is the smallest of the three unbuilt Doing cards and its spec is already written; leaderboards, duels and the final `/compat-check` before pushing main follow on the same stack.
+**Why this is next:** it is the remaining evidence needed to close the two open verification cards and replace the stale compatibility status with an exact-fingerprint result.

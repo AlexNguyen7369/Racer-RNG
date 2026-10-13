@@ -104,8 +104,8 @@ local treePanel = panel("Upgrades", "MONEY UPGRADE TREE")
 local canvas = make("ScrollingFrame", "Canvas", treePanel, {
 	Position = UDim2.fromOffset(8, 44),
 	Size = UDim2.new(1, -16, 1, -82),
-	CanvasSize = UDim2.fromOffset(1600, 1400),
-	CanvasPosition = Vector2.new(500, 500),
+	CanvasSize = UDim2.fromOffset(1600, 1600),
+	CanvasPosition = Vector2.new(500, 480),
 	BackgroundTransparency = 1,
 	ScrollBarThickness = 6,
 	ClipsDescendants = true,
@@ -120,13 +120,17 @@ local feedback = text(
 )
 local tiles = {}
 local pendingBuys = {}
+local function syncUpgradeEntry()
+	upgrades.Visible = not (Switch.AnyOpen() and not treePanel.Visible)
+end
+Switch.OnChange(syncUpgradeEntry)
 local purchaseSound =
 	make("Sound", "PurchaseSound", hud, { SoundId = "rbxasset://sounds/electronicpingshort.wav", Volume = 0.3 })
-local start = text("Start", canvas, UDim2.fromOffset(750, 650), UDim2.fromOffset(100, 88), "START")
+local start = text("Start", canvas, UDim2.fromOffset(750, 550), UDim2.fromOffset(100, 88), "START")
 start.BackgroundTransparency = 0
 start.BackgroundColor3 = BLUE
 for _, tile in Tree.Tiles() do
-	local position = Vector2.new(750 + 112 * (tile.Q + tile.R / 2), 650 + 108 * tile.R)
+	local position = Vector2.new(750 + 112 * (tile.Q + tile.R / 2), 550 + 108 * tile.R)
 	local b = button(tile.Id, canvas, UDim2.fromOffset(position.X, position.Y), UDim2.fromOffset(100, 88), "")
 	b.BackgroundTransparency = 1
 	for i, rotation in { 0, -60, 60 } do

@@ -16,7 +16,8 @@ end
 
 local function notify()
 	for _, fn in listeners do
-		task.spawn(fn)
+		-- One UI listener must not prevent the remaining panel chrome from refreshing.
+		pcall(fn)
 	end
 	changed:Fire()
 end

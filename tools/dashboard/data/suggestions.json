@@ -146,7 +146,9 @@
       "fit": "Encourages inviting friends; one multiplier in GachaService and MoneyService.",
       "effort": "S",
       "dependsOn": "",
-      "status": "open"
+      "status": "added",
+      "decidedBy": "Alex Nguyen",
+      "decidedAt": "2026-10-13T00:06:23-07:00"
     },
     {
       "id": "gamepasses",
