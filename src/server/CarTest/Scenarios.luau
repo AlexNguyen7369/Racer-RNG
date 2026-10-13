@@ -12560,5 +12560,8 @@ Scenarios.workshop_phase2 = Phase2Tests.workshop_phase2
 Scenarios.weather = Phase2Tests.weather
 Scenarios.rebirth = Phase2Tests.rebirth
 Scenarios.daily_login = Phase2Tests.daily_login
+-- docs/LEADERBOARD_SPEC.md section 4 (its own module: this file is near Luau's 200-local limit)
+Scenarios.leaderboard = require(script.Parent.LeaderboardTests).leaderboard
+Scenarios.duel = require(script.Parent.DuelTests).duel -- docs/DUEL_SPEC.md section 4
 
 return Scenarios

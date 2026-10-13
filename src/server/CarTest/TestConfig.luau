@@ -37,5 +37,7 @@ return {
 		"weather",
 		"rebirth",
 		"daily_login",
+		"leaderboard",
+		"duel",
 	},
 }
