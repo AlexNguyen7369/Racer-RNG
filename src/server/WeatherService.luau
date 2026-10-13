@@ -8,6 +8,12 @@ local eventId, expiresAt, nextAt = "", 0, 0
 local rng = Random.new()
 local baseline = nil
 local started = false
+-- The sky instances (made by Start when the place has none) and the properties an event sets on each.
+local sky = {}
+local SKY_PROPS = {
+	Atmosphere = { "Color", "Density", "Haze" },
+	Clouds = { "Cover", "Density", "Color" },
+}
 
 local function now()
 	return workspace:GetServerTimeNow()
@@ -21,6 +27,13 @@ local function publish()
 		Lighting.ClockTime = spec and spec.ClockTime or baseline.ClockTime
 		Lighting.Brightness = spec and spec.Brightness or baseline.Brightness
 		Lighting.OutdoorAmbient = spec and spec.Color:Lerp(Color3.new(1, 1, 1), 0.6) or baseline.OutdoorAmbient
+		local to = spec and spec.Sky or baseline.Sky
+		for name, props in SKY_PROPS do
+			for _, prop in props do
+				sky[name][prop] = to[name][prop]
+			end
+		end
+		sky.Sky.StarCount = to.StarCount
 	end
 end
 
@@ -66,8 +79,33 @@ function WeatherService.Start()
 		return
 	end
 	started = true
-	baseline =
-		{ ClockTime = Lighting.ClockTime, Brightness = Lighting.Brightness, OutdoorAmbient = Lighting.OutdoorAmbient }
+	-- A place without these gets them in a state that leaves the clear sky as it looked: no haze, no clouds.
+	sky.Atmosphere = Lighting:FindFirstChildOfClass("Atmosphere")
+	if not sky.Atmosphere then
+		sky.Atmosphere = Instance.new("Atmosphere")
+		sky.Atmosphere.Density = 0
+		sky.Atmosphere.Haze = 0
+		sky.Atmosphere.Parent = Lighting
+	end
+	sky.Sky = Lighting:FindFirstChildOfClass("Sky") or Instance.new("Sky")
+	sky.Sky.Parent = Lighting
+	sky.Clouds = workspace.Terrain:FindFirstChildOfClass("Clouds")
+	if not sky.Clouds then
+		sky.Clouds = Instance.new("Clouds")
+		sky.Clouds.Cover = 0
+		sky.Clouds.Parent = workspace.Terrain
+	end
+	baseline = {
+		ClockTime = Lighting.ClockTime,
+		Brightness = Lighting.Brightness,
+		OutdoorAmbient = Lighting.OutdoorAmbient,
+		Sky = { Atmosphere = {}, Clouds = {}, StarCount = sky.Sky.StarCount },
+	}
+	for name, props in SKY_PROPS do
+		for _, prop in props do
+			baseline.Sky[name][prop] = sky[name][prop]
+		end
+	end
 	WeatherService.SetEvent("")
 	task.spawn(function()
 		while started do

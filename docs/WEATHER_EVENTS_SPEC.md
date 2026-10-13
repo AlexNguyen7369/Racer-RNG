@@ -8,7 +8,7 @@ Server events begin every 10–20 minutes and last 3 minutes. The server selects
 | Night Race | ×1 | ×2 | ×1.25 | Midnight |
 | Gold Rush | ×1 | ×3 | ×1 | Warm sunset |
 
-**Sky (owner, 2026-10-12; not built yet).** Each event also changes the sky, and the clear state restores the exact baseline values that `WeatherService.Start` saved. No uploaded skybox textures: the server sets `Lighting.Atmosphere` (Color, Density, Haze), `Terrain.Clouds` (Cover, Density, Color) and `Lighting.Sky.StarCount` from `WeatherConfig.Events[id].Sky`.
+**Sky (owner, 2026-10-12; built 2026-10-13).** Each event also changes the sky, and the clear state restores the exact baseline values that `WeatherService.Start` saved. No uploaded skybox textures: the server sets `Lighting.Atmosphere` (Color, Density, Haze), `Terrain.Clouds` (Cover, Density, Color) and `Lighting.Sky.StarCount` from `WeatherConfig.Events[id].Sky`. A place without those instances gets them from `WeatherService.Start` with no haze (Atmosphere `Density` 0) and no clouds (`Cover` 0), so the clear sky looks as before.
 
 | Event | Atmosphere | Clouds | Stars |
 |---|---|---|---|

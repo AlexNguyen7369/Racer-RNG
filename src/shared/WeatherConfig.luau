@@ -15,6 +15,11 @@ WeatherConfig.Events = {
 		ClockTime = 14,
 		Brightness = 1,
 		Color = Color3.fromRGB(88, 157, 210),
+		Sky = { -- grey-blue, dense, hazy; heavy dark cover
+			Atmosphere = { Color = Color3.fromRGB(120, 140, 160), Density = 0.5, Haze = 3 },
+			Clouds = { Cover = 0.9, Density = 0.8, Color = Color3.fromRGB(90, 95, 105) },
+			StarCount = 0,
+		},
 	},
 	night = {
 		Name = "NIGHT RACE",
@@ -24,6 +29,11 @@ WeatherConfig.Events = {
 		ClockTime = 0,
 		Brightness = 1,
 		Color = Color3.fromRGB(126, 101, 211),
+		Sky = { -- dark violet, thin; light cover, many stars
+			Atmosphere = { Color = Color3.fromRGB(60, 40, 110), Density = 0.2, Haze = 0 },
+			Clouds = { Cover = 0.3, Density = 0.4, Color = Color3.fromRGB(70, 60, 110) },
+			StarCount = 5000,
+		},
 	},
 	gold = {
 		Name = "GOLD RUSH",
@@ -33,6 +43,11 @@ WeatherConfig.Events = {
 		ClockTime = 17,
 		Brightness = 3,
 		Color = Color3.fromRGB(255, 199, 72),
+		Sky = { -- warm gold, light haze; thin golden clouds
+			Atmosphere = { Color = Color3.fromRGB(255, 200, 110), Density = 0.3, Haze = 1 },
+			Clouds = { Cover = 0.4, Density = 0.2, Color = Color3.fromRGB(255, 215, 130) },
+			StarCount = 0,
+		},
 	},
 }
 

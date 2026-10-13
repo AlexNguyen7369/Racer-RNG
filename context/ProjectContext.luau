@@ -3,7 +3,19 @@
 PROJECT CONTEXT - Idle Vehicle Simulator (read me first)
 Shown in Studio at: ServerScriptService > ProjectContext   (source file: context/ProjectContext.luau)
 Do NOT edit this in Studio: edit the file on disk, Rojo syncs it. Claude updates it at the end of every loop.
-Last updated: 2026-10-12 (design-doc fixes verified: full harness pass=38 fail=0 on 7908631)
+Last updated: 2026-10-13 (weather sky built: harness pass=33 fail=0; leaderboards and duels in progress)
+
+WEATHER SKY - 2026-10-13 (Claude, branch feature/alex/weather-sky, card 5c89de92)
+- WeatherConfig.Events[id].Sky = { Atmosphere = { Color, Density, Haze }, Clouds = { Cover, Density, Color },
+  StarCount }. WeatherService.Start finds or creates Lighting.Atmosphere (Density 0, Haze 0), Lighting.Sky and
+  Terrain.Clouds (Cover 0), saves their baseline; publish() applies the event's Sky and restores the baseline
+  exactly on clear / expiry. No skybox textures.
+- Tests first (test-writer): 34 weather_sky_* checks in the weather scenario (CarTest/Phase2Tests.luau). Red seen
+  by physics-tester (33 of 34 failing) before the code.
+- TEST RESULT 2026-10-13 (physics-tester, rojo serve): [CARTEST] END pass=33 fail=0, weather 210/210 (lap:
+  scenarios not in this run). NOT RUN: UI suite, multiplayer / world / regression testers, live screenshots.
+- Seen once, unverified: client warning "Infinite yield possible on RacerHud:WaitForChild("Race")"
+  (Client/RollToast/init.client.luau:1298).
 
 DESIGN DOCS ARE HARD RULES - 2026-10-12 (Claude, docs only, no test run)
 - RULE: docs/GAME_DESIGN_REQUIREMENTS.md is the top rule; docs/*_SPEC.md are hard rules for their feature.
