@@ -31,8 +31,9 @@
 28. 2026-10-12 — Alex Nguyen — Added the save contract (docs/SAVE_SPEC.md), the owner's turbo table (10/x10 to 1000/x1000) in the design doc and tree spec, and the red tests for rebirth resetting Speed, Money only from races, session-locked saves and the turbo values (written first; not yet run because Studio and Rojo were closed).
 29. 2026-10-12 — Alex Nguyen — Implemented the design-doc fixes against the red tests: rebirth resets Speed, no offline or daily-login Money, session-locked saves with MoneyEarned and DuelWins (PlayerData VERSION 8) and the new turbo values (static checks only; no Studio run yet).
 30. 2026-10-12 — Alex Nguyen — Ran the full harness on the design-doc fixes (pass=32 fail=1 plus 5 laps passing), had test-writer correct the one stale base-turbo expectation (x5 to x10) and audit the suite, and recorded the state in handoff.md (the corrected upgrades scenario was not re-run).
+31. 2026-10-12 — Alex Nguyen — Re-ran the full harness on the design-doc fixes with Rojo connected to one Studio (`[CARTEST] END pass=38 fail=0`, including the corrected upgrades scenario) and closed the four design-doc TODO cards.
 
 ## What's next
-**Re-run the full harness on branch design-doc-conflicts with Rojo connected to one Studio and confirm `[CARTEST] END fail=0`, then close the four design-doc TODO cards.**
+**Build the weather sky (card `5c89de92`) test-first on branch feature/alex/weather-sky: per-event Atmosphere, Clouds and StarCount applied by WeatherService and restored exactly on clear.**
 
-**Why this is next:** only the corrected `upgrades` check is unconfirmed; weather sky, leaderboards and duels start from this branch and need a green base.
+**Why this is next:** it is the smallest of the three unbuilt Doing cards and its spec is already written; leaderboards, duels and the final `/compat-check` before pushing main follow on the same stack.
