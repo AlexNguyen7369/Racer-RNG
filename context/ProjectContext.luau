@@ -3,7 +3,7 @@
 PROJECT CONTEXT - Idle Vehicle Simulator (read me first)
 Shown in Studio at: ServerScriptService > ProjectContext   (source file: context/ProjectContext.luau)
 Do NOT edit this in Studio: edit the file on disk, Rojo syncs it. Claude updates it at the end of every loop.
-Last updated: 2026-10-12 (design docs are hard rules; duel + leaderboard specs; no game code changed, no test run)
+Last updated: 2026-10-12 (design-doc fixes verified: full harness pass=38 fail=0 on 7908631)
 
 DESIGN DOCS ARE HARD RULES - 2026-10-12 (Claude, docs only, no test run)
 - RULE: docs/GAME_DESIGN_REQUIREMENTS.md is the top rule; docs/*_SPEC.md are hard rules for their feature.
@@ -14,7 +14,7 @@ DESIGN DOCS ARE HARD RULES - 2026-10-12 (Claude, docs only, no test run)
   Jett Fuel / TURBO starts at every 10 rolls for x10; new sections Duels, Global leaderboards, Weather events.
 - New contracts: docs/DUEL_SPEC.md, docs/LEADERBOARD_SPEC.md (both NOT BUILT). WEATHER_EVENTS_SPEC gained
   the sky rule (not built). SPAWN_AND_ROLLS_SPEC section 1 now matches the moved StartPad.
-- DESIGN-DOC FIXES IMPLEMENTED, UNVERIFIED (branch design-doc-conflicts, tests written first by test-writer):
+- DESIGN-DOC FIXES IMPLEMENTED, HARNESS GREEN (branch design-doc-conflicts, tests written first by test-writer):
   * RebirthService.Rebirth sets Money AND Speed to 0.
   * Money only from race cash-outs and duplicate sales: Workshop.OfflineMoney / OFFLINE_MONEY_FRACTION and the
     OfflineMoney attribute are gone; DailyLoginConfig has no Money (days 1-2 are a Luck and a Money potion).
@@ -25,11 +25,14 @@ DESIGN DOCS ARE HARD RULES - 2026-10-12 (Claude, docs only, no test run)
   * New harness scenarios: rebirth, daily_login. data / gacha / upgrades / workshop_phase2 expectations updated.
 - TEST RESULT 2026-10-12 (commit f687f40, rojo-built place): [CARTEST] END pass=32 fail=1, 5 lap scenarios pass.
   The 1 failure was a stale test literal (upgrades_effects_bare_player_base expected base turbo x5); test-writer
-  fixed it to x10. upgrades NOT re-run after that fix. Red run never happened (red state = commit 6579b81).
+  fixed it to x10. Red run never happened (red state = commit 6579b81).
+- TEST RESULT 2026-10-12 late (commit 7908631, rojo serve + Rojo plugin connected, physics-tester):
+  [CARTEST] END pass=38 fail=0 (28 scenarios + 5 lap + 5 track). upgrades 97/97, rebirth 23/23,
+  daily_login 59/59, data 127/127, gacha 128/128, workshop_phase2 37/37. 0 server errors.
 - NOT RUN: UI suite, multiplayer-tester, world-tester, regression-tester. No ALL GREEN stamp.
 - A rojo-built place loads Workspace.Baseplate at Y = 0 (not -8): move it before running tests on a built place.
 - UNVERIFIED RISK: the load transform applies the save to the player inside UpdateAsync (must not yield in a
-  real DataStore); only the fake store path is covered, and it has not run either.
+  real DataStore); only the fake store path is covered (it passes in the data scenario).
 - Plan for all of it: ~/.claude/plans/look-at-dashboard-todo-zazzy-knuth.md (phases 0-5).
 
 SMOOTH RAIL + TEST RECONCILIATION - 2026-10-11 (Claude)

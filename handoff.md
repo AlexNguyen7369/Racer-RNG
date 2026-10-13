@@ -1,5 +1,17 @@
 # Agent handoff
 
+## 2026-10-12 late: Phase 1 verified, features next (Claude)
+
+- Goal (owner /goal): finish every Doing card, full agent test loop, `/compat-check`, push `main` only when
+  ALL GREEN. Plan: `~/.claude/plans/read-handoff-list-features-zazzy-ripple.md`.
+- Phase 1 VERIFIED: full harness on `7908631` (`rojo serve`, Rojo plugin connected, one Studio):
+  `[CARTEST] END pass=38 fail=0` (28 scenarios + 5 `lap:` + 5 `track:`), `upgrades` 97/97. Cards
+  `conflict-rebirth-speed`, `conflict-money-sources`, `conflict-session-lock`, `turbo-10x` done.
+- Studio tip: `open -a RobloxStudio file.rbxlx` can stop on the start page; File > Open (Cmd+O, Cmd+Shift+G,
+  path) loads it. The Rojo "Connect" and "Accept" buttons can be clicked with `cliclick`.
+- Still open: weather sky, leaderboards, duels, `npc-loser-live`, then `/compat-check`. UI / multiplayer /
+  world / regression suites NOT run yet.
+
 ## 2026-10-12 design docs as hard rules + 5 Doing cards (Claude)
 
 - Goal: the five cards the owner moved to Doing (spawn pad docs, NPC/Loser live check, weather sky, global

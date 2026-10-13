@@ -510,42 +510,50 @@
     {
       "id": "conflict-rebirth-speed",
       "title": "Rebirth must reset Speed (design doc)",
-      "detail": "Design doc: rebirthing resets Money AND Speed. RebirthService keeps Speed. Fix test-first: Rebirth() sets Speed to 0; update the Rebirth panel text and README pillar wording. 2026-10-12: tests written first and code implemented on branch design-doc-conflicts; stylua / selene / rojo build pass. NOT run in Studio yet (Studio and Rojo were closed), so not verified.",
-      "status": "doing",
+      "detail": "Design doc: rebirthing resets Money AND Speed. RebirthService keeps Speed. Fix test-first: Rebirth() sets Speed to 0; update the Rebirth panel text and README pillar wording. 2026-10-12: tests written first and code implemented on branch design-doc-conflicts; stylua / selene / rojo build pass. NOT run in Studio yet (Studio and Rojo were closed), so not verified. 2026-10-12 late: verified, full harness [CARTEST] END pass=38 fail=0 on commit 7908631 (physics-tester).",
+      "status": "done",
       "source": "design doc conflict (owner, 2026-10-12)",
       "by": "Claude",
       "added": "2026-10-12T00:38:15-07:00",
-      "updated": "2026-10-12T00:50:26-07:00"
+      "updated": "2026-10-12T23:53:02-07:00",
+      "done": "2026-10-12T23:53:02-07:00",
+      "updatedBy": "Claude"
     },
     {
       "id": "conflict-money-sources",
       "title": "Money only from race cash-outs and duplicate sales",
-      "detail": "Design doc Economy (owner 2026-10-12). Remove the offline workshop Money credit (PlayerData.Load, Workshop.OfflineMoney, OFFLINE_MONEY_FRACTION, welcome panel) and the Money in daily login rewards (days 1-2 become potions). 2026-10-12: tests written first and code implemented on branch design-doc-conflicts; stylua / selene / rojo build pass. NOT run in Studio yet (Studio and Rojo were closed), so not verified.",
-      "status": "doing",
+      "detail": "Design doc Economy (owner 2026-10-12). Remove the offline workshop Money credit (PlayerData.Load, Workshop.OfflineMoney, OFFLINE_MONEY_FRACTION, welcome panel) and the Money in daily login rewards (days 1-2 become potions). 2026-10-12: tests written first and code implemented on branch design-doc-conflicts; stylua / selene / rojo build pass. NOT run in Studio yet (Studio and Rojo were closed), so not verified. 2026-10-12 late: verified, full harness [CARTEST] END pass=38 fail=0 on commit 7908631 (physics-tester).",
+      "status": "done",
       "source": "design doc conflict (owner, 2026-10-12)",
       "by": "Claude",
       "added": "2026-10-12T00:38:15-07:00",
-      "updated": "2026-10-12T00:50:26-07:00"
+      "updated": "2026-10-12T23:53:02-07:00",
+      "done": "2026-10-12T23:53:02-07:00",
+      "updatedBy": "Claude"
     },
     {
       "id": "conflict-session-lock",
       "title": "Session-locked saves (PlayerData VERSION 8)",
-      "detail": "Design doc: DataStores with session locking. PlayerData uses plain GetAsync/SetAsync. Load and Save through UpdateAsync with Lock = { Id, At }, LOCK_TIMEOUT 120 s, released on leave and BindToClose. Adds MoneyEarned and DuelWins. 2026-10-12: tests written first and code implemented on branch design-doc-conflicts; stylua / selene / rojo build pass. NOT run in Studio yet (Studio and Rojo were closed), so not verified.",
-      "status": "doing",
+      "detail": "Design doc: DataStores with session locking. PlayerData uses plain GetAsync/SetAsync. Load and Save through UpdateAsync with Lock = { Id, At }, LOCK_TIMEOUT 120 s, released on leave and BindToClose. Adds MoneyEarned and DuelWins. 2026-10-12: tests written first and code implemented on branch design-doc-conflicts; stylua / selene / rojo build pass. NOT run in Studio yet (Studio and Rojo were closed), so not verified. 2026-10-12 late: verified, full harness [CARTEST] END pass=38 fail=0 on commit 7908631 (physics-tester).",
+      "status": "done",
       "source": "design doc conflict (owner, 2026-10-12)",
       "by": "Claude",
       "added": "2026-10-12T00:38:15-07:00",
-      "updated": "2026-10-12T00:50:26-07:00"
+      "updated": "2026-10-12T23:53:02-07:00",
+      "done": "2026-10-12T23:53:02-07:00",
+      "updatedBy": "Claude"
     },
     {
       "id": "turbo-10x",
       "title": "Turbo luck: 10/x10, then 50/x50, 200/x200, 500/x500, 1000/x1000",
-      "detail": "Owner 2026-10-12: a longer wait is fine as long as the multi is a lot bigger. UpgradeConfig.BASE_TURBO = { Multi = 10, Every = 10 }, GachaConfig.TURBO_LUCK = 10, Turbo tiers I-IV = 50/50, 200/200, 500/500, 1000/1000 (Every / Multi). Test-first; docs/UPGRADE_TREE_SPEC.md section 4 and the design doc already say so. 2026-10-12: tests written first and code implemented on branch design-doc-conflicts; stylua / selene / rojo build pass. NOT run in Studio yet (Studio and Rojo were closed), so not verified.",
-      "status": "doing",
+      "detail": "Owner 2026-10-12: a longer wait is fine as long as the multi is a lot bigger. UpgradeConfig.BASE_TURBO = { Multi = 10, Every = 10 }, GachaConfig.TURBO_LUCK = 10, Turbo tiers I-IV = 50/50, 200/200, 500/500, 1000/1000 (Every / Multi). Test-first; docs/UPGRADE_TREE_SPEC.md section 4 and the design doc already say so. 2026-10-12: tests written first and code implemented on branch design-doc-conflicts; stylua / selene / rojo build pass. NOT run in Studio yet (Studio and Rojo were closed), so not verified. 2026-10-12 late: verified, full harness [CARTEST] END pass=38 fail=0 on commit 7908631 (physics-tester).",
+      "status": "done",
       "source": "design doc conflict (owner, 2026-10-12)",
       "by": "Claude",
       "added": "2026-10-12T00:38:15-07:00",
-      "updated": "2026-10-12T00:50:26-07:00"
+      "updated": "2026-10-12T23:53:02-07:00",
+      "done": "2026-10-12T23:53:02-07:00",
+      "updatedBy": "Claude"
     }
   ]
 }
