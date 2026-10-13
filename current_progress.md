@@ -33,8 +33,9 @@
 30. 2026-10-12 — Alex Nguyen — Ran the full harness on the design-doc fixes (pass=32 fail=1 plus 5 laps passing), had test-writer correct the one stale base-turbo expectation (x5 to x10) and audit the suite, and recorded the state in handoff.md (the corrected upgrades scenario was not re-run).
 31. 2026-10-12 — Alex Nguyen — Re-ran the full harness on the design-doc fixes with Rojo connected to one Studio (`[CARTEST] END pass=38 fail=0`, including the corrected upgrades scenario) and closed the four design-doc TODO cards.
 32. 2026-10-13 — Alex Nguyen — Published the weather-sky, duel, leaderboard, HUD and dashboard updates on `feature/alex/global-leaderboards` under the owner's stale-gate exception, with dashboard/UI/Rojo/static checks passing and the three implemented TODO cards closed.
+33. 2026-10-13 — Alex Nguyen — Committed (not pushed) the roll odds that follow the roll's luck (harness `pass=35 fail=0`, `ui_roll_odds` 6/6) and the 20 duel UI fixtures with the own-prompt and duel-car `AutoRace` fixes (15 of 20 fixtures run green), without a `/compat-check`.
 
 ## What's next
-**Open the Racer-RNG place in Studio and run the remaining live NPC/LoserScreen, UI, multiplayer, world and regression verification for the pushed fingerprint.**
+**Run `/compat-check` with one session alone in Studio on commit `6060118`, including the 5 unrun duel fixtures, the duel clicks and the two-player duel flow.**
 
-**Why this is next:** it is the remaining evidence needed to close the two open verification cards and replace the stale compatibility status with an exact-fingerprint result.
+**Why this is next:** the compatibility gate is not green for this code, so the branch cannot go to `main`, and the two duel bugs and the open verification cards can only be closed with that live evidence.
