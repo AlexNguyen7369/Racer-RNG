@@ -1,5 +1,55 @@
 # Agent handoff
 
+## Weather: 15 minute schedule, five weathers, HUD icon — 2026-10-13 (Claude)
+
+### Goal state
+
+Owner request: a weather every 15 minutes, picked with equal chance from five, a visible sky change and a small
+bottom-right icon whose hover card names the weather and what it changes. Code and tests are written and
+uncommitted. Server side is verified live; part of the UI is not.
+
+### What changed (uncommitted, branch `feature/alex/global-leaderboards`)
+
+- Rules first: `docs/GAME_DESIGN_REQUIREMENTS.md` ("Weather events", incl. the planned weighted chances) and
+  `docs/WEATHER_EVENTS_SPEC.md` ("Schedule", "Planned, not built", "Weather icon").
+- `src/shared/WeatherConfig.luau`: `INTERVAL` 15 min (start to start; `MIN_INTERVAL` / `MAX_INTERVAL` removed),
+  `Order` = clear, rain, night, gold, aurora, an `Icon` per weather, `Describe(id)`. Clear has no sky or lighting
+  effect; Aurora is luck x1.5, money x1.5 (placeholder numbers).
+- `src/server/WeatherService.luau`: an expiry does not move the next start; a weather without `Sky` keeps the baseline.
+- `src/client/ProgressionUi.client.luau`: `WeatherBanner` removed; `WeatherIcon` (44 x 44, bottom right) with `Card`
+  (`Title`, `Stats`, `Time`), hover shows it, tap toggles it. Phones (height <= 500): right edge 140 px in, left
+  of the Market button.
+- Tests (test-writer / ui-test-writer): `Tests.weather` in `Phase2Tests.luau`; `UiSpec.Weather`, `ui_weather`,
+  fixtures `weather_aurora` and `weather_clear_event`, clicks `weather_card_open` / `weather_card_close`.
+
+### Verified (live Studio, Rojo connected, viewport 1081x598)
+
+- Red first: weather 264/366 on the old code. Green on the final code, including the final sky values:
+  `[CARTEST] END pass=35 fail=0`, weather 366/366.
+- `ui_weather` green for all 7 fixtures; `ui_hitboxes` 90/90; clicks `weather_card_open` 24/24 and
+  `weather_card_close` 18/18; real-mouse hover shows and hides the card; the icon hides under the roll showcase
+  and comes back. Bug `44fd8ec5` (icon over the Market button on phones) verified fixed.
+- Skies (owner: must be distinguishable): all five screenshotted live. Gold Rush looked like Clear and Aurora like
+  Night Race, so both got stronger values in `WeatherConfig` (gold haze; teal-green dusk). The screenshots were
+  made by applying the config values to Lighting by hand, not through `WeatherService.SetEvent`; the harness
+  `weather_sky_applied_*` checks cover the real path.
+
+### Not verified / known limits
+
+- All 25 UI scenarios were run once, one by one (no `[UITEST] END` line): 21 pass, 4 fail, none from the weather
+  change: `ui_layout` 2/812 (bug `3a6d9cb3`, DailyBoosts `Status` over Daily Rewards / Bag on phones),
+  `ui_roll_anim` 3/36 and `ui_rolls` (roll timing, older), `ui_roll_emphasized` 3/23 (fixture not applied).
+- `open_showcase_from_toast`: `click_landed_on_button` fails although the showcase opens; looks like a harness
+  sampling problem, for ui-test-writer.
+- `static_settle:min_compression` failed once in the red run and passed in both green runs. Not investigated.
+- Studio dropped and came back twice during Play restarts in this session (new MCP id each time).
+- No `/compat-check` (multiplayer, world, regression not run). NOT cleared for main.
+
+### Resume steps
+
+1. Fix bug `3a6d9cb3` and the roll-timing UI failures before any `/compat-check`.
+2. Before any push to `main`: one session alone in Studio, `/compat-check` until ALL GREEN on the final code.
+
 ## Committed — 2026-10-13 (Claude)
 
 - The two sections below ("Weather: displayed odds follow the roll's luck" and "Duel UI fixtures") are committed

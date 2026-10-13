@@ -98,8 +98,42 @@ local badge = text("Badge", upgrades, UDim2.new(1, -26, 0, 0), UDim2.fromOffset(
 badge.BackgroundTransparency = 0
 badge.BackgroundColor3 = RED
 make("UICorner", "Corner", badge, { CornerRadius = UDim.new(1, 0) })
-local weather = text("WeatherBanner", hud, UDim2.fromOffset(16, 12), UDim2.fromOffset(220, 42), "")
-weather.TextXAlignment = Enum.TextXAlignment.Left
+-- Weather icon, bottom right (docs/WEATHER_EVENTS_SPEC.md, "Weather icon"): hover or tap shows the card.
+local weather = button("WeatherIcon", hud, UDim2.new(1, -8, 1, -8), UDim2.fromOffset(44, 44), "")
+weather.AnchorPoint = Vector2.new(1, 1)
+weather.BackgroundColor3 = DARK
+weather.TextSize = 24
+local weatherCard = make("Frame", "Card", weather, {
+	AnchorPoint = Vector2.new(1, 1),
+	Position = UDim2.new(1, 0, 0, -6),
+	Size = UDim2.fromOffset(200, 74),
+	BackgroundColor3 = DARK,
+	Visible = false,
+})
+make("UICorner", "Corner", weatherCard, { CornerRadius = UDim.new(0, 8) })
+local weatherTitle = text("Title", weatherCard, UDim2.fromOffset(8, 4), UDim2.new(1, -16, 0, 22), "")
+local weatherStats = text("Stats", weatherCard, UDim2.fromOffset(8, 26), UDim2.new(1, -16, 0, 22), "")
+local weatherTime = text("Time", weatherCard, UDim2.fromOffset(8, 48), UDim2.new(1, -16, 0, 20), "")
+weatherStats.TextSize = 13
+weatherTime.TextSize = 13
+local weatherPinned, weatherHover = false, false
+local function showWeatherCard()
+	weatherCard.Visible = weatherPinned or weatherHover
+end
+weather.Activated:Connect(function()
+	-- A tap decides alone, so a second tap hides the card while the pointer still rests on the icon.
+	weatherPinned = not weatherPinned
+	weatherHover = false
+	showWeatherCard()
+end)
+weather.MouseEnter:Connect(function()
+	weatherHover = true
+	showWeatherCard()
+end)
+weather.MouseLeave:Connect(function()
+	weatherHover = false
+	showWeatherCard()
+end)
 local treePanel = panel("Upgrades", "MONEY UPGRADE TREE")
 local canvas = make("ScrollingFrame", "Canvas", treePanel, {
 	Position = UDim2.fromOffset(8, 44),
@@ -333,14 +367,16 @@ RunService.Heartbeat:Connect(function(dt)
 		return
 	end
 	elapsed = 0
-	local spec = Weather.Events[ReplicatedStorage:GetAttribute("WeatherEvent") or ""]
+	local weatherId = ReplicatedStorage:GetAttribute("WeatherEvent") or ""
+	local active = Weather.Events[weatherId]
+	local spec = active or Weather.Events.clear
 	local remaining =
 		math.max(0, math.ceil((ReplicatedStorage:GetAttribute("WeatherEndsAt") or 0) - workspace:GetServerTimeNow()))
-	weather.Text = spec
-			and string.format("%s • %ds\nLuck x%s • Money x%s", spec.Name, remaining, spec.Luck, spec.Money)
-		or ""
-	weather.TextColor3 = spec and spec.Color or BLUE
-	weather.Visible = spec ~= nil
+	weather.Text = spec.Icon
+	weatherTitle.Text = spec.Name
+	weatherTitle.TextColor3 = spec.Color or Color3.new(1, 1, 1)
+	weatherStats.Text = Weather.Describe(weatherId)
+	weatherTime.Text = active and string.format("%ds left", remaining) or ""
 	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
 	local inside = false
 	for _, pad in CollectionService:GetTagged("UpgradePad") do
@@ -373,6 +409,8 @@ RunService.Heartbeat:Connect(function(dt)
 	local camera = workspace.CurrentCamera
 	if camera and camera.ViewportSize.X > 1 then
 		local viewport = camera.ViewportSize
+		-- Phones: the Bag / Daily / Market stack fills the corner, so the icon sits left of the Market button.
+		weather.Position = UDim2.new(1, viewport.Y <= 500 and -140 or -8, 1, -8)
 		-- These ScreenGuis ignore the top-bar inset, so an AbsolutePosition + inset is an offset in them.
 		local inset = GuiService:GetGuiInset().Y
 		local racerHud = gui:FindFirstChild("RacerHud")
@@ -410,8 +448,6 @@ RunService.Heartbeat:Connect(function(dt)
 				p.Size = UDim2.fromOffset(width, math.max(112, bottom - toastBottom - 8))
 			end
 		end
-		weather.Size = UDim2.fromOffset(math.min(220, viewport.X * 0.28), 42)
-		weather.TextSize = viewport.X < 600 and 12 or 16
 	end
 end)
 refresh()

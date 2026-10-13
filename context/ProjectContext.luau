@@ -3,7 +3,32 @@
 PROJECT CONTEXT - Idle Vehicle Simulator (read me first)
 Shown in Studio at: ServerScriptService > ProjectContext   (source file: context/ProjectContext.luau)
 Do NOT edit this in Studio: edit the file on disk, Rojo syncs it. Claude updates it at the end of every loop.
-Last updated: 2026-10-13 (Claude: weather displayed odds)
+Last updated: 2026-10-13 (Claude: weather schedule, five weathers, weather icon)
+
+WEATHER SCHEDULE, FIVE WEATHERS, HUD ICON - 2026-10-13 (Claude, branch feature/alex/global-leaderboards, uncommitted)
+- Rules (owner 2026-10-13, design doc "Weather events", docs/WEATHER_EVENTS_SPEC.md "Schedule" and "Weather icon"):
+  a weather starts every 15 minutes start to start (WeatherConfig.INTERVAL, replaces MIN/MAX_INTERVAL) and lasts 3;
+  equal-chance pick from Order = clear, rain, night, gold, aurora. clear = no effect, baseline sky. aurora = luck
+  x1.5, money x1.5 (placeholder). Planned, not built: bigger benefit = lower chance.
+- WeatherConfig.Describe(id) gives the stat line ("LUCK x2", "MONEY x2 • NPC SPEED x1.25", "NO BONUS"); every event
+  has an Icon (text glyph for now). WeatherService.Tick: an expiry does not move the next start.
+- UI: RacerProgression/WeatherBanner is gone. RacerProgression/WeatherIcon (44x44 TextButton, bottom right, always
+  visible) with Card (Title / Stats / Time), shown on hover, toggled by tap. Phones (height <= 500): the icon sits
+  8 px left of the Market button (right edge 140 px in), because the Bag / Daily / Market stack fills the corner.
+- Tests first: weather harness checks seen red (264/366), then green. UI: ui_weather rewritten for the icon, new
+  fixtures weather_aurora and weather_clear_event, clicks weather_card_open / weather_card_close.
+- Skies must be told apart by eye (owner 2026-10-13): Clear blue, Rain grey, Night Race black + stars, Gold Rush gold
+  haze, Aurora teal-green. All five were screenshotted live; Gold Rush (looked like Clear) and Aurora (looked like
+  Night Race) got stronger values in WeatherConfig.
+- TEST RESULT 2026-10-13 (live Studio, Rojo, viewport 1081x598): [CARTEST] END pass=35 fail=0, weather 366/366, run on
+  the final sky values (red before the change: weather 264/366).
+  ui_weather green for all 7 fixtures (38 checks each, 48 for rain_roll); ui_hitboxes 90/90; clicks weather_card_open
+  24/24 and weather_card_close 18/18; real-mouse hover shows and hides the card; the icon hides under the roll
+  showcase and returns. Bug 44fd8ec5 (icon over Market button on phones) verified fixed.
+- All 25 UI scenarios run once (no [UITEST] END line; ui-tester ran them one by one): 21 pass, 4 fail, none from
+  the weather change: ui_layout 2/812 (bug 3a6d9cb3, DailyBoosts Status over Daily Rewards / Bag on phones),
+  ui_roll_anim 3/36 and ui_rolls (roll timing, older), ui_roll_emphasized 3/23 (fixture not applied, not judged).
+- UNVERIFIED: no /compat-check (multiplayer, world, regression not run); NOT cleared for main.
 
 WEATHER DISPLAYED ODDS - 2026-10-13 (Claude, branch feature/alex/global-leaderboards, uncommitted)
 - Rule (owner 2026-10-13, design doc "Weather events", docs/WEATHER_EVENTS_SPEC.md "Displayed odds"): the roll card

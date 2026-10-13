@@ -1126,11 +1126,14 @@ function Model.Progression(path, viewport, dependencies)
 			TextSize = 16,
 			TextXAlignment = Enum.TextXAlignment.Center,
 		}
-	elseif path == "RacerProgression/WeatherBanner" then
+	elseif path == "RacerProgression/WeatherIcon" then
+		-- It replaced WeatherBanner (owner 2026-10-13, docs/WEATHER_EVENTS_SPEC.md "Weather icon"): 44 x 44, 8 px
+		-- from the right and bottom edges; on phones its right edge is 140 px in, left of the Market button.
+		local phone = viewport.Y <= Model.PHONE_MAX_HEIGHT
 		return {
-			AnchorPoint = Vector2.zero,
-			Position = UDim2.fromOffset(16, 12),
-			Size = UDim2.fromOffset(math.min(220, viewport.X * 0.28), 42),
+			AnchorPoint = Vector2.new(1, 1),
+			Position = UDim2.new(1, phone and -140 or -8, 1, -8),
+			Size = UDim2.fromOffset(44, 44),
 		}
 	end
 	return nil

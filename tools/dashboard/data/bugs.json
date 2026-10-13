@@ -595,6 +595,69 @@
       "fixedAt": "2026-10-13T05:59:39-07:00",
       "fixedBy": "Alex Nguyen",
       "fixNote": "spawnCar sets AutoRace on a duel car when it is built; stylua/selene/rojo build pass; NOT seen live (needs two clients)"
+    },
+    {
+      "id": "44fd8ec5",
+      "name": "WeatherIcon overlaps Market button on phone landscape",
+      "kind": "failure",
+      "status": "fixed",
+      "file": "src/client/ProgressionUi.client.luau",
+      "line": 102,
+      "endLine": 103,
+      "snippet": {
+        "from": 98,
+        "lines": [
+          "badge.BackgroundTransparency = 0",
+          "badge.BackgroundColor3 = RED",
+          "make(\"UICorner\", \"Corner\", badge, { CornerRadius = UDim.new(1, 0) })",
+          "-- Weather icon, bottom right (docs/WEATHER_EVENTS_SPEC.md, \"Weather icon\"): hover or tap shows the card.",
+          "local weather = button(\"WeatherIcon\", hud, UDim2.new(1, -8, 1, -8), UDim2.fromOffset(44, 44), \"\")",
+          "weather.AnchorPoint = Vector2.new(1, 1)",
+          "weather.BackgroundColor3 = DARK",
+          "weather.TextSize = 24",
+          "local weatherCard = make(\"Frame\", \"Card\", weather, {",
+          "\tAnchorPoint = Vector2.new(1, 1),"
+        ]
+      },
+      "summary": "ui_layout no_overlap_rest_phone_landscape / no_overlap_rest_phone_small_landscape fail: the new 44x44 WeatherIcon (anchor 1,1 at 1,-8 / 1,-8) intersects MarketUi/MarketButton (src/client/MarketUi.client.luau:33, Position 1,-16 / 0.22,218, 116x44). At 844x390: Market (712,304 116x44) x icon (792,338 44x44), 36x10 px shared; at 667x375: Market (535,300) x icon (615,323), 36x21 px shared. On phones a tap near the bottom of MARKET can open the weather card instead (and the reverse). Desktop, laptop, 720p and tablet viewports are clear.",
+      "error": "{\"value\":\"... MarketUi/MarketButton(712,304 116x44) x RacerProgression/WeatherIcon(792,338 44x44)\",\"limit\":\"none\",\"pass\":false,\"name\":\"no_overlap_rest_phone_landscape\"}",
+      "foundBy": "ui-tester",
+      "foundAt": "2026-10-13T09:38:30-07:00",
+      "loggedBy": "Alex Nguyen",
+      "fixedAt": "2026-10-13T13:16:10-07:00",
+      "fixedBy": "Alex Nguyen",
+      "fixNote": "Verified by ui-tester 2026-10-13 in live Play (viewport 1081x598): ui_layout no_overlap_rest_phone_landscape and no_overlap_rest_phone_small_landscape no longer list WeatherIcon (only the separate DailyBoosts/Status overlap, bug 3a6d9cb3, remains); ui_weather passes 38/38 incl. weather_icon_left_of_market on both phone viewports; ui_hitboxes 90/90."
+    },
+    {
+      "id": "3a6d9cb3",
+      "name": "Daily status label overlaps Daily Rewards / Bag on phone landscape",
+      "kind": "failure",
+      "status": "open",
+      "file": "src/client/BoostDailyUi.client.luau",
+      "line": 101,
+      "endLine": 104,
+      "snippet": {
+        "from": 97,
+        "lines": [
+          "local layout = Instance.new(\"UIListLayout\")",
+          "layout.Padding = UDim.new(0, 8)",
+          "layout.Parent = content",
+          "",
+          "local status = make(\"TextLabel\", \"Status\", screen, {",
+          "\tAnchorPoint = Vector2.new(1, 0),",
+          "\tPosition = UDim2.new(1, -16, 1, -130),",
+          "\tSize = UDim2.fromOffset(160, 42),",
+          "\tBackgroundTransparency = 1,",
+          "\tTextColor3 = Color3.new(1, 1, 1),",
+          "\tFont = Enum.Font.GothamBold,",
+          "\tTextSize = 13,"
+        ]
+      },
+      "summary": "ui_layout no_overlap_rest_phone_landscape / phone_small_landscape: DailyBoosts/Status (160x42 at 1,-16 / 1,-130) intersects DailyRewardButton at 844x390 (button 712,264 116x36 x status 668,260) and both BagButton and DailyRewardButton at 667x375 (status 491,245). Not caused by the weather icon (file unchanged since b255c4d); status text would draw over the buttons on phones. Solver result; live phone emulation not checked (screen was locked).",
+      "error": "{\"value\":\"DailyBoosts/DailyRewardButton(712,264 116x36) x DailyBoosts/Status(668,260 160x42); ...\",\"limit\":\"none\",\"pass\":false,\"name\":\"no_overlap_rest_phone_landscape\"}",
+      "foundBy": "ui-tester",
+      "foundAt": "2026-10-13T09:38:30-07:00",
+      "loggedBy": "Alex Nguyen"
     }
   ]
 }

@@ -1186,6 +1186,7 @@ UiSpec.Clicks = {
 				"showcase_blur_on",
 				"showcase_layout",
 				"hud_hidden_while_showcase_open",
+				"weather_icon_hidden_while_showcase_open",
 				"autobutton_label_follows_server",
 				"toast_hidden_while_showcase_open",
 			},
@@ -1222,7 +1223,7 @@ UiSpec.Clicks = {
 		Expect = {
 			Showcase = false,
 			Remote = false,
-			After = { "showcase_blur_off", "view_compact", "normal_view_back" },
+			After = { "showcase_blur_off", "view_compact", "normal_view_back", "weather_icon_shown_after_showcase" },
 		},
 	},
 	{
@@ -1242,6 +1243,7 @@ UiSpec.Clicks = {
 				"showcase_card_is_latest_roll",
 				"showcase_blur_on",
 				"hud_hidden_while_showcase_open",
+				"weather_icon_hidden_while_showcase_open",
 			},
 		},
 	},
@@ -1273,7 +1275,13 @@ UiSpec.Clicks = {
 		Expect = {
 			Showcase = false,
 			Remote = false,
-			After = { "showcase_blur_off", "view_compact", "toast_shows_auto_off", "normal_view_back" },
+			After = {
+				"showcase_blur_off",
+				"view_compact",
+				"toast_shows_auto_off",
+				"normal_view_back",
+				"weather_icon_shown_after_showcase",
+			},
 		},
 	},
 	{
@@ -1313,7 +1321,7 @@ UiSpec.Clicks = {
 			Showcase = false,
 			Panels = { ["RacerIndex/Panel"] = false },
 			Remote = false,
-			After = { "showcase_blur_off", "view_compact", "normal_view_back" },
+			After = { "showcase_blur_off", "view_compact", "normal_view_back", "weather_icon_shown_after_showcase" },
 		},
 	},
 	{
@@ -1339,7 +1347,7 @@ UiSpec.Clicks = {
 		Expect = {
 			Showcase = false,
 			Remote = false,
-			After = { "showcase_blur_off", "view_compact", "normal_view_back" },
+			After = { "showcase_blur_off", "view_compact", "normal_view_back", "weather_icon_shown_after_showcase" },
 		},
 	},
 }
@@ -1347,10 +1355,50 @@ UiSpec.Clicks = {
 -- Progression contract agreed with main, 2026-10-07. These are additions to the Racer UI gate.
 UiSpec.Guis.RacerProgression = {
 	Source = "Client/ProgressionUi",
-	AlwaysOn = { "UpgradeButton", "UpgradeButton/Badge", "WeatherBanner" },
-	Readouts = { "UpgradeButton/Badge", "WeatherBanner" },
-	NonInteractiveParts = { "WeatherBanner" },
-	Buttons = { { Path = "UpgradeButton", Does = "toggle_panel", Panel = "RacerUpgrades/Panel", Text = "UPGRADES" } },
+	-- WeatherIcon replaces the old top-left WeatherBanner (owner decision 2026-10-13, docs/WEATHER_EVENTS_SPEC.md
+	-- "Weather icon"): an always-on button under the same overlap / hitbox rules as every other HUD control. It is NOT
+	-- in UiSpec.HiddenWhilePanelOpen (the spec says "always visible"), so it must clear every open panel too.
+	AlwaysOn = { "UpgradeButton", "UpgradeButton/Badge", "WeatherIcon" },
+	Readouts = { "UpgradeButton/Badge" },
+	Buttons = {
+		{ Path = "UpgradeButton", Does = "toggle_panel", Panel = "RacerUpgrades/Panel", Text = "UPGRADES" },
+		{
+			Path = "WeatherIcon",
+			Does = "local",
+			Effect = "toggle:RacerProgression/WeatherIcon/Card",
+			Label = "WeatherConfig.Events[WeatherEvent].Icon (the clear icon when no weather is active)",
+		},
+	},
+}
+-- Weather icon (docs/WEATHER_EVENTS_SPEC.md "Weather icon", design doc "Weather events"; owner 2026-10-13). Checked by
+-- ui_weather (every weather_* fixture), the weather_card_* clicks and the showcase clicks' weather_icon_* conditions.
+UiSpec.Weather = {
+	Banner = "RacerProgression/WeatherBanner", -- the old text banner: must not exist
+	Icon = "RacerProgression/WeatherIcon", -- TextButton, Text = WeatherConfig.Events[id].Icon
+	Card = "RacerProgression/WeatherIcon/Card", -- Frame, hidden by default; shown on hover, toggled by a click
+	Labels = { "Title", "Stats", "Time" }, -- TextLabels directly under the Card
+	IconSize = Vector2.new(44, 44),
+	-- Bottom-right corner: the icon's right and bottom edges are on screen and at most this far from the screen's
+	-- edges (the HUD's other corner controls sit 12 to 22 px in; the showcase's corner click uses 24)
+	CornerMargin = 24,
+	-- Phones (viewport height <= UiResponsive.PHONE_MAX_HEIGHT; owner 2026-10-13): the Bag / Daily / Market stack fills
+	-- the corner, so the icon's right edge is PhoneRight px from the screen's right edge, left of the Market button.
+	-- The bottom limit is unchanged. Gap is the spec's 8 px edge gap (the solver's model, UiResponsive.Progression).
+	PhoneRight = 140,
+	Gap = 8,
+	MarketButton = "MarketUi/MarketButton",
+	ClearId = "clear", -- shown for WeatherEvent "" as well
+	ClearTitle = "CLEAR",
+	-- Stats = WeatherConfig.Describe(id): every multiplier that is not 1, in this order, joined by Separator
+	StatParts = {
+		{ Key = "Luck", Text = "LUCK x" },
+		{ Key = "Money", Text = "MONEY x" },
+		{ Key = "NpcSpeed", Text = "NPC SPEED x" },
+	},
+	Separator = " • ",
+	NoBonus = "NO BONUS",
+	TimeText = "^(%d+)s left$", -- "" when no weather is active
+	TimeTolerance = 1, -- s between the shown countdown and ceil(WeatherEndsAt - server time)
 }
 UiSpec.Guis.RacerUpgrades = {
 	Source = "Client/ProgressionUi",
@@ -1441,6 +1489,18 @@ table.insert(UiSpec.Clicks, {
 	NeedSetup = { "spy" },
 	Expect = { Panels = { ["RacerUpgrades/Panel"] = false }, Remote = false },
 })
+-- The weather Card toggles on a click (tap): the first click shows it, the second hides it, even while the pointer
+-- still rests on the icon (hover shows it again only on the next MouseEnter). Run the two in this order.
+for _, open in { true, false } do
+	table.insert(UiSpec.Clicks, {
+		Id = open and "weather_card_open" or "weather_card_close",
+		Gui = "RacerProgression",
+		Path = "WeatherIcon",
+		Prepare = { Closed = CLOSED, Showcase = false },
+		NeedSetup = { "weather_rain", "spy" },
+		Expect = { Remote = false, After = { open and "weather_card_shown" or "weather_card_hidden" } },
+	})
+end
 table.insert(UiSpec.Clicks, {
 	Id = "buy_upgrade",
 	Gui = "RacerUpgrades",
@@ -1493,7 +1553,15 @@ for _, item in
 		{ Id = "weather_rain", What = "Replicates rain with 180 seconds remaining; run ui_weather." },
 		{ Id = "weather_night", What = "Replicates night with 180 seconds remaining; run ui_weather." },
 		{ Id = "weather_gold", What = "Replicates gold with 180 seconds remaining; run ui_weather." },
-		{ Id = "weather_clear", What = "Replicates no event; run ui_weather, banner must hide." },
+		{ Id = "weather_aurora", What = "Replicates aurora with 180 seconds remaining; run ui_weather." },
+		{
+			Id = "weather_clear",
+			What = "Replicates no event; run ui_weather: the icon stays, with the Clear icon and an empty Time.",
+		},
+		{
+			Id = "weather_clear_event",
+			What = "Replicates the weather id 'clear' with 180 seconds remaining; run ui_weather.",
+		},
 		-- Displayed odds (UiSpec.RollOdds): each plants two RollResults at the test client only (nothing is rolled,
 		-- granted or paid) and turns AutoRoll off until 'restore'
 		{ Id = "roll_odds_luck2", What = "Plants a car with a Chance at luck 2; run ui_roll_odds." },
@@ -1549,7 +1617,9 @@ UiSpec.Progression.FixtureChecks = {
 	{ Setup = "weather_rain", Scenario = "ui_weather" },
 	{ Setup = "weather_night", Scenario = "ui_weather" },
 	{ Setup = "weather_gold", Scenario = "ui_weather" },
+	{ Setup = "weather_aurora", Scenario = "ui_weather" },
 	{ Setup = "weather_clear", Scenario = "ui_weather" },
+	{ Setup = "weather_clear_event", Scenario = "ui_weather" },
 	{ Setup = "weather_rain_roll", Scenario = "ui_weather" },
 	{ Setup = "roll_odds_luck2", Scenario = "ui_roll_odds" },
 	{ Setup = "roll_odds_round", Scenario = "ui_roll_odds" },

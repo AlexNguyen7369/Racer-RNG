@@ -332,6 +332,23 @@
       "status": "open",
       "added": "2026-10-13T06:40:00-07:00",
       "by": "Claude"
+    },
+    {
+      "id": "weather-icon-live-check",
+      "title": "Reconnect Rojo and keep the screen unlocked for the weather icon UI run",
+      "priority": "high",
+      "why": "Studio was restarted and its Rojo plugin is not connected, so the phone position of the weather icon is not in Studio. With the Mac's screen locked the client does not render (Camera.ViewportSize 1,1): no clicks, no hover, no valid [UITEST] run.",
+      "blocks": "Verifying bug 44fd8ec5 (icon over Market button on phones), the weather card clicks, mouse hover and the full UI suite; card weather-15min-icon.",
+      "when": "Before the next UI test run.",
+      "steps": [
+        "Unlock the Mac and bring Roblox Studio (Racer RNG) to the front.",
+        "In Studio's Rojo plugin click Connect (rojo serve is already running on port 34872).",
+        "Leave the game view visible and Device emulation off.",
+        "Tell Claude to rerun the weather UI checks."
+      ],
+      "status": "done",
+      "added": "2026-10-13T13:05:06-07:00",
+      "by": "Claude"
     }
   ]
 }

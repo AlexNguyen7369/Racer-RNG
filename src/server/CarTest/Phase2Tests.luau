@@ -3,6 +3,9 @@
 -- MAX_STAT, guarded next-level purchase, OfflineAt persistence and one-time credit.
 -- Weather: rain luck 2, night NPC speed 1.25/money 2, gold money 3, expiry,
 -- actual rolls/payouts and Event-only catalog eligibility. No owner prices assumed.
+-- Weather, owner 2026-10-13 (design doc "Weather events", WEATHER_EVENTS_SPEC "Schedule"): a weather every
+-- 15 minutes start to start for 3 minutes, five weathers picked with equal chance (clear, rain, night, gold,
+-- aurora), clear changes nothing, aurora luck 1.5 / money 1.5, WeatherConfig.Describe.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
@@ -502,8 +505,19 @@ function Tests.weather()
 		local at = Workspace:GetServerTimeNow()
 		weather.SetEvent("", at)
 		local baseLuck, baseMoney = gacha.Luck(p), gacha.MoneyMulti(p)
-		local expected = { rain = { 2, 1, 1 }, night = { 1, 2, 1.25 }, gold = { 1, 3, 1 } }
-		for _, id in { "rain", "night", "gold" } do
+		-- Spec table (owner, 2026-10-13): Luck, Money, NPC speed. "clear" is a real pick that changes nothing.
+		local expected = {
+			clear = { 1, 1, 1 },
+			rain = { 2, 1, 1 },
+			night = { 1, 2, 1.25 },
+			gold = { 1, 3, 1 },
+			aurora = { 1.5, 1.5, 1 },
+		}
+		-- "" is the state between weathers; "clear" is now a weather id, so "" is labelled "none".
+		local function label(id)
+			return id == "" and "none" or id
+		end
+		for _, id in { "clear", "rain", "night", "gold", "aurora" } do
 			local values = expected[id]
 			flag("weather_set_" .. id, weather.SetEvent(id, at) == true)
 			local current, expiry = weather.Current()
@@ -560,7 +574,7 @@ function Tests.weather()
 		local route = races and races.GetRoute()
 		flag("weather_npc_live_route_available", route ~= nil and factory ~= nil and carConfig ~= nil)
 		if route and factory and carConfig then
-			for _, event in { "", "night" } do
+			for _, event in { "", "night", "clear", "aurora" } do
 				weather.SetEvent(event, at)
 				local car = factory.build(carConfig)
 				car.Parent = Workspace
@@ -575,11 +589,8 @@ function Tests.weather()
 					end,
 				})
 				table.insert(resources, run)
-				local wantSpeed = route.Tracks[1].Npc.Config.Speed * (event == "night" and 1.25 or 1)
-				flag(
-					"weather_reaches_npc_track_start_" .. (event == "" and "clear" or event),
-					start ~= nil and near(start.Speed, wantSpeed)
-				)
+				local wantSpeed = route.Tracks[1].Npc.Config.Speed * (event == "" and 1 or expected[event][3])
+				flag("weather_reaches_npc_track_start_" .. label(event), start ~= nil and near(start.Speed, wantSpeed))
 				run:Destroy()
 				resources[#resources] = nil
 				car:Destroy()
@@ -637,18 +648,22 @@ function Tests.weather()
 			end
 			local clearLuck, clearWant = rollLuck("", 0)
 			flag(
-				"weather_roll_luck_clear",
+				"weather_roll_luck_none",
 				type(clearLuck) == "number" and clearLuck == clearWant and near(clearLuck, baseLuck),
 				type(clearLuck) == "number" and clearLuck or -1,
 				baseLuck
 			)
 			-- x2 is exact in floating point, so "exactly 2x" is an equality, not a tolerance.
-			for _, event in { "rain", "night", "gold" } do
+			-- x1.5 (aurora) may differ by one rounding step depending on the product order, so it gets a tolerance.
+			for _, event in { "clear", "rain", "night", "gold", "aurora" } do
 				local luck, want = rollLuck(event, 0)
-				local limit = (event == "rain" and 2 or 1) * baseLuck
+				local factor = expected[event][1]
+				local limit = factor * baseLuck
 				flag(
 					"weather_roll_luck_" .. event,
-					type(luck) == "number" and luck == want and luck == (event == "rain" and 2 or 1) * clearLuck,
+					type(luck) == "number"
+						and luck == want
+						and (luck == factor * clearLuck or event == "aurora" and near(luck, factor * clearLuck, 1e-9)),
 					type(luck) == "number" and luck or -1,
 					limit
 				)
@@ -674,6 +689,17 @@ function Tests.weather()
 			)
 			p:SetAttribute("TurboCount", 0)
 		end
+		-- Spec: "Three permanent catalog keys are available only during their matching event (Clear and Aurora
+		-- have none)."
+		for _, event in { "clear", "aurora" } do
+			local count = 0
+			for _, spec in catalog.All() do
+				if spec.Event == event then
+					count += 1
+				end
+			end
+			flag("weather_no_event_only_car_" .. event, count == 0, count, 0)
+		end
 		for _, event in { "rain", "night", "gold" } do
 			local eventCar
 			for _, spec in catalog.All() do
@@ -691,8 +717,9 @@ function Tests.weather()
 					end
 				end
 				flag("weather_variant_shares_existing_mesh_" .. event, sharedMesh)
-				for _, active in { "", "rain", "night", "gold" } do
-					weather.SetEvent(active, at)
+				for _, active in { "", "rain", "night", "gold", "clear", "aurora" } do
+					-- the state must really be `active`: a refused SetEvent would leave the previous weather on
+					local set = weather.SetEvent(active, at) == true and weather.Current() == active
 					local eligible = {}
 					for _, spec in catalog.Rollable() do
 						if spec.Chance and (not spec.Event or spec.Event == active) then
@@ -712,8 +739,8 @@ function Tests.weather()
 					p:SetAttribute("TurboCount", 0)
 					local rolled = gacha.Roll(p, rng)
 					flag(
-						"weather_event_car_eligibility_" .. event .. "_" .. (active == "" and "clear" or active),
-						active == event and rolled == eventCar.Id or active ~= event and rolled ~= eventCar.Id
+						"weather_event_car_eligibility_" .. event .. "_" .. label(active),
+						set and (active == event and rolled == eventCar.Id or active ~= event and rolled ~= eventCar.Id)
 					)
 				end
 			end
@@ -726,7 +753,7 @@ function Tests.weather()
 				catchAll = spec.Id
 			end
 		end
-		for _, active in { "", "rain", "night", "gold" } do
+		for _, active in { "", "rain", "night", "gold", "clear", "aurora" } do
 			local eligible = {}
 			for _, spec in catalog.Rollable() do
 				if spec.Chance and (spec.Event == nil or spec.Event == active) then
@@ -741,7 +768,7 @@ function Tests.weather()
 				end,
 			}, 1, active)
 			flag(
-				"weather_filters_before_rng_" .. (active == "" and "clear" or active),
+				"weather_filters_before_rng_" .. label(active),
 				draws == #eligible and fallback == catchAll,
 				draws,
 				#eligible
@@ -765,12 +792,7 @@ function Tests.weather()
 						-- When filtered, the unfiltered target index can hit a normal
 						-- car; the required assertion is exclusion of this event car.
 						flag(
-							"weather_catalog_roll_"
-								.. candidate.Id
-								.. "_"
-								.. (active == "" and "clear" or active)
-								.. "_"
-								.. boundary,
+							"weather_catalog_roll_" .. candidate.Id .. "_" .. label(active) .. "_" .. boundary,
 							allowed and got == want or not allowed and got ~= candidate.Id
 						)
 					end
@@ -780,10 +802,7 @@ function Tests.weather()
 							return 1
 						end,
 					}, 1, active)
-					flag(
-						"weather_catalog_catch_all_" .. (active == "" and "clear" or active),
-						got == candidate.Id and candidate.Event == nil
-					)
+					flag("weather_catalog_catch_all_" .. label(active), got == candidate.Id and candidate.Event == nil)
 				end
 			end
 		end
@@ -825,15 +844,168 @@ function Tests.weather()
 			flag("catalog_saved_ownership_" .. spec.Id, owned ~= nil and owned:FindFirstChild(spec.Id) ~= nil)
 		end
 	end)
+	-- BRIEF (owner, 2026-10-13; docs/GAME_DESIGN_REQUIREMENTS.md "Weather events", docs/WEATHER_EVENTS_SPEC.md
+	-- "Schedule" and "Weather icon"): "A weather starts every 15 minutes (WeatherConfig.INTERVAL, start to start)
+	-- and lasts 3 minutes (DURATION) ... The server picks one id from WeatherConfig.Order with equal chance
+	-- (1 in 5): clear, rain, night, gold, aurora. An explicit WeatherService.SetEvent(id, at) restarts the 15
+	-- minutes from at; a weather that simply expires does not move the next start." "Describe lists every
+	-- multiplier that is not 1 as LUCK x2, MONEY x2, NPC SPEED x1.25, joined by ' • ', and returns NO BONUS for
+	-- Clear, for '' and for an unknown id."
+	local scheduleOk, scheduleErr = pcall(function()
+		local interval, duration = config.INTERVAL, config.DURATION
+		flag("weather_interval_15_minutes", interval == 15 * 60, type(interval) == "number" and interval or -1, 900)
+		flag("weather_duration_3_minutes", duration == 3 * 60, type(duration) == "number" and duration or -1, 180)
+		flag("weather_random_interval_removed", config.MIN_INTERVAL == nil and config.MAX_INTERVAL == nil)
+		local wantOrder = { "clear", "rain", "night", "gold", "aurora" }
+		local wantNames =
+			{ clear = "CLEAR", rain = "RAIN", night = "NIGHT RACE", gold = "GOLD RUSH", aurora = "AURORA" }
+		local wantMultis = {
+			clear = { 1, 1, 1 },
+			rain = { 2, 1, 1 },
+			night = { 1, 2, 1.25 },
+			gold = { 1, 3, 1 },
+			aurora = { 1.5, 1.5, 1 },
+		}
+		local order = type(config.Order) == "table" and config.Order or {}
+		local orderExact = #order == #wantOrder
+		for i, id in wantOrder do
+			orderExact = orderExact and order[i] == id
+		end
+		flag("weather_order_exact_five", orderExact, #order, #wantOrder)
+		local inOrder = {}
+		for _, id in wantOrder do
+			inOrder[id] = true
+			local spec = type(config.Events) == "table" and config.Events[id] or nil
+			local values = wantMultis[id]
+			flag("weather_config_name_" .. id, type(spec) == "table" and spec.Name == wantNames[id])
+			flag(
+				"weather_config_icon_" .. id,
+				type(spec) == "table" and type(spec.Icon) == "string" and spec.Icon ~= ""
+			)
+			flag(
+				"weather_config_multipliers_" .. id,
+				type(spec) == "table"
+					and spec.Luck == values[1]
+					and spec.Money == values[2]
+					and spec.NpcSpeed == values[3]
+			)
+		end
+
+		-- Schedule. Every time is explicit; the background loop is suspended while CarTestRunning is true.
+		local timed = type(interval) == "number" and type(duration) == "number" and interval > duration + 1
+		-- true when an automatic weather from Order is running that started at `start`
+		local function startedAt(start)
+			local id, ends = weather.Current()
+			return inOrder[id] == true
+				and near(ends, start + duration)
+				and ReplicatedStorage:GetAttribute("WeatherEvent") == id
+				and near(ReplicatedStorage:GetAttribute("WeatherEndsAt"), start + duration)
+		end
+		local t = Workspace:GetServerTimeNow() + 100000
+		-- 1. From the state between weathers: SetEvent("", t) restarts the 15 minutes from t.
+		local quiet, onTime = false, false
+		if timed then
+			weather.SetEvent("", t)
+			weather.Tick(t + interval - 1)
+			quiet = weather.Current() == ""
+			weather.Tick(t + interval)
+			onTime = startedAt(t + interval)
+		end
+		flag("weather_none_nothing_before_interval", quiet)
+		flag("weather_none_starts_exactly_at_interval", onTime)
+		-- 2. The automatic weather that started at s = t + INTERVAL counts start to start: the next one is at
+		-- s + INTERVAL, and its own expiry at s + DURATION moves nothing.
+		local s = t + (timed and interval or 0)
+		local expired, stillQuiet, nextOnTime = false, false, false
+		if timed and onTime then
+			weather.Tick(s + duration)
+			expired = weather.Current() == ""
+			weather.Tick(s + interval - 1)
+			stillQuiet = weather.Current() == ""
+			weather.Tick(s + interval)
+			nextOnTime = startedAt(s + interval)
+		end
+		flag("weather_auto_expires_after_duration", expired)
+		flag("weather_auto_expiry_does_not_move_next_start", stillQuiet)
+		flag("weather_auto_start_to_start_interval", nextOnTime)
+		-- 3. An explicit weather, for every id: it expires through Tick and the next start stays at at + INTERVAL.
+		for _, id in wantOrder do
+			t += 100000
+			local set, gone, calm, again = false, false, false, false
+			if timed then
+				set = weather.SetEvent(id, t) == true and weather.Current() == id
+				weather.Tick(t + duration)
+				gone = weather.Current() == ""
+				weather.Tick(t + interval - 1)
+				calm = weather.Current() == ""
+				weather.Tick(t + interval)
+				again = startedAt(t + interval)
+			end
+			flag("weather_schedule_expires_" .. id, set and gone)
+			flag("weather_schedule_nothing_before_interval_" .. id, set and calm)
+			flag("weather_schedule_starts_exactly_at_interval_" .. id, set and again)
+		end
+
+		-- Equal chance: 2000 automatic picks. The band is about 6.7 standard deviations around 1/5, so a uniform
+		-- pick practically never fails it, while a missing weather (0) or a 3-weather pick (1/3) always does.
+		local PICKS = 2000
+		local counts, valid = {}, 0
+		if timed then
+			for _ = 1, PICKS do
+				t += interval + duration + 10
+				weather.SetEvent("", t)
+				weather.Tick(t + interval)
+				local id = weather.Current()
+				if inOrder[id] then
+					valid += 1
+					counts[id] = (counts[id] or 0) + 1
+				end
+			end
+		end
+		weather.SetEvent("")
+		flag("weather_pick_always_from_order", valid == PICKS, valid, PICKS)
+		for _, id in wantOrder do
+			local share = (counts[id] or 0) / PICKS
+			flag("weather_pick_share_" .. id, share >= 0.14 and share <= 0.26, share, 0.2)
+		end
+
+		-- Describe: multipliers that are not 1, in the order Luck, Money, NPC speed.
+		local describe = config.Describe
+		flag("weather_describe_api_exists", type(describe) == "function")
+		local function described(name, id, want)
+			local called, got = pcall(function()
+				return describe(id)
+			end)
+			flag(
+				"weather_describe_" .. name,
+				called and got == want,
+				called and type(got) == "string" and got or -1,
+				want
+			)
+		end
+		described("rain", "rain", "LUCK x2")
+		described("night", "night", "MONEY x2 • NPC SPEED x1.25")
+		described("gold", "gold", "MONEY x3")
+		described("aurora", "aurora", "LUCK x1.5 • MONEY x1.5")
+		described("clear", "clear", "NO BONUS")
+		described("none", "", "NO BONUS")
+		described("unknown", "nope", "NO BONUS")
+		described("nil", nil, "NO BONUS")
+	end)
+	weather.SetEvent("")
+	flag("weather_schedule_no_runtime_error", scheduleOk, nil, scheduleOk and 1 or tostring(scheduleErr))
 	-- BRIEF (owner, 2026-10-12; docs/WEATHER_EVENTS_SPEC.md "Sky"): "Each event also changes the sky, and the
 	-- clear state restores the exact baseline values that WeatherService.Start saved. No uploaded skybox
 	-- textures: the server sets Lighting.Atmosphere (Color, Density, Haze), Terrain.Clouds (Cover, Density,
 	-- Color) and Lighting.Sky.StarCount from WeatherConfig.Events[id].Sky." Table: Rain = grey-blue, dense,
 	-- hazy / heavy cover, dark / 0 stars; Night Race = dark violet, thin / light cover / many stars;
 	-- Gold Rush = warm gold, light haze / thin, golden / 0 stars. Numbers come from the config, never from here.
+	-- Owner, 2026-10-13: Aurora = teal-green, thin / light cover, violet / many stars. "clear is a real pick with
+	-- its own 3 minutes, but it has no Sky, ClockTime, Brightness or Color effect: Lighting and the sky stay at
+	-- the baseline."
 	local skyOk, skyErr = pcall(function()
 		local Lighting = game:GetService("Lighting")
-		local ids = { "rain", "night", "gold" }
+		local ids = { "rain", "night", "gold", "aurora" }
 		local function only(parent, class)
 			local found, count = nil, 0
 			for _, child in parent:GetChildren() do
@@ -880,18 +1052,23 @@ function Tests.weather()
 			skies[id] = good and sky or nil
 			allShaped = allShaped and good
 		end
-		local rain, night, gold = skies.rain, skies.night, skies.gold
+		local rain, night, gold, aurora = skies.rain, skies.night, skies.gold, skies.aurora
 		flag(
 			"weather_sky_rain_densest_haziest",
 			allShaped
 				and rain.Atmosphere.Density > night.Atmosphere.Density
 				and rain.Atmosphere.Density > gold.Atmosphere.Density
+				and rain.Atmosphere.Density > aurora.Atmosphere.Density
 				and rain.Atmosphere.Haze > night.Atmosphere.Haze
 				and rain.Atmosphere.Haze > gold.Atmosphere.Haze
+				and rain.Atmosphere.Haze > aurora.Atmosphere.Haze
 		)
 		flag(
 			"weather_sky_rain_heaviest_cloud_cover",
-			allShaped and rain.Clouds.Cover > night.Clouds.Cover and rain.Clouds.Cover > gold.Clouds.Cover
+			allShaped
+				and rain.Clouds.Cover > night.Clouds.Cover
+				and rain.Clouds.Cover > gold.Clouds.Cover
+				and rain.Clouds.Cover > aurora.Clouds.Cover
 		)
 		flag(
 			"weather_sky_night_thinnest_atmosphere",
@@ -900,8 +1077,20 @@ function Tests.weather()
 				and night.Atmosphere.Density <= gold.Atmosphere.Density
 		)
 		flag(
-			"weather_sky_stars_only_at_night",
-			allShaped and rain.StarCount == 0 and gold.StarCount == 0 and night.StarCount > 0
+			"weather_sky_stars_only_at_night_and_aurora",
+			allShaped and rain.StarCount == 0 and gold.StarCount == 0 and night.StarCount > 0 and aurora.StarCount > 0
+		)
+		flag(
+			"weather_sky_aurora_teal_green_atmosphere",
+			allShaped and aurora.Atmosphere.Color.G > aurora.Atmosphere.Color.R,
+			allShaped and aurora.Atmosphere.Color.G - aurora.Atmosphere.Color.R or -1,
+			0
+		)
+		flag(
+			"weather_sky_aurora_violet_clouds",
+			allShaped and aurora.Clouds.Color.B > aurora.Clouds.Color.G,
+			allShaped and aurora.Clouds.Color.B - aurora.Clouds.Color.G or -1,
+			0
 		)
 		flag(
 			"weather_sky_gold_warm_atmosphere",
@@ -975,6 +1164,35 @@ function Tests.weather()
 			flag("weather_sky_reapplied_" .. id, applied(id))
 			weather.SetEvent("", at)
 			flag("weather_sky_restored_on_clear_" .. id, restored())
+		end
+		-- Clear is a weather that changes nothing: started over Rain or Aurora, the sky and Lighting are the same
+		-- as with no weather active. ClockTime and Brightness are read back from Lighting, hence the tolerance.
+		weather.SetEvent("", at)
+		local lightingBase = { Lighting.ClockTime, Lighting.Brightness, Lighting.OutdoorAmbient }
+		local function lightingRestored()
+			return near(Lighting.ClockTime, lightingBase[1], 1e-3)
+				and near(Lighting.Brightness, lightingBase[2], 1e-4)
+				and Lighting.OutdoorAmbient == lightingBase[3]
+		end
+		for _, before in { "rain", "aurora" } do
+			at += config.DURATION + 10
+			local changed = weather.SetEvent(before, at) == true and applied(before)
+			local set = weather.SetEvent("clear", at) == true
+			local current, ends = weather.Current()
+			local active = set and current == "clear" and near(ends, at + config.DURATION)
+			flag("weather_clear_starts_after_" .. before, changed and active)
+			flag("weather_clear_keeps_sky_baseline_after_" .. before, changed and active and restored())
+			flag("weather_clear_keeps_lighting_baseline_after_" .. before, changed and active and lightingRestored())
+			weather.Tick(at + config.DURATION - 0.001)
+			flag(
+				"weather_clear_held_until_expiry_after_" .. before,
+				changed and active and weather.Current() == "clear" and restored() and lightingRestored()
+			)
+			weather.Tick(at + config.DURATION)
+			flag(
+				"weather_clear_expires_to_baseline_after_" .. before,
+				changed and active and weather.Current() == "" and restored() and lightingRestored()
+			)
 		end
 		-- One event replacing another must not move the baseline: clear restores Start's values, not rain's.
 		weather.SetEvent("rain", at)

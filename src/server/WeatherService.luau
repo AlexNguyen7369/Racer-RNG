@@ -22,7 +22,9 @@ end
 local function publish()
 	ReplicatedStorage:SetAttribute("WeatherEvent", eventId)
 	ReplicatedStorage:SetAttribute("WeatherEndsAt", expiresAt)
+	-- A weather without a Sky (clear) leaves Lighting and the sky at the baseline.
 	local spec = Config.Events[eventId]
+	spec = spec and spec.Sky and spec
 	if baseline then
 		Lighting.ClockTime = spec and spec.ClockTime or baseline.ClockTime
 		Lighting.Brightness = spec and spec.Brightness or baseline.Brightness
@@ -57,7 +59,7 @@ function WeatherService.SetEvent(id, at)
 	end
 	eventId = id
 	expiresAt = id ~= "" and at + Config.DURATION or 0
-	nextAt = at + (id ~= "" and Config.DURATION or 0) + rng:NextInteger(Config.MIN_INTERVAL, Config.MAX_INTERVAL)
+	nextAt = at + Config.INTERVAL
 	publish()
 	return true
 end
@@ -68,8 +70,11 @@ function WeatherService.Tick(at)
 		return
 	end
 	if eventId ~= "" and at >= expiresAt then
-		WeatherService.SetEvent("", at)
-	elseif eventId == "" and at >= nextAt then
+		-- An expiry does not move the next start: weathers begin INTERVAL apart, start to start.
+		eventId, expiresAt = "", 0
+		publish()
+	end
+	if eventId == "" and at >= nextAt then
 		WeatherService.SetEvent(Config.Order[rng:NextInteger(1, #Config.Order)], at)
 	end
 end

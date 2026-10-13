@@ -7,7 +7,7 @@
 -- "<id>:<nonce>:<message>" is set first, and Done is still set.
 --
 -- Ids: snapshot, restore, spy, index_states, stat_points, no_stat_points, auto_racing, lose_event, turbo_next,
--- emphasized_next, auto_roll_on, duel_* (every id: UiSpec.ServerSetup), roll_odds_*, weather_rain_roll.
+-- emphasized_next, auto_roll_on, duel_* (every id: UiSpec.ServerSetup), roll_odds_*, weather_* (rain, night, gold, aurora, clear, clear_event, rain_roll).
 -- (Ported from the ServerSetup snippets in Client/UiTest/UiSpec.luau.)
 
 local HttpService = game:GetService("HttpService")
@@ -432,7 +432,9 @@ for _, outside in { false, true } do
 	end
 end
 
-for _, event in { "rain", "night", "gold", "clear" } do
+-- weather_clear = no weather (""); weather_clear_event = the weather id "clear", running like any other
+for _, event in { "rain", "night", "gold", "aurora", "clear", "clear_event" } do
+	local id = event == "clear" and "" or event == "clear_event" and "clear" or event
 	setups["weather_" .. event] = function(player)
 		progressionSnapshot(player)
 		if not weatherSnapshot then
@@ -441,8 +443,8 @@ for _, event in { "rain", "night", "gold", "clear" } do
 				weatherSnapshot[name] = { value = ReplicatedStorage:GetAttribute(name) }
 			end
 		end
-		ReplicatedStorage:SetAttribute("WeatherEvent", event == "clear" and "" or event)
-		ReplicatedStorage:SetAttribute("WeatherEndsAt", event == "clear" and 0 or workspace:GetServerTimeNow() + 180)
+		ReplicatedStorage:SetAttribute("WeatherEvent", id)
+		ReplicatedStorage:SetAttribute("WeatherEndsAt", id == "" and 0 or workspace:GetServerTimeNow() + 180)
 	end
 end
 

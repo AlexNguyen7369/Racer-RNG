@@ -612,6 +612,51 @@
       "added": "2026-10-13T06:36:03-07:00",
       "updated": "2026-10-13T06:36:03-07:00",
       "updatedBy": "Claude"
+    },
+    {
+      "id": "weather-15min-icon",
+      "title": "Weather every 15 min, five weathers, bottom-right icon",
+      "detail": "Weather every 15 min, equal-chance pick of 5 (clear, rain, night, gold, aurora), bottom-right icon with hover/tap card (left of Market on phones), five skies told apart by eye. Harness 35/35 (weather 366/366), ui_weather 7/7 fixtures, card clicks, hover and ui_hitboxes green on 2026-10-13. No /compat-check.",
+      "status": "done",
+      "source": "owner request 2026-10-13",
+      "by": "Claude",
+      "added": "2026-10-13T13:04:56-07:00",
+      "updated": "2026-10-13T13:39:44-07:00",
+      "updatedBy": "Claude",
+      "done": "2026-10-13"
+    },
+    {
+      "id": "weather-weighted-chances",
+      "title": "Weighted weather chances (bigger benefit, lower chance)",
+      "detail": "Design doc \"Weather events\", planned by the owner 2026-10-13. The pick is uniform (1 in 5) until the owner sets the weights.",
+      "status": "backlog",
+      "source": "owner request 2026-10-13",
+      "by": "Claude",
+      "added": "2026-10-13T13:04:56-07:00",
+      "updated": "2026-10-13T13:04:56-07:00",
+      "updatedBy": "Claude"
+    },
+    {
+      "id": "weather-icon-images",
+      "title": "Image icons for the weather icon",
+      "detail": "The icon uses text glyphs (WeatherConfig.Events[id].Icon). Replace with uploaded image icons when art exists.",
+      "status": "backlog",
+      "source": "owner request 2026-10-13",
+      "by": "Claude",
+      "added": "2026-10-13T13:04:56-07:00",
+      "updated": "2026-10-13T13:04:56-07:00",
+      "updatedBy": "Claude"
+    },
+    {
+      "id": "daily-status-phone-overlap",
+      "title": "DailyBoosts Status overlaps Daily Rewards / Bag on phones",
+      "detail": "Bug 3a6d9cb3, found by ui-tester 2026-10-13 at 844x390 and 667x375. Older than the weather change.",
+      "status": "next",
+      "source": "owner request 2026-10-13",
+      "by": "Claude",
+      "added": "2026-10-13T13:04:56-07:00",
+      "updated": "2026-10-13T13:04:56-07:00",
+      "updatedBy": "Claude"
     }
   ]
 }

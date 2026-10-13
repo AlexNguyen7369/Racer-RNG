@@ -601,8 +601,15 @@ Idle Vehicle Simulator — Game Design Requirements
   Weather events
   Contract: docs/WEATHER_EVENTS_SPEC.md.
 
-       Every 10 to 20 minutes a server-wide event runs for a few minutes (Rain, Night Race,
-       Gold Rush). It changes luck, race payouts or NPC speed, and the sky and lighting.
+       Owner decision, 2026-10-13 (replaces "every 10 to 20 minutes" and the three-event list):
+       every 15 minutes a server-wide weather runs for a few minutes. The server picks one of
+       five at random: Clear, Rain, Night Race, Gold Rush, Aurora. It changes luck, race
+       payouts or NPC speed, and the sky and lighting (Clear changes nothing).
+       For now every weather has the same chance (1 in 5). Planned, not built: weathers with
+       bigger benefits will get a lower chance to appear.
+       A small weather icon sits at the bottom right of the HUD. Hovering it (tapping on touch)
+       shows the weather's name and what it changes.
+       The 15 minutes, the weather list and each weather's numbers are placeholders.
        Luck from an event is free, but the displayed odds must still update while it is active.
 
   Technical and data requirements

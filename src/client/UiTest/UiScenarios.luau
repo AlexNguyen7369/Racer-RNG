@@ -862,7 +862,7 @@ simRect = function(obj, ctx)
 				local size = variantProps(obj, ctx)
 				fitted = UiResponsive.RacerPanelFit(ctx.vp, dependencies, size)
 				ctx.scaleOverride[obj] = fitted.Scale
-			elseif isProgressionPanel or isRate then
+			elseif isProgressionPanel or isRate or path == UiSpec.Weather.Icon then
 				fitted = UiResponsive.Progression(path, ctx.vp, dependencies)
 			end
 			local vSize, vPosition, vAnchor = variantProps(obj, ctx)
@@ -6055,6 +6055,8 @@ function UiScenarios.RunClick(id)
 			checkList(res, "showcase_not_clickable_after_close", showcaseHits())
 		elseif extras.After[cond] then
 			extras.After[cond](res, { pre = pre })
+		elseif Progression.After[cond] then
+			Progression.After[cond](res) -- weather icon / card (UiSpec.Weather)
 		else
 			check(res, "unknown_condition_" .. tostring(cond), cond, "known", false)
 		end
