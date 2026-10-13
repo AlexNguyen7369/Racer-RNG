@@ -5038,6 +5038,44 @@ function Scenarios.hud()
 			end
 		end
 		check(checks, "odds_text_format", oddsOk and 1 or 0, 1, oddsOk)
+		-- BRIEF (owner, 2026-10-13; design doc "Weather events", ROLL_ANIMATION_CONTRACT `RollResult` bullet):
+		-- Odds(chance, luck) = "1 in " .. commas(max(1, round(chance / luck))); a missing or invalid luck counts as 1.
+		-- No case sits on a .5 boundary, so the rounding direction of a tie is not assumed.
+		do
+			local luckCases = {
+				{ 500, 2, "1 in 250" },
+				{ 2500, 2, "1 in 1,250" },
+				{ 5, 10, "1 in 1" },
+				{ 500, 1, "1 in 500" },
+				{ 500, 3, "1 in 167" },
+				{ 1000, 3, "1 in 333" },
+				{ 100000, 1.5, "1 in 66,667" },
+				{ 10, 1000, "1 in 1" },
+			}
+			local luckBad = 0
+			for _, c in luckCases do
+				if call(HudFormat.Odds, c[1], c[2]) ~= c[3] then
+					luckBad += 1
+				end
+			end
+			check(checks, "odds_text_luck_divides_chance", luckBad, 0, luckBad == 0)
+			local invalidLuckBad = call(HudFormat.Odds, 500, nil) == "1 in 500" and 0 or 1
+			for _, bad in { 0 / 0, 0, 0.5, -2, math.huge, -math.huge, "2", true, {} } do
+				if call(HudFormat.Odds, 500, bad) ~= "1 in 500" then
+					invalidLuckBad += 1
+				end
+			end
+			check(checks, "odds_text_invalid_luck_counts_as_one", invalidLuckBad, 0, invalidLuckBad == 0)
+			local badChanceBad = call(HudFormat.Odds, nil, 2) == "1 in ?" and 0 or 1
+			for _, bad in { 0 / 0, 0, 0.5, -5, math.huge, "500", true, {} } do
+				for _, luck in { 2, 10, 0 / 0 } do
+					if call(HudFormat.Odds, bad, luck) ~= "1 in ?" then
+						badChanceBad += 1
+					end
+				end
+			end
+			check(checks, "odds_text_bad_chance_ignores_luck", badChanceBad, 0, badChanceBad == 0)
+		end
 	end
 	return result("hud", checks, {})
 end
@@ -5680,6 +5718,30 @@ function Scenarios.gacha()
 			local okC, idC, _, mC = pcall(GachaService.Roll, tq, Random.new(seed))
 			local turbo20 = okC and idC == idTurbo and mC == 10 and tq:GetAttribute("Rolls") == 20
 			check(checks, "turbo_roll_20th_uses_luck_x10", turbo20 and 1 or 0, 1, turbo20)
+		end
+		-- BRIEF (owner, 2026-10-13; ROLL_ANIMATION_CONTRACT `RollResult` bullet): Roll returns the roll's luck as its
+		-- 6th value: GachaService.Luck(player) at that moment, without the turbo multi (the TURBO badge shows that).
+		do
+			local tl = newTestPlayer(cleanup, "CarTestGachaRollLuck")
+			GachaService.Setup(tl)
+			local wantLuck = GachaService.Luck(tl)
+			local okL, _, _, mL, _, _, luckL = pcall(GachaService.Roll, tl, Random.new(8001))
+			local plainLuckOk = okL and mL == 1 and type(luckL) == "number" and luckL == wantLuck
+			check(checks, "service_roll_returns_luck", type(luckL) == "number" and luckL or -1, wantLuck, plainLuckOk)
+			tl:SetAttribute("TurboCount", 9)
+			local okM, _, _, mM, _, _, luckM = pcall(GachaService.Roll, tl, Random.new(8002))
+			local turboLuckOk = okM
+				and mM == 10
+				and type(luckM) == "number"
+				and luckM == wantLuck
+				and luckM == GachaService.Luck(tl)
+			check(
+				checks,
+				"service_roll_luck_excludes_turbo",
+				type(luckM) == "number" and luckM or -1,
+				wantLuck,
+				turboLuckOk
+			)
 		end
 
 		-- Remotes exist (GachaService.Start is called by Main at boot)
@@ -9928,7 +9990,9 @@ function Scenarios.roll_anim()
 		GachaService.Setup(r1)
 		local packed = table.pack(pcall(GachaService.Roll, r1, secret))
 		local okR1 = packed[1] == true
-		check(checks, "service_roll_returns_five_values", okR1 and packed.n - 1 or -1, 5, okR1 and packed.n == 6)
+		-- Owner, 2026-10-13 (docs/ROLL_ANIMATION_CONTRACT.md `RollResult` bullet): a 6th value, luck, was added (was 5).
+		local sixOk = okR1 and packed.n == 7 and type(packed[7]) == "number" and packed[7] == GachaService.Luck(r1)
+		check(checks, "service_roll_returns_six_values", okR1 and packed.n - 1 or -1, 6, sixOk)
 		local first = okR1 and packed[2] == "void_racer" and packed[3] == true and packed[4] == 1 and packed[5] == true
 		check(checks, "service_roll_new_secret_emphasized", first and 1 or 0, 1, first)
 		local ann1 = #calls == 1

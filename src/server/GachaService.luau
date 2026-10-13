@@ -172,14 +172,16 @@ end
 
 -- One roll at the player's luck, times the Turbo tier's Multi on every turbo roll (UpgradeService.AdvanceTurbo: the
 -- player's TurboCount reaches the tier's Every; x5 every 10th roll with no Turbo tier). Returns the car Id,
--- whether it was new, the turbo multi (1 on a normal roll) and whether it is emphasized (GachaConfig.IsEmphasized:
--- played enlarged and announced to the whole server).
+-- whether it was new, the turbo multi (1 on a normal roll), whether it is emphasized (GachaConfig.IsEmphasized:
+-- played enlarged and announced to the whole server), the scrap Money of a duplicate and the roll's luck without
+-- the turbo multi (the client divides the displayed odds by it, docs/WEATHER_EVENTS_SPEC.md).
 function GachaService.Roll(player, roller)
 	GachaService.Setup(player)
 	local rollNumber = math.min(cleanCount(player:GetAttribute("Rolls")) + 1, MAX_COUNT)
 	local turboMulti = UpgradeService.AdvanceTurbo(player)
 	local event = require(script.Parent.WeatherService).Current()
-	local id = GachaConfig.Roll(roller or rng, GachaService.Luck(player) * turboMulti, event)
+	local luck = GachaService.Luck(player)
+	local id = GachaConfig.Roll(roller or rng, luck * turboMulti, event)
 	local emphasized = GachaConfig.IsEmphasized(id, ownedIds(player))
 	player:SetAttribute("Rolls", rollNumber)
 	local isNew = GachaService.Grant(player, id)
@@ -191,12 +193,12 @@ function GachaService.Roll(player, roller)
 		MoneyService.Award(player, scrapMoney)
 	end
 	if rollRemote and player:IsA("Player") then
-		rollRemote:FireClient(player, id, isNew, turboMulti, emphasized, scrapMoney)
+		rollRemote:FireClient(player, id, isNew, turboMulti, emphasized, scrapMoney, luck)
 	end
 	if emphasized then
 		GachaService.Announce(player, id, rollNumber)
 	end
-	return id, isNew, turboMulti, emphasized, scrapMoney
+	return id, isNew, turboMulti, emphasized, scrapMoney, luck
 end
 
 -- The AUTO toggle: while false the auto-roll loop makes no roll. Returns true if the value was applied.

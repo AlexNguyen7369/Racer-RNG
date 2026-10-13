@@ -620,6 +620,60 @@ function Tests.weather()
 			local wet = gacha.Roll(p, sample("rain"))
 			flag("weather_rain_changes_actual_roll_threshold", dry ~= target.Id and wet == target.Id)
 		end
+		-- BRIEF (owner, 2026-10-13; design doc "Weather events": "Luck from an event is free, but the displayed
+		-- odds must still update while it is active"; WEATHER_EVENTS_SPEC "Displayed odds"): Roll returns the
+		-- roll's luck as its 6th value, GachaService.Luck(player) at that moment, WITHOUT the turbo multi.
+		do
+			local function rollLuck(event, turboCount)
+				weather.SetEvent(event, at)
+				p:SetAttribute("TurboCount", turboCount)
+				local want = gacha.Luck(p)
+				local _, _, turboMulti, _, _, luck = gacha.Roll(p, {
+					NextNumber = function()
+						return 0.999999
+					end,
+				})
+				return luck, want, turboMulti
+			end
+			local clearLuck, clearWant = rollLuck("", 0)
+			flag(
+				"weather_roll_luck_clear",
+				type(clearLuck) == "number" and clearLuck == clearWant and near(clearLuck, baseLuck),
+				type(clearLuck) == "number" and clearLuck or -1,
+				baseLuck
+			)
+			-- x2 is exact in floating point, so "exactly 2x" is an equality, not a tolerance.
+			for _, event in { "rain", "night", "gold" } do
+				local luck, want = rollLuck(event, 0)
+				local limit = (event == "rain" and 2 or 1) * baseLuck
+				flag(
+					"weather_roll_luck_" .. event,
+					type(luck) == "number" and luck == want and luck == (event == "rain" and 2 or 1) * clearLuck,
+					type(luck) == "number" and luck or -1,
+					limit
+				)
+			end
+			-- TurboCount 9 makes this the turbo roll (x10 with no Turbo tier): the multi is the 3rd value, never in luck.
+			local turboLuck, turboWant, turboMulti = rollLuck("rain", 9)
+			flag(
+				"weather_roll_luck_excludes_turbo",
+				type(turboMulti) == "number"
+					and turboMulti > 1
+					and type(turboLuck) == "number"
+					and turboLuck == turboWant
+					and near(turboLuck, 2 * baseLuck),
+				type(turboLuck) == "number" and turboLuck or -1,
+				2 * baseLuck
+			)
+			local restoredLuck, restoredWant = rollLuck("", 0)
+			flag(
+				"weather_roll_luck_restored_after_clear",
+				type(restoredLuck) == "number" and restoredLuck == restoredWant and restoredLuck == clearLuck,
+				type(restoredLuck) == "number" and restoredLuck or -1,
+				baseLuck
+			)
+			p:SetAttribute("TurboCount", 0)
+		end
 		for _, event in { "rain", "night", "gold" } do
 			local eventCar
 			for _, spec in catalog.All() do

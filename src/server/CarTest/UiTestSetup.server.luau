@@ -7,7 +7,7 @@
 -- "<id>:<nonce>:<message>" is set first, and Done is still set.
 --
 -- Ids: snapshot, restore, spy, index_states, stat_points, no_stat_points, auto_racing, lose_event, turbo_next,
--- emphasized_next, auto_roll_on.
+-- emphasized_next, auto_roll_on, duel_* (every id: UiSpec.ServerSetup), roll_odds_*, weather_rain_roll.
 -- (Ported from the ServerSetup snippets in Client/UiTest/UiSpec.luau.)
 
 local HttpService = game:GetService("HttpService")
@@ -185,6 +185,7 @@ function setups.restore(player)
 	if snap.autoRoll ~= nil then
 		setAutoRoll(player, snap.autoRoll == true)
 	end
+	player:SetAttribute("UiTestRollOdds", nil) -- UiSpec.RollOdds.Attr
 	snapshots[player] = nil
 	removeSpy()
 end
@@ -449,6 +450,172 @@ function setups.workshop_open(player)
 	local remote = ReplicatedStorage.Remotes:FindFirstChild("WorkshopOpen")
 	assert(remote and remote:IsA("RemoteEvent"), "WorkshopOpen RemoteEvent required")
 	remote:FireClient(player, player:GetAttribute("Plot"))
+end
+
+-- Duel UI fixtures (UiSpec.Duel.Fixture / FixtureChecks): fire Remotes.Duel at the test client only, DUEL_GAP
+-- seconds between messages. DuelService is never called, so no real duel starts and no state needs a restore.
+do
+	local DuelConfig = require(Shared.DuelConfig)
+	local DUEL_GAP = 0.6
+	local OPPONENT, TRACKS, TRACK, SECOND_TRACKS = "UiTestRival", { 1, 2, 3 }, 2, { 2 } -- UiSpec.Duel.Fixture
+
+	local function pick(tracks)
+		return { Type = "PickTrack", Opponent = OPPONENT, Tracks = tracks or TRACKS }
+	end
+	local invite = { Type = "Invite", Opponent = OPPONENT, Track = TRACK }
+	local function result(outcome, time, opponentTime, probe)
+		return {
+			Type = "Result",
+			Result = outcome,
+			Track = TRACK,
+			Time = time,
+			OpponentTime = opponentTime,
+			UiTestPanelProbe = probe, -- UiSpec.Duel.ProbeField
+		}
+	end
+	local function countdown()
+		return { Type = "Countdown", Track = TRACK, ServerStart = workspace:GetServerTimeNow() + DuelConfig.COUNTDOWN }
+	end
+
+	-- A step is a message, a function that builds one when it is sent, or the PanelSwitch name the harness opens first
+	local steps = {
+		duel_pick = { pick() },
+		duel_pick_replaced = { pick(), pick(SECOND_TRACKS) },
+		duel_pick_over_index = { "Index", pick() },
+		duel_invite = { invite },
+		duel_invite_over_stats = { "Stats", invite },
+		duel_invite_over_pick = { pick(), invite },
+		duel_countdown = { invite, countdown },
+		duel_result_win = { pick(), result("Win", 12.3, 13.1) },
+		duel_result_lose = { pick(), result("Lose", 13.1, 12.3) },
+		duel_result_draw = { pick(), result("Draw", 12.3, 12.3) },
+		duel_toast_panel = { result("Win", 12.3, 13.1, "Index") },
+		duel_cancel_unknown = { invite, { Type = "Cancelled", Reason = "UiTestUnknownReason" } },
+	}
+	-- UiSpec.Duel.CancelText
+	for _, reason in
+		{ "Declined", "InviteTimeout", "PickTimeout", "Left", "NotOnFoot", "Busy", "Cooldown", "NotLoaded" }
+	do
+		steps["duel_cancel_" .. string.lower(reason)] = { invite, { Type = "Cancelled", Reason = reason } }
+	end
+
+	for id, list in steps do
+		setups[id] = function(player)
+			local remote = ReplicatedStorage.Remotes:FindFirstChild("Duel")
+			assert(remote and remote:IsA("RemoteEvent"), "Duel RemoteEvent required")
+			for i, step in list do
+				if i > 1 then
+					task.wait(DUEL_GAP)
+				end
+				if type(step) == "string" then
+					-- UiSpec.Duel.PrepAttr
+					player:SetAttribute("UiTestDuelPrep", step .. ":" .. HttpService:GenerateGUID(false))
+				else
+					remote:FireClient(player, type(step) == "function" and step() or step)
+				end
+			end
+		end
+	end
+end
+
+-- Displayed-odds fixtures (UiSpec.RollOdds; docs/ROLL_ANIMATION_CONTRACT.md: RollResult's 6th argument is the roll's
+-- luck). They only fire Remotes.RollResult at the test client: nothing is rolled, granted or paid. AutoRoll goes off
+-- so no real roll covers the planted ones; 'restore' turns it back on and clears the attribute.
+do
+	local CarCatalog = require(Shared.CarCatalog)
+	local RollAnimConfig = require(Shared.RollAnimConfig)
+	local WeatherConfig = require(Shared.WeatherConfig)
+	local GAP = 1 -- seconds between two animations
+
+	-- The most common rollable car with a Chance >= 100 for `event` (nil = a car of no event), else any with a Chance
+	local function carWithChance(event)
+		local pick, fallback = nil, nil
+		for _, spec in CarCatalog.Rollable() do -- rarest first
+			if type(spec.Chance) == "number" and spec.Event == event then
+				fallback = fallback or spec
+				if spec.Chance >= 100 then
+					pick = spec
+				end
+			end
+		end
+		return pick or fallback
+	end
+
+	local function catchAll()
+		for _, spec in CarCatalog.Rollable() do
+			if spec.Chance == nil and spec.Event == nil then
+				return spec
+			end
+		end
+		return nil
+	end
+
+	-- A compact roll, then an emphasized one (it plays on the enlarged card), both with `luck` as the 6th argument
+	local function plant(player, fixture, spec, luck)
+		assert(snapshots[player], "snapshot required before " .. fixture .. " ('restore' turns AutoRoll back on)")
+		assert(spec, "no catalog car for " .. fixture)
+		local remote = ReplicatedStorage.Remotes:FindFirstChild("RollResult")
+		assert(remote and remote:IsA("RemoteEvent"), "RollResult RemoteEvent required")
+		setAutoRoll(player, false)
+		player:SetAttribute(
+			"UiTestRollOdds",
+			HttpService:JSONEncode({
+				fixture = fixture,
+				id = spec.Id,
+				luck = luck,
+				nonce = HttpService:GenerateGUID(false),
+			})
+		)
+		task.spawn(function()
+			task.wait(RollAnimConfig.Duration("Secret", true) + GAP) -- a real roll may still be playing
+			for _, emphasized in { false, true } do
+				if player.Parent ~= Players then
+					return
+				end
+				remote:FireClient(player, spec.Id, false, 1, emphasized, 0, luck)
+				task.wait(RollAnimConfig.Duration(spec.Rarity, emphasized) + GAP)
+			end
+		end)
+	end
+
+	-- UiSpec.RollOdds.Fixtures
+	local lucks = {
+		roll_odds_luck2 = function()
+			return 2
+		end,
+		roll_odds_round = function()
+			return 3
+		end,
+		roll_odds_clamp = function(spec)
+			return spec.Chance * 4
+		end,
+		roll_odds_luck1 = function()
+			return 1
+		end,
+		roll_odds_no_luck = function()
+			return nil
+		end,
+	}
+	for id, luck in lucks do
+		setups[id] = function(player)
+			local spec = assert(carWithChance(nil), "no rollable car with a Chance")
+			plant(player, id, spec, luck(spec))
+		end
+	end
+
+	function setups.roll_odds_catchall(player)
+		plant(player, "roll_odds_catchall", catchAll(), 2)
+	end
+
+	-- What the server sends for a roll during Rain: this player's luck with the Rain multi in it
+	function setups.weather_rain_roll(player)
+		setups.weather_rain(player)
+		local luck = live("GachaService").Luck(player)
+		if live("WeatherService").Current() ~= "rain" then
+			luck *= WeatherConfig.Events.rain.Luck -- the fixture only replicates the event, WeatherService is not in it
+		end
+		plant(player, "weather_rain_roll", carWithChance("rain") or carWithChance(nil), luck)
+	end
 end
 
 local function progressionSpy()

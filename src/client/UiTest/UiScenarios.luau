@@ -30,6 +30,7 @@ local HudFormat = require(Shared:WaitForChild("HudFormat"))
 local CarCatalog = require(Shared:WaitForChild("CarCatalog"))
 local GachaConfig = require(Shared:WaitForChild("GachaConfig"))
 local NpcConfig = require(Shared:WaitForChild("NpcConfig"))
+local WeatherConfig = require(Shared:WaitForChild("WeatherConfig"))
 local TrackBuilder = require(Shared:WaitForChild("TrackBuilder"))
 local UpgradeTree = require(Shared:WaitForChild("UpgradeTree"))
 
@@ -1007,6 +1008,7 @@ local events = {
 	rollsChanged = 0,
 	recs = {}, -- one roll-animation record per RollResult (UiScenarios.SampleRoll)
 	announces = {}, -- Remotes.RollAnnounce events
+	oddsFixtureAt = nil, -- os.clock() of the last UiSpec.RollOdds.Attr change (a displayed-odds fixture was planted)
 	chat = {}, -- TextChatService.MessageReceived
 }
 
@@ -1096,6 +1098,9 @@ function UiScenarios.Init()
 	player:GetAttributeChangedSignal("Rolls"):Connect(function()
 		events.rollsChanged = os.clock()
 	end)
+	player:GetAttributeChangedSignal(UiSpec.RollOdds.Attr):Connect(function()
+		events.oddsFixtureAt = os.clock()
+	end)
 	pcall(function()
 		TextChatService.MessageReceived:Connect(function(msg)
 			table.insert(events.chat, {
@@ -1114,12 +1119,13 @@ function UiScenarios.Init()
 		task.spawn(function()
 			local roll = remotes:WaitForChild("RollResult", 30)
 			if roll then
-				roll.OnClientEvent:Connect(function(id, isNew, turboMulti, emphasized)
+				roll.OnClientEvent:Connect(function(id, isNew, turboMulti, emphasized, _scrapMoney, luck)
 					local ev = {
 						id = id,
 						isNew = isNew,
 						turboMulti = type(turboMulti) == "number" and turboMulti or 1,
 						emphasized = emphasized == true,
+						luck = luck, -- as sent (6th argument, docs/ROLL_ANIMATION_CONTRACT.md); nil when not sent
 						rolls = player:GetAttribute("Rolls"), -- set by the server before it fires RollResult
 						t = os.clock(),
 					}
@@ -1182,6 +1188,22 @@ end
 local function owned(id)
 	local data = player:FindFirstChild("GachaData")
 	return data ~= nil and data:FindFirstChild(id) ~= nil
+end
+
+-- The odds a roll must show (docs/ROLL_ANIMATION_CONTRACT.md, WEATHER_EVENTS_SPEC "Displayed odds"):
+-- "1 in max(1, round(Chance / luck))", luck = RollResult's 6th argument, a missing or invalid one counts as 1; a car
+-- without a real Chance keeps "1 in ?". Written out here, never through a two-argument HudFormat.Odds, so the
+-- expectation does not follow the implementation.
+local function oddsText(chance, luck)
+	local base = HudFormat.Odds(chance)
+	if type(chance) ~= "number" or base == HudFormat.Odds(nil) then
+		return base
+	end
+	-- Below 1 counts as invalid, as in GachaConfig.Roll (the server's luck sources are all >= 1)
+	if type(luck) ~= "number" or luck ~= luck or luck <= 1 or luck == math.huge then
+		return base
+	end
+	return HudFormat.Odds(math.max(1, math.round(chance / luck)))
 end
 
 local function digits(text)
@@ -1407,7 +1429,7 @@ local function cardProblems(card, ev, skipGeometry)
 		end
 	end
 	local odds = part("Odds")
-	local wantOdds = HudFormat.Odds(spec.Chance)
+	local wantOdds = oddsText(spec.Chance, ev.luck)
 	if not (odds and odds:IsA("TextLabel") and odds.Text == wantOdds and effectivelyVisible(odds)) then
 		table.insert(bad, ("Odds %q want %q"):format(odds and odds.Text or "nil", wantOdds))
 	else
@@ -1613,6 +1635,13 @@ local function partShown(card, name)
 	return p ~= nil and p:IsA("GuiObject") and effectivelyVisible(p)
 end
 
+-- A card's TextLabel `name` right now: { text ("missing" without one), shown }.
+local function labelState(card, name)
+	local p = partOf(card, name)
+	local isLabel = p ~= nil and p:IsA("TextLabel")
+	return { text = isLabel and p.Text or "missing", shown = isLabel and effectivelyVisible(p) }
+end
+
 -- Draws something a player can see: itself or a visible descendant with an opaque-enough background, text or image.
 local function drawsSomething(obj)
 	for _, d in { obj, table.unpack(obj:GetDescendants()) } do
@@ -1694,7 +1723,7 @@ local function compactProblems(toast, ev)
 	local bad = {}
 	local tr = realRect(toast)
 	local odds = toast:FindFirstChild("Odds", true)
-	local wantOdds = HudFormat.Odds(spec.Chance)
+	local wantOdds = oddsText(spec.Chance, ev.luck)
 	if not (odds and odds:IsA("TextLabel") and odds.Text == wantOdds and effectivelyVisible(odds)) then
 		table.insert(bad, ("Odds %q want %q"):format(odds and odds:IsA("TextLabel") and odds.Text or "nil", wantOdds))
 	else
@@ -1969,6 +1998,9 @@ function UiScenarios.SampleRoll(ev)
 					local grad = glowGradient(card)
 					local compact = key == "Compact"
 					rec.hold[key] = {
+						-- The odds labels as landed: Odds on both cards (the enlarged one's is the alias of ResultOdds)
+						odds = labelState(card, "Odds"),
+						resultOdds = labelState(card, "ResultOdds"),
 						rollId = card:GetAttribute("RollId"),
 						serial = card:GetAttribute("RollSerial"),
 						reelIds = reel and reel:GetAttribute("ReelIds"),
@@ -3748,7 +3780,7 @@ function S.ui_toast(res)
 	check(res, "toast_reached_hold", holdRec.landed, true, holdRec.landed == true)
 	-- Owner decision 4: the compact roll shows the odds, not the car's name (CarName / NewBadge are checked on the
 	-- enlarged card: showcase_card_is_latest_roll, showcase_updates_live, emphasized_card_matches_roll)
-	local wantOdds = HudFormat.Odds(spec.Chance)
+	local wantOdds = oddsText(spec.Chance, ev.luck)
 	check(res, "toast_shows_odds", holdRec.odds, wantOdds, holdRec.odds == wantOdds and holdRec.oddsShown == true)
 	checkList(res, "toast_is_no_card", holdRec.shape)
 	checkList(res, "toast_model_over_odds", holdRec.layout)
@@ -4791,6 +4823,116 @@ function S.ui_roll_emphasized(res)
 	restore()
 end
 
+-- Displayed odds (UiSpec.RollOdds): judges the two RollResults a roll_odds_* / weather_rain_roll fixture planted, the
+-- compact one on RollToast/Toast and the emphasized one on RollShowcase/Card, from the samples SampleRoll took when
+-- each card landed (Hold). Only reads; the fixture is the server's.
+local function rollOddsFixture()
+	local ok, fx = pcall(function()
+		return HttpService:JSONDecode(attr(UiSpec.RollOdds.Attr))
+	end)
+	return (ok and type(fx) == "table" and UiSpec.RollOdds.Fixtures[fx.fixture]) and fx or nil
+end
+
+local function rollOddsChecks(res)
+	local cfg = UiSpec.RollOdds
+	local fx = rollOddsFixture()
+	if not fx then
+		stateMissing(res, "roll_odds_fixture_present", "roll_odds_luck2", "no " .. cfg.Attr .. " attribute")
+		return
+	end
+	local want = cfg.Fixtures[fx.fixture]
+	local spec = CarCatalog.Get(fx.id)
+	check(
+		res,
+		"roll_odds_fixture_car",
+		("%s Chance=%s"):format(tostring(fx.id), tostring(spec and spec.Chance)),
+		want.CatchAll and "a catalog car without a Chance" or "a catalog car with a Chance",
+		spec ~= nil and (type(spec.Chance) == "number") == (want.CatchAll ~= true)
+	)
+	if not spec then
+		return
+	end
+	local luckOk, luckLimit = fx.luck == want.Luck, tostring(want.Luck)
+	if want.NoLuck then
+		luckLimit = "nil (no 6th argument)"
+	elseif want.ChanceTimes then
+		local n = type(spec.Chance) == "number" and spec.Chance * want.ChanceTimes or nil
+		luckOk, luckLimit = n ~= nil and fx.luck == n, tostring(n)
+	elseif want.Event then
+		-- Every other luck source is >= 1, so the luck of a roll during the event is at least the event's own
+		local eventLuck = WeatherConfig.Events[want.Event].Luck
+		luckOk, luckLimit = type(fx.luck) == "number" and fx.luck >= eventLuck, ">= " .. tostring(eventLuck)
+	end
+	check(res, "roll_odds_fixture_luck", fx.luck, luckLimit, luckOk)
+	local wantText = oddsText(spec.Chance, fx.luck)
+
+	local since = events.oddsFixtureAt or 0
+	local function planted(emphasized)
+		for i = #events.recs, 1, -1 do
+			local ev = events.recs[i].ev
+			-- The attribute's luck went through JSON: a fractional luck may differ in the last digits
+			local sameLuck = ev.luck == fx.luck
+				or (
+					type(ev.luck) == "number"
+					and type(fx.luck) == "number"
+					and math.abs(ev.luck - fx.luck) <= 1e-6 * fx.luck
+				)
+			if ev.t >= since and ev.id == fx.id and ev.emphasized == emphasized and sameLuck then
+				return events.recs[i]
+			end
+		end
+		return nil
+	end
+	local deadline = os.clock() + cfg.Wait
+	local views = { { Key = "Compact", Emphasized = false }, { Key = "Enlarged", Emphasized = true } }
+	for _, view in views do
+		local name = string.lower(view.Key)
+		local rec = planted(view.Emphasized)
+		while not (rec and (rec.hold[view.Key] or rec.done)) and os.clock() < deadline do
+			task.wait(0.05)
+			rec = planted(view.Emphasized)
+		end
+		check(
+			res,
+			"roll_odds_" .. name .. "_roll_received",
+			rec and ("%s luck=%s"):format(tostring(rec.ev.id), tostring(rec.ev.luck)) or "none",
+			("%s luck=%s emphasized=%s within %d s"):format(
+				fx.id,
+				tostring(fx.luck),
+				tostring(view.Emphasized),
+				cfg.Wait
+			),
+			rec ~= nil
+		)
+		local hold = rec and rec.hold[view.Key]
+		check(res, "roll_odds_" .. name .. "_reached_hold", hold ~= nil, true, hold ~= nil)
+		if hold and view.Key == "Compact" then
+			check(
+				res,
+				"roll_odds_compact_odds",
+				hold.odds.text,
+				wantText,
+				hold.odds.text == wantText and hold.odds.shown == true
+			)
+		elseif hold then
+			check(
+				res,
+				"roll_odds_enlarged_result_odds",
+				hold.resultOdds.text,
+				wantText,
+				hold.resultOdds.text == wantText and hold.resultOdds.shown == true
+			)
+			check(res, "roll_odds_enlarged_odds_alias", hold.odds.text, wantText, hold.odds.text == wantText)
+		end
+	end
+end
+
+-- Runs only through UiSpec.Progression.FixtureChecks (UiTestScenario), after a roll_odds_* fixture.
+function S.ui_roll_odds(res)
+	waitGuis()
+	rollOddsChecks(res)
+end
+
 -- Progression scenarios reuse the same geometry provider and limits as the existing suite.
 local Progression = require(script.Parent.UiProgression)
 local progressionChecks = Progression.Build({
@@ -4807,6 +4949,8 @@ local progressionChecks = Progression.Build({
 	top = topAt,
 	centre = centre,
 	player = player,
+	rollOddsFixture = rollOddsFixture,
+	rollOdds = rollOddsChecks,
 })
 for name, fn in progressionChecks do
 	S[name] = fn

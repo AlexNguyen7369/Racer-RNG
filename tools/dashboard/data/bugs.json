@@ -138,7 +138,7 @@
       "id": "719d4705",
       "name": "Weather banner visible with no event",
       "kind": "fault",
-      "status": "open",
+      "status": "fixed",
       "file": "src/client/ProgressionUi.client.luau",
       "line": 96,
       "endLine": 96,
@@ -160,7 +160,10 @@
       "error": "",
       "foundBy": "ui-tester",
       "foundAt": "2026-10-08T04:52:08-07:00",
-      "loggedBy": "Alex Nguyen"
+      "loggedBy": "Alex Nguyen",
+      "fixedAt": "2026-10-13T06:25:04-07:00",
+      "fixedBy": "Alex Nguyen",
+      "fixNote": "Verified 2026-10-13 (Claude, live Studio): ui_weather with setup weather_clear passed 5/5, banner hidden with no event; rain/night/gold 6/6 each. ProgressionUi sets weather.Visible = spec ~= nil."
     },
     {
       "id": "9ae34e79",
@@ -499,6 +502,99 @@
       "foundBy": "physics-tester",
       "foundAt": "2026-10-13T00:33:54-07:00",
       "loggedBy": "Alex Nguyen"
+    },
+    {
+      "id": "ed728735",
+      "name": "Duel UI fixtures missing from UiTestSetup",
+      "kind": "fault",
+      "status": "fixed",
+      "file": "src/server/CarTest/UiTestSetup.server.luau",
+      "line": 454,
+      "endLine": 454,
+      "snippet": {
+        "from": 450,
+        "lines": [
+          "\tassert(remote and remote:IsA(\"RemoteEvent\"), \"WorkshopOpen RemoteEvent required\")",
+          "\tremote:FireClient(player, player:GetAttribute(\"Plot\"))",
+          "end",
+          "",
+          "-- Duel UI fixtures (UiSpec.Duel.Fixture / FixtureChecks): fire Remotes.Duel at the test client only, DUEL_GAP",
+          "-- seconds between messages. DuelService is never called, so no real duel starts and no state needs a restore.",
+          "do",
+          "\tlocal DuelConfig = require(Shared.DuelConfig)",
+          "\tlocal DUEL_GAP = 0.6"
+        ]
+      },
+      "summary": "UiSpec.ServerSetup declares 20 duel_* fixtures but UiTestSetup defined none, so every duel fixture check and duel click ended in 'unknown setup id' and the duel UI was never judged with a real message.",
+      "error": "unknown setup id duel_pick",
+      "foundBy": "claude",
+      "foundAt": "2026-10-13T05:56:02-07:00",
+      "loggedBy": "Alex Nguyen",
+      "fixedAt": "2026-10-13T05:56:08-07:00",
+      "fixedBy": "Alex Nguyen",
+      "fixNote": "20 duel_* setups added; 15 run live through UiTestSetup -> ui_duel, all green; last 5 cancel variants not run (Play stopped)"
+    },
+    {
+      "id": "7211c7e0",
+      "name": "Players see a Duel prompt on their own character",
+      "kind": "failure",
+      "status": "fixed",
+      "file": "src/server/DuelService.luau",
+      "line": 299,
+      "endLine": 299,
+      "snippet": {
+        "from": 295,
+        "lines": [
+          "\tlastMessage[player] = nil",
+          "end",
+          "",
+          "-- The \"Duel\" prompt on a character's root: only shown while its owner is on foot.",
+          "local function addPrompt(player, character)",
+          "\tlocal root = character:WaitForChild(\"HumanoidRootPart\", 10)",
+          "\tif not root or root:FindFirstChild(PROMPT) then",
+          "\t\treturn",
+          "\tend"
+        ]
+      },
+      "summary": "The server puts DuelPrompt on every on-foot character, so each player saw 'Duel <own name>' on themselves at all times; holding F asked for a duel against themselves and showed DUEL CANCELLED.",
+      "error": "",
+      "foundBy": "claude",
+      "foundAt": "2026-10-13T05:56:02-07:00",
+      "loggedBy": "Alex Nguyen",
+      "fixedAt": "2026-10-13T05:56:08-07:00",
+      "fixedBy": "Alex Nguyen",
+      "fixNote": "DuelUi client switches the own DuelPrompt off; live after Play restart: Enabled=false"
+    },
+    {
+      "id": "199d1bce",
+      "name": "Held duel car is a manual car on the client during the countdown",
+      "kind": "fault",
+      "status": "fixed",
+      "file": "src/server/CarService.luau",
+      "line": 287,
+      "endLine": 287,
+      "snippet": {
+        "from": 283,
+        "lines": [
+          "\tif duel then",
+          "\t\tRaceService.SetCarGroup(car) -- the release puts both cars on the same lane",
+          "\t\t-- Held through the countdown with its driver seated: without this the client's CarController takes the car",
+          "\t\t-- for a manual one until the release (its R key would lift the car on that client only)",
+          "\t\tcar:SetAttribute(\"AutoRace\", true)",
+          "\tend",
+          "\tCarAppearance.Apply(car, player:GetAttribute(\"EquippedCar\"), CarConfig)",
+          "\tVehicleEffects.Apply(car, player)",
+          "\tcar:PivotTo(start)"
+        ]
+      },
+      "summary": "A duel car waits 3 s anchored with its driver seated but had no AutoRace attribute until the release, so the client's CarController ran manual physics on it; pressing R lifted the car on that client only. Only real clients are affected, the harness fakes have no client.",
+      "error": "",
+      "foundBy": "claude",
+      "foundAt": "2026-10-13T05:59:39-07:00",
+      "loggedBy": "Alex Nguyen",
+      "fixedAt": "2026-10-13T05:59:39-07:00",
+      "fixedBy": "Alex Nguyen",
+      "fixNote": "spawnCar sets AutoRace on a duel car when it is built; stylua/selene/rojo build pass; NOT seen live (needs two clients)"
     }
   ]
 }

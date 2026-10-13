@@ -1494,6 +1494,19 @@ for _, item in
 		{ Id = "weather_night", What = "Replicates night with 180 seconds remaining; run ui_weather." },
 		{ Id = "weather_gold", What = "Replicates gold with 180 seconds remaining; run ui_weather." },
 		{ Id = "weather_clear", What = "Replicates no event; run ui_weather, banner must hide." },
+		-- Displayed odds (UiSpec.RollOdds): each plants two RollResults at the test client only (nothing is rolled,
+		-- granted or paid) and turns AutoRoll off until 'restore'
+		{ Id = "roll_odds_luck2", What = "Plants a car with a Chance at luck 2; run ui_roll_odds." },
+		{ Id = "roll_odds_round", What = "Same car at luck 3 (Chance / 3 is rounded); run ui_roll_odds." },
+		{ Id = "roll_odds_clamp", What = "Same car at luck 4 x Chance (never below '1 in 1'); run ui_roll_odds." },
+		{ Id = "roll_odds_luck1", What = "Same car at luck 1 (base odds); run ui_roll_odds." },
+		{ Id = "roll_odds_no_luck", What = "Same car with NO 6th argument (base odds); run ui_roll_odds." },
+		{ Id = "roll_odds_catchall", What = "The catch-all car (Chance nil) at luck 2 ('1 in ?'); run ui_roll_odds." },
+		{
+			Id = "weather_rain_roll",
+			What = "weather_rain, then plants the Rain car (else a car with a Chance) at the luck the server gives this "
+				.. "player during Rain (GachaService.Luck x WeatherConfig rain Luck); run ui_weather.",
+		},
 	}
 do
 	item.When = "after a FRESH snapshot (restore consumes it); run stated scenario with UiTestScenario attribute, "
@@ -1537,6 +1550,40 @@ UiSpec.Progression.FixtureChecks = {
 	{ Setup = "weather_night", Scenario = "ui_weather" },
 	{ Setup = "weather_gold", Scenario = "ui_weather" },
 	{ Setup = "weather_clear", Scenario = "ui_weather" },
+	{ Setup = "weather_rain_roll", Scenario = "ui_weather" },
+	{ Setup = "roll_odds_luck2", Scenario = "ui_roll_odds" },
+	{ Setup = "roll_odds_round", Scenario = "ui_roll_odds" },
+	{ Setup = "roll_odds_clamp", Scenario = "ui_roll_odds" },
+	{ Setup = "roll_odds_luck1", Scenario = "ui_roll_odds" },
+	{ Setup = "roll_odds_no_luck", Scenario = "ui_roll_odds" },
+	{ Setup = "roll_odds_catchall", Scenario = "ui_roll_odds" },
+}
+
+--[[
+Displayed odds (design doc "Weather events": "the displayed odds must still update while it is active";
+docs/WEATHER_EVENTS_SPEC.md "Displayed odds"; docs/ROLL_ANIMATION_CONTRACT.md). RollResult's 6th argument is the
+roll's luck (GachaService.Luck, without the turbo multi). Both Odds labels (RollToast/Toast `Odds`; RollShowcase/Card
+`ResultOdds` and its alias `Odds`) show "1 in max(1, round(Chance / luck))"; a missing or invalid luck counts as 1;
+a catch-all car (Chance nil) keeps "1 in ?". The Index and the roll announcement keep the base odds.
+
+Each fixture sets the player attribute Attr = JSON { fixture, id, luck (absent when not sent), nonce }, waits for a
+roll that may still be playing, then fires RollResult(id, false, 1, false, 0, luck) (compact) and, one animation
+later, RollResult(id, false, 1, true, 0, luck) (emphasized: plays on the enlarged card). 'restore' clears Attr.
+]]
+UiSpec.RollOdds = {
+	Attr = "UiTestRollOdds",
+	Wait = 30, -- s for both planted rolls to land (the fixture first waits out the longest roll animation)
+	-- The luck each fixture must send. Luck = that number; ChanceTimes = the car's Chance x it; NoLuck = no 6th
+	-- argument; Event = at least that WeatherConfig event's Luck. CatchAll = the car has no Chance.
+	Fixtures = {
+		roll_odds_luck2 = { Luck = 2 },
+		roll_odds_round = { Luck = 3 },
+		roll_odds_clamp = { ChanceTimes = 4 },
+		roll_odds_luck1 = { Luck = 1 },
+		roll_odds_no_luck = { NoLuck = true },
+		roll_odds_catchall = { Luck = 2, CatchAll = true },
+		weather_rain_roll = { Event = "rain" },
+	},
 }
 
 ---------------------------------------------------------------------------------------------------------------

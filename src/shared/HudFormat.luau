@@ -35,9 +35,14 @@ function HudFormat.MoneyText(money)
 end
 
 -- Gacha odds, "1 in 1,000". Anything that is not a real chance shows "1 in ?".
-function HudFormat.Odds(chance)
+-- `luck` (optional) is the roll's luck from the server: the odds shown are chance / luck, never below 1 in 1.
+-- A missing or invalid luck counts as 1 (docs/WEATHER_EVENTS_SPEC.md, "Displayed odds").
+function HudFormat.Odds(chance, luck)
 	if type(chance) ~= "number" or chance ~= chance or chance < 1 or chance == math.huge then
 		return "1 in ?"
+	end
+	if type(luck) == "number" and luck == luck and luck > 1 and luck ~= math.huge then
+		chance = math.max(1, math.floor(chance / luck + 0.5))
 	end
 	return "1 in " .. commas(chance)
 end

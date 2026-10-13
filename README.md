@@ -45,7 +45,7 @@ continuously at any Speed stat; harness 31/31, full compatibility gate not run f
 
 Current worktree additions (2026-10-07) still require live compatibility verification: five-track chain,
 workshop E upgrades and exact offline earnings, Workshop stat allocation, the hex money-upgrade panel and
-hub pad, plus server weather events and three event-only car variants. Local formatting, lint, compilation
+hub pad, plus server weather events (sky, lighting, and roll odds shown divided by the roll's luck) and three event-only car variants. Local formatting, lint, compilation
 and builds pass; these additions are not a current ALL GREEN stamp. See
 [workshop defaults](docs/WORKSHOP_SPEC.md) and [event rules](docs/WEATHER_EVENTS_SPEC.md).
 
@@ -135,29 +135,30 @@ updates automatically whenever the board changes; do not edit this block by hand
 - **Live-check the NPC client view and LoserScreen**: ui-tester / multiplayer-tester have not checked them live.
 - **Automatic bus delivery for Codex**: Claude receives bus messages via a hook; Codex only when it follows AGENTS.md and runs agent_bus.py context. If the Codex CLI's hook support covers session start / prompt submit, wire `agent_bus.py hook --agent codex` there. Also: edits made via shell commands (sed, heredoc, python rewrites) are not attributed; consider attributing via git diff snapshots per tool call. 2026-10-11: wired in .codex/hooks.json (SessionStart, UserPromptSubmit) and shell-edit attribution added (agent_bus.py shell, Pre/PostToolUse in both agents). Codex does not run the project hook until the developer trusts it (Needs you: codex-trust-bus-hook), so delivery is not verified yet.
 
-### Up next (3)
+### Up next (4)
 
 - **Daily Quest System**: Add a daily quest system with rotating objectives and rewards; define the design/spec before implementation.
 - **Redeem Codes section**: Add a Redeem Codes section projected for the Shop area where the gamepasses are located.
 - **Friends-in-server boost**: +10% luck and Money per friend in the same server, up to +40%. Fits this game: Encourages inviting friends; one multiplier in GachaService and MoneyService. Inspired by: Common in 2025-2026 simulators
+- **roll_odds_* UI fixtures must close open panels first**: The offline RacerWelcome/Panel opens on join and hides the compact roll (correct behaviour), so roll_odds_compact_odds fails although the text is right. ui-test-writer: have the fixture or ui_roll_odds close every PanelSwitch panel before the planted roll.
 
 ### Backlog (future work) (2)
 
 - **static_settle cold-start flake**: Failed 4 of ~8 cold starts (0.58-0.78 vs 0.5). DampingRatio raised to 1.0, not yet re-verified.
 - **Slack bot setup for test results**: Revoke the exposed token, install the app with bot scopes, re-add the MCP, post results after each green run.
 
-### Recently done (40)
+### Recently done (41)
 
 - ~~Rotating weather / biome events that boost luck~~ (2026-10-13)
 - ~~Duels: challenge another player to a race (request, accept/decline, track pick)~~ (2026-10-13)
 - ~~Global leaderboards in the spawn area~~ (2026-10-13)
+- ~~Roll odds shown divided by the roll's luck (weather, boosts)~~ (2026-10-13)
 - ~~Rebirth must reset Speed (design doc)~~ (2026-10-12)
 - ~~Money only from race cash-outs and duplicate sales~~ (2026-10-12)
 - ~~Session-locked saves (PlayerData VERSION 8)~~ (2026-10-12)
 - ~~Turbo luck: 10/x10, then 50/x50, 200/x200, 500/x500, 1000/x1000~~ (2026-10-12)
 - ~~Update spawn spec and CLAUDE.md for the moved StartPad~~ (2026-10-12)
 - ~~Implement workshop upgrades with E interaction~~ (2026-10-11)
-- ~~URGENT: Lock high-speed auto racing to the track path~~ (2026-10-11)
 
 <!-- TODO:END -->
 

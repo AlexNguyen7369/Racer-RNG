@@ -343,6 +343,13 @@ function Progression.Build(h)
 				shown ~= nil and math.abs(shown - remaining) <= 1
 			)
 		end
+		-- WEATHER_EVENTS_SPEC "Displayed odds": a roll during Rain shows its odds divided by the roll's luck. Only
+		-- with the weather_rain_roll fixture (it plants that roll; checks roll_odds_*, see UiSpec.RollOdds).
+		local fixture = h.rollOddsFixture()
+		if fixture and fixture.fixture == "weather_rain_roll" then
+			expect(res, "weather_rain_roll_event_is_rain", event, "rain")
+			h.rollOdds(res)
+		end
 	end
 	function scenarios.ui_offline_zero(res)
 		expect(res, "offline_zero_fixture_speed", h.player:GetAttribute("OfflineSpeed"), 0)

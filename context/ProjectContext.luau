@@ -3,7 +3,22 @@
 PROJECT CONTEXT - Idle Vehicle Simulator (read me first)
 Shown in Studio at: ServerScriptService > ProjectContext   (source file: context/ProjectContext.luau)
 Do NOT edit this in Studio: edit the file on disk, Rojo syncs it. Claude updates it at the end of every loop.
-Last updated: 2026-10-13 (Codex publication audit; owner-authorized stale-gate push)
+Last updated: 2026-10-13 (Claude: weather displayed odds)
+
+WEATHER DISPLAYED ODDS - 2026-10-13 (Claude, branch feature/alex/global-leaderboards, uncommitted)
+- Rule (owner 2026-10-13, design doc "Weather events", docs/WEATHER_EVENTS_SPEC.md "Displayed odds"): the roll card
+  and the compact roll show the odds of that roll, 1 in max(1, round(Chance / luck)). luck = GachaService.Luck(player)
+  without the turbo multi. Catch-all cars keep "1 in ?". The Index and the roll announcement keep base odds.
+- RollResult is now (id, isNew, turboMulti, emphasized, scrapMoney, luck); GachaService.Roll returns the same six.
+  HudFormat.Odds(chance, luck): a missing or invalid luck counts as 1. Client/RollToast passes roll.Luck.
+- Tests first: 9 new harness checks (weather_roll_luck_*, service_roll_returns_luck, service_roll_luck_excludes_turbo,
+  odds_text_luck_divides_chance) seen red, then green; roll_anim's count check is service_roll_returns_six_values.
+  New UI scenario ui_roll_odds with setups roll_odds_luck2/round/clamp/luck1/no_luck/catchall and weather_rain_roll.
+- TEST RESULT 2026-10-13 (live Studio, Rojo): [CARTEST] END pass=35 fail=0, weather 216/216. ui_weather green for
+  weather_rain / night / gold / clear / rain_roll; ui_roll_odds green for all 6 setups. Sky looked at live for the
+  three events; the clear sky returned to the exact baseline. Bug 719d4705 fixed.
+- UNVERIFIED: no /compat-check on this code (gate red, not cleared for main); the full [UITEST] suite was not rerun.
+- Known trap: roll_odds_* fixtures need every panel closed (RacerWelcome/Panel opens on join and hides the compact roll).
 
 LATEST PUBLICATION AUDIT — 2026-10-13 (Codex)
 - Owner authorized committing and pushing the current feature batch despite the stale

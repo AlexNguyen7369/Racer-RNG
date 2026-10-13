@@ -589,6 +589,29 @@
       "added": "2026-10-13T00:06:23-07:00",
       "updated": "2026-10-13T00:07:05-07:00",
       "updatedBy": "Alex Nguyen"
+    },
+    {
+      "id": "weather-odds-display",
+      "title": "Roll odds shown divided by the roll's luck (weather, boosts)",
+      "detail": "Design doc \"Weather events\": displayed odds must update while an event is active. RollResult carries luck as its 6th value; the roll card and compact roll show 1 in max(1, round(Chance / luck)). Harness 35/35, ui_weather and ui_roll_odds fixture rows green on 2026-10-13. No /compat-check run.",
+      "status": "done",
+      "source": "weather inspection 2026-10-13",
+      "by": "Claude",
+      "added": "2026-10-13T06:36:03-07:00",
+      "done": "2026-10-13",
+      "updated": "2026-10-13T06:36:03-07:00",
+      "updatedBy": "Claude"
+    },
+    {
+      "id": "roll-odds-fixture-panels",
+      "title": "roll_odds_* UI fixtures must close open panels first",
+      "detail": "The offline RacerWelcome/Panel opens on join and hides the compact roll (correct behaviour), so roll_odds_compact_odds fails although the text is right. ui-test-writer: have the fixture or ui_roll_odds close every PanelSwitch panel before the planted roll.",
+      "status": "next",
+      "source": "weather inspection 2026-10-13",
+      "by": "Claude",
+      "added": "2026-10-13T06:36:03-07:00",
+      "updated": "2026-10-13T06:36:03-07:00",
+      "updatedBy": "Claude"
     }
   ]
 }

@@ -809,7 +809,8 @@ local function fillResult(b, roll)
 	local color = rarityColor(spec)
 	-- Every landed roll uses the odds field. Catch-all cars have no fixed chance,
 	-- so keep the format consistent instead of showing a rarity word such as Common.
-	b.Odds.Text = HudFormat.Odds(spec.Chance)
+	-- Odds of THIS roll: the base chance divided by the luck the server rolled with (weather, boosts, ...).
+	b.Odds.Text = HudFormat.Odds(spec.Chance, roll.Luck)
 	-- Odds use the same rarity colour as the result card. Secret remains light for contrast.
 	b.Odds.TextColor3 = textColor(spec)
 	b.Viewport.Visible = true
@@ -1275,7 +1276,7 @@ local function drainRollQueue()
 	playingRoll = false
 end
 
-rollRemote.OnClientEvent:Connect(function(id, isNew, turboMulti, emphasized, scrapMoney)
+rollRemote.OnClientEvent:Connect(function(id, isNew, turboMulti, emphasized, scrapMoney, luck)
 	local spec = CarCatalog.Get(id)
 	if not spec then
 		return
@@ -1286,6 +1287,7 @@ rollRemote.OnClientEvent:Connect(function(id, isNew, turboMulti, emphasized, scr
 		Turbo = (type(turboMulti) == "number" and turboMulti > 1) and turboMulti or 1,
 		Emphasized = emphasized == true,
 		ScrapMoney = type(scrapMoney) == "number" and scrapMoney or 0,
+		Luck = luck, -- validated by HudFormat.Odds
 	})
 	task.spawn(drainRollQueue)
 end)

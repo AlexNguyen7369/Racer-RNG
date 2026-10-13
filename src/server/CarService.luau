@@ -282,6 +282,9 @@ local function spawnCar(player, character, gen, duel)
 	local car = CarFactory.build(CarConfig)
 	if duel then
 		RaceService.SetCarGroup(car) -- the release puts both cars on the same lane
+		-- Held through the countdown with its driver seated: without this the client's CarController takes the car
+		-- for a manual one until the release (its R key would lift the car on that client only)
+		car:SetAttribute("AutoRace", true)
 	end
 	CarAppearance.Apply(car, player:GetAttribute("EquippedCar"), CarConfig)
 	VehicleEffects.Apply(car, player)

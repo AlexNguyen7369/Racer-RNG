@@ -280,6 +280,30 @@ PanelSwitch.OnChange(function()
 	end
 end)
 
+-- The server puts the "Duel" prompt on every on-foot character, the player's own included, and nobody duels
+-- themselves (DuelService refuses "Self"). The own prompt is switched off here only; the server turns it on again
+-- at every Stop Auto, hence the listener.
+local function hideOwnPrompt(character)
+	local function hide(prompt)
+		if prompt.Name == "DuelPrompt" and prompt:IsA("ProximityPrompt") then
+			prompt.Enabled = false
+			prompt:GetPropertyChangedSignal("Enabled"):Connect(function()
+				if prompt.Enabled then
+					prompt.Enabled = false
+				end
+			end)
+		end
+	end
+	character.DescendantAdded:Connect(hide)
+	for _, descendant in character:GetDescendants() do
+		hide(descendant)
+	end
+end
+player.CharacterAdded:Connect(hideOwnPrompt)
+if player.Character then
+	hideOwnPrompt(player.Character)
+end
+
 duelRemote.OnClientEvent:Connect(function(message)
 	if type(message) ~= "table" then
 		return

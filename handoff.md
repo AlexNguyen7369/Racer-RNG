@@ -1,5 +1,97 @@
 # Agent handoff
 
+## Committed — 2026-10-13 (Claude)
+
+- The two sections below ("Weather: displayed odds follow the roll's luck" and "Duel UI fixtures") are committed
+  together on `feature/alex/global-leaderboards` in the commit that adds this note (owner request). Where they say
+  "uncommitted", read "committed, not pushed".
+- Still not run: the 5 duel fixtures (`duel_cancel_left`, `_notonfoot`, `_busy`, `_cooldown`, `_notloaded`), the
+  duel clicks, the two-player flow (`duel-two-player-live`), and `/compat-check`. The compat gate is NOT GREEN;
+  nothing here is cleared for `main`. The two duel bugs are not marked fixed in the Bugs tab.
+- Everything from "Publication handoff" down predates commit `b255c4d` and is history only; its "no commit or
+  push" lines and resume steps no longer apply.
+
+## Weather: displayed odds follow the roll's luck — 2026-10-13 (Claude, session `be6e2275`)
+
+### Goal state
+
+Weather inspection is finished and its one design-doc conflict is fixed: the roll card and the compact roll now
+show the odds of that roll. Work is complete and verified live, but uncommitted and without `/compat-check`.
+
+### What changed (all uncommitted, branch `feature/alex/global-leaderboards`)
+
+- Rule, written before the code (owner decision 2026-10-13, design doc "Weather events"):
+  `docs/WEATHER_EVENTS_SPEC.md` ("Displayed odds"), `docs/ROLL_ANIMATION_CONTRACT.md`,
+  `docs/SPAWN_AND_ROLLS_SPEC.md`. Shown odds = `1 in max(1, round(Chance / luck))`; `luck` is
+  `GachaService.Luck(player)` without the turbo multi; catch-all cars keep "1 in ?"; the Index and the roll
+  announcement keep base odds.
+- Code: `src/server/GachaService.luau` (`Roll` returns and fires `luck` as the 6th `RollResult` value),
+  `src/shared/HudFormat.luau` (`Odds(chance, luck)`, invalid or missing luck counts as 1),
+  `src/client/RollToast/init.client.luau` (passes `roll.Luck`).
+- Tests, red seen first (test-writer / ui-test-writer): 9 harness checks in `weather`, `gacha`, `hud`
+  (`Phase2Tests.luau`, `Scenarios.luau`); `roll_anim`'s count check is now `service_roll_returns_six_values`;
+  new UI scenario `ui_roll_odds` with setups `roll_odds_luck2/round/clamp/luck1/no_luck/catchall` and
+  `weather_rain_roll` (`UiSpec.luau`, `UiScenarios.luau`, `UiProgression.luau`, `UiTestSetup.server.luau`,
+  `tests_explained.json`).
+- Records: `CLAUDE.md` (RollResult signature), `README.md`, `context/ProjectContext.luau`, `todo.json`
+  (`weather-odds-display` done, `roll-odds-fixture-panels` next), bug `719d4705` marked fixed.
+
+### Verified (live Studio `0acd7888`, Rojo connected)
+
+- Full harness on the final code: `[CARTEST] END pass=35 fail=0`, weather 216/216.
+- `ui_weather` green for `weather_rain`, `weather_night`, `weather_gold`, `weather_clear`, `weather_rain_roll`.
+- `ui_roll_odds` green for all 6 setups.
+- Sky looked at live for Rain, Night Race and Gold Rush; the clear sky came back to the exact baseline values.
+- Static: StyLua on touched files, Selene, Rojo build, JSON, `git diff --check`.
+
+### Not done / known limits
+
+- No `/compat-check` (owner: not needed for this task). `python3 tools/compat.py status` is NOT GREEN; this code
+  is not cleared for main. The full `[UITEST]` suite, multiplayer, world and regression were not run.
+- The harness cannot see the `FireClient` 6th argument (its players are fakes); only the UI fixtures cover it.
+- Trap: `roll_odds_*` fixtures fail `roll_odds_compact_odds` while any panel is open. The offline
+  `RacerWelcome/Panel` opens on join and hides the compact roll, as designed. Close it first (it was closed by
+  hand for the green run). Card `roll-odds-fixture-panels`: ui-test-writer should make the fixture do it.
+- `execute_luau` gets its own module copies: `require(WeatherService).SetEvent` from MCP does not change the
+  game's Lighting unless that copy's `Start()` ran. Use the harness or `UiTestSetup` for real state.
+- Studio was shared with the duel session below. This session restarted Play several times, which is what
+  stopped that session's last 5 duel fixtures. Its duel edits were in the worktree during every run above.
+
+### Resume steps
+
+1. Agree with the duel session who commits what; the two sets of edits overlap in
+   `src/server/CarTest/UiTestSetup.server.luau`, `handoff.md` and the dashboard data files.
+2. Commit only on the owner's request, then run the `progress-tracker` skill.
+3. Before any push to `main`: one session alone in Studio, `/compat-check` until ALL GREEN on the final code.
+
+## Duel UI fixtures — 2026-10-13 (Claude)
+
+- Found: `UiSpec.ServerSetup` declares 20 `duel_*` fixtures, but `src/server/CarTest/UiTestSetup.server.luau`
+  defined none. Every `UiSpec.Duel.FixtureChecks` entry and every duel click (`duel_pick_track`, `duel_accept`, ...)
+  ended in `unknown setup id`, so the duel UI was never judged with a real message.
+- Fixed (uncommitted): added all 20 ids to `UiTestSetup.server.luau`. They only fire `Remotes.Duel` at the test
+  client and set `UiTestDuelPrep`; `DuelService` is not touched. No test, spec or game file changed.
+- Checked: StyLua, Selene (0/0), Rojo build, and the id list matches `UiSpec` (20/20). In the live Play session
+  the same PickTrack / Invite / Cancelled messages drove the real `DuelUi` correctly (3 track buttons, `vs
+  UiTestRival`, invite text, `DUEL DECLINED` toast).
+- Second bug fixed (uncommitted): every on-foot player saw the "Duel" prompt on their OWN character (live:
+  enabled, shown in PlayerGui.ProximityPrompts); holding F asked for a duel against themselves -> "DUEL CANCELLED".
+  `src/client/DuelUi.client.luau` (`hideOwnPrompt`, line 286) now switches the own prompt off locally and keeps it
+  off when the server re-enables it. Live after a Play restart: own prompt Enabled = false.
+- Live run through the real setup path (UiTestSetup -> `ui_duel`): 15 of 20 fixtures run, all 15 green (29-31
+  checks each, 0 failed). Play was stopped from outside before the last 5 (`duel_cancel_left`, `_notonfoot`,
+  `_busy`, `_cooldown`, `_notloaded`); they have the same shape as the 3 cancel fixtures that passed.
+- Third bug fixed (uncommitted, by code review, NOT seen live): a held duel car had no `AutoRace` attribute during
+  the 3 s countdown, so a real client's `CarController` treated it as a manual car (R lifted it on that client
+  only). `CarService.spawnCar` now sets `AutoRace` on a duel car when it is built.
+- Another Claude session (`be6e2275`, displayed roll odds) is editing tests / `UiSpec` / `UiTestSetup` / `TestConfig`
+  and using the same Studio. Its files were left alone; no test was run in its Play session.
+- Needs the owner: `duel-two-player-live` in the dashboard's Needs-you tab (Local Server, 2 Players). One client
+  cannot trigger a prompt on another player.
+- NOT run: those 5 fixtures, the duel clicks (`duel_pick_track`, `duel_accept`, ...), `/compat-check`, and the
+  two-player flow with `multiplayer-tester` (DUEL_SPEC section 4). Both bugs are in the dashboard Bugs tab, not
+  yet marked fixed. Not cleared for main.
+
 ## Publication handoff — 2026-10-13
 
 ### Goal state
