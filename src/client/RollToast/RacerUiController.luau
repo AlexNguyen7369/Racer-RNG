@@ -32,6 +32,7 @@ end
 playerGui.ChildAdded:Connect(removeLegacy)
 local Ui = script.Parent:WaitForChild("Ui")
 local Components = require(Ui.RacerComponents)
+local HudButtonStyle = require(Ui.HudButtonStyle)
 require(Ui.RacerMotion).Attach(playerGui)
 local client = script.Parent:IsA("LocalScript") and script.Parent.Parent or script.Parent
 local PanelSwitch = require(client.PanelSwitch)
@@ -159,15 +160,7 @@ end)
 refreshRebirth()
 
 local function label(button, value)
-	if button:IsA("TextLabel") or button:IsA("TextButton") then
-		button.Text = value
-		return
-	end
-	for _, child in ipairs(button:GetChildren()) do
-		if child:IsA("TextLabel") then
-			child.Text = value
-		end
-	end
+	HudButtonStyle.SetCaption(button, value)
 end
 
 -- The former Settings auto-roll row is now the local top-down camera toggle.
@@ -294,6 +287,7 @@ data.ChildAdded:Connect(refreshIndex)
 data.ChildRemoved:Connect(refreshIndex)
 player:GetAttributeChangedSignal("EquippedCar"):Connect(refreshIndex)
 refreshIndex()
+require(Ui.InventoryTabs).Attach(index, player, refreshIndex)
 
 local function refreshStats()
 	local free = player:GetAttribute("StatPoints") or 0
@@ -336,7 +330,7 @@ refreshStats()
 local pendingRace = false
 local function refreshRace()
 	local racing = player:GetAttribute("AutoRacing") == true
-	label(hud.Race, format.AutoButtonText(racing))
+	label(hud.Race, string.upper(format.AutoButtonText(racing)))
 	Components.Tint(hud.Race, pendingRace and GRAY or (racing and RED or GREEN))
 	hud.Race.Active = not pendingRace
 end
@@ -359,9 +353,12 @@ task.spawn(function()
 	playerGui:WaitForChild("RollToast")
 	local showcase = playerGui:WaitForChild("RollShowcase")
 	local function refreshShowcase()
-		hud.Gui.Enabled = not showcase.Enabled
+		local upgrades = playerGui:FindFirstChild("RacerUpgrades")
+		local treeOpen = upgrades and upgrades:FindFirstChild("Panel") and upgrades.Panel.Visible
+		hud.Gui.Enabled = not showcase.Enabled and not treeOpen
 	end
 	showcase:GetPropertyChangedSignal("Enabled"):Connect(refreshShowcase)
+	PanelSwitch.OnChange(refreshShowcase)
 	refreshShowcase()
 end)
 

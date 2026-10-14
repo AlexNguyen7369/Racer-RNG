@@ -8,6 +8,7 @@ local gui = player:WaitForChild("PlayerGui")
 local shared = ReplicatedStorage:WaitForChild("Shared")
 local Market = require(shared:WaitForChild("MarketConfig"))
 local Format = require(shared:WaitForChild("HudFormat"))
+local HudButtonStyle = require(script.Parent.RollToast.Ui.HudButtonStyle)
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
 
 local function make(class, name, parent, props)
@@ -37,6 +38,7 @@ local openButton = make("TextButton", "MarketButton", root, {
 	BackgroundColor3 = Color3.fromRGB(255, 170, 45),
 })
 make("UICorner", "Corner", openButton, { CornerRadius = UDim.new(0, 9) })
+HudButtonStyle.Utility(openButton, 3, HudButtonStyle.Colors.Market)
 local backdrop = make("TextButton", "Backdrop", root, {
 	Size = UDim2.fromScale(1, 1),
 	Text = "",

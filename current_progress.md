@@ -28,7 +28,11 @@
 25. 2026-10-11 — Alex Nguyen — Smoothed the auto-race server rail (Hermite curve applied in PostSimulation, flips and tilt measured before correction), added a rail heading smoothness check, reconciled five stale scenarios to a 31/31 harness run, and wired the Codex agent-bus hook with shell-edit attribution, pushed without the full compatibility gate at the owner's request.
 26. 2026-10-11 — Alex Nguyen — Fixed the Daily Rewards modal reopening every second after being closed by auto-opening it only once per UTC day, pushed without a live test or compatibility run at the owner's request.
 
+27. 2026-10-14 — Isaac Li — Implemented Inventory tabs, potion bottle art, HUD captions/spacing/shadows and a full-screen zoomable upgrade tree on a review branch; focused live checks passed, full compatibility remains pending.
+
 ## What's next
+Integrate the narrow UI changes onto the newer collaborator branch before Rojo sync; run current-source UI and full compatibility checks before merging.
+
 **Run the full /compat-check (UI, multiplayer, world and regression suites) on the smooth-rail and daily-modal commits.**
 
 **Why this is next:** both changes were pushed to main without the gate (the daily-modal fix without any live test), so the suites must certify them before further gameplay work builds on main.

@@ -680,6 +680,11 @@ local function isEnlarged()
 	return gui:GetAttribute("View") == "Enlarged"
 end
 
+local function upgradeTreeOpen()
+	local upgrades = playerGui:FindFirstChild("RacerUpgrades")
+	return upgrades and upgrades:FindFirstChild("Panel") and upgrades.Panel.Visible
+end
+
 -- The compact roll is the always-available top-centre entry point. Clicking it
 -- opens the enlarged showcase, where the AUTO option lives. It is hidden while
 -- the enlarged view or any panel (PanelSwitch) is open (owner decision 2026-10-08).
@@ -688,7 +693,7 @@ local function refreshToast()
 	local show = not isEnlarged() and not PanelSwitch.AnyOpen() and (playing or not autoRollOn())
 	local hud = playerGui:FindFirstChild("RacerHud")
 	if hud and not isEnlarged() then
-		hud.Enabled = true
+		hud.Enabled = not upgradeTreeOpen()
 		if not playing then
 			showcase.Enabled = false
 		end
@@ -722,29 +727,11 @@ local function showModel(b, spec)
 			child:Destroy()
 		end
 	end
-	local source = ReplicatedStorage:FindFirstChild("CarModels")
-	local sourceModel = source and source:FindFirstChild(spec.Model or spec.Id)
-	if sourceModel and sourceModel:IsA("Model") then
-		local model = sourceModel:Clone()
-		model.Name = spec.Id
-		model.Parent = b.Viewport
-		model:PivotTo(CFrame.new())
-		local camera = Instance.new("Camera")
-		camera.Name = "Camera"
-		camera.FieldOfView = b.Full and 32 or 38
-		camera.CFrame = CFrame.lookAt(Vector3.new(0, 1.5, 5), Vector3.new(0, 0.5, 0))
-		camera.Parent = b.Viewport
-		b.Viewport.CurrentCamera = camera
-		b.Model = model
-	else
-		local art = carTile(spec, b.Viewport, b.Z + 4)
-		art.Position = UDim2.fromScale(0.5, 0.5)
-		art.Size = UDim2.fromScale(1, 1)
-		if not b.Full then
-			art.Size = UDim2.fromScale(1.35, 1.35)
-		end
-		b.Model = art
-	end
+	-- Imported CarModels are reserved for the equipped racing vehicle.
+	local art = carTile(spec, b.Viewport, b.Z + 4)
+	art.Position = UDim2.fromScale(0.5, 0.5)
+	art.Size = UDim2.fromScale(b.Full and 1 or 1.35, b.Full and 1 or 1.35)
+	b.Model = art
 	b.Placeholder.Visible = false
 	return true
 end
@@ -891,7 +878,7 @@ local function closeEnlarged()
 	blur.Enabled = false
 	local hud = playerGui:FindFirstChild("RacerHud")
 	if hud then
-		hud.Enabled = true
+		hud.Enabled = not upgradeTreeOpen()
 	end
 	-- The reverse: shrink back towards the compact card's place, then hide
 	local to = Vector2.new(

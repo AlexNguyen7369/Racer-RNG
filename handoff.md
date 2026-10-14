@@ -1,5 +1,14 @@
 # Agent handoff
 
+## 2026-10-14 inventory, upgrade UI and potion art (Codex)
+
+- Review branch: `fix/isaac/hud-text-and-roll-art`, based on origin/main 39350ed.
+- UI requests implemented and focused live checks passed; see
+  `docs/INVENTORY_UPGRADE_UI_HANDOFF.md` for exact scope and remaining checks.
+- Studio has newer collaborator source than this branch. Preserve it; integrate
+  only the UI patches onto the newer branch before reconnecting Rojo.
+- Full compatibility certification and formatting/lint gates remain pending.
+
 ## 2026-10-11 smooth rail, test reconciliation, Codex bus hook (Claude)
 
 - Goal: finish the three Doing cards (rail stability, workshop E upgrades, Codex bus delivery).

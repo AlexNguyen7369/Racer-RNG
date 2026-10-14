@@ -1,6 +1,6 @@
 --!nonstrict
 -- GENERATED from ui/specs/RacerHud.ui.json. DO NOT EDIT: change the spec and run ui/tooling/gen_atlas.py.
--- spec-hash: 5f14ee643f58
+-- spec-hash: 37da31f77505
 -- Build(playerGui) creates the ScreenGui and returns refs: refs[<node id>] for every node (buttons: the Face
 -- TextButton, connect .Activated to it), refs.Gui for the ScreenGui.
 
@@ -19,14 +19,14 @@ end
 
 local Ui = {}
 
-Ui.SpecHash = "5f14ee643f58"
+Ui.SpecHash = "37da31f77505"
 
 function Ui.Build(playerGui)
 	local refs = {}
 	local scales = {} -- { UIScale, desktop zoom, phone zoom }
 	local layouts = {} -- { instance, desktop props, phone props }
 	local gui = new("ScreenGui", { Name = "RacerHud", ResetOnSpawn = false, IgnoreGuiInset = true, ZIndexBehavior = Enum.ZIndexBehavior.Sibling }, playerGui)
-	gui:SetAttribute("SpecHash", "5f14ee643f58")
+	gui:SetAttribute("SpecHash", "37da31f77505")
 	refs.Gui = gui
 	local v1 = new("Frame", { Name = "Race", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 72), Size = UDim2.new(0, 180, 0, 48), Visible = true, BackgroundTransparency = 1 }, gui)
 	local v1s = new("Frame", { Name = "Shadow", Position = UDim2.new(0, 0, 0, 4), Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.fromRGB(27, 82, 74), BackgroundTransparency = 0.4, BorderSizePixel = 0, ZIndex = 1 }, v1)
@@ -45,10 +45,10 @@ function Ui.Build(playerGui)
 	new("UIStroke", { Thickness = 3, Color = Color3.fromRGB(18, 22, 43), ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual }, v2)
 	refs["RaceLabel"] = v2
 	table.insert(layouts, { v2, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 0, 0, 0), Size = UDim2.new(1, 0, 1, 0), TextSize = 24, Visible = true }, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 0, 0, 0), Size = UDim2.new(1, 0, 1, 0), TextSize = 20, Visible = true } })
-	local v3 = new("Frame", { Name = "Navigation", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 22, 0.45, 0), Size = UDim2.new(0, 160, 0, 206), Visible = true, BackgroundTransparency = 1 }, gui)
+	local v3 = new("Frame", { Name = "Navigation", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 22, 0.45, 0), Size = UDim2.new(0, 160, 0, 226), Visible = true, BackgroundTransparency = 1 }, gui)
 	refs["Navigation"] = v3
 	table.insert(scales, { new("UIScale", {}, v3), 1, 1 })
-	table.insert(layouts, { v3, { AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 22, 0.45, 0), Size = UDim2.new(0, 160, 0, 206), Visible = true }, { AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 12, 0.44, 0), Size = UDim2.new(0, 118, 0, 184), Visible = true } })
+	table.insert(layouts, { v3, { AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 22, 0.45, 0), Size = UDim2.new(0, 160, 0, 226), Visible = true }, { AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 12, 0.44, 0), Size = UDim2.new(0, 118, 0, 200), Visible = true } })
 	local v4 = new("Frame", { Name = "Index", AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 0, 0, 0), Size = UDim2.new(0, 160, 0, 54), Visible = true, BackgroundTransparency = 1 }, v3)
 	local v4s = new("Frame", { Name = "Shadow", Position = UDim2.new(0, 0, 0, 4), Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.fromRGB(18, 81, 123), BackgroundTransparency = 0.4, BorderSizePixel = 0, ZIndex = 1 }, v4)
 	corner(v4s, 10)
@@ -61,11 +61,11 @@ function Ui.Build(playerGui)
 	corner(v4l, 3)
 	refs["Index"] = v4f
 	table.insert(layouts, { v4, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 0, 0, 0), Size = UDim2.new(0, 160, 0, 54), Visible = true }, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 0, 0, 0), Size = UDim2.new(0, 118, 0, 48), Visible = true } })
-	local v5 = new("TextLabel", { Name = "IndexLabel", AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 0, 0, 0), Size = UDim2.new(1, 0, 1, 0), Visible = true, BackgroundTransparency = 1, Text = "INDEX", TextSize = 27, Font = Enum.Font.FredokaOne, TextColor3 = Color3.fromRGB(255, 255, 255), TextWrapped = false, TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 3 }, v4f)
+	local v5 = new("TextLabel", { Name = "IndexLabel", AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 0, 0, 0), Size = UDim2.new(1, 0, 1, 0), Visible = true, BackgroundTransparency = 1, Text = "INVENTORY", TextSize = 27, Font = Enum.Font.FredokaOne, TextColor3 = Color3.fromRGB(255, 255, 255), TextWrapped = false, TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 3 }, v4f)
 	new("UIStroke", { Thickness = 3, Color = Color3.fromRGB(18, 22, 43), ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual }, v5)
 	refs["IndexLabel"] = v5
 	table.insert(layouts, { v5, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 0, 0, 0), Size = UDim2.new(1, 0, 1, 0), TextSize = 27, Visible = true }, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 0, 0, 0), Size = UDim2.new(1, 0, 1, 0), TextSize = 23, Visible = true } })
-	local v6 = new("Frame", { Name = "Stats", AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 0, 0, 74), Size = UDim2.new(0, 160, 0, 54), Visible = true, BackgroundTransparency = 1 }, v3)
+	local v6 = new("Frame", { Name = "Stats", AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 0, 0, 84), Size = UDim2.new(0, 160, 0, 54), Visible = true, BackgroundTransparency = 1 }, v3)
 	local v6s = new("Frame", { Name = "Shadow", Position = UDim2.new(0, 0, 0, 4), Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.fromRGB(62, 44, 118), BackgroundTransparency = 0.4, BorderSizePixel = 0, ZIndex = 1 }, v6)
 	corner(v6s, 10)
 	new("UIStroke", { Thickness = 3, Color = Color3.fromRGB(62, 44, 118), Transparency = 0.4, ApplyStrokeMode = Enum.ApplyStrokeMode.Border }, v6s)
@@ -76,12 +76,12 @@ function Ui.Build(playerGui)
 	local v6l = new("Frame", { Name = "Lift", Position = UDim2.new(0, 4, 0, 2), Size = UDim2.new(1, -8, 0, 6), BackgroundColor3 = Color3.new(1, 1, 1), BackgroundTransparency = 0.7, BorderSizePixel = 0 }, v6f)
 	corner(v6l, 3)
 	refs["Stats"] = v6f
-	table.insert(layouts, { v6, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 0, 0, 74), Size = UDim2.new(0, 160, 0, 54), Visible = true }, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 0, 0, 66), Size = UDim2.new(0, 118, 0, 48), Visible = true } })
+	table.insert(layouts, { v6, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 0, 0, 84), Size = UDim2.new(0, 160, 0, 54), Visible = true }, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 0, 0, 74), Size = UDim2.new(0, 118, 0, 48), Visible = true } })
 	local v7 = new("TextLabel", { Name = "StatsLabel", AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 0, 0, 0), Size = UDim2.new(1, 0, 1, 0), Visible = true, BackgroundTransparency = 1, Text = "STATS", TextSize = 27, Font = Enum.Font.FredokaOne, TextColor3 = Color3.fromRGB(255, 255, 255), TextWrapped = false, TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 3 }, v6f)
 	new("UIStroke", { Thickness = 3, Color = Color3.fromRGB(18, 22, 43), ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual }, v7)
 	refs["StatsLabel"] = v7
 	table.insert(layouts, { v7, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 0, 0, 0), Size = UDim2.new(1, 0, 1, 0), TextSize = 27, Visible = true }, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 0, 0, 0), Size = UDim2.new(1, 0, 1, 0), TextSize = 23, Visible = true } })
-	local v8 = new("Frame", { Name = "Rebirth", AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 0, 0, 148), Size = UDim2.new(0, 160, 0, 54), Visible = true, BackgroundTransparency = 1 }, v3)
+	local v8 = new("Frame", { Name = "Rebirth", AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 0, 0, 168), Size = UDim2.new(0, 160, 0, 54), Visible = true, BackgroundTransparency = 1 }, v3)
 	local v8s = new("Frame", { Name = "Shadow", Position = UDim2.new(0, 0, 0, 4), Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.fromRGB(88, 37, 73), BackgroundTransparency = 0.4, BorderSizePixel = 0, ZIndex = 1 }, v8)
 	corner(v8s, 10)
 	new("UIStroke", { Thickness = 3, Color = Color3.fromRGB(88, 37, 73), Transparency = 0.4, ApplyStrokeMode = Enum.ApplyStrokeMode.Border }, v8s)
@@ -92,7 +92,7 @@ function Ui.Build(playerGui)
 	local v8l = new("Frame", { Name = "Lift", Position = UDim2.new(0, 4, 0, 2), Size = UDim2.new(1, -8, 0, 6), BackgroundColor3 = Color3.new(1, 1, 1), BackgroundTransparency = 0.7, BorderSizePixel = 0 }, v8f)
 	corner(v8l, 3)
 	refs["Rebirth"] = v8f
-	table.insert(layouts, { v8, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 0, 0, 148), Size = UDim2.new(0, 160, 0, 54), Visible = true }, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 0, 0, 132), Size = UDim2.new(0, 118, 0, 48), Visible = true } })
+	table.insert(layouts, { v8, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 0, 0, 168), Size = UDim2.new(0, 160, 0, 54), Visible = true }, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 0, 0, 148), Size = UDim2.new(0, 118, 0, 48), Visible = true } })
 	local v9 = new("TextLabel", { Name = "RebirthLabel", AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 0, 0, 0), Size = UDim2.new(1, 0, 1, 0), Visible = true, BackgroundTransparency = 1, Text = "REBIRTH", TextSize = 27, Font = Enum.Font.FredokaOne, TextColor3 = Color3.fromRGB(255, 255, 255), TextWrapped = false, TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 3 }, v8f)
 	new("UIStroke", { Thickness = 3, Color = Color3.fromRGB(18, 22, 43), ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual }, v9)
 	refs["RebirthLabel"] = v9
@@ -242,14 +242,7 @@ end
 
 function Ui.Bind(playerGui)
 	local saved = playerGui:WaitForChild("RacerHud")
-	if not saved:IsA("ScreenGui") then
-		saved:Destroy()
-		return Ui.Build(playerGui)
-	end
-	if saved:GetAttribute("SpecHash") ~= Ui.SpecHash or not saved:FindFirstChild("Level") then
-		saved:Destroy()
-		return Ui.Build(playerGui)
-	end
+	assert(saved:IsA("ScreenGui") and saved:GetAttribute("SpecHash") == "37da31f77505", "Saved UI is stale; regenerate and bake it in Edit mode")
 	local function new(className, props, parent)
 		local inst = parent:FindFirstChild(props.Name or className)
 		assert(inst and inst:IsA(className), "Saved UI is missing " .. (props.Name or className))
@@ -262,7 +255,7 @@ function Ui.Bind(playerGui)
 	local scales = {} -- { UIScale, desktop zoom, phone zoom }
 	local layouts = {} -- { instance, desktop props, phone props }
 	local gui = new("ScreenGui", { Name = "RacerHud", ResetOnSpawn = false, IgnoreGuiInset = true, ZIndexBehavior = Enum.ZIndexBehavior.Sibling }, playerGui)
-	gui:SetAttribute("SpecHash", "5f14ee643f58")
+	gui:SetAttribute("SpecHash", "37da31f77505")
 	refs.Gui = gui
 	local v1 = new("Frame", { Name = "Race", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 72), Size = UDim2.new(0, 180, 0, 48), Visible = true, BackgroundTransparency = 1 }, gui)
 	local v1s = new("Frame", { Name = "Shadow", Position = UDim2.new(0, 0, 0, 4), Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.fromRGB(27, 82, 74), BackgroundTransparency = 0.4, BorderSizePixel = 0, ZIndex = 1 }, v1)
@@ -281,10 +274,10 @@ function Ui.Bind(playerGui)
 	new("UIStroke", { Thickness = 3, Color = Color3.fromRGB(18, 22, 43), ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual }, v2)
 	refs["RaceLabel"] = v2
 	table.insert(layouts, { v2, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 0, 0, 0), Size = UDim2.new(1, 0, 1, 0), TextSize = 24, Visible = true }, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 0, 0, 0), Size = UDim2.new(1, 0, 1, 0), TextSize = 20, Visible = true } })
-	local v3 = new("Frame", { Name = "Navigation", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 22, 0.45, 0), Size = UDim2.new(0, 160, 0, 206), Visible = true, BackgroundTransparency = 1 }, gui)
+	local v3 = new("Frame", { Name = "Navigation", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 22, 0.45, 0), Size = UDim2.new(0, 160, 0, 226), Visible = true, BackgroundTransparency = 1 }, gui)
 	refs["Navigation"] = v3
 	table.insert(scales, { new("UIScale", {}, v3), 1, 1 })
-	table.insert(layouts, { v3, { AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 22, 0.45, 0), Size = UDim2.new(0, 160, 0, 206), Visible = true }, { AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 12, 0.44, 0), Size = UDim2.new(0, 118, 0, 184), Visible = true } })
+	table.insert(layouts, { v3, { AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 22, 0.45, 0), Size = UDim2.new(0, 160, 0, 226), Visible = true }, { AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 12, 0.44, 0), Size = UDim2.new(0, 118, 0, 200), Visible = true } })
 	local v4 = new("Frame", { Name = "Index", AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 0, 0, 0), Size = UDim2.new(0, 160, 0, 54), Visible = true, BackgroundTransparency = 1 }, v3)
 	local v4s = new("Frame", { Name = "Shadow", Position = UDim2.new(0, 0, 0, 4), Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.fromRGB(18, 81, 123), BackgroundTransparency = 0.4, BorderSizePixel = 0, ZIndex = 1 }, v4)
 	corner(v4s, 10)
@@ -297,11 +290,11 @@ function Ui.Bind(playerGui)
 	corner(v4l, 3)
 	refs["Index"] = v4f
 	table.insert(layouts, { v4, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 0, 0, 0), Size = UDim2.new(0, 160, 0, 54), Visible = true }, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 0, 0, 0), Size = UDim2.new(0, 118, 0, 48), Visible = true } })
-	local v5 = new("TextLabel", { Name = "IndexLabel", AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 0, 0, 0), Size = UDim2.new(1, 0, 1, 0), Visible = true, BackgroundTransparency = 1, Text = "INDEX", TextSize = 27, Font = Enum.Font.FredokaOne, TextColor3 = Color3.fromRGB(255, 255, 255), TextWrapped = false, TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 3 }, v4f)
+	local v5 = new("TextLabel", { Name = "IndexLabel", AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 0, 0, 0), Size = UDim2.new(1, 0, 1, 0), Visible = true, BackgroundTransparency = 1, Text = "INVENTORY", TextSize = 27, Font = Enum.Font.FredokaOne, TextColor3 = Color3.fromRGB(255, 255, 255), TextWrapped = false, TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 3 }, v4f)
 	new("UIStroke", { Thickness = 3, Color = Color3.fromRGB(18, 22, 43), ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual }, v5)
 	refs["IndexLabel"] = v5
 	table.insert(layouts, { v5, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 0, 0, 0), Size = UDim2.new(1, 0, 1, 0), TextSize = 27, Visible = true }, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 0, 0, 0), Size = UDim2.new(1, 0, 1, 0), TextSize = 23, Visible = true } })
-	local v6 = new("Frame", { Name = "Stats", AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 0, 0, 74), Size = UDim2.new(0, 160, 0, 54), Visible = true, BackgroundTransparency = 1 }, v3)
+	local v6 = new("Frame", { Name = "Stats", AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 0, 0, 84), Size = UDim2.new(0, 160, 0, 54), Visible = true, BackgroundTransparency = 1 }, v3)
 	local v6s = new("Frame", { Name = "Shadow", Position = UDim2.new(0, 0, 0, 4), Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.fromRGB(62, 44, 118), BackgroundTransparency = 0.4, BorderSizePixel = 0, ZIndex = 1 }, v6)
 	corner(v6s, 10)
 	new("UIStroke", { Thickness = 3, Color = Color3.fromRGB(62, 44, 118), Transparency = 0.4, ApplyStrokeMode = Enum.ApplyStrokeMode.Border }, v6s)
@@ -312,12 +305,12 @@ function Ui.Bind(playerGui)
 	local v6l = new("Frame", { Name = "Lift", Position = UDim2.new(0, 4, 0, 2), Size = UDim2.new(1, -8, 0, 6), BackgroundColor3 = Color3.new(1, 1, 1), BackgroundTransparency = 0.7, BorderSizePixel = 0 }, v6f)
 	corner(v6l, 3)
 	refs["Stats"] = v6f
-	table.insert(layouts, { v6, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 0, 0, 74), Size = UDim2.new(0, 160, 0, 54), Visible = true }, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 0, 0, 66), Size = UDim2.new(0, 118, 0, 48), Visible = true } })
+	table.insert(layouts, { v6, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 0, 0, 84), Size = UDim2.new(0, 160, 0, 54), Visible = true }, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 0, 0, 74), Size = UDim2.new(0, 118, 0, 48), Visible = true } })
 	local v7 = new("TextLabel", { Name = "StatsLabel", AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 0, 0, 0), Size = UDim2.new(1, 0, 1, 0), Visible = true, BackgroundTransparency = 1, Text = "STATS", TextSize = 27, Font = Enum.Font.FredokaOne, TextColor3 = Color3.fromRGB(255, 255, 255), TextWrapped = false, TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 3 }, v6f)
 	new("UIStroke", { Thickness = 3, Color = Color3.fromRGB(18, 22, 43), ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual }, v7)
 	refs["StatsLabel"] = v7
 	table.insert(layouts, { v7, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 0, 0, 0), Size = UDim2.new(1, 0, 1, 0), TextSize = 27, Visible = true }, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 0, 0, 0), Size = UDim2.new(1, 0, 1, 0), TextSize = 23, Visible = true } })
-	local v8 = new("Frame", { Name = "Rebirth", AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 0, 0, 148), Size = UDim2.new(0, 160, 0, 54), Visible = true, BackgroundTransparency = 1 }, v3)
+	local v8 = new("Frame", { Name = "Rebirth", AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 0, 0, 168), Size = UDim2.new(0, 160, 0, 54), Visible = true, BackgroundTransparency = 1 }, v3)
 	local v8s = new("Frame", { Name = "Shadow", Position = UDim2.new(0, 0, 0, 4), Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.fromRGB(88, 37, 73), BackgroundTransparency = 0.4, BorderSizePixel = 0, ZIndex = 1 }, v8)
 	corner(v8s, 10)
 	new("UIStroke", { Thickness = 3, Color = Color3.fromRGB(88, 37, 73), Transparency = 0.4, ApplyStrokeMode = Enum.ApplyStrokeMode.Border }, v8s)
@@ -328,7 +321,7 @@ function Ui.Bind(playerGui)
 	local v8l = new("Frame", { Name = "Lift", Position = UDim2.new(0, 4, 0, 2), Size = UDim2.new(1, -8, 0, 6), BackgroundColor3 = Color3.new(1, 1, 1), BackgroundTransparency = 0.7, BorderSizePixel = 0 }, v8f)
 	corner(v8l, 3)
 	refs["Rebirth"] = v8f
-	table.insert(layouts, { v8, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 0, 0, 148), Size = UDim2.new(0, 160, 0, 54), Visible = true }, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 0, 0, 132), Size = UDim2.new(0, 118, 0, 48), Visible = true } })
+	table.insert(layouts, { v8, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 0, 0, 168), Size = UDim2.new(0, 160, 0, 54), Visible = true }, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 0, 0, 148), Size = UDim2.new(0, 118, 0, 48), Visible = true } })
 	local v9 = new("TextLabel", { Name = "RebirthLabel", AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 0, 0, 0), Size = UDim2.new(1, 0, 1, 0), Visible = true, BackgroundTransparency = 1, Text = "REBIRTH", TextSize = 27, Font = Enum.Font.FredokaOne, TextColor3 = Color3.fromRGB(255, 255, 255), TextWrapped = false, TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 3 }, v8f)
 	new("UIStroke", { Thickness = 3, Color = Color3.fromRGB(18, 22, 43), ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual }, v9)
 	refs["RebirthLabel"] = v9
