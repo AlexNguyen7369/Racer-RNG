@@ -1,0 +1,24 @@
+{
+  "name": "RacerUpgrades",
+  "reference": {"width":1280,"height":720},
+  "theme": {"font":"FredokaOne","outline":3,"radius":10,"shadowOffset":4,"liftHeight":6,"gradient":0.12,"minText":12,
+    "palette":{"primary":"#1ED8FF","dark":"#202B47","light":"#F4F7FF","money":"#3CFF3C","muted":"#686F87"},
+    "reserved":[{"name":"RobloxTopBar","x":0,"y":0,"w":360,"h":58}]},
+  "nodes":[
+    {"id":"TreeTitle","kind":"text","text":"UPGRADES","textSize":28,"pos":[[0.5,0],[0,68]],"anchor":[0.5,0],"size":[[0,250],[0,38]],"center":"x","phone":{"textSize":22,"pos":[[0.5,0],[0,62]],"size":[[0,200],[0,30]]}},
+    {"id":"Close","kind":"button","text":"X","textSize":32,"color":"danger","pos":[[1,-22],[0,72]],"anchor":[1,0],"size":[[0,52],[0,52]],"action":"CloseUpgrades","phone":{"pos":[[1,-12],[0,64]],"size":[[0,48],[0,48]],"textSize":28}},
+    {"id":"ZoomTools","kind":"spacer","pos":[[0,22],[0.46,0]],"size":[[0,120],[0,132]],"phone":{"pos":[[0,12],[0.40,0]]},"children":[
+      {"id":"ZoomOut","kind":"button","text":"-","textSize":36,"color":"muted","pos":[[0,0],[0,0]],"size":[[0,52],[0,52]],"action":"ZoomOut"},
+      {"id":"ZoomIn","kind":"button","text":"+","textSize":36,"color":"primary","pos":[[0,68],[0,0]],"size":[[0,52],[0,52]],"action":"ZoomIn"},
+      {"id":"Exit","kind":"button","text":"EXIT","textSize":24,"color":"danger","pos":[[0,0],[0,76]],"size":[[0,120],[0,48]],"action":"CloseUpgrades"}
+    ]},
+    {"id":"Details","kind":"panel","color":"light","purpose":"Selected upgrade description and authoritative availability",
+      "pos":[[1,-24],[1,-92]],"anchor":[1,1],"size":[[0,280],[0,146]],
+      "phone":{"pos":[[1,-12],[1,-78]],"size":[[0,220],[0,122]]},"children":[
+      {"id":"DetailTitle","kind":"text","text":"SELECT AN UPGRADE","textSize":21,"textColor":"dark","pos":[[0,12],[0,12]],"size":[[1,-24],[0,30]],"phone":{"textSize":16,"size":[[1,-24],[0,24]]}},
+      {"id":"DetailBonus","kind":"text","text":"Explore the hex tree","textSize":17,"textColor":"muted","pos":[[0,12],[0,52]],"size":[[1,-24],[0,26]],"phone":{"textSize":14,"pos":[[0,12],[0,46]],"size":[[1,-24],[0,22]]}},
+      {"id":"DetailStatus","kind":"text","text":"Hover or tap a tile","textSize":19,"textColor":"money","pos":[[0,12],[0,96]],"size":[[1,-24],[0,28]],"phone":{"textSize":15,"pos":[[0,12],[0,82]],"size":[[1,-24],[0,24]]}}
+    ]},
+    {"id":"Balance","kind":"text","text":"$1,000","textSize":28,"textColor":"money","anchor":[0.5,1],"pos":[[0.5,0],[1,-22]],"size":[[0,260],[0,42]],"center":"x","phone":{"textSize":22,"pos":[[0.5,0],[1,-14]],"size":[[0,200],[0,34]]}}
+  ]
+}

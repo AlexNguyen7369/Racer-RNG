@@ -35,6 +35,12 @@ Auto race / workshop ──Speed/sec──▶ SPEED ──▶ Race the NPC ladde
 
 ## Features implemented
 
+Inventory/upgrade UI (2026-10-14, review branch): CARS and CONSUMABLES tabs,
+generated potion bottle icons, spaced/shadowed HUD buttons, illustrated rolls,
+and a full-screen draggable/zoomable hex tree. Walkspeed nodes are hidden without
+changing saved effects. Focused live checks passed; full compatibility remains
+pending. See [delivery notes](docs/INVENTORY_UPGRADE_UI_HANDOFF.md) before syncing.
+
 Auto-race rail (2026-10-11): the server rail follows a smooth Hermite curve through the path, so corners turn
 continuously at any Speed stat; harness 31/31, full compatibility gate not run for this change.
 

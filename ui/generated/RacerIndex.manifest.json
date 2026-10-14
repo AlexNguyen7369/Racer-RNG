@@ -1,0 +1,15 @@
+{
+  "name": "RacerIndex",
+  "spec": "ui/specs/RacerIndex.ui.json",
+  "specHash": "80e4155a1165",
+  "files": {
+    "src/client/RollToast/Ui/RacerIndex.luau": "60b3ea9c812a",
+    "ui/generated/RacerIndex.studio.luau": "233bdb125367",
+    "ui/preview/RacerIndex.svg": "7a4ea90fc505",
+    "ui/preview/RacerIndex_desktop.svg": "e1f72c043374",
+    "ui/preview/RacerIndex_laptop.svg": "6b1e600598dd",
+    "ui/preview/RacerIndex_tablet.svg": "40b9d1f01de7",
+    "ui/preview/RacerIndex_phone.svg": "d6df7fb6f94c"
+  },
+  "missingIcons": []
+}

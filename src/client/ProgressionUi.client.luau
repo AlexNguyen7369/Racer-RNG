@@ -16,6 +16,7 @@ local Workshop = require(shared.Workshop)
 local Format = require(shared.HudFormat)
 local Weather = require(shared.WeatherConfig)
 local Switch = require(script.Parent.PanelSwitch)
+local HudButtonStyle = require(script.Parent.RollToast.Ui.HudButtonStyle)
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
 local BLUE = Color3.fromRGB(61, 151, 219)
 local GREEN = Color3.fromRGB(89, 225, 138)
@@ -94,69 +95,27 @@ end
 local hud = screen("RacerProgression", 1)
 local upgrades = button("UpgradeButton", hud, UDim2.new(1, -16, 0.22, 0), UDim2.fromOffset(110, 40), "UPGRADES")
 upgrades.AnchorPoint = Vector2.new(1, 0)
+HudButtonStyle.Utility(upgrades, 1, HudButtonStyle.Colors.Upgrades)
 local badge = text("Badge", upgrades, UDim2.new(1, -26, 0, 0), UDim2.fromOffset(26, 22), "0")
 badge.BackgroundTransparency = 0
 badge.BackgroundColor3 = RED
 make("UICorner", "Corner", badge, { CornerRadius = UDim.new(1, 0) })
 local weather = text("WeatherBanner", hud, UDim2.fromOffset(16, 12), UDim2.fromOffset(220, 42), "")
 weather.TextXAlignment = Enum.TextXAlignment.Left
-local treePanel = panel("Upgrades", "MONEY UPGRADE TREE")
-local canvas = make("ScrollingFrame", "Canvas", treePanel, {
-	Position = UDim2.fromOffset(8, 44),
-	Size = UDim2.new(1, -16, 1, -82),
-	CanvasSize = UDim2.fromOffset(1600, 1400),
-	CanvasPosition = Vector2.new(500, 500),
-	BackgroundTransparency = 1,
-	ScrollBarThickness = 6,
-	ClipsDescendants = true,
-	ScrollingEnabled = true,
-})
-local feedback = text(
-	"Result",
-	treePanel,
-	UDim2.new(0, 8, 1, -34),
-	UDim2.new(1, -16, 0, 28),
-	"Drag to explore • select an available upgrade"
-)
-local tiles = {}
+local treeView = require(script.Parent.RollToast.Ui.UpgradeTreeView).Create(gui, Tree, Format)
+local treePanel, canvas, feedback, tiles = treeView.Panel, treeView.Canvas, treeView.Feedback, treeView.Tiles
+Switch.Register("Upgrades", treePanel)
+panels.Upgrades = treePanel
+for _, close in { treeView.Refs.Close, treeView.Refs.Exit } do
+	close.Activated:Connect(function() Switch.Close("Upgrades") end)
+end
 local pendingBuys = {}
 local purchaseSound =
 	make("Sound", "PurchaseSound", hud, { SoundId = "rbxasset://sounds/electronicpingshort.wav", Volume = 0.3 })
-local start = text("Start", canvas, UDim2.fromOffset(750, 650), UDim2.fromOffset(100, 88), "START")
-start.BackgroundTransparency = 0
-start.BackgroundColor3 = BLUE
 for _, tile in Tree.Tiles() do
-	local position = Vector2.new(750 + 112 * (tile.Q + tile.R / 2), 650 + 108 * tile.R)
-	local b = button(tile.Id, canvas, UDim2.fromOffset(position.X, position.Y), UDim2.fromOffset(100, 88), "")
-	b.BackgroundTransparency = 1
-	for i, rotation in { 0, -60, 60 } do
-		make("Frame", "Hex" .. i, b, {
-			AnchorPoint = Vector2.new(0.5, 0.5),
-			Position = UDim2.fromScale(0.5, 0.5),
-			Size = UDim2.fromOffset(50, 86),
-			Rotation = rotation,
-			BackgroundColor3 = DARK,
-			BorderSizePixel = 0,
-			ZIndex = 2,
-		})
-	end
-	local label = text("Text", b, UDim2.fromOffset(4, 4), UDim2.new(1, -8, 1, -8), tile.Name)
-	label.ZIndex = 3
-	label.TextSize = 13
-	tiles[tile.Id] = { Button = b, Label = label, Tile = tile }
-	b.MouseEnter:Connect(function()
-		for _, branch in Tree.Config.Branches do
-			if branch.Id == tile.Branch then
-				local value = branch.Bonus
-						and ("+" .. math.floor(branch.Bonus[tile.Tier] * 100 + 0.5) .. "% " .. branch.Effect)
-					or branch.WalkSpeed and (tostring(branch.WalkSpeed[tile.Tier]) .. " WalkSpeed")
-					or branch.Tiers
-						and ("Turbo x" .. branch.Tiers[tile.Tier].Multi .. " every " .. branch.Tiers[tile.Tier].Every .. " rolls")
-				feedback.Text = tile.Name .. ": " .. tostring(value)
-				feedback.TextColor3 = Color3.new(1, 1, 1)
-			end
-		end
-	end)
+	local entry = tiles[tile.Id]
+	if not entry then continue end
+	local b, label = entry.Button, entry.Label
 	b.Activated:Connect(function()
 		if not b.Active or pendingBuys[tile.Id] then
 			return
@@ -221,23 +180,17 @@ local function refresh()
 		BestTrack = player:GetAttribute("BestTrack") or 0,
 		TrackCount = #Tracks.Chain(),
 	}
+	local visibleBuyable = 0
 	for id, refs in tiles do
 		local canBuy, reason = Tree.CanBuy(state, id)
+		if canBuy then visibleBuyable += 1 end
 		setActive(refs.Button, canBuy and not pendingBuys[id])
 		refs.Button.Selectable = canBuy
-		local description = reason == "owned" and "OWNED"
-			or reason == "locked" and "?"
-			or reason == "gated" and ("Reach Track " .. Tree.RequiredTrack(id, state.TrackCount))
-			or Format.MoneyText(Tree.Price(id))
-		refs.Label.Text = reason == "locked" and "?" or (refs.Tile.Name .. "\n" .. description)
-		refs.Label.TextColor3 = reason == "owned" and BLUE or canBuy and GREEN or RED
-		for _, child in refs.Button:GetChildren() do
-			if child:IsA("Frame") then
-				child.BackgroundColor3 = owned[id] and Color3.fromRGB(28, 70, 109) or Color3.fromRGB(49, 55, 78)
-			end
-		end
+		treeView.Paint(refs, owned[id] == true, canBuy, reason, state.TrackCount)
+
 	end
-	local count = player:GetAttribute("UpgradesBuyable") or 0
+	treeView.Balance(balance)
+	local count = visibleBuyable
 	badge.Text, badge.Visible = tostring(count), count > 0
 	local level = Workshop.CleanLevel(player:GetAttribute("WorkshopLevel"))
 	local nextLevel = Workshop.Config.Levels[level + 1]
@@ -366,7 +319,7 @@ RunService.Heartbeat:Connect(function(dt)
 	end
 	onWorldPad = inside
 	local showcase = gui:FindFirstChild("RollShowcase")
-	hud.Enabled = not (showcase and showcase.Enabled)
+	hud.Enabled = not (showcase and showcase.Enabled) and not treePanel.Visible
 	-- An open panel owns the screen: the UPGRADES entry would sit over another panel's header and the
 	-- workshop line over the panel body.
 	local otherOpen = Switch.AnyOpen() and not treePanel.Visible
@@ -397,6 +350,7 @@ RunService.Heartbeat:Connect(function(dt)
 		local width = viewport.Y > 700 and math.min(700, viewport.X - 284) or math.min(700, viewport.X * 0.82)
 		width = math.max(100, math.min(width, viewport.X - 2 * (columnRight + 8)))
 		for _, p in panels do
+			if p == treePanel then continue end
 			if viewport.Y <= 500 then
 				-- Short landscape screens use the space to the right of the compact roll.
 				local right = toast and toast.AbsolutePosition.X + toast.AbsoluteSize.X + 12 or viewport.X / 2 + 127

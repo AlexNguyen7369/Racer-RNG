@@ -3,7 +3,19 @@
 PROJECT CONTEXT - Idle Vehicle Simulator (read me first)
 Shown in Studio at: ServerScriptService > ProjectContext   (source file: context/ProjectContext.luau)
 Do NOT edit this in Studio: edit the file on disk, Rojo syncs it. Claude updates it at the end of every loop.
-Last updated: 2026-10-11 (smooth Hermite rail, test reconciliation, Codex bus hook; harness 31/31, full gate not run)
+Last updated: 2026-10-14 (inventory, upgrade UI, potion icons; focused checks only)
+
+INVENTORY + UPGRADE UI - 2026-10-14 (Isaac Li / Codex)
+- INVENTORY replaces INDEX; CARS and CONSUMABLES tabs share the panel. Bag entry/panel removed.
+- Luck, Money and Speed potion icons: 128405731425889 / 86771144323676 / 79990997148018.
+- Styled STATS/AUTO RACE captions, wider HUD spacing and slight shadows; rolls use illustrated car art.
+- Full-screen hex upgrade tree supports dragging, wheel and +/- zoom. Walkspeed nodes hidden only;
+  existing purchased effects and saves remain unchanged. Server purchase/equip/use endpoints retained.
+- Focused live checks passed: tabs, stats, race toggle, tree open/close, wheel/buttons/drag, icon loading.
+  Consumable use effects and full compatibility suite NOT certified; StyLua gate unavailable.
+- Studio contains newer collaborator changes than origin/main 39350ed. Apply this review branch's UI
+  patches onto that newer source; do not sync this older-baseline checkout wholesale over Studio.
+- See docs/INVENTORY_UPGRADE_UI_HANDOFF.md for source/snapshot distinctions and validation limits.
 
 SMOOTH RAIL + TEST RECONCILIATION - 2026-10-11 (Claude)
 - RaceService rail: cubic Hermite curve through the path waypoints, applied in PostSimulation
