@@ -75,6 +75,50 @@ local root = make("ScreenGui", "HudChrome", gui, {
 	DisplayOrder = 1,
 	ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
 })
+-- Keep the entry points visible when a panel opens. The panel is in a higher
+-- DisplayOrder, while this non-interactive veil makes the HUD read as a
+-- background layer instead of making buttons disappear.
+local panelDimmer = make("Frame", "PanelDimmer", root, {
+	Size = UDim2.fromScale(1, 1),
+	BackgroundColor3 = Color3.fromRGB(8, 10, 18),
+	BackgroundTransparency = 0.58,
+	BorderSizePixel = 0,
+	Active = false,
+	Selectable = false,
+	Visible = false,
+	ZIndex = 20,
+})
+
+-- RacerHud and the compact RollToast live in separate ScreenGuis, so HudChrome's
+-- veil cannot reliably tint them. Give each persistent HUD layer its own
+-- non-interactive veil: every entry remains drawn and clickable in the
+-- background while an open panel reads as the foreground.
+local function dimmerFor(screen)
+	local existing = screen:FindFirstChild("PanelDimmer")
+	if existing and existing:IsA("Frame") then
+		return existing
+	end
+	return make("Frame", "PanelDimmer", screen, {
+		Size = UDim2.fromScale(1, 1),
+		BackgroundColor3 = Color3.fromRGB(8, 10, 18),
+		BackgroundTransparency = 0.58,
+		BorderSizePixel = 0,
+		Active = false,
+		Selectable = false,
+		Visible = false,
+		ZIndex = 100,
+	})
+end
+
+local function setHudDimmed(dimmed)
+	panelDimmer.Visible = dimmed
+	for _, screenName in { "RacerHud", "RollToast", "RacerProgression" } do
+		local screen = gui:FindFirstChild(screenName)
+		if screen and screen:IsA("ScreenGui") then
+			dimmerFor(screen).Visible = dimmed
+		end
+	end
+end
 
 -- Icon tiles -----------------------------------------------------------------------------------------------------
 local PANEL =
@@ -118,7 +162,7 @@ for order, slot in SLOTS do
 		AutoButtonColor = false,
 	})
 	tile:SetAttribute("Panel", PANEL[name])
-	local art = icon(name, tile, {
+	icon(name, tile, {
 		AnchorPoint = Vector2.new(0.5, 0),
 		Position = UDim2.fromScale(0.5, 0),
 		Size = UDim2.fromOffset(TILE, TILE),
@@ -137,15 +181,6 @@ for order, slot in SLOTS do
 		}),
 		2.5
 	)
-	-- Press feedback: the icon dips while held.
-	tile.MouseButton1Down:Connect(function()
-		art.Size = UDim2.fromOffset(TILE - 6, TILE - 6)
-	end)
-	for _, signal in { tile.MouseButton1Up, tile.MouseLeave } do
-		signal:Connect(function()
-			art.Size = UDim2.fromOffset(TILE, TILE)
-		end)
-	end
 	tile.Activated:Connect(function()
 		PanelSwitch.Action(PANEL[name])
 	end)
@@ -248,7 +283,7 @@ local function refresh()
 	local hud = gui:FindFirstChild("RacerHud")
 	local level = hud and hud:FindFirstChild("Level")
 	local turbo = hud and hud:FindFirstChild("Turbo")
-	itemsSlot.Visible = level ~= nil and turbo ~= nil and not PanelSwitch.AnyOpen()
+	itemsSlot.Visible = level ~= nil and turbo ~= nil
 	upgradeSlot.Visible = itemsSlot.Visible
 	if itemsSlot.Visible then
 		-- AbsolutePosition starts below the top bar; these ScreenGuis ignore the inset, so add it back.
@@ -263,11 +298,13 @@ local function refresh()
 	-- The roll showcase takes the whole screen; every HUD entry hides with the rest of the HUD.
 	local showcase = gui:FindFirstChild("RollShowcase")
 	root.Enabled = not (showcase and showcase.Enabled)
+	setHudDimmed(PanelSwitch.AnyOpen())
 end
 
 for _, attr in { "UpgradesBuyable", "StatPoints", "DailyLast" } do
 	player:GetAttributeChangedSignal(attr):Connect(refresh)
 end
+PanelSwitch.OnChange(refresh)
 local elapsed = 0
 RunService.Heartbeat:Connect(function(dt)
 	elapsed += dt

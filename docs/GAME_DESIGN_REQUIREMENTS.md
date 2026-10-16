@@ -593,6 +593,25 @@ Idle Vehicle Simulator — Game Design Requirements
        Singularity (a black-hole hypercar). They are never rolled and are not in the Index.
        Each stands on a small pedestal beside the Best Roll Ever pedestal; walking up to it
        offers the purchase. Their speed multis are proposed values.
+       Owner, 2026-10-16: Ember Wyvern is the stronger car (Secret, listed at 1999 Robux) and
+       Singularity the cheaper one (Mythic, listed at 999 Robux). Both are the top (FEATURED)
+       section of the Shop.
+
+     Shop (owner, 2026-10-16. Contract: docs/GAMEPASS_SHOP_SPEC.md):
+       The HUD Shop is one scrolling panel in sections, top to bottom: FEATURED (the two
+       gamepass cars), Gamepasses, Potions (potion packs and a Potion Bundle), DOUBLE Server
+       Luck, Codes.
+       Each Robux item shows a listed price kept in the game's config (proposed values, except
+       the two cars). Once the item has a real Roblox id, the Shop shows Roblox's own live
+       price instead. Roblox still charges what the Creator Dashboard says.
+       Potion packs and the Potion Bundle are developer products (bought again and again).
+       The server grants the potions into the player's saved potion counts when Roblox
+       confirms the purchase, exactly once per purchase (docs/SHOP_PURCHASES_SPEC.md).
+       Potions never pay Money; a Money potion multiplies race payouts, it is not a new source.
+
+     Codes (owner, 2026-10-16. Contract: docs/SHOP_PURCHASES_SPEC.md):
+       The Shop has a code box. A valid code gives potions, once per player. Codes never pay
+       Money. The code list lives only on the server.
 
   Implementation notes
 

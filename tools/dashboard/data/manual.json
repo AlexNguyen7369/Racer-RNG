@@ -359,7 +359,7 @@
       "when": "Whenever you want the cars on sale.",
       "steps": [
         "Open the Creator Dashboard for the game, Monetization > Passes.",
-        "Create a pass \"Ember Wyvern\" and a pass \"Singularity\", give each an icon and a price, and put both on sale.",
+        "Create a pass \"Ember Wyvern\" priced 1999 Robux and a pass \"Singularity\" priced 999 Robux (owner, 2026-10-16), give each an icon, and put both on sale.",
         "Copy each pass id and give them to Claude (or paste them into GamepassId in src/shared/Cars/ember_wyvern.luau and singularity.luau)."
       ],
       "status": "open",
@@ -380,6 +380,39 @@
       ],
       "status": "done",
       "added": "2026-10-15T15:45:00-07:00",
+      "by": "Claude"
+    },
+    {
+      "id": "shop-dev-products",
+      "title": "Create the Shop's developer products (potion packs, bundle, Server Luck)",
+      "priority": "medium",
+      "why": "The Shop lists potion packs, a Potion Bundle and Server Luck, but they have ProductId = 0, so their buttons say \"Coming soon\". Only the owner can create developer products.",
+      "blocks": "Selling potions for Robux (docs/SHOP_PURCHASES_SPEC.md). Server Luck also needs its feature built before it can be sold.",
+      "when": "Whenever you want potions on sale.",
+      "steps": [
+        "Creator Dashboard > Monetization > Developer Products.",
+        "Create x5 Luck Potion III, x5 Money Potion III, x5 Speed Potion III (49 Robux each, proposed) and POTION BUNDLE (999, proposed). Change prices freely; the Shop shows Roblox's live price once an id is set.",
+        "Paste each product id into ProductId in src/shared/MonetizationConfig.luau (Products), or give them to Claude.",
+        "Also set real gamepass ids in MonetizationConfig.Gamepasses when those passes exist."
+      ],
+      "status": "open",
+      "added": "2026-10-16T18:00:00-07:00",
+      "by": "Claude"
+    },
+    {
+      "id": "shop-codes",
+      "title": "Choose the real redeem codes",
+      "priority": "low",
+      "why": "The Shop's code box works, but the only code is the placeholder RELEASE (2x Luck Potion II, 2x Speed Potion II). Codes may give potions only, never Money.",
+      "blocks": "Promo codes for socials.",
+      "when": "Before you post codes anywhere.",
+      "steps": [
+        "Open src/server/CodeConfig.luau (server only).",
+        "Add codes as UPPER-CASE keys with Grants = { <boost id> = count }, e.g. LAUNCH = { Grants = { LuckIII = 3 } }. Remove RELEASE if you do not want it.",
+        "Or tell Claude the codes and rewards."
+      ],
+      "status": "open",
+      "added": "2026-10-16T18:00:00-07:00",
       "by": "Claude"
     }
   ]

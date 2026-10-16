@@ -1,4 +1,4 @@
-# Saves: session lock and VERSION 8 (contract for tests and implementation)
+# Saves: session lock and VERSION 9 (contract for tests and implementation)
 
 Design rule (`docs/GAME_DESIGN_REQUIREMENTS.md`, "Technical and data requirements"): DataStores with session locking
 so data can not duplicate across servers; save on leave, on an interval and on server shutdown. Owner decision
@@ -41,6 +41,11 @@ last confirmed it (`PlayerData` clock, seconds).
   Missing = 0.
 - `DuelWins` (integer >= 0), player attribute `DuelWins`. Missing = 0. (`docs/DUEL_SPEC.md`.)
 - A rebirth keeps both.
+
+## 2a. VERSION 9 fields (owner, 2026-10-16)
+
+- `Version = 9`. `Receipts` (developer-product purchase ids already granted, last 100) and `Codes` (redeemed codes).
+  Missing = empty. Owned by `Server/ShopService` (`docs/SHOP_PURCHASES_SPEC.md`). A rebirth keeps both.
 
 ## 3. What Money and Speed do on load (owner, 2026-10-12)
 

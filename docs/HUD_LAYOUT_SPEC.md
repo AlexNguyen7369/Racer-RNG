@@ -11,8 +11,8 @@ Owner, 2026-10-15 (same day, replaces the first 2 x 3 grid):
 - Left edge, vertically centred: `HudChrome/Grid`, one column of Index, Stats, Rebirth.
 - Right edge, vertically centred: `HudChrome/ShopColumn` with the Shop tile.
 - Bottom centre: Items (`ItemsSlot`) left of the LEVEL / TURBO LUCK bars and Upgrade (`UpgradeSlot`) right of
-  them, each icon centred on the gap between the two bars, at 75% of the edge tiles' size. Both hide while any panel is open, because the panel
-  fills the band above the bars. The panel's X or Escape closes it.
+  them, each icon centred on the gap between the two bars, at 75% of the edge tiles' size. Both remain visible as
+  dimmed background buttons while a panel is open. The panel's X or Escape closes it.
 - Each tile is a cartoon icon with a white label and a dark outline under it. There is no button box behind the
   icon (the Index tile has its rounded blue card, as in the reference).
 - Badges: Upgrade shows the number of buyable upgrades (`UpgradesBuyable`) and Stats shows the free stat points.
@@ -31,8 +31,15 @@ pills, white text, and a round button for Settings.
 - `Daily`: a calendar icon and the text "Daily". When today's reward was claimed, it shows the time left until
   the next one. It opens the 7-day daily reward panel.
 - `Quests`: it opens the Daily / Weekly quest panel.
-- `Market`: it opens the Money market (trails and auras).
+- `Market`: it opens the Money market (trails, auras and potions bought with Money). Owner 2026-10-16: it uses the
+  Backpack look (section 3): gradient header with icon, title and square red X, side tabs Trails / Auras / Potions,
+  a tile grid, and a detail pane (name, rarity, preview, price, description, Buy / Equip).
 - `Settings`: a round gear button. It opens Settings.
+
+The quest panel follows the supplied quest reference using only existing quest data: Daily / Weekly category tabs,
+a scrollable selectable quest list, and a read-only detail pane showing the selected quest's name, progress and
+reward. On phone landscape the detail pane collapses and the list uses the available width. Hovering a quest row
+adds the shared white highlight and slight enlargement; its Claim button remains the only action that grants a reward.
 
 ## 3. Backpack (Items)
 
@@ -49,9 +56,17 @@ pills, white text, and a round button for Settings.
 ## 4. Settings
 
 - It has the same frame as the Backpack (grey checkered header, gear icon, title "Settings", red X).
+- It has two categories in its header: `Settings` and `Player Profile`. Settings is the default category.
 - Its rows are the existing local settings: Sound, Reduced Effects and Top-Down View. Each row has the
   setting's name on the left and a pill toggle on the right: green "ON" on the right side of the track, or red
   "OFF" on the left side. No new settings are added.
+- Player Profile uses the reference's scrollable white outlined rows and displays total rolls, best owned/rolled
+  car odds, cars discovered, level, current Speed, Luck multiplier and allocated Luck points, and time spent in
+  the current session. These are read-only displays of replicated player data.
+- The separate Stats HUD button remains the rebirth/index stat-point allocation screen: Speed, Money, Luck and
+  Workshop rows with their `+` buttons. It does not show the player profile. Following the allocation reference,
+  these are light cards with a distinct colour per stat, a one-line per-point effect, the current/next multiplier,
+  and a large matching allocation button; the UI must not invent a maximum or currency cost.
 
 ## 5. Potion status
 
@@ -62,6 +77,10 @@ pills, white text, and a round button for Settings.
 
 ## 6. No overlap
 
+- Whenever a `PanelSwitch` panel is open, every persistent HUD entry remains drawn behind it: the HudChrome
+  tiles/pills, Auto Race, the compact roll when it would otherwise be shown, the weather button and active potion
+  buttons. Each HUD ScreenGui gets the same non-interactive dark veil so these controls look dimmed without being
+  hidden. The full-screen roll showcase is exempt because it intentionally replaces the HUD.
 - No two reachable buttons, panels or labels overlap at any tested viewport, phone landscape included
   (`UiSpec` / `UiResponsive`).
 - On phones (viewport height <= 500) the grid tiles and pills shrink.

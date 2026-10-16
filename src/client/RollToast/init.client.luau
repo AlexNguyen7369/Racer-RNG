@@ -688,20 +688,15 @@ local function isEnlarged()
 	return gui:GetAttribute("View") == "Enlarged"
 end
 
-local function upgradeTreeOpen()
-	local upgrades = playerGui:FindFirstChild("RacerUpgrades")
-	return upgrades and upgrades:FindFirstChild("Panel") and upgrades.Panel.Visible
-end
-
 -- The compact roll is the always-available top-centre entry point. Clicking it
--- opens the enlarged showcase, where the AUTO option lives. It is hidden while
--- the enlarged view or any panel (PanelSwitch) is open (owner decision 2026-10-08).
+-- opens the enlarged showcase, where the AUTO option lives. It remains visible
+-- while a panel is open so HUD entry points never disappear on click.
 local function refreshToast()
 	local playing = phase ~= "Idle"
-	local show = not isEnlarged() and not PanelSwitch.AnyOpen() and (playing or not autoRollOn())
+	local show = not isEnlarged() and (playing or not autoRollOn())
 	local hud = playerGui:FindFirstChild("RacerHud")
 	if hud and not isEnlarged() then
-		hud.Enabled = not upgradeTreeOpen()
+		hud.Enabled = true
 		if not playing then
 			showcase.Enabled = false
 		end
@@ -889,7 +884,7 @@ local function closeEnlarged()
 	blur.Enabled = false
 	local hud = playerGui:FindFirstChild("RacerHud")
 	if hud then
-		hud.Enabled = not upgradeTreeOpen()
+		hud.Enabled = true
 	end
 	-- The reverse: shrink back towards the compact card's place, then hide
 	local to = Vector2.new(

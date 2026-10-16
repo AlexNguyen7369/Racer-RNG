@@ -23,12 +23,13 @@ local BoostService = require(script.Parent.BoostService)
 local DailyLoginService = require(script.Parent.DailyLoginService)
 local LevelService = require(script.Parent.LevelService)
 local QuestService = require(script.Parent.QuestService)
+local ShopService = require(script.Parent.ShopService)
 
 local PlayerData = {}
 
 local STORE_NAME = "PlayerStats_v1"
-local VERSION = 8 -- 3: gacha; 4: upgrades/workshop; 5: market; 6: rebirth/boosts/daily login; 7: level/xp;
--- 8: session lock, MoneyEarned, DuelWins (docs/SAVE_SPEC.md)
+local VERSION = 9 -- 3: gacha; 4: upgrades/workshop; 5: market; 6: rebirth/boosts/daily login; 7: level/xp;
+-- 8: session lock, MoneyEarned, DuelWins; 9: Receipts, Codes (docs/SAVE_SPEC.md)
 local MAX_MONEY = 1e12
 local MAX_ADD = 1e6 -- most a single AddSpeed call may add
 local AUTOSAVE_SECONDS = 60
@@ -170,6 +171,7 @@ function PlayerData.Load(player, userId)
 		DailyLoginService.Apply(player, data)
 		QuestService.Apply(player, data)
 		LevelService.Apply(player, data)
+		ShopService.Apply(player, data) -- version 8 and older: no receipts, no codes
 		player:SetAttribute("MoneyEarned", cleanInt(data.MoneyEarned, 0, MAX_MONEY, 0))
 		player:SetAttribute("DuelWins", cleanInt(data.DuelWins, 0, MAX_DUEL_WINS, 0))
 	end
@@ -256,6 +258,7 @@ function PlayerData.Save(player, userId, release)
 	local daily = DailyLoginService.Snapshot(player)
 	local quests = QuestService.Snapshot(player)
 	local level = LevelService.Snapshot(player)
+	local shop = ShopService.Snapshot(player)
 	local payload = {
 		Money = cleanInt(money.Value, 0, MAX_MONEY, 0),
 		Speed = cleanStat(speed.Value),
@@ -286,6 +289,8 @@ function PlayerData.Save(player, userId, release)
 		EquippedTrail = market.EquippedTrail,
 		MoneyEarned = cleanInt(player:GetAttribute("MoneyEarned"), 0, MAX_MONEY, 0),
 		DuelWins = cleanInt(player:GetAttribute("DuelWins"), 0, MAX_DUEL_WINS, 0),
+		Receipts = shop.Receipts,
+		Codes = shop.Codes,
 		OfflineAt = clock(),
 		Version = VERSION,
 	}

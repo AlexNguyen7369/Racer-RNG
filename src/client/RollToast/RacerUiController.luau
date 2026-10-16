@@ -68,11 +68,50 @@ for _, spec in catalog.All() do
 		break
 	end
 end
+local statsRows = stats.StatsHost:FindFirstChild("Rows")
+local rebuildStats = statsRows == nil or statsRows:GetAttribute("DesignVersion") ~= 2
+if statsRows then
+	for _, stat in config.STATS do
+		if not statsRows:FindFirstChild(stat) then
+			rebuildStats = true
+			break
+		end
+	end
+end
+if rebuildStats then
+	if statsRows then
+		statsRows:Destroy()
+	end
+	Components.BakeStats(stats, config)
+end
 local tiles = Components.BindIndex(index, catalog)
 local rows = Components.BindStats(stats, config)
+local data = player:WaitForChild("GachaData")
+local leaderstats = player:WaitForChild("leaderstats")
+local speed = leaderstats:WaitForChild("Speed")
+local money = leaderstats:WaitForChild("Money")
 local GREEN = Color3.fromRGB(60, 255, 60)
 local RED = Color3.fromRGB(255, 77, 94)
 local GRAY = Color3.fromRGB(104, 111, 135)
+local sessionStartedAt = os.time()
+
+local function formatDuration(seconds)
+	seconds = math.max(0, math.floor(seconds or 0))
+	local hours = seconds // 3600
+	local minutes = (seconds // 60) % 60
+	local remainder = seconds % 60
+	return hours > 0 and string.format("%dh %02dm", hours, minutes) or string.format("%dm %02ds", minutes, remainder)
+end
+
+local function bestRolledCar()
+	local best
+	for _, spec in catalog.All() do
+		if data and data:FindFirstChild(spec.Id) and (not best or (spec.Chance or 0) > (best.Chance or 0)) then
+			best = spec
+		end
+	end
+	return best
+end
 
 -- Roll entry is the compact animation at the top centre of the screen. The old
 -- bottom roll controls and Settings auto-roll row are intentionally hidden.
@@ -144,6 +183,17 @@ end
 Components.Tint(settings.Header, Color3.fromRGB(176, 178, 186))
 settings.Title.Text = "Settings"
 settings.Title.TextXAlignment = Enum.TextXAlignment.Left
+local function fitSettingsTitle()
+	-- Reserve the right side of the generated header for both category tabs and
+	-- the close button at desktop and phone sizes.
+	settings.Title.Size = UDim2.new(1, -286, 1, 0)
+end
+fitSettingsTitle()
+if workspace.CurrentCamera then
+	workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(function()
+		task.defer(fitSettingsTitle)
+	end)
+end
 local titlePad = Instance.new("UIPadding")
 titlePad.PaddingLeft = UDim.new(0, 58)
 titlePad.Parent = settings.Title
@@ -156,6 +206,178 @@ gear.BackgroundTransparency = 1
 gear.Image = require(Ui.HudIcons).Settings.Image
 gear.ScaleType = Enum.ScaleType.Fit
 gear.Parent = settings.Title
+
+-- Settings owns the read-only Player Profile category from the reference. The
+-- separate Stats panel remains exclusively for spending rebirth/index points.
+local categoryTabs = Instance.new("Frame")
+categoryTabs.Name = "CategoryTabs"
+categoryTabs.AnchorPoint = Vector2.new(1, 0)
+categoryTabs.Position = UDim2.new(1, -64, 0, 8)
+categoryTabs.Size = UDim2.fromOffset(210, 48)
+categoryTabs.BackgroundTransparency = 1
+categoryTabs.ZIndex = 6
+categoryTabs.Parent = settings.Header
+local categoryLayout = Instance.new("UIListLayout")
+categoryLayout.FillDirection = Enum.FillDirection.Horizontal
+categoryLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
+categoryLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+categoryLayout.Padding = UDim.new(0, 6)
+categoryLayout.Parent = categoryTabs
+
+local function categoryButton(name, text, width)
+	local button = Instance.new("TextButton")
+	button.Name = name
+	button.Size = UDim2.fromOffset(width, 38)
+	button.BackgroundColor3 = Color3.fromRGB(34, 39, 57)
+	button.AutoButtonColor = false
+	button.Font = Enum.Font.FredokaOne
+	button.Text = text
+	button.TextSize = text == "PLAYER PROFILE" and 12 or 14
+	button.TextColor3 = Color3.new(1, 1, 1)
+	button.ZIndex = 7
+	Instance.new("UICorner", button).CornerRadius = UDim.new(0, 8)
+	local edge = Instance.new("UIStroke")
+	edge.Name = "Outline"
+	edge.Color = Color3.fromRGB(18, 22, 43)
+	edge.Thickness = 2
+	edge.Parent = button
+	button.Parent = categoryTabs
+	return button
+end
+
+local settingsTab = categoryButton("SettingsTab", "SETTINGS", 84)
+local profileTab = categoryButton("ProfileTab", "PLAYER PROFILE", 120)
+local profileHost = Instance.new("ScrollingFrame")
+profileHost.Name = "PlayerProfile"
+profileHost.Position = UDim2.fromOffset(16, 96)
+profileHost.Size = UDim2.new(1, -32, 1, -112)
+profileHost.BackgroundTransparency = 1
+profileHost.BorderSizePixel = 0
+profileHost.ScrollBarThickness = 5
+profileHost.ScrollBarImageColor3 = Color3.fromRGB(172, 99, 238)
+profileHost.CanvasSize = UDim2.new()
+profileHost.AutomaticCanvasSize = Enum.AutomaticSize.Y
+profileHost.ScrollingDirection = Enum.ScrollingDirection.Y
+profileHost.ClipsDescendants = true
+profileHost.Visible = false
+profileHost.ZIndex = 3
+profileHost.Parent = settings.Panel
+local profilePadding = Instance.new("UIPadding")
+profilePadding.PaddingBottom = UDim.new(0, 8)
+profilePadding.PaddingLeft = UDim.new(0, 4)
+profilePadding.PaddingRight = UDim.new(0, 10)
+profilePadding.Parent = profileHost
+local profileLayout = Instance.new("UIListLayout")
+profileLayout.Padding = UDim.new(0, 8)
+profileLayout.SortOrder = Enum.SortOrder.LayoutOrder
+profileLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+profileLayout.Parent = profileHost
+
+local profileRows = {
+	{ "TotalRolls", "TOTAL ROLLS", "0" },
+	{ "BestRoll", "BEST CAR ROLLED", "1 in ?" },
+	{ "CarsDiscovered", "CARS DISCOVERED", "0" },
+	{ "Level", "LEVEL", "1" },
+	{ "Speed", "SPEED", "0" },
+	{ "Luck", "LUCK STAT", "x1.00" },
+	{ "SessionTime", "TIME THIS SESSION", "0m 00s" },
+}
+local profileValues = {}
+for order, spec in profileRows do
+	local row = Instance.new("Frame")
+	row.Name = spec[1]
+	row.Size = UDim2.new(1, -8, 0, 48)
+	row.BackgroundColor3 = Color3.fromRGB(235, 238, 244)
+	row.BorderSizePixel = 0
+	row.LayoutOrder = order
+	row.ZIndex = 3
+	Instance.new("UICorner", row).CornerRadius = UDim.new(0, 10)
+	local rowEdge = Instance.new("UIStroke")
+	rowEdge.Color = Color3.fromRGB(35, 39, 49)
+	rowEdge.Thickness = 3
+	rowEdge.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	rowEdge.Parent = row
+	local name = Instance.new("TextLabel")
+	name.Name = "Name"
+	name.Position = UDim2.fromOffset(16, 0)
+	name.Size = UDim2.fromScale(0.58, 1)
+	name.BackgroundTransparency = 1
+	name.Font = Enum.Font.FredokaOne
+	name.Text = spec[2]
+	name.TextColor3 = Color3.fromRGB(35, 39, 49)
+	name.TextSize = 18
+	name.TextXAlignment = Enum.TextXAlignment.Left
+	name.ZIndex = 4
+	name.Parent = row
+	local value = Instance.new("TextLabel")
+	value.Name = "Value"
+	value.Position = UDim2.fromScale(0.58, 0)
+	value.Size = UDim2.new(0.38, -12, 1, 0)
+	value.BackgroundTransparency = 1
+	value.Font = Enum.Font.FredokaOne
+	value.Text = spec[3]
+	value.TextColor3 = Color3.fromRGB(35, 39, 49)
+	value.TextSize = 18
+	value.TextXAlignment = Enum.TextXAlignment.Right
+	value.ZIndex = 4
+	value.Parent = row
+	row.Parent = profileHost
+	profileValues[spec[1]] = value
+end
+
+local settingsCategory = "Settings"
+local function setSettingsCategory(category)
+	settingsCategory = category == "Profile" and "Profile" or "Settings"
+	local showSettings = settingsCategory == "Settings"
+	settings.SoundRow.Parent.Visible = showSettings
+	settings.EffectsRow.Parent.Visible = showSettings
+	settings.AutoRow.Parent.Visible = showSettings
+	profileHost.Visible = not showSettings
+	settingsTab.BackgroundColor3 = showSettings and Color3.fromRGB(172, 99, 238) or Color3.fromRGB(34, 39, 57)
+	profileTab.BackgroundColor3 = showSettings and Color3.fromRGB(34, 39, 57) or Color3.fromRGB(172, 99, 238)
+	settings.Gui:SetAttribute("Category", settingsCategory)
+end
+settingsTab.Activated:Connect(function()
+	setSettingsCategory("Settings")
+end)
+profileTab.Activated:Connect(function()
+	setSettingsCategory("Profile")
+end)
+settings.Panel.Parent:GetPropertyChangedSignal("Visible"):Connect(function()
+	if settings.Panel.Parent.Visible then
+		setSettingsCategory("Settings")
+	end
+end)
+setSettingsCategory("Settings")
+
+local function refreshProfile()
+	local allocations = {}
+	for _, stat in config.STATS do
+		allocations[stat] = player:GetAttribute("Alloc_" .. stat) or 0
+	end
+	local multis = config.Multis(allocations)
+	local best = bestRolledCar()
+	profileValues.TotalRolls.Text = format.SpeedText(player:GetAttribute("Rolls") or 0)
+	profileValues.BestRoll.Text = format.Odds(best and best.Chance)
+	profileValues.CarsDiscovered.Text = format.SpeedText(#data:GetChildren())
+	profileValues.Level.Text = format.SpeedText(player:GetAttribute("Level") or 1)
+	profileValues.Speed.Text = format.SpeedText(speed.Value)
+	profileValues.Luck.Text = string.format("x%.2f · %d pts", multis.Luck, allocations.Luck)
+	profileValues.SessionTime.Text = formatDuration(os.time() - sessionStartedAt)
+end
+for _, attr in { "Rolls", "Level", "Alloc_Luck" } do
+	player:GetAttributeChangedSignal(attr):Connect(refreshProfile)
+end
+data.ChildAdded:Connect(refreshProfile)
+data.ChildRemoved:Connect(refreshProfile)
+speed.Changed:Connect(refreshProfile)
+refreshProfile()
+task.spawn(function()
+	while player.Parent do
+		task.wait(1)
+		refreshProfile()
+	end
+end)
 
 -- Rebirth panel (docs/REBIRTH_SPEC.md): the generated layout shows the reset warning, the next rebirth's rewards
 -- and the level requirement; the server decides the rebirth, this only displays its numbers and replies.
@@ -306,7 +528,6 @@ UserInputService.InputBegan:Connect(function(input, consumed)
 	end
 end)
 
-local data = player:WaitForChild("GachaData")
 local function refreshIndex()
 	local equipped = player:GetAttribute("EquippedCar")
 	local count = 0
@@ -366,7 +587,7 @@ local function refreshStats()
 		)
 		row.Plus.Active = available
 		row.Plus.Selectable = available
-		Components.Tint(row.Plus, available and GREEN or GRAY)
+		Components.Tint(row.Plus, available and (row.Frame:GetAttribute("AccentColor") or GREEN) or GRAY)
 	end
 	label(hud.Stats, "STATS")
 	local badge = hud.Stats:FindFirstChild("PointsBadge")
@@ -412,9 +633,7 @@ task.spawn(function()
 	playerGui:WaitForChild("RollToast")
 	local showcase = playerGui:WaitForChild("RollShowcase")
 	local function refreshShowcase()
-		local upgrades = playerGui:FindFirstChild("RacerUpgrades")
-		local treeOpen = upgrades and upgrades:FindFirstChild("Panel") and upgrades.Panel.Visible
-		hud.Gui.Enabled = not showcase.Enabled and not treeOpen
+		hud.Gui.Enabled = not showcase.Enabled
 	end
 	showcase:GetPropertyChangedSignal("Enabled"):Connect(refreshShowcase)
 	PanelSwitch.OnChange(refreshShowcase)
@@ -494,9 +713,6 @@ for _, attr in { "Level", "XP", "XPToNext" } do
 end
 refreshLevel()
 
-local leaderstats = player:WaitForChild("leaderstats")
-local speed = leaderstats:WaitForChild("Speed")
-local money = leaderstats:WaitForChild("Money")
 local shownSpeed, shownMoney, shownBank = speed.Value, money.Value, player:GetAttribute("Unbanked") or 0
 local function readable(value, isMoney)
 	return isMoney and format.MoneyText(value) or format.SpeedText(value)

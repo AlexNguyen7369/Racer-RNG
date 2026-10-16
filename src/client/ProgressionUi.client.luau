@@ -432,7 +432,7 @@ RunService.Heartbeat:Connect(function(dt)
 	weatherStats.Text = Weather.Describe(weatherId)
 	weatherTime.Text = active and string.format("%ds left", remaining) or ""
 	local showcase = gui:FindFirstChild("RollShowcase")
-	hud.Enabled = not (showcase and showcase.Enabled) and not treePanel.Visible
+	hud.Enabled = not (showcase and showcase.Enabled)
 	refreshPotions(workspace:GetServerTimeNow())
 end)
 refresh()

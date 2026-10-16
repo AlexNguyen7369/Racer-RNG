@@ -1,11 +1,11 @@
 ---
-description: Full compatibility check of the whole game (harness + UI + other players + world/object physics + final regression). Must be ALL GREEN before anything is pushed or merged to main.
+description: Full compatibility check of the whole game (harness + UI + other players + world/object physics + final regression). Run on demand after large code changes; it never blocks commits or pushes.
 argument-hint: "[what changed, optional]"
 ---
 
 Run the full compatibility check for the current code. Changes since the last green run: $ARGUMENTS
 
-This is the gate for `main`: `.claude/hooks/compat-gate.py` blocks `git push` to main and `gh pr merge` from Claude, and `.githooks/pre-push` blocks the push in git itself, unless `tools/compat.py` holds an ALL GREEN stamp for exactly this code (`src/` + `default.project.json`). The Stop hook asks for this run whenever shipped code changed. Run it after every change, not only before a push.
+This is an on-demand check, not a gate (owner 2026-10-16): nothing blocks commits or pushes, and no hook asks for this run. Use it after large code changes. A green run is recorded by `tools/compat.py` (stamp in `.compat/`) for the dashboard light.
 
 ## Suites (all five required, all must be green; regression runs last)
 | Suite | Who | Covers |

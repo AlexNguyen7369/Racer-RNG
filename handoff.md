@@ -1,5 +1,44 @@
 # Agent handoff
 
+## Upgrades panel keeps the HUD drawn — 2026-10-16 (Claude)
+
+- Fixed Codex's intentional UI red: opening the Upgrades tree disabled `RacerHud` and `RacerProgression`, against
+  `docs/HUD_LAYOUT_SPEC.md` section 6 (persistent HUD stays drawn and dimmed behind any PanelSwitch panel).
+- Removed the tree-open check in `RollToast/init.client.luau` (two places plus the `upgradeTreeOpen` helper),
+  `RollToast/RacerUiController.luau` and `ProgressionUi.client.luau`. Only the roll showcase hides the HUD now.
+- stylua and selene pass (0 errors). Studio has not been run. `/compat-check` still needs a run; the
+  shop-redesign session will take Studio once its test-writers finish CarTest/UiSpec edits.
+
+## Shop redesign, Robux potions, codes, Market restyle — 2026-10-16 (Claude)
+
+- Owner request: Shop like `images/UI_ShopReference1-4.png` (sections; Singularity 999 R$ and dragon 1999 R$ on top),
+  Market like the Backpack / `images/UI_ItemsReference.png`. Owner answers: listed price shown, live Roblox price wins
+  once an id exists; Ember Wyvern Secret x2000 (1999), Singularity Mythic x500 (999); full receipt flow; Server Luck
+  banner + Codes box.
+- Rules first: design doc Monetization (Shop, Codes), `GAMEPASS_SHOP_SPEC.md` (rewritten), `SHOP_PURCHASES_SPEC.md`
+  (new), `GAMEPASS_CARS_SPEC.md`, `SAVE_SPEC.md` VERSION 9, `HUD_LAYOUT_SPEC.md` Market.
+- Code: `Client/ShopUi`, `Client/MarketUi` (same remotes / PanelSwitch name), `Shared/MonetizationConfig`,
+  `Server/ShopService` (ProcessReceipt, Redeem), `Server/CodeConfig`, `PlayerData` v9, `Main`, two car files.
+- Tests: test-writer (PassCarTests fixtures, `shop_purchases`); ui-test-writer was updating UiSpec/UiScenarios for the
+  new Shop/Market paths (module `UiShopMarket`) when this entry was written.
+- Results: `shop_purchases` 74/76 then 76/76 after two fixes, `pass_cars` 161/161, `data` 127/127 (via
+  `Scenarios.Run`). Live desktop: all Shop sections, Redeem RELEASE granted LuckII, Market tabs/tile/detail. No errors.
+- Trap: `stylua src` reformats the generated `RollToast/Ui/*.luau` files; reverted (backup patch in Claude's
+  scratchpad). Run stylua on hand-written files only.
+- Next: run the UI suite + phone landscape (also Codex's pending checks below), full harness, `/compat-check`.
+  Needs you: `shop-dev-products`, `shop-codes`, updated `gamepass-car-ids` (prices).
+
+## HUD polish, Player Profile in Settings — 2026-10-16 (Codex, corrected by Claude)
+
+- Codex's final state (its session ended during the phone-landscape check): Player Profile lives in **Settings**
+  (category tab "PLAYER PROFILE"); the Stats panel is allocation-only. GuiButtons and quest rows get a white hover
+  outline + 1.035 scale (`RacerMotion`), a pop and a soft bubble sound on click. HUD controls stay visible but
+  dimmed while a panel is open (`PanelDimmer` in HudChrome, RacerHud, RollToast, RacerProgression). Quests have
+  Daily/Weekly tabs, selectable rows and a read-only `QuestDetail` (hidden on phone landscape).
+- Desktop live checks passed per Codex. Not done: phone-landscape pass, UI suite, `/compat-check`.
+- Another Claude session (2026-10-16) fixed the Upgrades tree hiding RacerHud/RacerProgression (init.client,
+  RacerUiController, ProgressionUi).
+
 ## HUD redesign — 2026-10-15 (Claude)
 
 - Owner request with 8 reference images (Bag, Upgrades, Shop, Index buttons; Daily pill top right; potion status;

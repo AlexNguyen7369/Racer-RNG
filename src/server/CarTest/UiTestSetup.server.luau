@@ -636,8 +636,26 @@ local function progressionSpy()
 	local folder = assert(ReplicatedStorage:FindFirstChild("UiTestSpy"), "spy setup required first")
 	local remotes = ReplicatedStorage:WaitForChild("Remotes")
 	-- Rebirth too: the rebirth_* clicks must never really reset Money / Speed (UiSpec rebirth clicks, Intercept)
-	for _, name in { "BuyUpgrade", "WorkshopUpgrade", "Rebirth" } do
+	-- UiSpec.RemoteFunctions: the rest must never really buy, equip, use a potion, claim or redeem (market_action_buy and
+	-- the other Intercept clicks). Missing ones are skipped here; the client's Intercept check then reports them.
+	local required = { BuyUpgrade = true, WorkshopUpgrade = true, Rebirth = true }
+	for _, name in
+		{
+			"BuyUpgrade",
+			"WorkshopUpgrade",
+			"Rebirth",
+			"MarketPurchase",
+			"MarketEquip",
+			"UseBoost",
+			"DailyClaim",
+			"QuestClaim",
+			"RedeemCode",
+		}
+	do
 		local target = remotes:FindFirstChild(name)
+		if not required[name] and not (target and target:IsA("RemoteFunction")) then
+			continue
+		end
 		assert(target and target:IsA("RemoteFunction"), name .. " RemoteFunction required")
 		folder:SetAttribute(name, "[]")
 		if target:GetAttribute("UiTestIntercepted") ~= true then

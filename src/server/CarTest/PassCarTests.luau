@@ -16,10 +16,11 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Server = script.Parent.Parent
 local Tests = {}
 
--- Spec section 1: the cars (Name and Rarity are fixed; SpeedMulti is proposed, so only checked positive)
+-- Spec section 1: the cars (Name, Rarity and RobuxPrice are fixed; SpeedMulti is proposed, so only checked positive).
+-- Owner 2026-10-16: rarities swapped (Ember Wyvern Secret, Singularity Mythic) and RobuxPrice added to each car file.
 local CARS = {
-	{ Id = "ember_wyvern", Name = "Ember Wyvern", Rarity = "Mythic" },
-	{ Id = "singularity", Name = "Singularity", Rarity = "Secret" },
+	{ Id = "ember_wyvern", Name = "Ember Wyvern", Rarity = "Secret", RobuxPrice = 1999 },
+	{ Id = "singularity", Name = "Singularity", Rarity = "Mythic", RobuxPrice = 999 },
 }
 local TAG_TEXT = "GAMEPASS"
 local ACTION_SOON = "Coming soon"
@@ -205,6 +206,7 @@ function Tests.pass_cars()
 		flag("pass_cars_passes_entry_is_get_spec_" .. car.Id, samePassEntry)
 		flag("pass_cars_name_" .. car.Id, s.Name == car.Name, tostring(s.Name), car.Name)
 		flag("pass_cars_rarity_" .. car.Id, s.Rarity == car.Rarity, tostring(s.Rarity), car.Rarity)
+		flag("pass_cars_robux_price_" .. car.Id, s.RobuxPrice == car.RobuxPrice, tostring(s.RobuxPrice), car.RobuxPrice)
 		local gid = s.GamepassId
 		flag(
 			"pass_cars_gamepass_id_whole_number_" .. car.Id,

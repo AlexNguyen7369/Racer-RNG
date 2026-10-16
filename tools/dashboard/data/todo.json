@@ -777,6 +777,27 @@
       "detail": "Backpack shows a colour streak / orb swatch until real art exists.",
       "status": "backlog",
       "owner": "Claude"
+    },
+    {
+      "id": "shop-redesign",
+      "title": "Shop redesign + Robux potions + codes + Market restyle",
+      "detail": "Shop sections per images/UI_ShopReference1-4 (Featured cars 1999/999, Gamepasses, Potions + bundle, Server Luck, Codes); Server/ShopService receipts + codes (save VERSION 9); Market in the Backpack look. Harness shop_purchases 76/76. Pending: UI suite, phone viewport, /compat-check.",
+      "status": "doing",
+      "owner": "Claude"
+    },
+    {
+      "id": "server-luck",
+      "title": "Build Server Luck (2x/4x/8x developer products)",
+      "detail": "Design doc lists it; the Shop shows it as Coming soon (no Grants, receipt never granted).",
+      "status": "backlog",
+      "owner": "Claude"
+    },
+    {
+      "id": "shop-gifting",
+      "title": "Gift buttons in the Shop",
+      "detail": "References show gift buttons; not built.",
+      "status": "backlog",
+      "owner": "Claude"
     }
   ]
 }

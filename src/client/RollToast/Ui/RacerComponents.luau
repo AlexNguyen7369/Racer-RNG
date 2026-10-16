@@ -5,7 +5,6 @@ local WHITE = Color3.new(1, 1, 1)
 local BLACK = Color3.fromRGB(12, 16, 30)
 local DARK = Color3.fromRGB(32, 43, 71)
 local GREEN = Color3.fromRGB(60, 255, 60)
-local GRAY = Color3.fromRGB(104, 111, 135)
 local ATLAS = "rbxassetid://121915283083474"
 local ICONS = {
 	cash = 0,
@@ -197,12 +196,13 @@ end
 
 function Components.BakeStats(refs, config)
 	local list = scroll(refs.StatsHost, "Rows")
+	list:SetAttribute("DesignVersion", 2)
 	list.ScrollBarImageColor3 = Color3.fromRGB(172, 99, 238)
 	local padding = list:FindFirstChildOfClass("UIPadding")
 	padding.PaddingLeft = UDim.new(0, 8)
 	padding.PaddingRight = UDim.new(0, 8)
 	make("UIListLayout", {
-		Padding = UDim.new(0, 16),
+		Padding = UDim.new(0, 12),
 		SortOrder = Enum.SortOrder.LayoutOrder,
 		HorizontalAlignment = Enum.HorizontalAlignment.Center,
 	}, list)
@@ -213,29 +213,58 @@ function Components.BakeStats(refs, config)
 		Workshop = "WORKSHOP MULTIPLIER",
 	}
 	local arts = { Speed = "speed", Money = "cash", Luck = "luck", Workshop = "workshop" }
+	local colours = {
+		Speed = Color3.fromRGB(24, 202, 239),
+		Money = Color3.fromRGB(255, 194, 18),
+		Luck = Color3.fromRGB(88, 225, 80),
+		Workshop = Color3.fromRGB(198, 62, 229),
+	}
 	for i, stat in ipairs(config.STATS) do
-		local row = face("Frame", stat, UDim2.new(), UDim2.new(1, -16, 0, 68), Color3.fromRGB(41, 55, 83), list)
+		local colour = colours[stat]
+		local row = face("Frame", stat, UDim2.new(), UDim2.new(1, -16, 0, 82), Color3.fromRGB(235, 238, 244), list)
 		row.LayoutOrder = i
-		picture(row, "Art", arts[stat], UDim2.fromOffset(4, 2), UDim2.fromOffset(64, 64))
-		label(row, "StatName", names[stat], UDim2.fromOffset(76, 5), UDim2.new(1, -152, 0, 24), 21)
-		label(
+		row:SetAttribute("AccentColor", colour)
+		row:FindFirstChildOfClass("UIStroke").Color = colour
+		row:FindFirstChildOfClass("UIGradient"):Destroy()
+		row.BackgroundColor3 = Color3.fromRGB(242, 244, 247)
+		picture(row, "Art", arts[stat], UDim2.fromOffset(6, 7), UDim2.fromOffset(66, 66))
+		local statName = label(row, "StatName", names[stat], UDim2.fromOffset(80, 5), UDim2.new(1, -238, 0, 25), 21)
+		statName.TextColor3 = Color3.fromRGB(43, 45, 54)
+		statName.TextXAlignment = Enum.TextXAlignment.Left
+		statName:FindFirstChildOfClass("UIStroke").Transparency = 1
+		local description = label(
+			row,
+			"Description",
+			string.format("+%d%% %s per point", math.floor(config.PER_POINT[stat] * 100 + 0.5), stat),
+			UDim2.fromOffset(80, 31),
+			UDim2.new(1, -238, 0, 20),
+			15,
+			Color3.fromRGB(111, 114, 123)
+		)
+		description.TextXAlignment = Enum.TextXAlignment.Left
+		description:FindFirstChildOfClass("UIStroke").Transparency = 1
+		local accent = make("Frame", {
+			Name = "Accent",
+			Position = UDim2.fromOffset(80, 58),
+			Size = UDim2.new(1, -244, 0, 11),
+			BackgroundColor3 = colour,
+			BorderSizePixel = 0,
+			ZIndex = 4,
+		}, row)
+		round(accent)
+		local value = label(
 			row,
 			"Value",
-			stat == "Workshop" and "COMING SOON" or "x1.00",
-			UDim2.fromOffset(76, 37),
-			UDim2.new(1, -152, 0, 23),
-			19,
-			GREEN
+			"0 pts  x1.00  >  x1.00",
+			UDim2.new(1, -230, 0, 27),
+			UDim2.fromOffset(150, 24),
+			15,
+			colour
 		)
-		local plus = face(
-			"TextButton",
-			"Plus",
-			UDim2.new(1, -62, 0, 10),
-			UDim2.fromOffset(48, 48),
-			stat == "Workshop" and GRAY or GREEN,
-			row
-		)
-		label(plus, "Label", "+", UDim2.new(), UDim2.fromScale(1, 1), 30)
+		value.TextXAlignment = Enum.TextXAlignment.Right
+		value:FindFirstChildOfClass("UIStroke").Color = WHITE
+		local plus = face("TextButton", "Plus", UDim2.new(1, -72, 0, 10), UDim2.fromOffset(60, 60), colour, row)
+		label(plus, "Label", "+", UDim2.new(), UDim2.fromScale(1, 1), 34)
 	end
 end
 
@@ -292,7 +321,11 @@ function Components.BindStats(refs, config)
 		local phone = workspace.CurrentCamera.ViewportSize.Y <= 500
 		for _, row in pairs(rows) do
 			row.Frame.StatName.TextSize = phone and 17 or 21
-			row.Value.TextSize = phone and 16 or 19
+			row.Value.TextSize = phone and 13 or 15
+			local description = row.Frame:FindFirstChild("Description")
+			if description then
+				description.TextSize = phone and 12 or 15
+			end
 		end
 	end
 	workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(fit)

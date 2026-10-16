@@ -89,6 +89,78 @@ local layout = Instance.new("UIListLayout")
 layout.Padding = UDim.new(0, 8)
 layout.Parent = content
 
+-- Quest list/detail treatment from images/UI_QuestReference.png. The game has
+-- Daily and Weekly quest data only, so the reference's other categories and
+-- search controls are intentionally omitted.
+local questTabs = make("Frame", "QuestTabs", modal, {
+	Position = UDim2.fromOffset(14, 52),
+	Size = UDim2.new(1, -28, 0, 38),
+	BackgroundTransparency = 1,
+	Visible = false,
+})
+local questTabLayout = Instance.new("UIListLayout")
+questTabLayout.FillDirection = Enum.FillDirection.Horizontal
+questTabLayout.Padding = UDim.new(0, 8)
+questTabLayout.Parent = questTabs
+local dailyQuestTab = button("Daily", questTabs, UDim2.new(), UDim2.new(0.5, -4, 1, 0), "DAILY")
+local weeklyQuestTab = button("Weekly", questTabs, UDim2.new(), UDim2.new(0.5, -4, 1, 0), "WEEKLY")
+
+local questDetail = make("Frame", "QuestDetail", modal, {
+	Position = UDim2.new(0.55, 0, 0, 100),
+	Size = UDim2.new(0.45, -14, 1, -114),
+	BackgroundColor3 = Color3.fromRGB(18, 27, 47),
+	BorderSizePixel = 0,
+	Visible = false,
+})
+rounded(questDetail, 10)
+local questDetailEdge = Instance.new("UIStroke")
+questDetailEdge.Color = Color3.fromRGB(25, 201, 235)
+questDetailEdge.Thickness = 2
+questDetailEdge.Parent = questDetail
+local function detailText(name, position, size, textSize, color)
+	return make("TextLabel", name, questDetail, {
+		Position = position,
+		Size = size,
+		BackgroundTransparency = 1,
+		Text = "",
+		TextColor3 = color,
+		Font = Enum.Font.GothamBold,
+		TextSize = textSize,
+		TextWrapped = true,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		TextYAlignment = Enum.TextYAlignment.Top,
+	})
+end
+local questType =
+	detailText("Type", UDim2.fromOffset(14, 12), UDim2.new(1, -28, 0, 20), 13, Color3.fromRGB(25, 201, 235))
+local questName =
+	detailText("Name", UDim2.fromOffset(14, 35), UDim2.new(1, -28, 0, 54), 22, Color3.fromRGB(255, 190, 42))
+local questGoal =
+	detailText("Goal", UDim2.fromOffset(14, 94), UDim2.new(1, -28, 0, 42), 14, Color3.fromRGB(230, 234, 241))
+local progressTrack = make("Frame", "ProgressTrack", questDetail, {
+	Position = UDim2.fromOffset(14, 144),
+	Size = UDim2.new(1, -28, 0, 24),
+	BackgroundColor3 = Color3.fromRGB(8, 12, 22),
+	BorderSizePixel = 0,
+})
+rounded(progressTrack, 8)
+local progressFill = make("Frame", "Fill", progressTrack, {
+	Size = UDim2.fromScale(0, 1),
+	BackgroundColor3 = Color3.fromRGB(25, 201, 235),
+	BorderSizePixel = 0,
+})
+rounded(progressFill, 8)
+local progressText = make("TextLabel", "Progress", progressTrack, {
+	Size = UDim2.fromScale(1, 1),
+	BackgroundTransparency = 1,
+	Text = "0 / 0",
+	TextColor3 = Color3.new(1, 1, 1),
+	Font = Enum.Font.GothamBold,
+	TextSize = 13,
+})
+local questReward =
+	detailText("Reward", UDim2.fromOffset(14, 184), UDim2.new(1, -28, 0, 48), 15, Color3.fromRGB(255, 214, 90))
+
 local status = make("TextLabel", "Status", screen, {
 	AnchorPoint = Vector2.new(1, 0),
 	Position = UDim2.new(1, -16, 1, -130),
@@ -102,6 +174,29 @@ local status = make("TextLabel", "Status", screen, {
 	Text = "",
 })
 
+local view = nil -- "Daily" or "Quests": which content the shared modal shows
+local questCategory = "Daily"
+local questRows = {}
+
+local function layoutView()
+	local camera = workspace.CurrentCamera
+	local phone = camera and camera.ViewportSize.Y <= 500
+	local quests = view == "Quests"
+	questTabs.Visible = quests
+	questDetail.Visible = quests and not phone
+	if quests then
+		content.Position = UDim2.fromOffset(14, 100)
+		content.Size = phone and UDim2.new(1, -28, 1, -114) or UDim2.new(0.53, -18, 1, -114)
+	else
+		content.Position = UDim2.fromOffset(14, 52)
+		content.Size = UDim2.new(1, -28, 1, -66)
+	end
+end
+
+if workspace.CurrentCamera then
+	workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(layoutView)
+end
+
 local function refreshChrome()
 	local camera = workspace.CurrentCamera
 	local compact = camera and camera.ViewportSize.Y <= 500
@@ -113,7 +208,7 @@ backdrop:GetPropertyChangedSignal("Visible"):Connect(refreshChrome)
 
 local function clearContent()
 	for _, child in content:GetChildren() do
-		if child:IsA("GuiObject") then
+		if child:IsA("GuiObject") or child:IsA("UIListLayout") then
 			child:Destroy()
 		end
 	end
@@ -122,7 +217,6 @@ local function clearContent()
 	fresh.Parent = content
 end
 
-local view = nil -- "Daily" or "Quests": which content the shared modal shows
 local function showDaily()
 	view = "Daily"
 	if not backdrop.Visible then
@@ -130,6 +224,7 @@ local function showDaily()
 	end
 	backdrop.Visible = true
 	refreshChrome()
+	layoutView()
 	title.Text = "DAILY REWARDS • 7 DAYS"
 	clearContent()
 	local streak = math.clamp(player:GetAttribute("DailyStreak") or 0, 0, 7)
@@ -186,6 +281,23 @@ local function decode(name)
 	return ok and type(value) == "table" and value or {}
 end
 
+local function selectQuest(quest, current, weekly)
+	for id, refs in questRows do
+		refs.Edge.Color = id == quest.Id and Color3.new(1, 1, 1) or Color3.fromRGB(25, 201, 235)
+	end
+	questType.Text = weekly and "WEEKLY QUEST" or "DAILY QUEST"
+	questName.Text = quest.Name
+	questGoal.Text = quest.Name
+	progressFill.Size = UDim2.fromScale(math.clamp(current / math.max(1, quest.Target), 0, 1), 1)
+	progressText.Text = string.format(
+		"%d / %d  (%d%%)",
+		current,
+		quest.Target,
+		math.floor(current / math.max(1, quest.Target) * 100 + 0.5)
+	)
+	questReward.Text = string.format("REWARD  •  %dx %s", quest.RewardCount or 1, quest.Reward)
+end
+
 local function showQuests()
 	view = "Quests"
 	if not backdrop.Visible then
@@ -193,38 +305,92 @@ local function showQuests()
 	end
 	backdrop.Visible = true
 	refreshChrome()
+	layoutView()
 	title.Text = "QUESTS"
 	clearContent()
-	local function renderGroup(label, quests, progress, claimed, weekly)
-		make("TextLabel", label, content, {
-			Size = UDim2.new(1, -8, 0, 30), BackgroundTransparency = 1, Text = label,
-			TextColor3 = Color3.fromRGB(255, 196, 75), Font = Enum.Font.GothamBlack, TextSize = 16,
+	questRows = {}
+	dailyQuestTab.BackgroundColor3 = questCategory == "Daily" and Color3.fromRGB(205, 151, 19)
+		or Color3.fromRGB(42, 54, 84)
+	weeklyQuestTab.BackgroundColor3 = questCategory == "Weekly" and Color3.fromRGB(205, 151, 19)
+		or Color3.fromRGB(42, 54, 84)
+	local weekly = questCategory == "Weekly"
+	local quests = weekly and questConfig.Weekly or questConfig.Daily
+	local progress = decode(weekly and "QuestWeeklyProgress" or "QuestDailyProgress")
+	local claimed = decode(weekly and "QuestWeeklyClaimed" or "QuestDailyClaimed")
+	local selectedQuest, selectedCurrent = nil, 0
+	for _, quest in quests do
+		local current = math.min(quest.Target, progress[quest.Id] or 0)
+		local done = claimed[quest.Id] == 1
+		local row = button(quest.Id, content, UDim2.new(), UDim2.new(1, -8, 0, 72), "")
+		row.AutoButtonColor = false
+		rounded(row, 7)
+		local rowEdge = Instance.new("UIStroke")
+		rowEdge.Name = "Selection"
+		rowEdge.Color = Color3.fromRGB(25, 201, 235)
+		rowEdge.Thickness = 2
+		rowEdge.Parent = row
+		make("TextLabel", "Text", row, {
+			Position = UDim2.fromOffset(12, 8),
+			Size = UDim2.new(1, -124, 0, 24),
+			BackgroundTransparency = 1,
+			Text = quest.Name,
+			Font = Enum.Font.GothamBold,
+			TextSize = 15,
+			TextColor3 = Color3.fromRGB(255, 190, 42),
 			TextXAlignment = Enum.TextXAlignment.Left,
 		})
-		for _, quest in quests do
-			local current = math.min(quest.Target, progress[quest.Id] or 0)
-			local done = claimed[quest.Id] == 1
-			local row = make("Frame", quest.Id, content, { Size = UDim2.new(1, -8, 0, 52), BackgroundColor3 = Color3.fromRGB(42, 54, 84) })
-			rounded(row, 7)
-			make("TextLabel", "Text", row, { Position = UDim2.fromOffset(10, 5), Size = UDim2.new(1, -122, 0, 22), BackgroundTransparency = 1, Text = quest.Name, Font = Enum.Font.GothamBold, TextSize = 13, TextColor3 = Color3.new(1, 1, 1), TextXAlignment = Enum.TextXAlignment.Left })
-			make("TextLabel", "Progress", row, { Position = UDim2.fromOffset(10, 28), Size = UDim2.new(1, -122, 0, 18), BackgroundTransparency = 1, Text = string.format("%d / %d  •  %s", current, quest.Target, quest.Reward), Font = Enum.Font.Gotham, TextSize = 12, TextColor3 = Color3.fromRGB(193, 205, 225), TextXAlignment = Enum.TextXAlignment.Left })
-			local claim = button("Claim", row, UDim2.new(1, -106, 0.5, -16), UDim2.fromOffset(96, 32), done and "CLAIMED" or current >= quest.Target and "CLAIM" or "LOCKED")
-			claim.Active = not done and current >= quest.Target
-			claim.AutoButtonColor = claim.Active
-			claim.BackgroundColor3 = claim.Active and Color3.fromRGB(70, 175, 105) or Color3.fromRGB(80, 88, 112)
-			claim.Activated:Connect(function()
-				if not claim.Active then return end
-				local ok, success, message = pcall(function()
-					return ReplicatedStorage.Remotes.QuestClaim:InvokeServer(weekly, quest.Id)
-				end)
-				status.Text = ok and (success and ("Claimed " .. tostring(message)) or tostring(message)) or "Connection error"
-				showQuests()
-			end)
+		make("TextLabel", "Progress", row, {
+			Position = UDim2.fromOffset(12, 38),
+			Size = UDim2.new(1, -124, 0, 20),
+			BackgroundTransparency = 1,
+			Text = string.format("%d / %d  •  %s", current, quest.Target, quest.Reward),
+			Font = Enum.Font.Gotham,
+			TextSize = 13,
+			TextColor3 = Color3.fromRGB(193, 205, 225),
+			TextXAlignment = Enum.TextXAlignment.Left,
+		})
+		local claim = button(
+			"Claim",
+			row,
+			UDim2.new(1, -106, 0.5, -18),
+			UDim2.fromOffset(96, 32),
+			done and "CLAIMED" or current >= quest.Target and "CLAIM" or "LOCKED"
+		)
+		claim.Active = not done and current >= quest.Target
+		claim.AutoButtonColor = claim.Active
+		claim.BackgroundColor3 = claim.Active and Color3.fromRGB(70, 175, 105) or Color3.fromRGB(80, 88, 112)
+		questRows[quest.Id] = { Button = row, Edge = rowEdge }
+		if not selectedQuest then
+			selectedQuest, selectedCurrent = quest, current
 		end
+		row.Activated:Connect(function()
+			selectQuest(quest, current, weekly)
+		end)
+		claim.Activated:Connect(function()
+			if not claim.Active then
+				return
+			end
+			local ok, success, message = pcall(function()
+				return ReplicatedStorage.Remotes.QuestClaim:InvokeServer(weekly, quest.Id)
+			end)
+			status.Text = ok and (success and ("Claimed " .. tostring(message)) or tostring(message))
+				or "Connection error"
+			showQuests()
+		end)
 	end
-	renderGroup("DAILY", questConfig.Daily, decode("QuestDailyProgress"), decode("QuestDailyClaimed"), false)
-	renderGroup("WEEKLY", questConfig.Weekly, decode("QuestWeeklyProgress"), decode("QuestWeeklyClaimed"), true)
+	if selectedQuest then
+		selectQuest(selectedQuest, selectedCurrent, weekly)
+	end
 end
+
+dailyQuestTab.Activated:Connect(function()
+	questCategory = "Daily"
+	showQuests()
+end)
+weeklyQuestTab.Activated:Connect(function()
+	questCategory = "Weekly"
+	showQuests()
+end)
 
 -- The top-right Daily and Quests pills (HudChrome) share this modal; a second click on the same pill closes it.
 local function action(name, show)

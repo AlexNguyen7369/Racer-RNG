@@ -40,5 +40,6 @@ return {
 		"leaderboard",
 		"duel",
 		"pass_cars",
+		"shop_purchases",
 	},
 }

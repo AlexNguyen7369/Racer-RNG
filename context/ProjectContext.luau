@@ -3,7 +3,25 @@
 PROJECT CONTEXT - Idle Vehicle Simulator (read me first)
 Shown in Studio at: ServerScriptService > ProjectContext   (source file: context/ProjectContext.luau)
 Do NOT edit this in Studio: edit the file on disk, Rojo syncs it. Claude updates it at the end of every loop.
-Last updated: 2026-10-15 (Claude: HUD redesign, HudChrome / Backpack / PanelBand; live desktop check, UI suite not run)
+Last updated: 2026-10-16 (Claude: Shop redesign, Robux potions + codes, Market restyle; harness scenarios green, UI suite not run)
+
+SHOP REDESIGN + PURCHASES + MARKET - 2026-10-16 (Claude, branch main, uncommitted)
+- Owner request with images/UI_ShopReference1-4.png and UI_ItemsReference.png. Rules: design doc "Monetization" (Shop,
+  Codes, car swap, owner 2026-10-16), docs/GAMEPASS_SHOP_SPEC.md (rewritten), docs/SHOP_PURCHASES_SPEC.md (new),
+  docs/GAMEPASS_CARS_SPEC.md, docs/SAVE_SPEC.md (VERSION 9), docs/HUD_LAYOUT_SPEC.md (Market).
+- Owner decisions: listed RobuxPrice shown, Roblox live price wins once an id exists; Ember Wyvern = Secret x2000
+  1999 R$, Singularity = Mythic x500 999 R$; potion developer products with a real receipt handler; Server Luck
+  banner (display only) and a Codes box (potions only, never Money).
+- Code: Client/ShopUi (rewritten), Client/MarketUi (Backpack look + detail pane), Shared/MonetizationConfig
+  (RobuxPrice, Products), Server/ShopService (ProcessReceipt, Redeem, Apply/Snapshot), Server/CodeConfig (server
+  only), PlayerData VERSION 9 (Receipts, Codes), Main starts ShopService, car files.
+- Tests (test-writer): PassCarTests fixtures, new shop_purchases scenario. Results 2026-10-16: first run 74/76
+  (in-flight receipt order, Apply(nil)) fixed; shop_purchases 76/76, pass_cars 161/161, data 127/127 (run directly
+  via Scenarios.Run, not the full harness). Live: every Shop section rendered, Redeem RELEASE granted LuckII 0->2,
+  Market tabs/tiles/detail work. Not run: full harness, [UITEST] suite, phone viewport, /compat-check.
+- Owner 2026-10-16: /compat-check is no longer a gate (pre-push hook, compat-gate PreToolUse and Stop hooks removed);
+  it is an on-demand check after large changes. A full harness run was started before this commit; result pending.
+
 
 HUD REDESIGN - 2026-10-15 (Claude, branch main, uncommitted)
 - Owner request with reference images; rules: design doc "HUD layout" (owner 2026-10-15), docs/HUD_LAYOUT_SPEC.md.

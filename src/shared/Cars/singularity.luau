@@ -4,10 +4,11 @@
 return {
 	Id = "singularity",
 	Name = "Singularity",
-	Rarity = "Secret",
+	Rarity = "Mythic",
 	Chance = nil,
-	SpeedMulti = 2000, -- proposed
+	SpeedMulti = 500, -- proposed
 	Order = 102,
 	Model = "singularity", -- Shared/DraftCarModels builds a stand-in until a real mesh has this name
 	GamepassId = 0, -- 0 = not on sale yet; the owner pastes the pass id from the Creator Dashboard
+	RobuxPrice = 999, -- listed price the Shop shows until Roblox reports the live one (owner, 2026-10-16)
 }

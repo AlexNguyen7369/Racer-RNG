@@ -1,20 +1,4 @@
 #!/bin/sh
-# Blocks pushing to main unless /compat-check was ALL GREEN for exactly the code being pushed (tools/compat.py).
-# Enabled with: git config core.hooksPath .githooks
-root="$(git rev-parse --show-toplevel)"
-zero=0000000000000000000000000000000000000000
-status=0
-while read -r local_ref local_sha remote_ref remote_sha; do
-	case "$remote_ref" in
-	refs/heads/main | refs/heads/master)
-		if [ "$local_sha" = "$zero" ]; then
-			continue
-		fi
-		if ! python3 "$root/tools/compat.py" verify "$local_sha"; then
-			echo "pre-push: refusing to push to ${remote_ref#refs/heads/}. Run /compat-check in Claude Code until it is ALL GREEN." >&2
-			status=1
-		fi
-		;;
-	esac
-done
-exit $status
+# Owner decision 2026-10-16: no push gate. /compat-check is an on-demand command (run it after large changes);
+# pushes and commits to main are never blocked by it.
+exit 0

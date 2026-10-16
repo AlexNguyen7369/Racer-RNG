@@ -10,11 +10,13 @@ Status: rule written 2026-10-13, before tests and code.
 
 | Id (permanent) | Name | Rarity | `SpeedMulti` (proposed) | `GamepassId` |
 |---|---|---|---|---|
-| `ember_wyvern` | Ember Wyvern | Mythic | 500 | 0 until the owner creates the pass |
-| `singularity` | Singularity | Secret | 2000 | 0 until the owner creates the pass |
+| `ember_wyvern` | Ember Wyvern | Secret | 2000 | 0 until the owner creates the pass |
+| `singularity` | Singularity | Mythic | 500 | 0 until the owner creates the pass |
 
-`SpeedMulti` values are proposed; the owner tunes them. The price is set in the Creator Dashboard; the game never
-states or stores a price.
+`SpeedMulti` values are proposed; the owner tunes them. Owner, 2026-10-16: rarities swapped (Ember Wyvern is the
+stronger car) and each car file has `RobuxPrice`, the listed price the Shop shows: Ember Wyvern 1999, Singularity
+999. Roblox charges the Creator Dashboard price; once `GamepassId > 0` the Shop shows Roblox's live price
+(`docs/GAMEPASS_SHOP_SPEC.md`).
 
 ## 2. Catalog rules (`Shared/CarCatalog`)
 

@@ -329,5 +329,23 @@
     "why": "Paid cars must only come from a real purchase: never from a roll, a save edit or a pass id of 0, and a market outage must never break the server or hand out a car.",
     "limits": "docs/GAMEPASS_CARS_SPEC.md, docs/GAME_DESIGN_REQUIREMENTS.md Monetization (Gamepass cars), docs/LEADERBOARD_SPEC.md 3a, Shared/PassCarConfig",
     "files": "Server/PassCarService, Shared/PassCarConfig, Shared/CarCatalog, Server/GachaService, Shared/SpawnArea, Shared/DraftCarModels"
+  },
+  "shop_purchases": {
+    "checks": "MonetizationConfig.Products is an array of entries with Id, Name, Description, Section (Potions/Bundle/ServerLuck), whole ProductId >= 0, whole RobuxPrice > 0; the three potion packs grant exactly 5 of LuckIII / MoneyIII / SpeedIII, the bundle 10 of each of the 9 potions, Server Luck 2x/4x/8x have no Grants and ProductId 0; every gamepass has RobuxPrice. ShopService.ProcessReceipt (with made-up ProductIds and a fake save via SetSave): unknown product, id 0, no Grants, player not in the server, DataLoaded false or DataFailed -> NotProcessedYet, nothing granted, no save; a valid receipt grants the exact counts and nothing else, saves once, records the PurchaseId, PurchaseGranted; the same PurchaseId again or one loaded from the save -> PurchaseGranted with no new grant; a failed save -> NotProcessedYet with grants and id rolled back, and a retry grants once; the same PurchaseId while the first still saves -> NotProcessedYet; only the newest 100 ids are kept. Codes (test codes injected into Server/CodeConfig): non-string, empty, blank, over 32 characters, unknown -> 'Invalid code'; not loaded -> 'Data not loaded'; trimmed and case-insensitive, exactly 32 accepted; grants exact potions and never changes Money or Speed; a second request within 2 s -> 'Please wait'; once per player -> 'Already redeemed' (also for a code loaded from the save) while another player can still redeem. Snapshot/Apply round-trip, bad entries skipped, missing = empty; a rebirth keeps both; PlayerData saves Version 9 with Receipts and Codes and loads them back, and a Version 8 record loads with both empty.",
+    "why": "Robux purchases must be granted exactly once and only after they are saved, so a crash or retry can never lose or duplicate what a player paid for; codes must give potions once per player and never Money or Speed.",
+    "limits": "docs/SHOP_PURCHASES_SPEC.md, docs/GAMEPASS_SHOP_SPEC.md section 2, docs/SAVE_SPEC.md 2a, docs/GAME_DESIGN_REQUIREMENTS.md Monetization (Shop, Codes)",
+    "files": "Server/ShopService, Server/CodeConfig, Shared/MonetizationConfig, Server/BoostService, Server/PlayerData"
+  },
+  "ui_shop": {
+    "checks": "The Shop panel has its sections in order (Featured, Gamepasses, Potions with the Bundle, Server Luck, Codes, Thanks), one card per gamepass car / gamepass / product, prices with thousands separators plus 'Coming soon' for id 0 or 'Owned' for an owned car, a square red X, and stays inside the panel band with no overlaps at every tested viewport. Clicks: Coming soon buttons do nothing; Redeem with a bad code shows the server's reply.",
+    "why": "docs/GAMEPASS_SHOP_SPEC.md (owner 2026-10-16): the Shop must look like the references and never prompt a purchase for an item without a Roblox id.",
+    "limits": "UiSpec.Shop, UiSpec.Band",
+    "files": "Client/ShopUi, Client/UiTest/UiShopMarket"
+  },
+  "ui_market": {
+    "checks": "The Market has the Backpack look: header with a square red X, Trails / Auras / Potions tabs left of a tile grid holding exactly one kind's items, and a detail pane (Name, Rarity, Preview, Price, Description, Action) matching the selected tile. Clicks: tabs switch the grid, a tile updates the detail, BUY calls MarketPurchase with the shown item (intercepted).",
+    "why": "docs/HUD_LAYOUT_SPEC.md Market (owner 2026-10-16).",
+    "limits": "UiSpec.Market, UiSpec.Band",
+    "files": "Client/MarketUi, Client/UiTest/UiShopMarket"
   }
 }

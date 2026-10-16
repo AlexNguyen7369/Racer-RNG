@@ -27,7 +27,14 @@ local function ensure(player)
 	if current then
 		return current
 	end
-	current = { DailyKey = Config.PeriodKey(os.time()), WeeklyKey = Config.PeriodKey(os.time(), true), Daily = {}, Weekly = {}, ClaimedDaily = {}, ClaimedWeekly = {} }
+	current = {
+		DailyKey = Config.PeriodKey(os.time()),
+		WeeklyKey = Config.PeriodKey(os.time(), true),
+		Daily = {},
+		Weekly = {},
+		ClaimedDaily = {},
+		ClaimedWeekly = {},
+	}
 	state[player] = current
 	return current
 end
@@ -98,7 +105,10 @@ function QuestService.Progress(player, metric, amount)
 	for _, weekly in { false, true } do
 		local progress = weekly and current.Weekly or current.Daily
 		for _, quest in list(weekly) do
-			if quest.Metric == metric and not (weekly and current.ClaimedWeekly[quest.Id] or current.ClaimedDaily[quest.Id]) then
+			if
+				quest.Metric == metric
+				and not (weekly and current.ClaimedWeekly[quest.Id] or current.ClaimedDaily[quest.Id])
+			then
 				progress[quest.Id] = math.min(quest.Target, (progress[quest.Id] or 0) + amount)
 			end
 		end

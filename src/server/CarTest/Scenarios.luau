@@ -3517,10 +3517,10 @@ local function anyCountAttribute(player)
 end
 
 -- Data: PlayerData saves/loads Money and the float Speed stat through an injected store (no real DataStore is touched).
--- The current save version is 8 (docs/SAVE_SPEC.md, owner 2026-10-12: session lock, MoneyEarned, DuelWins; 7 was
--- market, rebirth/boosts/daily login, and level/XP); older versions still load.
+-- The current save version is 9 (docs/SAVE_SPEC.md 2a, owner 2026-10-16: Receipts and Codes; 8 was session lock,
+-- MoneyEarned, DuelWins; 7 was market, rebirth/boosts/daily login, and level/XP); older versions still load.
 function Scenarios.data()
-	local DATA_VERSION = 8
+	local DATA_VERSION = 9
 	local checks = {}
 	local PlayerData = serverModule("PlayerData")
 	local RaceConfig = sharedModule("RaceConfig")
@@ -4618,7 +4618,7 @@ function Scenarios.data()
 			)
 			flag("load_keeps_every_other_field", type(recOld) == "table" and deepEqual(withoutLock(recOld), original))
 
-			-- Save: one UpdateAsync that refreshes Lock.At (and upgrades the record to version 8)
+			-- Save: one UpdateAsync that refreshes Lock.At (and upgrades the record to the current version)
 			now = T + 30
 			local updatesBefore = sOld.updates
 			local savedOld = PlayerData.Save(pOld, 9802)
@@ -12702,5 +12702,6 @@ Scenarios.daily_login = Phase2Tests.daily_login
 Scenarios.leaderboard = require(script.Parent.LeaderboardTests).leaderboard
 Scenarios.duel = require(script.Parent.DuelTests).duel -- docs/DUEL_SPEC.md section 4
 Scenarios.pass_cars = require(script.Parent.PassCarTests).pass_cars -- docs/GAMEPASS_CARS_SPEC.md section 7
+Scenarios.shop_purchases = require(script.Parent.ShopPurchaseTests).shop_purchases -- docs/SHOP_PURCHASES_SPEC.md
 
 return Scenarios

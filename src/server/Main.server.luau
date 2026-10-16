@@ -24,6 +24,7 @@ local LeaderboardService = require(script.Parent.LeaderboardService)
 local DuelService = require(script.Parent.DuelService)
 local PassCarService = require(script.Parent.PassCarService)
 local QuestService = require(script.Parent.QuestService)
+local ShopService = require(script.Parent.ShopService)
 
 -- Tracks are chained in Number order: each one starts where the previous one's finish checkpoint is.
 local chain = TrackRegistry.Chain()
@@ -67,4 +68,5 @@ PassCarService.Start() -- gamepass cars on the two small pedestals (docs/GAMEPAS
 LeaderboardService.Start() -- global boards on the spawn-area signs (docs/LEADERBOARD_SPEC.md)
 DuelService.Start() -- player vs player duels, no stake (docs/DUEL_SPEC.md)
 QuestService.Start() -- UTC daily and weekly quest tracking (docs/QUESTS_SPEC.md)
+ShopService.Start() -- Robux potion receipts and redeem codes (docs/SHOP_PURCHASES_SPEC.md)
 AdminService.Start() -- chat admin commands (docs/ADMIN_COMMANDS_SPEC.md)

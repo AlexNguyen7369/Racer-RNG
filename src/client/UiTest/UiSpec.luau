@@ -9,9 +9,17 @@
 -- (ui/specs/*.ui.json, their generated layout is mirrored in UiResponsive), never from measured pixels.
 --
 -- Paths are "/"-separated child names starting at the ScreenGui ("RacerHud/Race/Face"). "*" matches any one child
--- name (one Equip button per index tile, one "+" per stat row).
+-- name (one Equip button per index tile, one "+" per stat row); "**" matches any number of child names (zero or more:
+-- cards found by name at any depth under their section).
 
 local UiSpec = {}
+
+local MarketConfig = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("MarketConfig"))
+-- A MarketConfig item's Name (a readable placeholder when the id is gone, so the spec still loads and the click fails)
+local function marketName(kind, id)
+	local item = MarketConfig.Get(kind, id)
+	return item and item.Name or ("missing MarketConfig " .. kind .. " " .. id)
+end
 
 -- Pixel tolerance for geometry comparisons (rounding of AbsolutePosition / AbsoluteSize).
 UiSpec.Tolerance = 1
@@ -68,16 +76,11 @@ UiSpec.Guis = {
 		Source = "Client/RollToast/RacerUiController (Ui/RacerHud)",
 		AlwaysOn = {
 			"Race/Face",
-			"Navigation/Index/Face",
-			"Navigation/Stats/Face",
-			"Navigation/Stats/Face/PointsBadge",
-			"Navigation/Rebirth/Face",
-			"Settings/Face",
 			"Speed",
 			"Money",
 			"Turbo",
 		},
-		Readouts = { "Speed", "Money", "Turbo", "Navigation/Stats/Face/PointsBadge" },
+		Readouts = { "Speed", "Money", "Turbo" },
 		NonInteractiveParts = { "Speed", "Money", "Turbo" },
 		Buttons = {
 			{
@@ -87,10 +90,43 @@ UiSpec.Guis = {
 				Arg = "not_attr:AutoRacing", -- the opposite of the current AutoRacing attribute
 				Label = "upper(HudFormat.AutoButtonText(AutoRacing))", -- "AUTO RACE" / "STOP AUTO"
 			},
-			{ Path = "Navigation/Index/Face", Does = "toggle_panel", Panel = "RacerIndex/Panel", Text = "INDEX" },
-			{ Path = "Navigation/Stats/Face", Does = "toggle_panel", Panel = "RacerStats/Panel", Text = "STATS" },
-			{ Path = "Navigation/Rebirth/Face", Does = "toggle_panel", Panel = "RacerRebirth/Panel", Text = "REBIRTH" },
-			{ Path = "Settings/Face", Does = "toggle_panel", Panel = "RacerSettings/Panel" }, -- gear icon, no text
+		},
+	},
+	-- Current persistent HUD entry points (docs/HUD_LAYOUT_SPEC.md). The generated
+	-- RacerHud navigation/settings nodes remain hidden compatibility assets and are
+	-- deliberately absent from this live inventory.
+	HudChrome = {
+		Source = "Client/HudChrome",
+		AlwaysOn = {
+			"Grid/Index",
+			"Grid/Stats",
+			"Grid/Stats/Badge",
+			"Grid/Rebirth",
+			"ShopColumn/Shop",
+			"ItemsSlot/Items",
+			"UpgradeSlot/Upgrade",
+			"TopRight/Daily",
+			"TopRight/Quests",
+			"TopRight/Market",
+			"TopRight/Settings",
+		},
+		Readouts = { "Grid/Stats/Badge" },
+		Buttons = {
+			{ Path = "Grid/Index", Does = "toggle_panel", Panel = "RacerIndex/Panel", Text = "Index" },
+			{ Path = "Grid/Stats", Does = "toggle_panel", Panel = "RacerStats/Panel", Text = "Stats" },
+			{ Path = "Grid/Rebirth", Does = "toggle_panel", Panel = "RacerRebirth/Panel", Text = "Rebirth" },
+			{ Path = "ShopColumn/Shop", Does = "toggle_panel", Panel = "ShopUi/Backdrop", Text = "Shop" },
+			{ Path = "ItemsSlot/Items", Does = "toggle_panel", Panel = "RacerBackpack/Panel", Text = "Items" },
+			{ Path = "UpgradeSlot/Upgrade", Does = "toggle_panel", Panel = "RacerUpgrades/Panel", Text = "Upgrade" },
+			{
+				Path = "TopRight/Daily",
+				Does = "toggle_panel",
+				Panel = "DailyBoosts/ModalBackdrop",
+				Label = "Daily before claim; countdown after claim",
+			},
+			{ Path = "TopRight/Quests", Does = "toggle_panel", Panel = "DailyBoosts/ModalBackdrop", Text = "Quests" },
+			{ Path = "TopRight/Market", Does = "toggle_panel", Panel = "MarketUi/Backdrop", Text = "Market" },
+			{ Path = "TopRight/Settings", Does = "toggle_panel", Panel = "RacerSettings/Panel" },
 		},
 	},
 	-- CAR INDEX modal (ui/specs/RacerIndex.ui.json; tiles built by Components.BakeIndex)
@@ -141,7 +177,7 @@ UiSpec.Guis = {
 		PointsLabel = "RacerStats/Panel/Face/Header/Face/Points",
 		PointsText = { Singular = "%d FREE POINT", Plural = "%d FREE POINTS" },
 	},
-	-- SETTINGS modal (ui/specs/RacerSettings.ui.json): local preferences only.
+	-- SETTINGS modal (ui/specs/RacerSettings.ui.json): local preferences plus the read-only Player Profile category.
 	RacerSettings = {
 		Source = "Client/RollToast/RacerUiController (Ui/RacerSettings)",
 		Panels = { "Panel" },
@@ -151,6 +187,18 @@ UiSpec.Guis = {
 				Does = "close_panel",
 				Panel = "RacerSettings/Panel",
 				Text = "X",
+			},
+			{
+				Path = "Panel/Face/Header/Face/CategoryTabs/SettingsTab",
+				Does = "local",
+				Effect = "settings_category",
+				Text = "SETTINGS",
+			},
+			{
+				Path = "Panel/Face/Header/Face/CategoryTabs/ProfileTab",
+				Does = "local",
+				Effect = "profile_category",
+				Text = "PLAYER PROFILE",
 			},
 			{
 				-- Session-local mute: every Sound's Volume goes to 0 (new ones too); label "OFF" while muted
@@ -273,6 +321,12 @@ UiSpec.AutoRollText = {
 }
 UiSpec.Settings = {
 	Title = "SETTINGS",
+	CategoryAttribute = "Category",
+	Categories = { Settings = "Settings", Profile = "Profile" },
+	SettingsTab = "RacerSettings/Panel/Face/Header/Face/CategoryTabs/SettingsTab",
+	ProfileTab = "RacerSettings/Panel/Face/Header/Face/CategoryTabs/ProfileTab",
+	ProfileHost = "RacerSettings/Panel/Face/PlayerProfile",
+	ProfileRows = { "TotalRolls", "BestRoll", "CarsDiscovered", "Level", "Speed", "Luck", "SessionTime" },
 	SoundText = { [true] = "ON", [false] = "OFF" }, -- [sound on]
 	EffectsText = { [true] = "ON", [false] = "OFF" }, -- [ReduceEffects]
 	ProbeVolume = 0.5, -- the test's own Sound (created and destroyed by the sound clicks) must follow the toggle
@@ -391,11 +445,11 @@ UiSpec.Hud = {
 	RaceLabel = "RacerHud/Race/Face/RaceLabel",
 	RaceTop = 72, -- px from the screen top (IgnoreGuiInset) to the Race button's top edge, below the top bar
 	NavButtons = {
-		"RacerHud/Navigation/Index/Face",
-		"RacerHud/Navigation/Stats/Face",
-		"RacerHud/Navigation/Rebirth/Face",
+		"HudChrome/Grid/Index",
+		"HudChrome/Grid/Stats",
+		"HudChrome/Grid/Rebirth",
 	},
-	NavLabels = { "INDEX", "STATS", "REBIRTH" }, -- stacked top to bottom on the LEFT edge
+	NavLabels = { "Index", "Stats", "Rebirth" }, -- stacked top to bottom on the LEFT edge
 	NavMaxLeftGap = 32, -- px from the screen's left edge to the column
 	Speed = "RacerHud/Speed",
 	SpeedIcon = "RacerHud/Speed/SpeedIcon",
@@ -410,8 +464,8 @@ UiSpec.Hud = {
 	TurboFill = "RacerHud/Turbo/Face/TurboFill",
 	TurboLabel = "RacerHud/Turbo/Face/TurboLabel",
 	TurboBottomGap = { Desktop = 22, Phone = 16 }, -- px from the screen bottom to the TURBO LUCK bar's bottom edge
-	Settings = "RacerHud/Settings/Face",
-	PointsBadge = "RacerHud/Navigation/Stats/Face/PointsBadge",
+	Settings = "HudChrome/TopRight/Settings",
+	PointsBadge = "HudChrome/Grid/Stats/Badge",
 	BottomGap = { Desktop = 22, Phone = 16 }, -- px: Money (bottom left) and TURBO bar bottom edges
 	SideGap = { Desktop = 22, Phone = 12 }, -- px: Money's left edge from the screen side
 }
@@ -446,34 +500,163 @@ UiSpec.PanelSwitch = {
 		["RacerStats/Panel"] = "Stats",
 		["RacerSettings/Panel"] = "Settings",
 		["RacerRebirth/Panel"] = "Rebirth",
+		["RacerBackpack/Panel"] = "Backpack",
+		["RacerUpgrades/Panel"] = "Upgrades",
+		["ShopUi/Backdrop"] = "Shop",
 		["DailyBoosts/ModalBackdrop"] = "Daily",
 		["MarketUi/Backdrop"] = "Market",
 	},
 }
 
--- Market browser (Client/MarketUi), declared so its live controls are included in the inventory contract.
+-- Money market (Client/MarketUi; docs/HUD_LAYOUT_SPEC.md section 2 "Market", owner 2026-10-16: the Backpack look).
+-- Backdrop is the full-screen dim TextButton (a click off the panel closes it); Panel holds Header (square red X),
+-- side Tabs (one per MarketConfig.Items kind), the tile Grid of the selected kind and the Detail pane of the selected
+-- tile. UiSpec.Market holds the parts; ui_market and the market_* clicks check them.
 UiSpec.Guis.MarketUi = {
 	Source = "Client/MarketUi",
-	AlwaysOn = { "MarketButton" },
+	Panels = { "Backdrop" },
 	Buttons = {
-		{ Path = "MarketButton", Does = "open_panel", Panel = "MarketUi/Backdrop", Text = "MARKET" },
 		{ Path = "Backdrop", Does = "close_panel", Panel = "MarketUi/Backdrop", Text = "" },
-		{ Path = "Backdrop/Panel/Close", Does = "close_panel", Panel = "MarketUi/Backdrop", Text = "×" },
+		{ Path = "Backdrop/Panel/Header/Close", Does = "close_panel", Panel = "MarketUi/Backdrop", Text = "X" },
+		{ Path = "Backdrop/Panel/Tabs/TrailTab", Does = "local", Effect = "market_tab:Trail" },
+		{ Path = "Backdrop/Panel/Tabs/AuraTab", Does = "local", Effect = "market_tab:Aura" },
+		{ Path = "Backdrop/Panel/Tabs/PotionTab", Does = "local", Effect = "market_tab:Potion" },
 		{
-			Path = "Backdrop/Panel/Folders/*",
+			-- One tile per MarketConfig.Items[<shown kind>] entry, named <Kind>_<Id> (ui_market counts them)
+			Path = "Backdrop/Panel/Grid/*",
 			Does = "local",
-			Effect = "market_category",
-			Panel = "MarketUi/Backdrop",
+			Effect = "market_select", -- Detail shows THAT tile's item
 			Count = "dynamic",
 		},
 		{
-			Path = "Backdrop/Panel/Items/*/Action",
+			-- BUY (not owned, and every potion) invokes MarketPurchase(kind, id); EQUIP (owned) invokes
+			-- MarketEquip(kind, id); EQUIPPED fires nothing. Always for the item the Detail pane shows.
+			Path = "Backdrop/Panel/Detail/Action",
 			Does = "remote",
 			Remote = "MarketPurchase|MarketEquip",
+			Arg = "detail_kind_id",
+			Label = "UiSpec.Market.ActionText",
+			DisabledWhen = "equipped",
+		},
+	},
+}
+
+UiSpec.Guis.RacerBackpack = {
+	Source = "Client/BackpackUi",
+	Panels = { "Panel" },
+	Buttons = {
+		{ Path = "Panel/Header/Close", Does = "close_panel", Panel = "RacerBackpack/Panel", Text = "X" },
+		{ Path = "Panel/Tabs/MiscTab", Does = "local", Effect = "backpack_category", Text = "Misc" },
+		{ Path = "Panel/Tabs/TrailsTab", Does = "local", Effect = "backpack_category", Text = "Trails" },
+		{ Path = "Panel/Tabs/AurasTab", Does = "local", Effect = "backpack_category", Text = "Auras" },
+		{
+			Path = "Panel/Items/*",
+			Does = "remote",
+			Remote = "UseBoost|MarketEquip",
 			Arg = "item_id",
+			Count = "dynamic",
+			ClickCoverage = "ui_motion_dynamic",
+		},
+	},
+}
+
+-- Robux Shop (Client/ShopUi; docs/GAMEPASS_SHOP_SPEC.md, owner rewrite 2026-10-16). Cards are found BY NAME under
+-- their section ("**" = any depth): the spec fixes the names, not the wrapper frames. UiSpec.Shop holds the parts.
+UiSpec.Guis.ShopUi = {
+	Source = "Client/ShopUi",
+	Panels = { "Backdrop" },
+	Buttons = {
+		{ Path = "Backdrop", Does = "close_panel", Panel = "ShopUi/Backdrop", Text = "" },
+		{ Path = "Backdrop/Panel/Close", Does = "close_panel", Panel = "ShopUi/Backdrop", Text = "X" },
+		{
+			-- Codes: sends the Input text to the server (RemoteFunction RedeemCode); Status shows the reply
+			Path = "Backdrop/Panel/Items/Codes/**/Redeem",
+			Does = "remote",
+			Remote = "RedeemCode",
+			Arg = "input_text",
+		},
+		{
+			-- Every price button. Id 0: "Coming soon", a click does nothing; id > 0: PromptGamePassPurchase /
+			-- PromptProductPurchase (Roblox's own prompt, no game remote). ui_shop counts them per section.
+			Path = "Backdrop/Panel/Items/**/Buy",
+			Does = "local",
+			Effect = "prompt_purchase_or_nothing",
 			Count = "dynamic",
 		},
 	},
+}
+
+-- The Shop's parts (docs/GAMEPASS_SHOP_SPEC.md section 1). Sections are direct children of Items, top to bottom in
+-- this order. Cards: a Frame named by the item Id somewhere under its section, holding exactly one "Buy" TextButton:
+-- Featured = CarCatalog.Passes(), Gamepasses = MonetizationConfig.Gamepasses, Potions = Products with Section
+-- "Potions" plus the Bundle banner (Frame "Bundle", the Section "Bundle" product), ServerLuck = Section "ServerLuck".
+UiSpec.Shop = {
+	Gui = "ShopUi",
+	Panel = "ShopUi/Backdrop/Panel",
+	Close = "ShopUi/Backdrop/Panel/Close",
+	CloseText = "X",
+	Items = "ShopUi/Backdrop/Panel/Items",
+	Sections = { "Featured", "Gamepasses", "Potions", "ServerLuck", "Codes", "Thanks" },
+	SectionTitles = { Gamepasses = "Gamepasses", Potions = "Potions", Codes = "Codes" },
+	Bundle = "Bundle",
+	BuyName = "Buy",
+	ComingSoon = "Coming soon", -- id 0 (GamepassId / ProductId)
+	Owned = "Owned", -- an owned gamepass car (attribute Pass_<carId>)
+	ThanksText = "Thanks for your support!",
+	Codes = { Input = "Input", Redeem = "Redeem", Status = "Status" },
+	-- The text the redeem click types: never a real code (Server/CodeConfig keys are upper case words; this has a
+	-- prefix no code uses), so the real RedeemCode answers "Invalid code" and saves nothing.
+	TestCode = "UITEST-NOT-A-CODE",
+	-- What Status may show after the redeem click: the server's replies for a bad code (SHOP_PURCHASES_SPEC 3)
+	BadCodeReplies = { "Invalid code", "Please wait", "Data not loaded" },
+	ReplyWait = 4, -- s for the reply to show
+}
+
+-- The Market's parts (docs/HUD_LAYOUT_SPEC.md section 2 "Market"). Tab -> MarketConfig.Items kind; tiles are
+-- Grid/<Kind>_<Id>; Detail parts by name directly under Detail.
+UiSpec.Market = {
+	Gui = "MarketUi",
+	Panel = "MarketUi/Backdrop/Panel",
+	Header = "MarketUi/Backdrop/Panel/Header",
+	Close = "MarketUi/Backdrop/Panel/Header/Close",
+	CloseText = "X",
+	Tabs = "MarketUi/Backdrop/Panel/Tabs",
+	TabKinds = { TrailTab = "Trail", AuraTab = "Aura", PotionTab = "Potion" },
+	TabOrder = { "TrailTab", "AuraTab", "PotionTab" }, -- top to bottom (side tabs)
+	Grid = "MarketUi/Backdrop/Panel/Grid",
+	TileFormat = "%s_%s", -- Kind, Id
+	Detail = "MarketUi/Backdrop/Panel/Detail",
+	DetailParts = {
+		{ Name = "Name", Class = "TextLabel" },
+		{ Name = "Rarity", Class = "TextLabel" },
+		{ Name = "Preview", Class = "ViewportFrame" },
+		{ Name = "Price", Class = "TextLabel" },
+		{ Name = "Description", Class = "TextLabel" },
+		{ Name = "Action", Class = "TextButton" },
+	},
+	-- Action label for the shown item: potions are always BUY (consumables)
+	ActionText = { Buy = "BUY", Equip = "EQUIP", Equipped = "EQUIPPED" },
+	-- The tile the market_select_tile click picks (a potion: shown to every player, never owned-only); not the first
+	-- potion, so selecting it really changes Detail.
+	SelectKind = "Potion",
+	SelectId = "SpeedII",
+}
+
+-- Panels fitted by Client/PanelBand.Fit (docs/HUD_LAYOUT_SPEC.md: between the left grid and the Shop column, below the
+-- Race button, above the TURBO LUCK bar and the Money read-out). Value = the panel's max width (mirrored from the
+-- client's Band.Fit call; the band rule itself is the spec). The layout solver fits them like PanelBand does.
+UiSpec.BandPanels = {
+	["ShopUi/Backdrop/Panel"] = 900,
+	["MarketUi/Backdrop/Panel"] = 900,
+}
+UiSpec.Band = {
+	Race = "RacerHud/Race",
+	Turbo = "RacerHud/Turbo",
+	Grid = "HudChrome/Grid",
+	ShopColumn = "HudChrome/ShopColumn",
+	Money = "RacerHud/Money",
+	Gap = 8,
+	MinSize = Vector2.new(240, 160),
 }
 
 -- CLAUDE.md: panels open BELOW the Race (Auto Race) button and end ABOVE the bottom TURBO LUCK bar. The progression
@@ -494,23 +677,57 @@ UiSpec.RacerPanelBand = {
 		["RacerRebirth/Panel"] = "rebirth_panel",
 	},
 	Gap = 8,
-	Navigation = "RacerHud/Navigation",
+	Navigation = "HudChrome/Grid",
 }
 
--- Always-on elements that are HIDDEN while a pop-up panel is open (owner decision 2026-10-08 and CLAUDE.md "UI
--- tests"): they are left out of the overlap lists in that state, and ui_panels / ui_toast prove they really are hidden
--- (Visible false) then. When = "any": any PanelSwitch panel open; "other_than:<panel>": any panel but that one.
+-- Elements that are intentionally HIDDEN while a pop-up panel is open (for example,
+-- the old daily/market controls): they are left out of the overlap lists in that
+-- state, and ui_panels proves they really are hidden (Visible false) then.
+-- When = "any": any PanelSwitch panel open; "other_than:<panel>": any panel but that one.
 UiSpec.HiddenWhilePanelOpen = {
-	["RollToast/Toast"] = "any", -- RollToast refreshToast: show requires not PanelSwitch.AnyOpen()
-	["RacerProgression/UpgradeButton"] = "other_than:RacerUpgrades/Panel", -- ProgressionUi: hidden over other panels
-	["RacerProgression/UpgradeButton/Badge"] = "other_than:RacerUpgrades/Panel", -- inside UpgradeButton
-	["DailyBoosts/BagButton"] = "any",
-	["DailyBoosts/DailyRewardButton"] = "any",
 	["DailyBoosts/Status"] = "any",
-	["MarketUi/MarketButton"] = "any",
 }
 -- ProgressionUi applies its visibility on a 0.25 s poll: the checks wait up to this long for it.
 UiSpec.HiddenWhilePanelOpenWait = 1
+
+-- Every persistent HUD layer gets a non-interactive tint while a PanelSwitch
+-- panel is open. The controls remain drawn underneath it; the overlay is visual
+-- feedback, not a replacement for hiding controls.
+UiSpec.PanelDimmers = {
+	Paths = {
+		"HudChrome/PanelDimmer",
+		"RacerHud/PanelDimmer",
+		"RollToast/PanelDimmer",
+		"RacerProgression/PanelDimmer",
+	},
+	PersistentButtons = {
+		"HudChrome/Grid/Index",
+		"HudChrome/Grid/Stats",
+		"HudChrome/Grid/Rebirth",
+		"HudChrome/ShopColumn/Shop",
+		"HudChrome/ItemsSlot/Items",
+		"HudChrome/UpgradeSlot/Upgrade",
+		"HudChrome/TopRight/Daily",
+		"HudChrome/TopRight/Quests",
+		"HudChrome/TopRight/Market",
+		"HudChrome/TopRight/Settings",
+		"RacerHud/Race/Face",
+		"RacerProgression/WeatherIcon",
+	},
+	DynamicPersistentRoots = { "RacerProgression/PotionStatus" },
+	Transparency = { Min = 0.45, Max = 0.75 },
+}
+
+UiSpec.Motion = {
+	Sound = "HudPressSound",
+	SoundId = "rbxasset://sounds/volume_slider.ogg",
+	PlaybackSpeed = 1.35,
+	Volume = 0.22,
+	Scale = "HoverScale",
+	Highlight = "RacerHoverHighlight",
+	HighlightColour = Color3.new(1, 1, 1),
+	HighlightThickness = 3,
+}
 
 -- Overlaps that are allowed: a modal panel may cover a read-out (Speed, Money), never a button or the TURBO bar.
 UiSpec.AllowOverlap = {}
@@ -670,7 +887,7 @@ UiSpec.RollAnim = {
 	GlowTurnWait = 0.2, -- s between two Glow UIGradient.Rotation samples in Hold (it must have turned)
 	GlowTurnMin = 0.5, -- degrees
 	FlyIcon = "FlyIcon", -- a small car icon: no text, takes no clicks
-	FlyTarget = "RacerHud/Navigation/Index/Face", -- until the Garage button exists
+	FlyTarget = "HudChrome/Grid/Index",
 	FlyArrive = 24, -- px: the FlyIcon centre comes at least this close to the target's rectangle
 	SwitchGrace = 0.2, -- s after SWITCH for the view to be back to Compact after an emphasized roll
 	ViewAttr = "View", -- RollToast ScreenGui attribute: "Compact" | "Enlarged"
@@ -885,7 +1102,14 @@ Prepare:
  Intercept      a RemoteFunction that must be intercepted (ServerSetup progression_spy) before the click is published,
                 even when Expect.Remote is false: the click may never reach the real handler (Rebirth, DailyClaim,
                 UseBoost change saved state)
+ Intercept may also be a list of RemoteFunction names (each must be intercepted)
  LabelIs        the target's label text before the click (else state_missing: the previous click did not land)
+ LabelHas       a piece the target's label text must contain before the click (else state_missing)
+ TextIs         { [path] = text } labels that must show that text (case-insensitive) before the click, else
+                state_missing (the earlier click that sets it up did not land)
+ SetText        { [path] = text } TextBox / TextLabel texts the harness sets before the click (typing into a box);
+                put back afterwards
+ ScrollIntoView the harness scrolls the target's ScrollingFrame so the target is fully shown; put back afterwards
  WaitSeconds    extra wait before publishing
 ClickAt: where to click when it is not the target's centre: "corner" (UiSpec.Showcase.CornerInset px in from the
  bottom-right corner, off the card) or a "<Gui>/<Path>" whose centre is used. The target must be topmost there.
@@ -900,7 +1124,7 @@ Expect:
  Panels   = { [panelPath] = visibleAfter }  (every other declared panel must keep its visibility)
  Showcase = true/false: showcase open after the click (default: unchanged)
  Remote   = { Name, Arg } exactly one call of that remote and no other remote; Remote = false: no remote at all
-            { Name, Args = { ... } }: the call's whole argument list, in order ("{boost}" = the resolved row id)
+            { Name, Args = { ... } }: the call's whole argument list, in order
  After    = post-conditions once the server / UI answered
 ]]
 local CLOSED = {
@@ -908,6 +1132,9 @@ local CLOSED = {
 	"RacerStats/Panel",
 	"RacerSettings/Panel",
 	"RacerRebirth/Panel",
+	"RacerBackpack/Panel",
+	"ShopUi/Backdrop",
+	"MarketUi/Backdrop",
 }
 local function only(open)
 	local closed = {}
@@ -925,8 +1152,8 @@ local ESCAPE_MANUAL =
 UiSpec.Clicks = {
 	{
 		Id = "open_market",
-		Gui = "MarketUi",
-		Path = "MarketButton",
+		Gui = "HudChrome",
+		Path = "TopRight/Market",
 		Prepare = { Closed = CLOSED },
 		Expect = { Panels = { ["MarketUi/Backdrop"] = true }, Remote = false },
 	},
@@ -934,43 +1161,176 @@ UiSpec.Clicks = {
 		Id = "close_market_backdrop",
 		Gui = "MarketUi",
 		Path = "Backdrop",
+		ClickAt = "corner",
 		Prepare = only("MarketUi/Backdrop"),
 		Expect = { Panels = { ["MarketUi/Backdrop"] = false }, Remote = false },
 	},
 	{
 		Id = "close_market",
 		Gui = "MarketUi",
-		Path = "Backdrop/Panel/Close",
+		Path = "Backdrop/Panel/Header/Close",
 		Prepare = only("MarketUi/Backdrop"),
 		Expect = { Panels = { ["MarketUi/Backdrop"] = false }, Remote = false },
 	},
+	-- Tabs switch the grid (and nothing else: no remote, the panel stays open)
 	{
-		Id = "select_market_category",
+		Id = "market_tab_aura",
 		Gui = "MarketUi",
-		Path = "Backdrop/Panel/Folders/TrailFolder",
-		Prepare = { Closed = CLOSED },
-		Expect = { Panels = { ["MarketUi/Backdrop"] = true }, Remote = false },
+		Path = "Backdrop/Panel/Tabs/AuraTab",
+		Prepare = only("MarketUi/Backdrop"),
+		Expect = { Panels = { ["MarketUi/Backdrop"] = true }, Remote = false, After = { "market_grid_shows_aura" } },
 	},
 	{
-		Id = "market_item_action",
+		Id = "market_tab_trail",
 		Gui = "MarketUi",
-		Path = "Backdrop/Panel/Items/Trail/Action",
+		Path = "Backdrop/Panel/Tabs/TrailTab",
 		Prepare = only("MarketUi/Backdrop"),
-		Expect = { Panels = { ["MarketUi/Backdrop"] = true }, Remote = true },
+		Expect = { Panels = { ["MarketUi/Backdrop"] = true }, Remote = false, After = { "market_grid_shows_trail" } },
+	},
+	{
+		Id = "market_tab_potion",
+		Gui = "MarketUi",
+		Path = "Backdrop/Panel/Tabs/PotionTab",
+		Prepare = only("MarketUi/Backdrop"),
+		Expect = { Panels = { ["MarketUi/Backdrop"] = true }, Remote = false, After = { "market_grid_shows_potion" } },
+	},
+	-- A tile click selects: Detail shows THAT item; nothing is bought or equipped
+	{
+		Id = "market_select_tile",
+		Gui = "MarketUi",
+		Path = "Backdrop/Panel/Grid/Potion_SpeedII",
+		Prepare = only("MarketUi/Backdrop"),
+		Expect = { Panels = { ["MarketUi/Backdrop"] = true }, Remote = false, After = { "market_detail_shows_tile" } },
+	},
+	-- BUY on the selected potion invokes MarketPurchase("Potion", "SpeedII") once; the real handler never runs
+	-- (Intercept: ServerSetup progression_spy must proxy MarketPurchase and MarketEquip, else the click is refused).
+	{
+		Id = "market_action_buy",
+		Gui = "MarketUi",
+		Path = "Backdrop/Panel/Detail/Action",
+		Prepare = {
+			Open = { "MarketUi/Backdrop" },
+			Closed = CLOSED,
+			Showcase = false,
+			Intercept = { "MarketPurchase", "MarketEquip" },
+			LabelIs = "BUY",
+			TextIs = { ["MarketUi/Backdrop/Panel/Detail/Name"] = marketName("Potion", "SpeedII") },
+		},
+		NeedSetup = { "spy", "progression_spy" },
+		Expect = {
+			Panels = { ["MarketUi/Backdrop"] = true },
+			Remote = { Name = "MarketPurchase", Args = { "Potion", "SpeedII" } },
+		},
+	},
+	-- Shop and Market follow PanelSwitch: opening one from the HUD closes the panel that was open
+	{
+		Id = "open_market_while_stats_open",
+		Gui = "HudChrome",
+		Path = "TopRight/Market",
+		Prepare = only("RacerStats/Panel"),
+		Expect = { Panels = { ["MarketUi/Backdrop"] = true, ["RacerStats/Panel"] = false }, Remote = false },
+	},
+	{
+		Id = "open_shop",
+		Gui = "HudChrome",
+		Path = "ShopColumn/Shop",
+		Prepare = { Closed = CLOSED, Showcase = false },
+		Expect = { Panels = { ["ShopUi/Backdrop"] = true }, Remote = false },
+	},
+	{
+		Id = "close_shop_backdrop",
+		Gui = "ShopUi",
+		Path = "Backdrop",
+		ClickAt = "corner",
+		Prepare = only("ShopUi/Backdrop"),
+		Expect = { Panels = { ["ShopUi/Backdrop"] = false }, Remote = false },
+	},
+	{
+		Id = "close_shop",
+		Gui = "ShopUi",
+		Path = "Backdrop/Panel/Close",
+		Prepare = only("ShopUi/Backdrop"),
+		Expect = { Panels = { ["ShopUi/Backdrop"] = false }, Remote = false },
+	},
+	{
+		Id = "open_shop_while_index_open",
+		Gui = "HudChrome",
+		Path = "ShopColumn/Shop",
+		Prepare = only("RacerIndex/Panel"),
+		Expect = { Panels = { ["ShopUi/Backdrop"] = true, ["RacerIndex/Panel"] = false }, Remote = false },
+	},
+	-- Id 0 price buttons ("Coming soon") do nothing: no remote, the Shop stays open (LabelHas refuses the click if
+	-- the item got a real id, so no real purchase prompt is ever opened by the suite)
+	{
+		Id = "shop_featured_coming_soon",
+		Gui = "ShopUi",
+		Path = "Backdrop/Panel/Items/Featured/**/ember_wyvern/Buy",
+		Prepare = (function()
+			local p = only("ShopUi/Backdrop")
+			p.LabelHas = "Coming soon"
+			p.ScrollIntoView = true
+			return p
+		end)(),
+		Expect = { Panels = { ["ShopUi/Backdrop"] = true }, Remote = false, After = { "shop_no_purchase_prompt" } },
+	},
+	{
+		Id = "shop_gamepass_coming_soon",
+		Gui = "ShopUi",
+		Path = "Backdrop/Panel/Items/Gamepasses/**/vip/Buy",
+		Prepare = (function()
+			local p = only("ShopUi/Backdrop")
+			p.LabelHas = "Coming soon"
+			p.ScrollIntoView = true
+			return p
+		end)(),
+		Expect = { Panels = { ["ShopUi/Backdrop"] = true }, Remote = false, After = { "shop_no_purchase_prompt" } },
+	},
+	{
+		Id = "shop_bundle_coming_soon",
+		Gui = "ShopUi",
+		Path = "Backdrop/Panel/Items/Potions/**/Bundle/**/Buy",
+		Prepare = (function()
+			local p = only("ShopUi/Backdrop")
+			p.LabelHas = "Coming soon"
+			p.ScrollIntoView = true
+			return p
+		end)(),
+		Expect = { Panels = { ["ShopUi/Backdrop"] = true }, Remote = false, After = { "shop_no_purchase_prompt" } },
+	},
+	-- Redeem sends the typed text to the real RedeemCode (a bad code: the server answers "Invalid code" and saves
+	-- nothing) and Status shows the server's reply. SetText types the code and blanks Status before the click.
+	{
+		Id = "shop_redeem_invalid_code",
+		Gui = "ShopUi",
+		Path = "Backdrop/Panel/Items/Codes/**/Redeem",
+		Prepare = (function()
+			local p = only("ShopUi/Backdrop")
+			p.ScrollIntoView = true
+			p.SetText = {
+				["ShopUi/Backdrop/Panel/Items/Codes/**/Input"] = UiSpec.Shop.TestCode,
+				["ShopUi/Backdrop/Panel/Items/Codes/**/Status"] = "",
+			}
+			return p
+		end)(),
+		Expect = {
+			Panels = { ["ShopUi/Backdrop"] = true },
+			Remote = false,
+			After = { "shop_redeem_status_from_server" },
+		},
 	},
 	-- Panels: each opens with its HUD button, closes with a second click and with its X
 	{
 		Id = "open_index",
-		Gui = "RacerHud",
-		Path = "Navigation/Index/Face",
+		Gui = "HudChrome",
+		Path = "Grid/Index",
 		Prepare = { Closed = CLOSED, Showcase = false },
 		NeedSetup = { "spy" },
 		Expect = { Panels = { ["RacerIndex/Panel"] = true }, Remote = false },
 	},
 	{
 		Id = "toggle_index_closed",
-		Gui = "RacerHud",
-		Path = "Navigation/Index/Face",
+		Gui = "HudChrome",
+		Path = "Grid/Index",
 		Prepare = only("RacerIndex/Panel"),
 		Expect = { Panels = { ["RacerIndex/Panel"] = false }, Remote = false },
 	},
@@ -983,15 +1343,15 @@ UiSpec.Clicks = {
 	},
 	{
 		Id = "open_stats",
-		Gui = "RacerHud",
-		Path = "Navigation/Stats/Face",
+		Gui = "HudChrome",
+		Path = "Grid/Stats",
 		Prepare = { Closed = CLOSED, Showcase = false },
 		Expect = { Panels = { ["RacerStats/Panel"] = true }, Remote = false },
 	},
 	{
 		Id = "toggle_stats_closed",
-		Gui = "RacerHud",
-		Path = "Navigation/Stats/Face",
+		Gui = "HudChrome",
+		Path = "Grid/Stats",
 		Prepare = only("RacerStats/Panel"),
 		Expect = { Panels = { ["RacerStats/Panel"] = false }, Remote = false },
 	},
@@ -1004,15 +1364,15 @@ UiSpec.Clicks = {
 	},
 	{
 		Id = "open_settings",
-		Gui = "RacerHud",
-		Path = "Settings/Face",
+		Gui = "HudChrome",
+		Path = "TopRight/Settings",
 		Prepare = { Closed = CLOSED, Showcase = false },
 		Expect = { Panels = { ["RacerSettings/Panel"] = true }, Remote = false },
 	},
 	{
 		Id = "toggle_settings_closed",
-		Gui = "RacerHud",
-		Path = "Settings/Face",
+		Gui = "HudChrome",
+		Path = "TopRight/Settings",
 		Prepare = only("RacerSettings/Panel"),
 		Expect = { Panels = { ["RacerSettings/Panel"] = false }, Remote = false },
 	},
@@ -1024,16 +1384,38 @@ UiSpec.Clicks = {
 		Expect = { Panels = { ["RacerSettings/Panel"] = false }, Remote = false },
 	},
 	{
+		Id = "settings_open_profile",
+		Gui = "RacerSettings",
+		Path = "Panel/Face/Header/Face/CategoryTabs/ProfileTab",
+		Prepare = only("RacerSettings/Panel"),
+		Expect = {
+			Panels = { ["RacerSettings/Panel"] = true },
+			Remote = false,
+			After = { "settings_profile_category" },
+		},
+	},
+	{
+		Id = "settings_show_controls",
+		Gui = "RacerSettings",
+		Path = "Panel/Face/Header/Face/CategoryTabs/SettingsTab",
+		Prepare = only("RacerSettings/Panel"),
+		Expect = {
+			Panels = { ["RacerSettings/Panel"] = true },
+			Remote = false,
+			After = { "settings_controls_category" },
+		},
+	},
+	{
 		Id = "open_rebirth",
-		Gui = "RacerHud",
-		Path = "Navigation/Rebirth/Face",
+		Gui = "HudChrome",
+		Path = "Grid/Rebirth",
 		Prepare = { Closed = CLOSED, Showcase = false },
 		Expect = { Panels = { ["RacerRebirth/Panel"] = true }, Remote = false },
 	},
 	{
 		Id = "toggle_rebirth_closed",
-		Gui = "RacerHud",
-		Path = "Navigation/Rebirth/Face",
+		Gui = "HudChrome",
+		Path = "Grid/Rebirth",
 		Prepare = only("RacerRebirth/Panel"),
 		Expect = { Panels = { ["RacerRebirth/Panel"] = false }, Remote = false },
 	},
@@ -1047,36 +1429,36 @@ UiSpec.Clicks = {
 	-- Mutually exclusive through the real buttons (the HUD button must be reachable while another panel is open)
 	{
 		Id = "open_stats_while_index_open",
-		Gui = "RacerHud",
-		Path = "Navigation/Stats/Face",
+		Gui = "HudChrome",
+		Path = "Grid/Stats",
 		Prepare = only("RacerIndex/Panel"),
 		Expect = { Panels = { ["RacerStats/Panel"] = true, ["RacerIndex/Panel"] = false }, Remote = false },
 	},
 	{
 		Id = "open_index_while_stats_open",
-		Gui = "RacerHud",
-		Path = "Navigation/Index/Face",
+		Gui = "HudChrome",
+		Path = "Grid/Index",
 		Prepare = only("RacerStats/Panel"),
 		Expect = { Panels = { ["RacerIndex/Panel"] = true, ["RacerStats/Panel"] = false }, Remote = false },
 	},
 	{
 		Id = "open_settings_while_stats_open",
-		Gui = "RacerHud",
-		Path = "Settings/Face",
+		Gui = "HudChrome",
+		Path = "TopRight/Settings",
 		Prepare = only("RacerStats/Panel"),
 		Expect = { Panels = { ["RacerSettings/Panel"] = true, ["RacerStats/Panel"] = false }, Remote = false },
 	},
 	{
 		Id = "open_rebirth_while_settings_open",
-		Gui = "RacerHud",
-		Path = "Navigation/Rebirth/Face",
+		Gui = "HudChrome",
+		Path = "Grid/Rebirth",
 		Prepare = only("RacerSettings/Panel"),
 		Expect = { Panels = { ["RacerRebirth/Panel"] = true, ["RacerSettings/Panel"] = false }, Remote = false },
 	},
 	{
 		Id = "open_index_while_rebirth_open",
-		Gui = "RacerHud",
-		Path = "Navigation/Index/Face",
+		Gui = "HudChrome",
+		Path = "Grid/Index",
 		Prepare = only("RacerRebirth/Panel"),
 		Expect = { Panels = { ["RacerIndex/Panel"] = true, ["RacerRebirth/Panel"] = false }, Remote = false },
 	},
@@ -1424,7 +1806,7 @@ UiSpec.Clicks = {
 		Id = "showcase_backdrop_over_index_button",
 		Gui = "RollShowcase",
 		Path = "Backdrop",
-		ClickAt = "RacerHud/Navigation/Index/Face",
+		ClickAt = "HudChrome/Grid/Index",
 		Prepare = { Showcase = true },
 		NeedSetup = { "spy" },
 		Expect = {
@@ -1465,18 +1847,22 @@ UiSpec.Clicks = {
 -- Progression contract agreed with main, 2026-10-07. These are additions to the Racer UI gate.
 UiSpec.Guis.RacerProgression = {
 	Source = "Client/ProgressionUi",
-	-- WeatherIcon replaces the old top-left WeatherBanner (owner decision 2026-10-13, docs/WEATHER_EVENTS_SPEC.md
-	-- "Weather icon"): an always-on button under the same overlap / hitbox rules as every other HUD control. It is NOT
-	-- in UiSpec.HiddenWhilePanelOpen (the spec says "always visible"), so it must clear every open panel too.
-	AlwaysOn = { "UpgradeButton", "UpgradeButton/Badge", "WeatherIcon" },
-	Readouts = { "UpgradeButton/Badge" },
+	-- Upgrade moved to HudChrome. Weather and active potion controls remain
+	-- persistent on this layer and are dimmed, never removed, over panels.
+	AlwaysOn = { "WeatherIcon" },
 	Buttons = {
-		{ Path = "UpgradeButton", Does = "toggle_panel", Panel = "RacerUpgrades/Panel", Text = "UPGRADES" },
 		{
 			Path = "WeatherIcon",
 			Does = "local",
 			Effect = "toggle:RacerProgression/WeatherIcon/Card",
 			Label = "WeatherConfig.Events[WeatherEvent].Icon (the clear icon when no weather is active)",
+		},
+		{
+			Path = "PotionStatus/*",
+			Does = "local",
+			Effect = "potion_detail",
+			Count = "dynamic",
+			ClickCoverage = "ui_motion_dynamic",
 		},
 	},
 }
@@ -1491,12 +1877,12 @@ UiSpec.Weather = {
 	-- Bottom-right corner: the icon's right and bottom edges are on screen and at most this far from the screen's
 	-- edges (the HUD's other corner controls sit 12 to 22 px in; the showcase's corner click uses 24)
 	CornerMargin = 24,
-	-- Phones (viewport height <= UiResponsive.PHONE_MAX_HEIGHT; owner 2026-10-13): the Bag / Daily / Market stack fills
-	-- the corner, so the icon's right edge is PhoneRight px from the screen's right edge, left of the Market button.
+	-- Phones (viewport height <= UiResponsive.PHONE_MAX_HEIGHT): keep the
+	-- weather status clear of the HudChrome top-right pills.
 	-- The bottom limit is unchanged. Gap is the spec's 8 px edge gap (the solver's model, UiResponsive.Progression).
 	PhoneRight = 140,
 	Gap = 8,
-	MarketButton = "MarketUi/MarketButton",
+	MarketButton = "HudChrome/TopRight/Market",
 	ClearId = "clear", -- shown for WeatherEvent "" as well
 	ClearTitle = "CLEAR",
 	-- Stats = WeatherConfig.Describe(id): every multiplier that is not 1, in this order, joined by Separator
@@ -1533,9 +1919,8 @@ UiSpec.Guis.RacerWelcome = {
 }
 UiSpec.Progression = {
 	TileSize = Vector2.new(100, 88),
-	UpgradeButtonSize = Vector2.new(110, 40),
-	UpgradeButtonTop = 0.22,
-	UpgradeButtonRight = 16,
+	UpgradeEntry = "HudChrome/UpgradeSlot/Upgrade",
+	UpgradeBadge = "HudChrome/UpgradeSlot/Upgrade/Badge",
 	WorkshopRateStep = 0.05,
 }
 for _, name in { "Upgrades", "Workshop", "Welcome" } do
@@ -1548,7 +1933,18 @@ end
 table.insert(UiSpec.ClientScripts, "ProgressionUi")
 -- RemoteFunctions the UI invokes. ServerSetup progression_spy replaces every one with a logging proxy that returns
 -- false, "money" (the real handlers never run): Rebirth, UseBoost and DailyClaim would change saved state.
-UiSpec.RemoteFunctions = { "BuyUpgrade", "WorkshopUpgrade", "Rebirth", "UseBoost", "DailyClaim" }
+UiSpec.RemoteFunctions = {
+	"BuyUpgrade",
+	"WorkshopUpgrade",
+	"Rebirth",
+	"UseBoost",
+	"DailyClaim",
+	"QuestClaim",
+	-- Market (Client/MarketUi Detail/Action) and Shop codes (Client/ShopUi Redeem)
+	"MarketPurchase",
+	"MarketEquip",
+	"RedeemCode",
+}
 table.insert(UiSpec.Remotes, "WorkshopOpen")
 for _, item in
 	{
@@ -1584,16 +1980,16 @@ for _, name in { "Upgrades", "Workshop", "Welcome" } do
 end
 table.insert(UiSpec.Clicks, {
 	Id = "open_upgrades",
-	Gui = "RacerProgression",
-	Path = "UpgradeButton",
+	Gui = "HudChrome",
+	Path = "UpgradeSlot/Upgrade",
 	Prepare = { Closed = CLOSED, Showcase = false },
 	NeedSetup = { "spy" },
 	Expect = { Panels = { ["RacerUpgrades/Panel"] = true }, Remote = false },
 })
 table.insert(UiSpec.Clicks, {
 	Id = "toggle_upgrades_closed",
-	Gui = "RacerProgression",
-	Path = "UpgradeButton",
+	Gui = "HudChrome",
+	Path = "UpgradeSlot/Upgrade",
 	Prepare = only("RacerUpgrades/Panel"),
 	NeedSetup = { "spy" },
 	Expect = { Panels = { ["RacerUpgrades/Panel"] = false }, Remote = false },
@@ -1801,25 +2197,15 @@ table.insert(UiSpec.Clicks, {
 })
 
 ---------------------------------------------------------------------------------------------------------------
--- Bag and Daily Rewards (Client/BoostDailyUi, ScreenGui DailyBoosts; gap closed 2026-10-13). Declared as it is built
--- today, under the same rules as every other gui: two always-on buttons under Settings on the right edge, one modal
--- (the dimmed ModalBackdrop is what the script shows / hides; UiSpec.PanelBody names the part that is the panel for
--- geometry) whose Content is re-rendered as the Bag (one row + USE per owned or active potion) or the Daily view
--- (DAY 1..7 rows + Claim).
+-- Daily rewards and quests share one PanelSwitch panel. Their persistent entry
+-- buttons live in HudChrome; this ScreenGui owns only the panel and status.
 UiSpec.Guis.DailyBoosts = {
 	Source = "Client/BoostDailyUi",
-	AlwaysOn = { "BagButton", "DailyRewardButton", "Status" },
+	AlwaysOn = { "Status" },
 	Readouts = { "Status" },
 	NonInteractiveParts = { "Status" },
 	Panels = { "ModalBackdrop" },
 	Buttons = {
-		{ Path = "BagButton", Does = "open_panel", Panel = "DailyBoosts/ModalBackdrop", Text = "BAG" },
-		{
-			Path = "DailyRewardButton",
-			Does = "open_panel",
-			Panel = "DailyBoosts/ModalBackdrop",
-			Label = "UiSpec.DailyBoosts.DailyText (follows the server's DailyLast)",
-		},
 		{
 			Path = "ModalBackdrop/Modal/Close",
 			Does = "close_panel",
@@ -1827,12 +2213,30 @@ UiSpec.Guis.DailyBoosts = {
 			Text = "×",
 		},
 		{
-			Path = "ModalBackdrop/Modal/Content/*/Use",
+			Path = "ModalBackdrop/Modal/QuestTabs/Daily",
+			Does = "local",
+			Effect = "daily_quest_category",
+			Text = "DAILY",
+		},
+		{
+			Path = "ModalBackdrop/Modal/QuestTabs/Weekly",
+			Does = "local",
+			Effect = "weekly_quest_category",
+			Text = "WEEKLY",
+		},
+		{
+			Path = "ModalBackdrop/Modal/Content/*",
+			Does = "local",
+			Effect = "select_quest",
+			Count = "dynamic",
+		},
+		{
+			Path = "ModalBackdrop/Modal/Content/*/Claim",
 			Does = "remote",
-			Remote = "UseBoost",
-			Arg = "row_boost_id", -- THAT row's BoostConfig item id
-			Count = "dynamic", -- Bag view only: one per potion owned or active (bag_shows_server_inventory)
-			DisabledWhen = "active_or_none_left",
+			Remote = "QuestClaim",
+			Arg = "quest_id",
+			Count = "dynamic",
+			DisabledWhen = "incomplete_or_claimed",
 		},
 		{
 			Path = "ModalBackdrop/Modal/Content/Claim",
@@ -1846,122 +2250,149 @@ UiSpec.Guis.DailyBoosts = {
 }
 -- Panels whose toggled Frame is a see-through, click-through dimmer: the overlap / top-control checks use this child
 -- (the drawn, opaque panel) instead of the full-screen dimmer.
-UiSpec.PanelBody = { ["DailyBoosts/ModalBackdrop"] = "Modal" }
+UiSpec.PanelBody = {
+	["DailyBoosts/ModalBackdrop"] = "Modal",
+	["MarketUi/Backdrop"] = "Panel",
+	["ShopUi/Backdrop"] = "Panel",
+}
 table.insert(UiSpec.AllowOverlap, { "DailyBoosts/ModalBackdrop", "RacerHud/Speed" })
 table.insert(UiSpec.AllowOverlap, { "DailyBoosts/ModalBackdrop", "RacerHud/Money" })
 UiSpec.DailyBoosts = {
-	Bag = "DailyBoosts/BagButton",
-	Daily = "DailyBoosts/DailyRewardButton",
+	Daily = "HudChrome/TopRight/Daily",
+	Quests = "HudChrome/TopRight/Quests",
 	Status = "DailyBoosts/Status",
 	Panel = "DailyBoosts/ModalBackdrop",
 	Title = "DailyBoosts/ModalBackdrop/Modal/Title",
 	Close = "DailyBoosts/ModalBackdrop/Modal/Close",
 	Content = "DailyBoosts/ModalBackdrop/Modal/Content",
-	BagTitle = "BAG", -- the Bag view's title contains it; the Daily view's contains DailyTitle
+	QuestTabs = "DailyBoosts/ModalBackdrop/Modal/QuestTabs",
+	QuestDetail = "DailyBoosts/ModalBackdrop/Modal/QuestDetail",
 	DailyTitle = "DAILY REWARDS",
-	-- DailyRewardButton: [claimed today = DailyLast is today's UTC day]; the timer is the time to the next UTC day
-	DailyText = { [false] = "DAILY REWARDS  •  CLAIM", [true] = "NEXT DAILY  %02d:%02d:%02d" },
+	QuestTitle = "QUESTS",
+	DailyText = { [false] = "Daily", [true] = "%d:%02d:%02d" },
 	TimerTolerance = 2, -- s between the shown timer and 86400 - os.time() % 86400
-	UseText = "USE", -- a potion that can be used now; an active one shows ActiveText + its remaining time
-	ActiveText = "ACTIVE",
-	CountText = "x%d", -- in the row's Label, next to BoostConfig's item Name
 	DayRow = "Day%d", -- one TextLabel per DailyLoginConfig.Rewards entry, text "DAY <n>", "✓" up to DailyStreak
 	DayText = "DAY %d",
 	DoneMark = "✓",
 	ClaimText = { [false] = "CLAIM DAY %d", [true] = "CLAIMED TODAY" }, -- [claimed today]; %d = min(streak + 1, 7)
-	FixtureBoost = "LuckI", -- the BoostConfig item the bag_* fixtures give
+	PhoneMaxHeight = 500,
+	FixtureBoost = "LuckI", -- retained for the shared click snapshot helper; Backpack owns potion presentation
 }
 table.insert(CLOSED, "DailyBoosts/ModalBackdrop")
 for _, item in
 	{
-		{ Id = "bag_potion", What = "Boost_<FixtureBoost> = 1, BoostUntil_<FixtureBoost> = 0: one usable potion." },
-		{
-			Id = "bag_potion_active",
-			What = "Boost_<FixtureBoost> = 1, BoostUntil_<FixtureBoost> = os.time() + 60: the row shows ACTIVE, disabled.",
-		},
 		{ Id = "daily_unclaimed", What = "DailyLast = -1: today's reward can be claimed (the modal may auto-open)." },
 		{ Id = "daily_claimed", What = "DailyLast = today's UTC day: CLAIMED TODAY, the button counts down." },
 	}
 do
-	item.When = "before the bag_* / daily_* click that names it, after 'snapshot'; restore puts the attributes back"
+	item.When = "before the daily_* click that names it, after 'snapshot'; restore puts the attributes back"
 	table.insert(UiSpec.ServerSetup, item)
 end
 local DAILY = "DailyBoosts/ModalBackdrop"
-local function dailyClick(click)
-	click.Gui = "DailyBoosts"
-	table.insert(UiSpec.Clicks, click)
-end
--- Run these in THIS order: the Content buttons only exist after the click that renders their view.
-dailyClick({
-	Id = "open_bag",
-	Path = "BagButton",
+table.insert(UiSpec.Clicks, {
+	Id = "open_backpack",
+	Gui = "HudChrome",
+	Path = "ItemsSlot/Items",
 	Prepare = { Closed = CLOSED, Showcase = false },
-	NeedSetup = { "bag_potion", "spy", "progression_spy" },
-	Expect = { Panels = { [DAILY] = true }, Remote = false, After = { "bag_shows_server_inventory" } },
+	NeedSetup = { "spy" },
+	Expect = { Panels = { ["RacerBackpack/Panel"] = true }, Remote = false },
 })
-dailyClick({
-	Id = "bag_use",
-	Path = "ModalBackdrop/Modal/Content/{boost}/Use",
-	Prepare = { Open = { DAILY }, Showcase = false, Intercept = "UseBoost", TargetActive = true },
-	NeedSetup = { "bag_potion", "spy", "progression_spy" },
-	Expect = {
-		Remote = { Name = "UseBoost", Args = { "{boost}" } },
-		After = { "boost_not_optimistic", "bag_shows_server_inventory" },
-	},
+table.insert(UiSpec.Clicks, {
+	Id = "close_backpack",
+	Gui = "RacerBackpack",
+	Path = "Panel/Header/Close",
+	Prepare = only("RacerBackpack/Panel"),
+	Expect = { Panels = { ["RacerBackpack/Panel"] = false }, Remote = false },
 })
-dailyClick({
-	-- Re-renders the Bag with the fixture's active potion (a second BAG click leaves the modal open)
-	Id = "open_bag_again",
-	Path = "BagButton",
-	Prepare = { Open = { DAILY }, Showcase = false },
-	NeedSetup = { "bag_potion_active", "spy", "progression_spy" },
-	Expect = { Panels = { [DAILY] = true }, Remote = false, After = { "bag_shows_server_inventory" } },
-})
-dailyClick({
-	Id = "bag_use_active_fires_nothing",
-	Path = "ModalBackdrop/Modal/Content/{boost}/Use",
-	Prepare = { Open = { DAILY }, Showcase = false, Intercept = "UseBoost", TargetActive = false },
-	NeedSetup = { "bag_potion_active", "spy", "progression_spy" },
-	Expect = { Remote = false, After = { "boost_not_optimistic" } },
-})
-dailyClick({
+for _, tab in { "Misc", "Trails", "Auras" } do
+	table.insert(UiSpec.Clicks, {
+		Id = "backpack_" .. string.lower(tab),
+		Gui = "RacerBackpack",
+		Path = "Panel/Tabs/" .. tab .. "Tab",
+		Prepare = only("RacerBackpack/Panel"),
+		Expect = { Panels = { ["RacerBackpack/Panel"] = true }, Remote = false },
+	})
+end
+table.insert(UiSpec.Clicks, {
 	Id = "close_daily_modal",
+	Gui = "DailyBoosts",
 	Path = "ModalBackdrop/Modal/Close",
 	Prepare = { Open = { DAILY }, Showcase = false },
 	NeedSetup = { "spy" },
 	Expect = { Panels = { [DAILY] = false }, Remote = false },
 })
-dailyClick({
+table.insert(UiSpec.Clicks, {
 	Id = "open_daily",
-	Path = "DailyRewardButton",
+	Gui = "HudChrome",
+	Path = "TopRight/Daily",
 	Prepare = { Closed = CLOSED, Showcase = false },
 	NeedSetup = { "daily_unclaimed", "spy", "progression_spy" },
-	Expect = { Panels = { [DAILY] = true }, Remote = false, After = { "daily_shows_server_streak" } },
+	Expect = { Panels = { [DAILY] = true }, Remote = false, After = { "daily_rewards_view" } },
 })
-dailyClick({
+table.insert(UiSpec.Clicks, {
 	Id = "daily_claim",
+	Gui = "DailyBoosts",
 	Path = "ModalBackdrop/Modal/Content/Claim",
 	Prepare = { Open = { DAILY }, Showcase = false, Intercept = "DailyClaim", TargetActive = true },
 	NeedSetup = { "daily_unclaimed", "spy", "progression_spy" },
 	Expect = {
 		Remote = { Name = "DailyClaim", Arg = "none" },
-		After = { "daily_not_optimistic", "daily_shows_server_streak" },
+		After = { "daily_not_optimistic", "daily_rewards_view" },
 	},
 })
-dailyClick({
-	-- Re-renders the Daily view once the server says today is claimed
+table.insert(UiSpec.Clicks, {
 	Id = "open_daily_claimed",
-	Path = "DailyRewardButton",
+	Gui = "HudChrome",
+	Path = "TopRight/Daily",
 	Prepare = { Open = { DAILY }, Showcase = false },
 	NeedSetup = { "daily_claimed", "spy", "progression_spy" },
-	Expect = { Panels = { [DAILY] = true }, Remote = false, After = { "daily_shows_server_streak" } },
+	Expect = { Panels = { [DAILY] = true }, Remote = false, After = { "daily_rewards_view" } },
 })
-dailyClick({
+table.insert(UiSpec.Clicks, {
 	Id = "daily_claim_claimed_fires_nothing",
+	Gui = "DailyBoosts",
 	Path = "ModalBackdrop/Modal/Content/Claim",
 	Prepare = { Open = { DAILY }, Showcase = false, Intercept = "DailyClaim", TargetActive = false },
 	NeedSetup = { "daily_claimed", "spy", "progression_spy" },
 	Expect = { Remote = false, After = { "daily_not_optimistic" } },
+})
+table.insert(UiSpec.Clicks, {
+	Id = "open_quests",
+	Gui = "HudChrome",
+	Path = "TopRight/Quests",
+	Prepare = { Closed = CLOSED, Showcase = false },
+	NeedSetup = { "spy" },
+	Expect = { Panels = { [DAILY] = true }, Remote = false, After = { "quests_daily_view" } },
+})
+for _, category in { "Weekly", "Daily" } do
+	table.insert(UiSpec.Clicks, {
+		Id = "quests_" .. string.lower(category) .. "_tab",
+		Gui = "DailyBoosts",
+		Path = "ModalBackdrop/Modal/QuestTabs/" .. category,
+		Prepare = { Open = { DAILY }, Showcase = false },
+		NeedSetup = { "spy" },
+		Expect = {
+			Panels = { [DAILY] = true },
+			Remote = false,
+			After = { "quests_" .. string.lower(category) .. "_view" },
+		},
+	})
+end
+table.insert(UiSpec.Clicks, {
+	Id = "select_daily_quest",
+	Gui = "DailyBoosts",
+	Path = "ModalBackdrop/Modal/Content/daily_races",
+	Prepare = { Open = { DAILY }, Showcase = false },
+	NeedSetup = { "spy" },
+	Expect = { Panels = { [DAILY] = true }, Remote = false, After = { "quest_detail_selected" } },
+})
+table.insert(UiSpec.Clicks, {
+	Id = "quest_claim_disabled_fires_nothing",
+	Gui = "DailyBoosts",
+	Path = "ModalBackdrop/Modal/Content/daily_races/Claim",
+	Prepare = { Open = { DAILY }, Showcase = false, Intercept = "QuestClaim", TargetActive = false },
+	NeedSetup = { "spy" },
+	Expect = { Panels = { [DAILY] = true }, Remote = false },
 })
 
 ---------------------------------------------------------------------------------------------------------------
@@ -2117,16 +2548,16 @@ duelClick({
 -- Mutually exclusive through the real buttons: a HUD panel button stays reachable over a duel panel and closes it
 duelClick({
 	Id = "open_index_while_duel_pick_open",
-	Gui = "RacerHud",
-	Path = "Navigation/Index/Face",
+	Gui = "HudChrome",
+	Path = "Grid/Index",
 	Prepare = only("DuelUi/PickPanel"),
 	NeedSetup = { "spy" },
 	Expect = { Panels = { ["RacerIndex/Panel"] = true, ["DuelUi/PickPanel"] = false }, Remote = false },
 })
 duelClick({
 	Id = "open_settings_while_duel_invite_open",
-	Gui = "RacerHud",
-	Path = "Settings/Face",
+	Gui = "HudChrome",
+	Path = "TopRight/Settings",
 	Prepare = only("DuelUi/InvitePanel"),
 	NeedSetup = { "spy" },
 	Expect = { Panels = { ["RacerSettings/Panel"] = true, ["DuelUi/InvitePanel"] = false }, Remote = false },

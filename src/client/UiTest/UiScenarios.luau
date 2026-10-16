@@ -25,12 +25,14 @@ local UiResponsive = require(script.Parent:WaitForChild("UiResponsive"))
 local UiLegacyControls = require(script.Parent:WaitForChild("UiLegacyControls"))
 local UiDuel = require(script.Parent:WaitForChild("UiDuel"))
 local UiBoostsRebirth = require(script.Parent:WaitForChild("UiBoostsRebirth"))
+local UiShopMarket = require(script.Parent:WaitForChild("UiShopMarket"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local HudFormat = require(Shared:WaitForChild("HudFormat"))
 local CarCatalog = require(Shared:WaitForChild("CarCatalog"))
 local GachaConfig = require(Shared:WaitForChild("GachaConfig"))
 local NpcConfig = require(Shared:WaitForChild("NpcConfig"))
 local WeatherConfig = require(Shared:WaitForChild("WeatherConfig"))
+local QuestConfig = require(Shared:WaitForChild("QuestConfig"))
 local TrackBuilder = require(Shared:WaitForChild("TrackBuilder"))
 local LeaderboardConfig = require(Shared:WaitForChild("LeaderboardConfig"))
 local PassCarConfig = require(Shared:WaitForChild("PassCarConfig"))
@@ -94,9 +96,11 @@ UiScenarios.Names = {
 	"ui_layout",
 	"ui_hitboxes",
 	"ui_buttons",
+	"ui_motion",
 	"ui_hud",
 	"ui_index",
 	"ui_stats",
+	"ui_settings_profile",
 	"ui_toast",
 	"ui_rolls",
 	"ui_roll_anim",
@@ -110,6 +114,8 @@ UiScenarios.Names = {
 	"ui_progression_hud",
 	"ui_rebirth",
 	"ui_daily_boosts",
+	"ui_shop",
+	"ui_market",
 	-- At rest here (no duel message yet); after each duel_* server fixture it runs again through
 	-- UiSpec.Duel.FixtureChecks (UiTestScenario) and judges that message.
 	"ui_duel",
@@ -130,6 +136,9 @@ local STATES = {
 	{ Name = "upgrades_open", Open = { "RacerUpgrades/Panel" } },
 	{ Name = "workshop_open", Open = { "RacerWorkshop/Panel" } },
 	{ Name = "welcome_open", Open = { "RacerWelcome/Panel" } },
+	{ Name = "backpack_open", Open = { "RacerBackpack/Panel" } },
+	{ Name = "shop_open", Open = { "ShopUi/Backdrop" } },
+	{ Name = "market_open", Open = { "MarketUi/Backdrop" } },
 	{ Name = "daily_boosts_open", Open = { "DailyBoosts/ModalBackdrop" } },
 	{ Name = "duel_pick_open", Open = { "DuelUi/PickPanel" } },
 	{ Name = "duel_invite_open", Open = { "DuelUi/InvitePanel" } },
@@ -196,7 +205,36 @@ end
 ---------------------------------------------------------------------------------------------------------------
 -- Instances
 
+-- "**" (UiSpec: any number of child names) searches depth-first; the first match wins (names are unique there).
+local function findFrom(node, parts, i)
+	if i > #parts then
+		return node
+	end
+	if parts[i] == "**" then
+		local found = findFrom(node, parts, i + 1)
+		if found then
+			return found
+		end
+		for _, child in node:GetChildren() do
+			found = findFrom(child, parts, i)
+			if found then
+				return found
+			end
+		end
+		return nil
+	end
+	local child = node:FindFirstChild(parts[i])
+	return child and findFrom(child, parts, i + 1)
+end
+
 local function findPath(path)
+	if string.find(path, "**", 1, true) then
+		local parts = {}
+		for part in string.gmatch(path, "[^/]+") do
+			table.insert(parts, part)
+		end
+		return findFrom(playerGui, parts, 1)
+	end
 	local node = playerGui
 	for part in string.gmatch(path, "[^/]+") do
 		if not node then
@@ -226,18 +264,31 @@ local function splitPath(path)
 end
 
 -- "Panel/Grid/*/Equip" matches "Panel/Grid/go_kart/Equip"; "{token}" segments in click paths count as "*".
-local function pathMatches(pattern, path)
-	local a, b = splitPath(pattern), splitPath(path)
-	if #a ~= #b then
+-- "**" matches any number of segments (zero or more).
+local function matchFrom(a, i, b, j)
+	if i > #a then
+		return j > #b
+	end
+	local seg = a[i]
+	if seg == "**" then
+		for k = j, #b + 1 do
+			if matchFrom(a, i + 1, b, k) then
+				return true
+			end
+		end
 		return false
 	end
-	for i = 1, #a do
-		local seg = a[i]
-		if seg ~= "*" and not string.match(seg, "^{.*}$") and seg ~= b[i] then
-			return false
-		end
+	if j > #b then
+		return false
 	end
-	return true
+	if seg ~= "*" and not string.match(seg, "^{.*}$") and seg ~= b[j] then
+		return false
+	end
+	return matchFrom(a, i + 1, b, j + 1)
+end
+
+local function pathMatches(pattern, path)
+	return matchFrom(splitPath(pattern), 1, splitPath(path), 1)
 end
 
 local function guiOf(obj)
@@ -340,22 +391,73 @@ local function frames(n)
 	end
 end
 
--- Forces exactly the panels in `open` visible (all other declared panels hidden). Returns a restore function.
+local function panelSwitch()
+	local module = script.Parent.Parent:FindFirstChild(UiSpec.PanelSwitch.Module)
+	if not (module and module:IsA("ModuleScript")) then
+		return nil
+	end
+	local ok, switch = pcall(require, module)
+	return ok and switch or nil
+end
+
+local function applyPanelState(open)
+	local switch = panelSwitch()
+	for _, path in allPanels() do
+		local object = findPath(path)
+		local name = UiSpec.PanelSwitch.Names[path]
+		if object and object:IsA("GuiObject") then
+			if switch and name and type(switch.Close) == "function" then
+				switch.Close(name)
+			else
+				object.Visible = false
+			end
+		end
+	end
+	for _, path in open do
+		local object = findPath(path)
+		local name = UiSpec.PanelSwitch.Names[path]
+		if object and object:IsA("GuiObject") then
+			if switch and name and type(switch.Toggle) == "function" and not object.Visible then
+				switch.Toggle(name)
+			elseif not (switch and name) then
+				object.Visible = true
+			end
+		end
+	end
+end
+
+-- Forces exactly the panels in `open` through PanelSwitch. Directly assigning
+-- Visible=true is intentionally rejected by PanelSwitch for unrequested shows.
 local function setPanels(open)
-	local saved = {}
+	local savedOpen = {}
 	for _, p in allPanels() do
 		local o = findPath(p)
-		if o then
-			saved[o] = o.Visible
-			o.Visible = table.find(open, p) ~= nil
+		if o and o.Visible then
+			table.insert(savedOpen, p)
 		end
 	end
+	applyPanelState(open)
 	frames(2)
 	return function()
-		for o, v in saved do
-			o.Visible = v
+		applyPanelState(savedOpen)
+		frames(1)
+	end
+end
+
+local function preparePanels(prep)
+	local wanted = {}
+	for _, path in allPanels() do
+		local object = findPath(path)
+		if object and object.Visible and not table.find(prep.Closed or {}, path) then
+			table.insert(wanted, path)
 		end
 	end
+	for _, path in prep.Open or {} do
+		if not table.find(wanted, path) then
+			table.insert(wanted, path)
+		end
+	end
+	return setPanels(wanted)
 end
 
 -- The part of a declared panel that is the panel for geometry: the panel itself, or its UiSpec.PanelBody child when
@@ -823,12 +925,21 @@ simRect = function(obj, ctx)
 				or path == "RacerWelcome/Panel"
 			local isRate = path == "RacerProgression/WorkshopRate"
 			local isRacerPanel = UiResponsive.IsRacerPanel(path)
+			local bandMax = UiSpec.BandPanels[path] -- Client/PanelBand.Fit panels (Shop, Market)
 			local wanted = {}
-			if isProgressionPanel then
+			if bandMax then
+				wanted = {
+					Race = UiSpec.Band.Race,
+					Turbo = UiSpec.Band.Turbo,
+					Navigation = UiSpec.Band.Grid,
+					ShopColumn = UiSpec.Band.ShopColumn,
+					Money = UiSpec.Band.Money,
+				}
+			elseif isProgressionPanel then
 				wanted = {
 					Toast = "RollToast/Toast",
 					Turbo = UiSpec.Hud.Turbo,
-					UpgradeButton = "RacerProgression/UpgradeButton",
+					UpgradeButton = "HudChrome/UpgradeSlot/Upgrade",
 					Navigation = UiSpec.RacerPanelBand.Navigation,
 				}
 			elseif isRate then
@@ -860,6 +971,10 @@ simRect = function(obj, ctx)
 			local fitted = nil
 			if missing then
 				ctx.unsupported[path] = "missing runtime layout dependency"
+			elseif bandMax then
+				local money = findPath(UiSpec.Band.Money)
+				dependencies.MoneyShown = money ~= nil and money:IsA("GuiObject") and money.Visible
+				fitted = UiShopMarket.BandFit(ctx.vp, dependencies, bandMax)
 			elseif isRacerPanel then
 				local size = variantProps(obj, ctx)
 				fitted = UiResponsive.RacerPanelFit(ctx.vp, dependencies, size)
@@ -2325,6 +2440,71 @@ function S.ui_legacy_controls_resize(res)
 	legacyObserver.Run(res, true)
 end
 
+function S.ui_motion(res)
+	waitGuis()
+	local cfg = UiSpec.Motion
+	local sound = findPath(cfg.Sound)
+	check(
+		res,
+		"hud_press_sound_present",
+		sound and sound.ClassName or "missing",
+		"Sound",
+		sound ~= nil and sound:IsA("Sound")
+	)
+	if sound and sound:IsA("Sound") then
+		check(res, "hud_press_sound_id", sound.SoundId, cfg.SoundId, sound.SoundId == cfg.SoundId)
+		check(
+			res,
+			"hud_press_sound_pop_pitch",
+			sound.PlaybackSpeed,
+			cfg.PlaybackSpeed,
+			math.abs(sound.PlaybackSpeed - cfg.PlaybackSpeed) <= 0.01
+		)
+		check(res, "hud_press_sound_audible", sound.Volume, cfg.Volume, math.abs(sound.Volume - cfg.Volume) <= 0.01)
+	end
+
+	-- Render current dynamic quest rows so their RacerHover contract is covered.
+	local switch = panelSwitch()
+	local restore = setPanels({})
+	if switch and type(switch.Action) == "function" then
+		switch.Action("Quests")
+		frames(2)
+		if type(switch.Toggle) == "function" then
+			switch.Toggle("Backpack")
+			frames(2)
+		end
+	end
+	local missing = {}
+	local targets = {}
+	for _, descendant in playerGui:GetDescendants() do
+		local eligible = descendant:IsA("GuiButton") and descendant.Name ~= "Backdrop" and descendant.Name ~= "Toast"
+			or descendant:IsA("Frame")
+				and (descendant:GetAttribute("CarId") ~= nil or descendant:GetAttribute("RacerHover") == true)
+		if eligible then
+			table.insert(targets, descendant)
+		end
+	end
+	for _, target in targets do
+		local scale = target:FindFirstChild(cfg.Scale)
+		local stroke = target:FindFirstChild(cfg.Highlight)
+		if not (scale and scale:IsA("UIScale")) then
+			table.insert(missing, pathOf(target) .. ": no " .. cfg.Scale)
+		end
+		if not (stroke and stroke:IsA("UIStroke")) then
+			table.insert(missing, pathOf(target) .. ": no " .. cfg.Highlight)
+		elseif
+			(stroke.Color - cfg.HighlightColour).Magnitude > 0.01
+			or math.abs(stroke.Thickness - cfg.HighlightThickness) > 0.01
+			or stroke.ApplyStrokeMode ~= Enum.ApplyStrokeMode.Border
+		then
+			table.insert(missing, pathOf(target) .. ": highlight is not white 3px border")
+		end
+	end
+	check(res, "motion_targets_found", #targets, "> 0", #targets > 0)
+	checkList(res, "buttons_and_hover_rows_have_shared_motion", missing)
+	restore()
+end
+
 -- The client must be rendering for any geometry or label check to mean anything: count RenderStepped frames
 -- during 1 s of Heartbeat time.
 function S.ui_client_rendering(res)
@@ -2422,7 +2602,9 @@ function S.ui_inventory(res)
 	local missing = {}
 	for _, guiName in declaredGuis() do
 		for _, spec in UiSpec.Guis[guiName].Buttons or {} do
-			if spec.Count == "stats" then
+			-- Dynamic controls with no guaranteed inventory entry are exercised
+			-- structurally by the named scenario instead of inventing fixture state.
+			if not spec.ClickCoverage and spec.Count == "stats" then
 				for _, stat in GachaConfig.STATS do
 					local path = string.gsub(spec.Path, "%*", stat)
 					local found = false
@@ -2433,7 +2615,7 @@ function S.ui_inventory(res)
 						table.insert(missing, guiName .. "/" .. path)
 					end
 				end
-			else
+			elseif not spec.ClickCoverage then
 				local found = false
 				for _, c in UiSpec.Clicks do
 					found = found or (c.Gui == guiName and pathMatches(spec.Path, c.Path))
@@ -3140,7 +3322,8 @@ function S.ui_buttons(res)
 	else
 		check(res, "autorace_label_matches_server", "missing", "present", false)
 	end
-	for _, item in { { UiSpec.Hud.NavButtons[1], "INDEX" }, { UiSpec.Hud.NavButtons[2], "STATS" } } do
+	for index, path in UiSpec.Hud.NavButtons do
+		local item = { path, UiSpec.Hud.NavLabels[index] }
 		local b = findPath(item[1])
 		local text = b and allText(b) or "missing"
 		check(res, "label_" .. item[1], text, item[2], text == item[2])
@@ -3489,6 +3672,17 @@ function S.ui_stats(res)
 	end
 
 	local restore = setPanels({ "RacerStats/Panel" })
+	local misplacedProfile = findPath("RacerStats/Panel/Face/PlayerProfile")
+	local misplacedTabs = findPath("RacerStats/Panel/Face/Header/Face/CategoryTabs")
+	check(
+		res,
+		"stats_is_allocation_only",
+		misplacedProfile and pathOf(misplacedProfile)
+			or misplacedTabs and pathOf(misplacedTabs)
+			or "allocation rows only",
+		"allocation rows only",
+		misplacedProfile == nil and misplacedTabs == nil
+	)
 	local pts = findPath("RacerStats/Panel/Face/Header/Face/Points")
 	check(res, "points_label_matches_server", pts and pts.Text, points, pts ~= nil and hasNumber(pts.Text, points))
 
@@ -3546,6 +3740,135 @@ function S.ui_stats(res)
 	restore()
 end
 
+local function profileValue(rowName)
+	local row = findPath(UiSpec.Settings.ProfileHost .. "/" .. rowName)
+	local value = row and row:FindFirstChild("Value")
+	return value and value:IsA("TextLabel") and value.Text or nil
+end
+
+local function bestOwnedCar()
+	local best = nil
+	for _, car in CarCatalog.All() do
+		if owned(car.Id) and (best == nil or (car.Chance or 0) > (best.Chance or 0)) then
+			best = car
+		end
+	end
+	return best
+end
+
+function S.ui_settings_profile(res)
+	waitGuis()
+	local panel = findPath("RacerSettings/Panel")
+	local settingsTab = findPath(UiSpec.Settings.SettingsTab)
+	local profileTab = findPath(UiSpec.Settings.ProfileTab)
+	local profileHost = findPath(UiSpec.Settings.ProfileHost)
+	check(res, "settings_panel_present", panel ~= nil, true, panel ~= nil)
+	check(
+		res,
+		"settings_category_tabs_present",
+		settingsTab ~= nil and profileTab ~= nil,
+		true,
+		settingsTab ~= nil and settingsTab:IsA("GuiButton") and profileTab ~= nil and profileTab:IsA("GuiButton")
+	)
+	check(
+		res,
+		"settings_tab_text",
+		settingsTab and allText(settingsTab),
+		"SETTINGS",
+		settingsTab ~= nil and allText(settingsTab) == "SETTINGS"
+	)
+	check(
+		res,
+		"player_profile_tab_text",
+		profileTab and allText(profileTab),
+		"PLAYER PROFILE",
+		profileTab ~= nil and allText(profileTab) == "PLAYER PROFILE"
+	)
+	check(
+		res,
+		"player_profile_present",
+		profileHost ~= nil and profileHost:IsA("ScrollingFrame"),
+		true,
+		profileHost ~= nil and profileHost:IsA("ScrollingFrame")
+	)
+	if not (panel and settingsTab and profileTab and profileHost) then
+		return
+	end
+
+	local restore = setPanels({ "RacerSettings/Panel" })
+	local settingsGui = findPath("RacerSettings")
+	local category = settingsGui and settingsGui:GetAttribute(UiSpec.Settings.CategoryAttribute)
+	check(
+		res,
+		"settings_category_is_default",
+		category,
+		UiSpec.Settings.Categories.Settings,
+		category == UiSpec.Settings.Categories.Settings
+	)
+	check(
+		res,
+		"profile_hidden_in_settings_category",
+		effectivelyVisible(profileHost),
+		false,
+		not effectivelyVisible(profileHost)
+	)
+	for _, path in
+		{
+			"RacerSettings/Panel/Face/SoundRow",
+			"RacerSettings/Panel/Face/EffectsRow",
+			"RacerSettings/Panel/Face/AutoRow",
+		}
+	do
+		local row = findPath(path)
+		check(
+			res,
+			"settings_control_visible_" .. string.lower(row and row.Name or path),
+			row and effectivelyVisible(row),
+			true,
+			row ~= nil and effectivelyVisible(row)
+		)
+	end
+
+	local profileMissing = {}
+	for _, rowName in UiSpec.Settings.ProfileRows do
+		local row = findPath(UiSpec.Settings.ProfileHost .. "/" .. rowName)
+		if not (row and row:FindFirstChild("Name") and row:FindFirstChild("Value")) then
+			table.insert(profileMissing, rowName)
+		end
+	end
+	checkList(res, "profile_rows_present", profileMissing)
+
+	local data = player:FindFirstChild("GachaData")
+	local leaderstats = player:FindFirstChild("leaderstats")
+	local speedValue = leaderstats and leaderstats:FindFirstChild("Speed")
+	local allocation = {}
+	for _, stat in GachaConfig.STATS do
+		allocation[stat] = attr("Alloc_" .. stat) or 0
+	end
+	local best = bestOwnedCar()
+	local expected = {
+		TotalRolls = HudFormat.SpeedText(attr("Rolls") or 0),
+		BestRoll = HudFormat.Odds(best and best.Chance),
+		CarsDiscovered = HudFormat.SpeedText(data and #data:GetChildren() or 0),
+		Level = HudFormat.SpeedText(attr("Level") or 1),
+		Speed = HudFormat.SpeedText(speedValue and speedValue.Value or 0),
+		Luck = string.format("x%.2f · %d pts", GachaConfig.Multis(allocation).Luck, allocation.Luck),
+	}
+	local mismatches = {}
+	for rowName, want in expected do
+		local got = profileValue(rowName)
+		if got ~= want then
+			table.insert(mismatches, ("%s=%q want %q"):format(rowName, got or "nil", want))
+		end
+	end
+	local session = profileValue("SessionTime")
+	if not (session and (string.match(session, "^%d+m %d%ds$") or string.match(session, "^%d+h %d%dm$"))) then
+		table.insert(mismatches, ("SessionTime=%q"):format(session or "nil"))
+	end
+	checkList(res, "profile_values_match_player", mismatches)
+	restore()
+end
+
 -- The compact roll card RollToast/Toast (docs/ROLL_ANIMATION_CONTRACT.md; it replaced the bottom-centre toast): a
 -- TextButton with no text of its own, shown while a roll plays and clickable only then (Visible = false at rest:
 -- no invisible hitbox), hidden while any panel is open, landed on the roll's truth and placed exactly at its
@@ -3576,11 +3899,8 @@ function S.ui_toast(res)
 		return
 	end
 
-	-- Hidden while any panel is open (owner decision 2026-10-08, CLAUDE.md; supersedes ROLL_ANIMATION_CONTRACT
-	-- decision 6): while a roll plays, opening each panel through Client/PanelSwitch (what the HUD buttons use) hides
-	-- the compact roll at once and for as long as the panel is open; closing it while the roll still plays shows it
-	-- again. The roll itself keeps playing hidden (same phases, not restarted), and a roll that arrives while a panel is
-	-- open is not shown. (Enlarging hides it too: the showcase clicks check that.)
+	-- The compact roll remains visible while a panel is open: HUD buttons and the roll
+	-- stay available as background UI. The roll keeps playing and is not restarted.
 	local switchModule = script.Parent.Parent:FindFirstChild(UiSpec.PanelSwitch.Module)
 	local Switch = nil
 	if switchModule and switchModule:IsA("ModuleScript") then
@@ -3623,15 +3943,15 @@ function S.ui_toast(res)
 			until os.clock() > untilT or toast:GetAttribute("Phase") == "Hold"
 			check(
 				res,
-				"toast_hidden_while_" .. p .. "_open",
+				"toast_visible_while_" .. p .. "_open",
 				("panel opened=%s, shown before=%s, %d of %d frames shown"):format(
 					tostring(opened),
 					tostring(shownBefore),
 					shownFrames,
 					samples
 				),
-				"panel opened=true, shown before=true, 0 frames shown",
-				opened and shownBefore and shownFrames == 0
+				"panel opened=true, shown before=true, all sampled frames shown",
+				opened and shownBefore and shownFrames == samples
 			)
 			setPanel(p, false)
 			frames(2)
@@ -3665,7 +3985,7 @@ function S.ui_toast(res)
 				type(serial0) == "number" and serial1 == serial0 and hold.rollId == ev0.id
 			)
 		else
-			stateMissing(res, "toast_hidden_while_" .. p .. "_open", "auto_racing", "no Remotes.RollResult")
+			stateMissing(res, "toast_visible_while_" .. p .. "_open", "auto_racing", "no Remotes.RollResult")
 		end
 		setPanel(p, true)
 		if waitNewRoll(UiSpec.Waits.RollToast) then
@@ -3675,13 +3995,13 @@ function S.ui_toast(res)
 			local shown = effectivelyVisible(toast)
 			check(
 				res,
-				"toast_hidden_on_roll_while_" .. p .. "_open",
+				"toast_visible_on_roll_while_" .. p .. "_open",
 				("Phase %s, shown=%s"):format(tostring(phaseNow), tostring(shown)),
-				"roll playing (not Idle), shown=false",
-				phaseNow ~= nil and phaseNow ~= "Idle" and not shown
+				"roll playing (not Idle), shown=true",
+				phaseNow ~= nil and phaseNow ~= "Idle" and shown
 			)
 		else
-			stateMissing(res, "toast_hidden_on_roll_while_" .. p .. "_open", "auto_racing", "no Remotes.RollResult")
+			stateMissing(res, "toast_visible_on_roll_while_" .. p .. "_open", "auto_racing", "no Remotes.RollResult")
 		end
 		setPanel(p, false)
 		restorePanel()
@@ -4655,10 +4975,91 @@ function S.ui_panels(res)
 		end
 	end
 
+	-- Every PanelSwitch state uses the same four visual dimmers, while the
+	-- persistent controls underneath remain present and effectively visible.
+	setPanels({})
+	local dimmerDeadline = os.clock() + UiSpec.HiddenWhilePanelOpenWait
+	repeat
+		frames(1)
+		local allPresent = true
+		for _, path in UiSpec.PanelDimmers.Paths do
+			allPresent = allPresent and findPath(path) ~= nil
+		end
+		if allPresent then
+			break
+		end
+	until os.clock() >= dimmerDeadline
+	local dynamicPersistent = {}
+	for _, rootPath in UiSpec.PanelDimmers.DynamicPersistentRoots do
+		local root = findPath(rootPath)
+		if root then
+			for _, descendant in root:GetDescendants() do
+				if descendant:IsA("GuiButton") and effectivelyVisible(descendant) then
+					table.insert(dynamicPersistent, pathOf(descendant))
+				end
+			end
+		end
+	end
+	local persistentPaths = {}
+	for _, path in UiSpec.PanelDimmers.PersistentButtons do
+		table.insert(persistentPaths, path)
+	end
+	for _, path in dynamicPersistent do
+		table.insert(persistentPaths, path)
+	end
+	for _, path in UiSpec.PanelDimmers.Paths do
+		local dimmer = findPath(path)
+		check(
+			res,
+			"dimmer_present_at_rest_" .. path,
+			dimmer and dimmer.ClassName or "missing",
+			"Frame",
+			dimmer ~= nil and dimmer:IsA("Frame")
+		)
+		if dimmer and dimmer:IsA("GuiObject") then
+			check(res, "dimmer_hidden_at_rest_" .. path, dimmer.Visible, false, not dimmer.Visible)
+			check(
+				res,
+				"dimmer_non_interactive_" .. path,
+				dimmer.Active,
+				false,
+				not dimmer.Active and not dimmer.Selectable
+			)
+		end
+	end
+	for _, panelPath in registered do
+		setPanels({ panelPath })
+		frames(2)
+		for _, dimmerPath in UiSpec.PanelDimmers.Paths do
+			local dimmer = findPath(dimmerPath)
+			local transparency = dimmer and dimmer:IsA("GuiObject") and dimmer.BackgroundTransparency or nil
+			local inRange = type(transparency) == "number"
+				and transparency >= UiSpec.PanelDimmers.Transparency.Min
+				and transparency <= UiSpec.PanelDimmers.Transparency.Max
+			check(
+				res,
+				"dimmer_visible_" .. dimmerPath .. "_while_" .. panelPath,
+				dimmer and effectivelyVisible(dimmer),
+				true,
+				dimmer ~= nil and dimmer.Visible and effectivelyVisible(dimmer) and inRange
+			)
+		end
+		for _, buttonPath in persistentPaths do
+			local button = findPath(buttonPath)
+			check(
+				res,
+				"persistent_button_visible_" .. buttonPath .. "_while_" .. panelPath,
+				button and effectivelyVisible(button),
+				true,
+				button ~= nil and button:IsA("GuiButton") and effectivelyVisible(button)
+			)
+		end
+	end
+
 	-- UiSpec.HiddenWhilePanelOpen: each declared element really is hidden while a panel that hides it is open (the
 	-- overlap lists leave it out then), and shown again once no panel is open. ProgressionUi polls every 0.25 s, so
 	-- each state is waited for (UiSpec.HiddenWhilePanelOpenWait). The compact roll is also checked during a playing
-	-- roll by ui_toast (toast_hidden_while_*_open), since between rolls it is hidden anyway.
+	-- roll by ui_toast, since the compact roll stays visible while panels are open.
 	local function waitFor(cond)
 		local deadline = os.clock() + UiSpec.HiddenWhilePanelOpenWait
 		repeat
@@ -4686,12 +5087,6 @@ function S.ui_panels(res)
 		local o = findPath(path)
 		shownAtRest[path] = o ~= nil and o:IsA("GuiObject") and effectivelyVisible(o)
 		check(res, "hidden_rule_element_present_" .. path, o ~= nil, true, o ~= nil and o:IsA("GuiObject"))
-	end
-	-- The upgrade entry stays visible at rest.
-	for _, path in { "RacerProgression/UpgradeButton" } do
-		if UiSpec.HiddenWhilePanelOpen[path] then
-			check(res, "shown_with_no_panel_open_" .. path, shownAtRest[path], true, shownAtRest[path] == true)
-		end
 	end
 	for _, panelPath in panels do
 		setPanels({ panelPath })
@@ -5047,7 +5442,65 @@ for name, fn in progressionChecks do
 	S[name] = fn
 end
 
--- Duel UI, Rebirth panel and Bag / Daily Rewards scenarios (their own modules, same helpers).
+local function copyChecksExcept(into, from, excluded)
+	for _, record in from.checks do
+		if not excluded[record.name] then
+			table.insert(into.checks, record)
+			if not record.pass then
+				into.pass = false
+			end
+		end
+	end
+end
+
+local progressionUpgrades = S.ui_upgrades
+S.ui_upgrades = function(res)
+	local legacy = newResult("ui_upgrades_current_entry")
+	progressionUpgrades(legacy)
+	copyChecksExcept(res, legacy, {
+		upgrade_badge_present = true,
+		upgrade_badge_visible_with_buyable = true,
+		upgrade_badge_server_count = true,
+	})
+	local badge = findPath(UiSpec.Progression.UpgradeBadge)
+	local count = player:GetAttribute("UpgradesBuyable") or 0
+	check(
+		res,
+		"upgrade_badge_present",
+		badge and badge.ClassName or "missing",
+		"TextLabel",
+		badge ~= nil and badge:IsA("TextLabel")
+	)
+	if badge and badge:IsA("TextLabel") then
+		check(res, "upgrade_badge_visible_with_buyable", badge.Visible, count > 0, badge.Visible == (count > 0))
+		if count > 0 then
+			check(res, "upgrade_badge_server_count", badge.Text, tostring(count), badge.Text == tostring(count))
+		end
+	end
+end
+
+local progressionHud = S.ui_progression_hud
+S.ui_progression_hud = function(res)
+	local legacy = newResult("ui_progression_hud_current_entry")
+	progressionHud(legacy)
+	copyChecksExcept(res, legacy, {
+		upgrade_button_width = true,
+		upgrade_button_height = true,
+		upgrade_button_top = true,
+		upgrade_button_right = true,
+		upgrade_button_present = true,
+	})
+	local entry = findPath(UiSpec.Progression.UpgradeEntry)
+	check(
+		res,
+		"upgrade_entry_present_in_hud_chrome",
+		entry and pathOf(entry) or "missing",
+		UiSpec.Progression.UpgradeEntry,
+		entry ~= nil and entry:IsA("GuiButton")
+	)
+end
+
+-- Duel UI and Rebirth panel scenarios (their own modules, same helpers).
 for name, fn in UiDuel.Build() do
 	S[name] = fn
 end
@@ -5068,6 +5521,113 @@ local extras = UiBoostsRebirth.Build({
 })
 for name, fn in extras.Scenarios do
 	S[name] = fn
+end
+-- Shop and Market (UiShopMarket): what they show, their geometry at every viewport, and the click post-conditions.
+local shopMarket = UiShopMarket.Build({
+	check = check,
+	checkList = checkList,
+	find = findPath,
+	visible = effectivelyVisible,
+	setPanels = setPanels,
+	player = player,
+	pathOf = pathOf,
+	render = renderFrame,
+	frames = frames,
+	provider = provider,
+	viewports = UiSpec.Viewports,
+	contains = contains,
+	intersects = intersects,
+	rstr = rstr,
+	realRect = realRect,
+	topAt = topAt,
+	allText = allText,
+})
+for name, fn in shopMarket.Scenarios do
+	S[name] = fn
+end
+
+-- BoostDailyUi now owns Daily Rewards plus a reference-driven Daily/Weekly
+-- quest browser; Backpack moved to RacerBackpack and its old Bag view is not a
+-- valid contract anymore.
+S.ui_daily_boosts = function(res)
+	waitGuis()
+	local cfg = UiSpec.DailyBoosts
+	for _, part in
+		{
+			{ cfg.Panel, "Frame" },
+			{ cfg.Title, "TextLabel" },
+			{ cfg.Close, "TextButton" },
+			{ cfg.Content, "ScrollingFrame" },
+			{ cfg.QuestTabs, "Frame" },
+			{ cfg.QuestDetail, "Frame" },
+		}
+	do
+		local object = findPath(part[1])
+		check(
+			res,
+			"daily_quests_part_" .. part[1],
+			object and object.ClassName or "missing",
+			part[2],
+			object ~= nil and object:IsA(part[2])
+		)
+	end
+
+	local restore = setPanels({})
+	local switch = panelSwitch()
+	if not (switch and type(switch.Action) == "function") then
+		check(res, "daily_quests_action_available", false, true, false)
+		restore()
+		return
+	end
+	switch.Action("Quests")
+	frames(2)
+	local title = findPath(cfg.Title)
+	local tabs = findPath(cfg.QuestTabs)
+	local detail = findPath(cfg.QuestDetail)
+	local content = findPath(cfg.Content)
+	check(res, "quest_title", title and title.Text, cfg.QuestTitle, title ~= nil and title.Text == cfg.QuestTitle)
+	check(res, "quest_tabs_visible", tabs and effectivelyVisible(tabs), true, tabs ~= nil and effectivelyVisible(tabs))
+	for _, category in { "Daily", "Weekly" } do
+		local tab = tabs and tabs:FindFirstChild(category)
+		check(
+			res,
+			"quest_tab_" .. string.lower(category),
+			tab and allText(tab) or "missing",
+			string.upper(category),
+			tab ~= nil and tab:IsA("GuiButton") and allText(tab) == string.upper(category)
+		)
+	end
+	local rows = {}
+	for _, quest in QuestConfig.Daily do
+		local row = content and content:FindFirstChild(quest.Id)
+		local claim = row and row:FindFirstChild("Claim")
+		if not (row and row:IsA("TextButton") and claim and claim:IsA("TextButton")) then
+			table.insert(rows, quest.Id .. ": missing TextButton row or Claim")
+		end
+	end
+	checkList(res, "daily_quest_rows_and_claims", rows)
+	if detail then
+		local interactive = {}
+		for _, descendant in detail:GetDescendants() do
+			if
+				descendant:IsA("GuiButton")
+				or descendant:IsA("TextBox")
+				or descendant:IsA("GuiObject") and descendant.Active
+			then
+				table.insert(interactive, pathOf(descendant))
+			end
+		end
+		checkList(res, "quest_detail_read_only", interactive)
+		local phone = workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize.Y <= cfg.PhoneMaxHeight
+		check(
+			res,
+			"quest_detail_phone_visibility",
+			effectivelyVisible(detail),
+			phone and false or true,
+			effectivelyVisible(detail) == not phone
+		)
+	end
+	restore()
 end
 
 -- The UiSpec.Clicks entries marked Manual (owner decision 2026-10-08), in order.
@@ -5144,7 +5704,7 @@ local function attrSnapshot()
 	for _, stat in GachaConfig.STATS do
 		snap["Alloc_" .. stat] = attr("Alloc_" .. stat) or 0
 	end
-	extras.Snapshot(snap) -- Speed, RebirthLevel, DailyLast, DailyStreak, the fixture potion's count and timer
+	extras.Snapshot(snap) -- shared progression/rebirth/daily attribute snapshot
 	return snap
 end
 
@@ -5214,23 +5774,7 @@ local function runKey(spec, res)
 		end
 	end
 
-	local saved = {}
-	for _, p in allPanels() do
-		local o = findPath(p)
-		if o then
-			saved[o] = o.Visible
-			if table.find(prep.Open or {}, p) then
-				o.Visible = true
-			elseif table.find(prep.Closed or {}, p) then
-				o.Visible = false
-			end
-		end
-	end
-	local function restore()
-		for o, v in saved do
-			o.Visible = v
-		end
-	end
+	local restore = preparePanels(prep)
 	frames(2)
 	if prep.WaitSeconds then
 		task.wait(prep.WaitSeconds)
@@ -5417,15 +5961,6 @@ function UiScenarios.RunClick(id)
 		tileId = equipped
 		path = string.gsub(path, "{equipped}", tileId)
 	end
-	local boostId = nil
-	if string.find(path, "{boost}", 1, true) then
-		boostId = extras.BoostToken()
-		if not boostId then
-			stateMissing(res, "target_row", "bag_potion", "the server says the Bag has no row for the fixture potion")
-			return res
-		end
-		path = string.gsub(path, "{boost}", boostId)
-	end
 	local rowStat = spec.Gui == "RacerStats" and splitPath(path)[5] or nil
 	local upgradeId = spec.Gui == "RacerUpgrades" and splitPath(path)[3] or nil
 	local button = findPath(spec.Gui .. "/" .. path)
@@ -5439,18 +5974,7 @@ function UiScenarios.RunClick(id)
 	end
 
 	-- Prepare panels and scroll
-	local saved = {}
-	for _, p in allPanels() do
-		local o = findPath(p)
-		if o then
-			saved[o] = o.Visible
-			if table.find(prep.Open or {}, p) then
-				o.Visible = true
-			elseif table.find(prep.Closed or {}, p) then
-				o.Visible = false
-			end
-		end
-	end
+	local restorePanels = preparePanels(prep)
 	local grid = upgradeId and findPath("RacerUpgrades/Panel/Canvas")
 		or findPath("RacerIndex/Panel/Face/GridHost/Gallery")
 	local savedCanvas = grid and grid.CanvasPosition
@@ -5467,13 +5991,37 @@ function UiScenarios.RunClick(id)
 		grid.CanvasPosition = Vector2.new(math.max(0, rel.X - 8), math.max(0, rel.Y - 8))
 		frames(2)
 	end
-	local function restore()
-		for o, v in saved do
-			o.Visible = v
+	-- Prepare.ScrollIntoView: the target's ScrollingFrame scrolled so the target is fully shown (put back after)
+	local scroller = prep.ScrollIntoView and button:FindFirstAncestorWhichIsA("ScrollingFrame") or nil
+	local savedScroll = scroller and scroller.CanvasPosition
+	if scroller then
+		local rel = button.AbsolutePosition - scroller.AbsolutePosition + scroller.CanvasPosition
+		scroller.CanvasPosition = Vector2.new(math.max(0, rel.X - 8), math.max(0, rel.Y - 8))
+		frames(2)
+	end
+	-- Prepare.SetText: typed / blanked texts (put back after)
+	local savedTexts = {}
+	for textPath, text in prep.SetText or {} do
+		local o = findPath(textPath)
+		if o and (o:IsA("TextBox") or o:IsA("TextLabel")) then
+			table.insert(savedTexts, { o, o.Text })
+			o.Text = text
+		else
+			check(res, "set_text_target_exists", textPath, "TextBox or TextLabel", false)
 		end
+	end
+	local function restore()
+		restorePanels()
 		if grid and savedCanvas then
 			grid.CanvasPosition = savedCanvas
 		end
+		if scroller and savedScroll then
+			scroller.CanvasPosition = savedScroll
+		end
+		for _, saved in savedTexts do
+			saved[1].Text = saved[2]
+		end
+		table.clear(savedTexts)
 		if probe then
 			probe:Destroy()
 			probe = nil
@@ -5491,6 +6039,28 @@ function UiScenarios.RunClick(id)
 				previous,
 				("%s shows %q, want %q"):format(pathOf(button), actual, prep.LabelIs)
 			)
+			return res
+		end
+	end
+	if prep.LabelHas ~= nil then
+		local actual = allText(button)
+		if not string.find(actual, prep.LabelHas, 1, true) then
+			stateMissing(
+				res,
+				"label_has_before_click",
+				previous,
+				("%s shows %q, want it to contain %q"):format(pathOf(button), actual, prep.LabelHas)
+			)
+			restore()
+			return res
+		end
+	end
+	for textPath, want in prep.TextIs or {} do
+		local o = findPath(textPath)
+		local actual = o and (o:IsA("TextLabel") or o:IsA("TextButton") or o:IsA("TextBox")) and o.Text or "missing"
+		if string.upper(actual) ~= string.upper(want) then
+			stateMissing(res, "text_before_click", previous, ("%s shows %q, want %q"):format(textPath, actual, want))
+			restore()
 			return res
 		end
 	end
@@ -5522,13 +6092,24 @@ function UiScenarios.RunClick(id)
 			and spec.Expect.Remote.Name
 		)
 	if guarded then
+		-- One name or a list (Market Action: MarketPurchase and MarketEquip); every one must be the logging proxy
 		local spyFolder = ReplicatedStorage:FindFirstChild("UiTestSpy")
-		local remote = ReplicatedStorage.Remotes:FindFirstChild(guarded)
-		local ready = spyFolder
-			and spyFolder:GetAttribute("ProgressionIntercepted") == true
-			and remote
-			and remote:GetAttribute("UiTestIntercepted") == true
-		check(res, "purchase_intercepted_before_click", ready, true, ready == true)
+		local ready = spyFolder ~= nil and spyFolder:GetAttribute("ProgressionIntercepted") == true
+		local missingProxy = {}
+		for _, name in (type(guarded) == "table" and guarded or { guarded }) do
+			local remote = ReplicatedStorage.Remotes:FindFirstChild(name)
+			if not (remote and remote:GetAttribute("UiTestIntercepted") == true) then
+				ready = false
+				table.insert(missingProxy, name)
+			end
+		end
+		check(
+			res,
+			"purchase_intercepted_before_click",
+			#missingProxy == 0 and ready or ("not intercepted: " .. table.concat(missingProxy, ", ")),
+			true,
+			ready == true
+		)
 		if not ready then
 			restore()
 			return res
@@ -5750,7 +6331,7 @@ function UiScenarios.RunClick(id)
 			-- The whole argument list, in order: exactly these values and no more
 			local wantArgs, shown = {}, {}
 			for i, v in expect.Remote.Args do
-				wantArgs[i] = v == "{boost}" and boostId or v
+				wantArgs[i] = v
 				shown[i] = tostring(wantArgs[i])
 			end
 			want = expect.Remote.Name .. "(" .. table.concat(shown, ", ") .. ")"
@@ -5818,6 +6399,94 @@ function UiScenarios.RunClick(id)
 			local want = attr("TopDownView") == true and "ON" or "OFF"
 			local actual = allText(button)
 			check(res, cond, actual, want, actual == want)
+		elseif cond == "settings_profile_category" then
+			local gui = findPath("RacerSettings")
+			local host = findPath(UiSpec.Settings.ProfileHost)
+			local controlsHidden = true
+			for _, rowPath in
+				{
+					"RacerSettings/Panel/Face/SoundRow",
+					"RacerSettings/Panel/Face/EffectsRow",
+					"RacerSettings/Panel/Face/AutoRow",
+				}
+			do
+				local row = findPath(rowPath)
+				controlsHidden = controlsHidden and row ~= nil and not effectivelyVisible(row)
+			end
+			local category = gui and gui:GetAttribute(UiSpec.Settings.CategoryAttribute)
+			check(
+				res,
+				cond,
+				("category=%s profile=%s controlsHidden=%s"):format(
+					tostring(category),
+					tostring(host and effectivelyVisible(host)),
+					tostring(controlsHidden)
+				),
+				"category=Profile profile=true controlsHidden=true",
+				category == UiSpec.Settings.Categories.Profile
+					and host ~= nil
+					and effectivelyVisible(host)
+					and controlsHidden
+			)
+		elseif cond == "settings_controls_category" then
+			local gui = findPath("RacerSettings")
+			local host = findPath(UiSpec.Settings.ProfileHost)
+			local controlsShown = true
+			for _, rowPath in
+				{
+					"RacerSettings/Panel/Face/SoundRow",
+					"RacerSettings/Panel/Face/EffectsRow",
+					"RacerSettings/Panel/Face/AutoRow",
+				}
+			do
+				local row = findPath(rowPath)
+				controlsShown = controlsShown and row ~= nil and effectivelyVisible(row)
+			end
+			local category = gui and gui:GetAttribute(UiSpec.Settings.CategoryAttribute)
+			check(
+				res,
+				cond,
+				("category=%s profile=%s controlsShown=%s"):format(
+					tostring(category),
+					tostring(host and effectivelyVisible(host)),
+					tostring(controlsShown)
+				),
+				"category=Settings profile=false controlsShown=true",
+				category == UiSpec.Settings.Categories.Settings
+					and host ~= nil
+					and not effectivelyVisible(host)
+					and controlsShown
+			)
+		elseif cond == "daily_rewards_view" then
+			local title = findPath(UiSpec.DailyBoosts.Title)
+			local tabs = findPath(UiSpec.DailyBoosts.QuestTabs)
+			local claim = findPath(UiSpec.DailyBoosts.Content .. "/Claim")
+			local ok = title ~= nil
+				and string.find(title.Text, UiSpec.DailyBoosts.DailyTitle, 1, true) ~= nil
+				and tabs ~= nil
+				and not effectivelyVisible(tabs)
+				and claim ~= nil
+				and claim:IsA("TextButton")
+			check(res, cond, ok, true, ok)
+		elseif cond == "quests_daily_view" or cond == "quests_weekly_view" then
+			local weekly = cond == "quests_weekly_view"
+			local title = findPath(UiSpec.DailyBoosts.Title)
+			local tabs = findPath(UiSpec.DailyBoosts.QuestTabs)
+			local quest = (weekly and QuestConfig.Weekly or QuestConfig.Daily)[1]
+			local row = quest and findPath(UiSpec.DailyBoosts.Content .. "/" .. quest.Id)
+			local ok = title ~= nil
+				and title.Text == UiSpec.DailyBoosts.QuestTitle
+				and tabs ~= nil
+				and effectivelyVisible(tabs)
+				and row ~= nil
+				and row:IsA("TextButton")
+			check(res, cond, ok, true, ok)
+		elseif cond == "quest_detail_selected" then
+			local detail = findPath(UiSpec.DailyBoosts.QuestDetail)
+			local name = detail and detail:FindFirstChild("Name")
+			local expected = QuestConfig.Daily[1]
+			local ok = name ~= nil and name:IsA("TextLabel") and expected ~= nil and name.Text == expected.Name
+			check(res, cond, name and name.Text or "missing", expected and expected.Name or "daily quest", ok)
 		elseif cond == "equipped_is_tile" then
 			check(res, cond, attr("EquippedCar"), tileId, attr("EquippedCar") == tileId)
 		elseif cond == "tile_shows_equipped" then
@@ -6157,6 +6826,8 @@ function UiScenarios.RunClick(id)
 			checkList(res, "showcase_not_clickable_after_close", showcaseHits())
 		elseif extras.After[cond] then
 			extras.After[cond](res, { pre = pre })
+		elseif shopMarket.After[cond] then
+			shopMarket.After[cond](res, { pre = pre, spec = spec, path = path })
 		elseif Progression.After[cond] then
 			Progression.After[cond](res) -- weather icon / card (UiSpec.Weather)
 		else
