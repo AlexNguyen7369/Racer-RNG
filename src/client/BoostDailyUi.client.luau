@@ -5,10 +5,10 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local player = Players.LocalPlayer
 local gui = player:WaitForChild("PlayerGui")
-local boosts = require(ReplicatedStorage.Shared.BoostConfig)
 local dailyConfig = require(ReplicatedStorage.Shared.DailyLoginConfig)
+local questConfig = require(ReplicatedStorage.Shared.QuestConfig)
+local HttpService = game:GetService("HttpService")
 local PanelSwitch = require(script.Parent:WaitForChild("PanelSwitch"))
-local HudButtonStyle = require(script.Parent.RollToast.Ui.HudButtonStyle)
 
 local screen = Instance.new("ScreenGui")
 screen.Name = "DailyBoosts"
@@ -49,11 +49,6 @@ local function button(name, parent, position, size, text)
 	return instance
 end
 
-local dailyButton =
-	button("DailyRewardButton", screen, UDim2.new(1, -16, 0.22, 0), UDim2.fromOffset(160, 48), "DAILY\nREWARDS")
-dailyButton.AnchorPoint = Vector2.new(1, 0)
-HudButtonStyle.Utility(dailyButton, 2, HudButtonStyle.Colors.Daily)
-
 local backdrop = make("Frame", "ModalBackdrop", screen, {
 	Position = UDim2.fromScale(0, 0),
 	Size = UDim2.fromScale(1, 1),
@@ -65,7 +60,7 @@ PanelSwitch.Register("Daily", backdrop)
 local modal = make("Frame", "Modal", backdrop, {
 	AnchorPoint = Vector2.new(0.5, 0),
 	Position = UDim2.new(0.5, 0, 0, 146),
-	Size = UDim2.fromScale(0.58, 0.24),
+	Size = UDim2.fromScale(0.58, 0.48),
 	BackgroundColor3 = Color3.fromRGB(29, 32, 53),
 })
 rounded(modal, 14)
@@ -110,9 +105,7 @@ local status = make("TextLabel", "Status", screen, {
 local function refreshChrome()
 	local camera = workspace.CurrentCamera
 	local compact = camera and camera.ViewportSize.Y <= 500
-	local visible = not compact and not PanelSwitch.AnyOpen()
-	dailyButton.Visible = visible
-	status.Visible = visible
+	status.Visible = not compact and not PanelSwitch.AnyOpen()
 end
 
 PanelSwitch.OnChange(refreshChrome)
@@ -129,15 +122,9 @@ local function clearContent()
 	fresh.Parent = content
 end
 
-local function remainingToday()
-	return 86400 - (os.time() % 86400)
-end
-
-local function formatTime(seconds)
-	return string.format("%02d:%02d:%02d", math.floor(seconds / 3600), math.floor(seconds / 60) % 60, seconds % 60)
-end
-
+local view = nil -- "Daily" or "Quests": which content the shared modal shows
 local function showDaily()
+	view = "Daily"
 	if not backdrop.Visible then
 		PanelSwitch.Toggle("Daily")
 	end
@@ -188,7 +175,69 @@ local function showDaily()
 	end)
 end
 
-dailyButton.Activated:Connect(showDaily)
+local function decode(name)
+	local raw = player:GetAttribute(name)
+	if type(raw) ~= "string" then
+		return {}
+	end
+	local ok, value = pcall(function()
+		return HttpService:JSONDecode(raw)
+	end)
+	return ok and type(value) == "table" and value or {}
+end
+
+local function showQuests()
+	view = "Quests"
+	if not backdrop.Visible then
+		PanelSwitch.Toggle("Daily")
+	end
+	backdrop.Visible = true
+	refreshChrome()
+	title.Text = "QUESTS"
+	clearContent()
+	local function renderGroup(label, quests, progress, claimed, weekly)
+		make("TextLabel", label, content, {
+			Size = UDim2.new(1, -8, 0, 30), BackgroundTransparency = 1, Text = label,
+			TextColor3 = Color3.fromRGB(255, 196, 75), Font = Enum.Font.GothamBlack, TextSize = 16,
+			TextXAlignment = Enum.TextXAlignment.Left,
+		})
+		for _, quest in quests do
+			local current = math.min(quest.Target, progress[quest.Id] or 0)
+			local done = claimed[quest.Id] == 1
+			local row = make("Frame", quest.Id, content, { Size = UDim2.new(1, -8, 0, 52), BackgroundColor3 = Color3.fromRGB(42, 54, 84) })
+			rounded(row, 7)
+			make("TextLabel", "Text", row, { Position = UDim2.fromOffset(10, 5), Size = UDim2.new(1, -122, 0, 22), BackgroundTransparency = 1, Text = quest.Name, Font = Enum.Font.GothamBold, TextSize = 13, TextColor3 = Color3.new(1, 1, 1), TextXAlignment = Enum.TextXAlignment.Left })
+			make("TextLabel", "Progress", row, { Position = UDim2.fromOffset(10, 28), Size = UDim2.new(1, -122, 0, 18), BackgroundTransparency = 1, Text = string.format("%d / %d  •  %s", current, quest.Target, quest.Reward), Font = Enum.Font.Gotham, TextSize = 12, TextColor3 = Color3.fromRGB(193, 205, 225), TextXAlignment = Enum.TextXAlignment.Left })
+			local claim = button("Claim", row, UDim2.new(1, -106, 0.5, -16), UDim2.fromOffset(96, 32), done and "CLAIMED" or current >= quest.Target and "CLAIM" or "LOCKED")
+			claim.Active = not done and current >= quest.Target
+			claim.AutoButtonColor = claim.Active
+			claim.BackgroundColor3 = claim.Active and Color3.fromRGB(70, 175, 105) or Color3.fromRGB(80, 88, 112)
+			claim.Activated:Connect(function()
+				if not claim.Active then return end
+				local ok, success, message = pcall(function()
+					return ReplicatedStorage.Remotes.QuestClaim:InvokeServer(weekly, quest.Id)
+				end)
+				status.Text = ok and (success and ("Claimed " .. tostring(message)) or tostring(message)) or "Connection error"
+				showQuests()
+			end)
+		end
+	end
+	renderGroup("DAILY", questConfig.Daily, decode("QuestDailyProgress"), decode("QuestDailyClaimed"), false)
+	renderGroup("WEEKLY", questConfig.Weekly, decode("QuestWeeklyProgress"), decode("QuestWeeklyClaimed"), true)
+end
+
+-- The top-right Daily and Quests pills (HudChrome) share this modal; a second click on the same pill closes it.
+local function action(name, show)
+	return function()
+		if backdrop.Visible and view == name then
+			PanelSwitch.Close("Daily")
+			return
+		end
+		show()
+	end
+end
+PanelSwitch.SetAction("Daily", action("Daily", showDaily))
+PanelSwitch.SetAction("Quests", action("Quests", showQuests))
 close.Activated:Connect(function()
 	PanelSwitch.Close("Daily")
 	backdrop.Visible = false
@@ -203,17 +252,6 @@ task.spawn(function()
 	end
 end)
 
-local function refreshButtons()
-	local last = player:GetAttribute("DailyLast") or -1
-	local today = math.floor(os.time() / 86400)
-	if last == today then
-		dailyButton.Text = "DAILY\n" .. formatTime(remainingToday())
-	else
-		dailyButton.Text = "DAILY\nREWARDS"
-	end
-end
-
-refreshButtons()
 local autoShownDay = nil
 task.spawn(function()
 	while screen.Parent do
@@ -225,6 +263,8 @@ task.spawn(function()
 			autoShownDay = today
 			showDaily()
 		end
-		refreshButtons()
 	end
 end)
+
+-- Opens in the shared band between the HUD entries (docs/HUD_LAYOUT_SPEC.md section 6).
+require(script.Parent:WaitForChild("PanelBand")).Fit(modal, 760)

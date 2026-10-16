@@ -8,7 +8,6 @@ local gui = player:WaitForChild("PlayerGui")
 local shared = ReplicatedStorage:WaitForChild("Shared")
 local Market = require(shared:WaitForChild("MarketConfig"))
 local Format = require(shared:WaitForChild("HudFormat"))
-local HudButtonStyle = require(script.Parent.RollToast.Ui.HudButtonStyle)
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
 local PanelSwitch = require(script.Parent:WaitForChild("PanelSwitch"))
 
@@ -28,19 +27,6 @@ local root = make(
 	gui,
 	{ ResetOnSpawn = false, IgnoreGuiInset = true, DisplayOrder = 4, ZIndexBehavior = Enum.ZIndexBehavior.Sibling }
 )
-local openButton = make("TextButton", "MarketButton", root, {
-	AnchorPoint = Vector2.new(1, 0),
-	-- Continue the reserved responsive right-hand utility stack below the duel/result-toast band.
-	Position = UDim2.new(1, -16, 0.22, 218),
-	Size = UDim2.fromOffset(116, 44),
-	Text = "MARKET",
-	Font = Enum.Font.GothamBlack,
-	TextSize = 16,
-	TextColor3 = Color3.new(1, 1, 1),
-	BackgroundColor3 = Color3.fromRGB(255, 170, 45),
-})
-make("UICorner", "Corner", openButton, { CornerRadius = UDim.new(0, 9) })
-HudButtonStyle.Utility(openButton, 3, HudButtonStyle.Colors.Market)
 local backdrop = make("TextButton", "Backdrop", root, {
 	Size = UDim2.fromScale(1, 1),
 	Text = "",
@@ -286,19 +272,13 @@ end
 local function closeMarket()
 	PanelSwitch.Close("Market")
 end
-PanelSwitch.OnChange(function()
-	openButton.Visible = not PanelSwitch.AnyOpen()
-end)
-openButton.Visible = not PanelSwitch.AnyOpen()
-task.spawn(function()
-	while root.Parent do
-		openButton.Visible = not PanelSwitch.AnyOpen()
-		task.wait(0.05)
-	end
-end)
-openButton.Activated:Connect(open)
+-- The top-right Market pill (HudChrome) opens it.
+PanelSwitch.SetAction("Market", open)
 close.Activated:Connect(closeMarket)
 backdrop.Activated:Connect(closeMarket)
 remotes:WaitForChild("MarketOpen").OnClientEvent:Connect(open)
 player:GetAttributeChangedSignal("EquippedAura"):Connect(refresh)
 player:GetAttributeChangedSignal("EquippedTrail"):Connect(refresh)
+
+-- Opens in the shared band between the HUD entries (docs/HUD_LAYOUT_SPEC.md section 6).
+require(script.Parent:WaitForChild("PanelBand")).Fit(panel, 900)

@@ -17,6 +17,11 @@ local function stats(player)
 	return folder, folder and folder:FindFirstChild("Money"), folder and folder:FindFirstChild("Speed")
 end
 
+-- GachaService owns StatPoints; required lazily because it is loaded after this module in some start orders
+local function refreshStatPoints(player)
+	require(script.Parent.GachaService).RefreshPoints(player)
+end
+
 function RebirthService.Setup(player)
 	if player:GetAttribute("RebirthLevel") == nil then
 		player:SetAttribute("RebirthLevel", Config.DEFAULT_LEVEL)
@@ -30,6 +35,7 @@ function RebirthService.Apply(player, saved)
 	local level = Config.CleanLevel(saved.RebirthLevel)
 	player:SetAttribute("RebirthLevel", level)
 	RebirthService.Setup(player)
+	refreshStatPoints(player)
 end
 
 function RebirthService.Requirements(player)
@@ -67,6 +73,7 @@ function RebirthService.Rebirth(player)
 		speed.Value = 0
 	end
 	player:SetAttribute("RebirthLevel", nextLevel)
+	refreshStatPoints(player) -- each rebirth adds RebirthConfig.POINTS_PER_REBIRTH free stat points
 	local rebirth = folder:FindFirstChild("Rebirth")
 	if rebirth then
 		rebirth.Value = nextLevel

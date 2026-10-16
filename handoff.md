@@ -1,5 +1,71 @@
 # Agent handoff
 
+## HUD redesign — 2026-10-15 (Claude)
+
+- Owner request with 8 reference images (Bag, Upgrades, Shop, Index buttons; Daily pill top right; potion status;
+  Backpack panel; Settings panel), plus same-day changes: Items + Upgrade beside the LEVEL bar (icons centred on the
+  gap between LEVEL and TURBO, 75% size), Shop on the right edge, Backpack = Misc / Trails / Auras (no cars).
+- Rules: design doc "HUD layout", `docs/HUD_LAYOUT_SPEC.md` (new). CLAUDE.md HUD paragraph and README updated.
+- New files: `Client/HudChrome.client.luau`, `Client/BackpackUi.client.luau`, `Client/PanelBand.luau`,
+  `RollToast/Ui/HudIcons.luau`, icon art `ui/icons/hud/*.svg|png` (uploaded; asset ids in HudIcons).
+- Changed: `PanelSwitch` (SetAction / Action / IsOpen + unrequested-show guard), `RacerUiController`,
+  `ProgressionUi`, `ShopUi`, `MarketUi`, `BoostDailyUi` (old buttons removed, panels fitted to PanelBand).
+- Bug fixed (bugs.json caf98f8d): Index + Rebirth opened together on join; generated responsive rows carry
+  `Visible = true`. Not marked fixed until the UI suite runs.
+- Verified live (desktop 1081x598): 0 client errors; every tile / pill opens its panel; panels clear of tiles and Money.
+- Pending: ui-test-writer is updating `src/client/UiTest/` for the new names; then run `ui-tester` / the UI suite,
+  check a phone viewport (<= 500 tall), and run `/compat-check`.
+
+## Rebirth panel + Rebirth Points — 2026-10-15 (Claude)
+
+- Owner request (reference image): WARNING (Money and Speed reset, Robux stays), REWARDS UNLOCKED (+10% Luck,
+  +10% Speed Gain, +1 Stat Point), REQUIREMENTS (player level bar per the design-doc milestones), REBIRTH button.
+- Owner decisions 2026-10-15: 1 Rebirth Point per rebirth, granted by the server into the StatPoints pool. Recorded
+  in the design doc and `docs/REBIRTH_SPEC.md`.
+- Code: `RebirthConfig` (POINTS_PER_REBIRTH, Points), `GachaService` (EarnedPoints, load trim, RefreshPoints),
+  `RebirthService` (refresh after Rebirth/Apply), `ui/specs/RacerRebirth.ui.json` + regenerated `Ui/RacerRebirth.luau`,
+  `RacerUiController` rebirth block. Tile child ids are `<Tile>Icon` / `<Tile>Caption` (generator needs unique ids).
+- Runs: harness red then `[CARTEST] END pass=41 fail=0`; ui_rebirth red then 38/38; open/close clicks 5/5; both
+  rebirth-button clicks 26/26 (setups pause auto-roll; restore turns it back on).
+- Not re-baked: `StarterGui.rbxm` (Bind rebuilds the panel; todo `rebirth-rebake`). Not run: full UI suite, /compat-check.
+- Codex worked in parallel (quests, shop) in the same files (RacerUiController, GachaService, design doc).
+
+## HUD conflict cleanup — 2026-10-15 (Codex)
+
+- Reworked `BoostDailyUi.client.luau` so Daily Rewards and Quests share one 160px right-side bar with two 80px controls; the legacy Bag trigger is now invisible and only retained as the Bag panel activation bridge.
+- Reworked `ProgressionUi.client.luau` so Bag and Upgrades are transparent icon buttons with labels, dynamically positioned on opposite sides of the central Level/Turbo bar group; Bag activates the existing Bag modal and Upgrades retains the existing tree panel.
+- Updated `ShopUi.client.luau` to use the single right-side Shop button at the top of the utility stack and stop rewriting/re-showing the Upgrades control as SHOP.
+- Current files touched by this pass: `src/client/BoostDailyUi.client.luau`, `src/client/ProgressionUi.client.luau`, `src/client/ShopUi.client.luau`, and this handoff file. Preserve the other uncommitted Claude/Rebirth changes in the shared worktree.
+- Validation: focused Selene checks report 0 errors / 0 parse errors (one pre-existing unused `canvas` warning), Rojo build `/tmp/racer-rng-ui-fix.rbxlx` and `git diff --check` pass. Agent-bus context was readable, but status updates remain blocked by the read-only `.agents/.lock`.
+- Live Studio verification remains pending while Claude owns the shared Studio session. Resume by reconnecting Rojo/Studio, checking the right-side stack at desktop and compact resolutions, and confirming Daily, Quests, Bag, Upgrades, Shop, and potion hover interactions.
+
+## Top-down camera stop transition — 2026-10-15 (Codex)
+
+- Fixed `RacerUiController`: top-down camera now requires `AutoRacing == true` in addition to the persistent
+  `TopDownView` preference. Stopping Auto Race immediately restores `CameraType.Custom`, the avatar Humanoid subject,
+  and the saved field of view; the TopDownView attribute is left unchanged.
+- Static validation: Selene 0 errors / 0 warnings; `git diff --check` and Rojo build pass.
+- Live Studio verification remains pending because Claude is using Studio for the Rebirth UI session.
+
+## HUD quests, Bag split, and gamepass Shop — 2026-10-15 (Codex)
+
+- Owner request: add potion hover details, enlarge Daily Rewards, fix top-down Auto Race stop, restore pedestal labels,
+  add tracked Daily/Weekly quests, split Index from Bag, reposition Bag/Upgrades, then replace the right-side Upgrades
+  button with a Shop showcasing all planned gamepasses plus VIP.
+- Added `src/shared/QuestConfig.luau`, `src/server/QuestService.luau`, `docs/QUESTS_SPEC.md`, and quest persistence/hooks
+  in PlayerData, GachaService, BoostService, RaceService, and Main. Quest periods are UTC; starter quests track races,
+  rolls, discoveries, and potion use and reward existing potions only.
+- Added `src/shared/MonetizationConfig.luau`, `src/client/ShopUi.client.luau`, and `docs/GAMEPASS_SHOP_SPEC.md`.
+  The Shop displays design-doc gamepasses, gamepass cars, and VIP; nonzero IDs prompt Roblox purchase and zero IDs show
+  Coming soon.
+- HUD changes are in ProgressionUi, BoostDailyUi, RacerUiController, and InventoryTabs: potion hover cards, larger daily
+  modal, Daily/Quests split, Bag categories, Index car-only presentation, and immediate top-down camera restoration.
+- Static validation: Selene reports 0 errors / 0 parse errors; Rojo build and `git diff --check` pass. Studio UI,
+  server harness, and `/compat-check` were not run because Claude is using the shared Studio for Rebirth work.
+- Collaboration blocker: `.agents/.lock` is read-only, so agent-bus status/send/read marking fails with PermissionError.
+- Resume: preserve Claude's active Rebirth files and run the focused quest/shop/UI tests plus `/compat-check` after Studio
+  is free. Check the three pedestal billboard labels in the live `ui_billboards` scenario.
+
 ## Smooth auto-race rail + Isaac UI merge — 2026-10-15 (Claude)
 
 - Owner report: auto race / top-down view choppy. Measured: client saw the car move every other frame. Cause:

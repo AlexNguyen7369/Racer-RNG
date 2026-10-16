@@ -127,6 +127,7 @@ function BoostService.Use(player, id)
 	local current = player:GetAttribute(untilKey) or 0
 	player:SetAttribute(key, count - 1)
 	player:SetAttribute(untilKey, math.max(now(), current) + item.Duration)
+	require(script.Parent.QuestService).Progress(player, "Potions")
 	return true, item.Duration
 end
 

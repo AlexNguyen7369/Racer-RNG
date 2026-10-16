@@ -315,6 +315,9 @@ Idle Vehicle Simulator — Game Design Requirements
        Rebirthing resets Money and Speed.
        Each rebirth gives a large automatic boost to Speed multi (R) and Luck multi.
        Each rebirth also gives Rebirth Points to spend on four stats.
+       Rebirth Points per rebirth: 1 (placeholder; owner 2026-10-15). They join the same free stat
+       point pool as the car index (StatPoints) and are spent on the same four stats; they are derived
+       from the rebirth count, never saved separately.
 
   Proposed milestone rule: if level resets on rebirth, each rebirth needs the next milestone.
   Rebirth 1 at level 10, rebirth 2 at level 25, and so on. That gives rebirths a rising cost.
@@ -345,6 +348,10 @@ Idle Vehicle Simulator — Game Design Requirements
 
   Speed and Luck grow two ways: the automatic rebirth bonus and stat points. That's fine,
   but the rebirth screen should show both so players see where their boost came from.
+
+  Rebirth screen (owner 2026-10-15, docs/REBIRTH_SPEC.md): a WARNING that Money and Speed reset
+  (Robux purchases stay), REWARDS UNLOCKED tiles for the next rebirth (+Luck, +Speed gain, +1 Rebirth
+  Stat Point), REQUIREMENTS as a player-level progress bar to the next milestone, and the REBIRTH button.
 
   What resets and what stays
 
@@ -643,6 +650,18 @@ Idle Vehicle Simulator — Game Design Requirements
        Luck from an event is free and changes actual server roll probability. The roll animation continues to show
        each car's base catalog rarity so a temporary boost never makes a car's advertised rarity misleading.
 
+  HUD layout
+  Contract: docs/HUD_LAYOUT_SPEC.md.
+
+       Owner decision, 2026-10-15 (replaces the left INDEX / STATS / REBIRTH text column and the
+       right-side button stack): cartoon icon tiles with the label under each icon. Index,
+       Stats and Rebirth are on the left edge, Shop is on the right edge, and Items and Upgrade
+       sit left and right of the level bar at the bottom centre. Daily, Quests and
+       Market are Roblox-style pills at the top right, next to a round Settings button. Items
+       opens the Backpack (Misc, Trails and Auras tabs; cars are only in the Index). Settings keeps its current
+       options in the new look. Active potions show bottle icons with the time left under each.
+       No buttons or panels may overlap at any screen size.
+
   Technical and data requirements
   The server decides every number (Speed, Money, rolls, race results) and the client only
   displays it. That's the main defense against exploiters.
@@ -698,6 +717,9 @@ Idle Vehicle Simulator — Game Design Requirements
        Do races get every multiplier except the workshop, or a flat base rate?
 
   Progression
+
+       Daily and weekly quests (docs/QUESTS_SPEC.md) track core-loop actions, reset on UTC periods, and reward existing
+       potion items. They never create a second Money source.
 
        Does level reset on rebirth?
        What survives rebirth: cars, fuel, auras, spoilers, workshop upgrades, Jett Fuel?

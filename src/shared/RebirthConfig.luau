@@ -9,6 +9,7 @@ RebirthConfig.DEFAULT_LEVEL = 0
 RebirthConfig.MAX_LEVEL = 100
 RebirthConfig.GAIN_PER_LEVEL = 0.10 -- +10% passive racing Speed gain per rebirth
 RebirthConfig.LUCK_GAIN_PER_LEVEL = 0.10 -- +10% roll luck per rebirth
+RebirthConfig.POINTS_PER_REBIRTH = 1 -- stat points per rebirth (placeholder, owner 2026-10-15; docs/REBIRTH_SPEC.md)
 
 function RebirthConfig.CleanLevel(level)
 	if type(level) ~= "number" or level ~= level then
@@ -29,6 +30,11 @@ end
 function RebirthConfig.LuckMulti(level)
 	level = RebirthConfig.CleanLevel(level)
 	return 1 + level * RebirthConfig.LUCK_GAIN_PER_LEVEL
+end
+
+-- Stat points earned from rebirths, added to the car-index points (never saved: derived from the rebirth count)
+function RebirthConfig.Points(level)
+	return RebirthConfig.CleanLevel(level) * RebirthConfig.POINTS_PER_REBIRTH
 end
 
 function RebirthConfig.Requirements(level)

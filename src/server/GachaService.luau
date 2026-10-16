@@ -17,6 +17,7 @@ local RollAnimConfig = require(Shared.RollAnimConfig)
 local UpgradeService = require(script.Parent.UpgradeService)
 
 local GachaService = {}
+local QuestService = require(script.Parent.QuestService)
 
 GachaService.REMOTE_COOLDOWN = 0.15 -- seconds between accepted EquipCar / AllocateStat requests per player
 
@@ -110,6 +111,7 @@ end
 
 function GachaService.EarnedPoints(player)
 	return GachaConfig.EarnedPoints(GachaService.UniqueCount(player))
+		+ RebirthConfig.Points(player:GetAttribute("RebirthLevel"))
 end
 
 function GachaService.FreePoints(player)
@@ -119,6 +121,7 @@ end
 local function refreshPoints(player)
 	player:SetAttribute("StatPoints", GachaService.FreePoints(player))
 end
+GachaService.RefreshPoints = refreshPoints -- RebirthService calls it when RebirthLevel changes
 
 function GachaService.ScrapValue(id)
 	return GachaConfig.ScrapMoney(CarCatalog.Get(id))
@@ -189,6 +192,10 @@ function GachaService.Roll(player, roller)
 	local emphasized = GachaConfig.IsEmphasized(id, ownedIds(player))
 	player:SetAttribute("Rolls", rollNumber)
 	local isNew = GachaService.Grant(player, id)
+	QuestService.Progress(player, "Rolls")
+	if isNew then
+		QuestService.Progress(player, "Discoveries")
+	end
 	local scrapMoney = 0
 	if isNew == false then
 		-- MoneyService requires GachaService for payout multis, so load it lazily.
@@ -337,7 +344,10 @@ function GachaService.Apply(player, saved)
 	for _, stat in GachaConfig.STATS do
 		a[stat] = cleanCount(savedAlloc[stat])
 	end
-	local over = allocSum(a) - GachaConfig.EarnedPoints(GachaService.UniqueCount(player))
+	-- RebirthService.Apply runs after this, so count the saved rebirths here or their allocations would be cut
+	local over = allocSum(a)
+		- GachaConfig.EarnedPoints(GachaService.UniqueCount(player))
+		- RebirthConfig.Points(saved.RebirthLevel)
 	for _, stat in TRIM_ORDER do
 		if over <= 0 then
 			break

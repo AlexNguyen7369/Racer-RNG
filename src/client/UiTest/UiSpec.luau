@@ -175,8 +175,10 @@ UiSpec.Guis = {
 			},
 		},
 	},
-	-- REBIRTH modal (ui/specs/RacerRebirth.ui.json + the live parts RacerUiController adds to Panel/Face: the Status
-	-- text and the RebirthButton; the baked "COMING SOON" placeholder is hidden). UiSpec.Rebirth holds its texts.
+	-- REBIRTH modal, rebuilt (owner 2026-10-15, docs/REBIRTH_SPEC.md "Panel"): every node comes from
+	-- ui/specs/RacerRebirth.ui.json (RebirthButton is a generated "button" node, so its clickable part is
+	-- RebirthButton/Face and its text RebirthButton/Face/RebirthButtonLabel); RacerUiController only binds the live
+	-- values. The old ComingSoon label and the runtime Status label are gone. UiSpec.Rebirth holds the nodes and texts.
 	RacerRebirth = {
 		Source = "Client/RollToast/RacerUiController (Ui/RacerRebirth)",
 		Panels = { "Panel" },
@@ -190,7 +192,7 @@ UiSpec.Guis = {
 			{
 				-- Asks the server (RemoteFunction Rebirth, no argument: the server decides everything). Disabled
 				-- (Active false, fires nothing) below the level milestone and at RebirthConfig.MAX_LEVEL.
-				Path = "Panel/Face/RebirthButton",
+				Path = "Panel/Face/RebirthButton/Face",
 				Does = "remote",
 				Remote = "Rebirth",
 				Arg = "none",
@@ -275,23 +277,114 @@ UiSpec.Settings = {
 	EffectsText = { [true] = "ON", [false] = "OFF" }, -- [ReduceEffects]
 	ProbeVolume = 0.5, -- the test's own Sound (created and destroyed by the sound clicks) must follow the toggle
 }
--- The Rebirth panel (ui_rebirth, clicks rebirth_*). Numbers come from Shared/RebirthConfig (GAIN_PER_LEVEL,
--- LUCK_GAIN_PER_LEVEL, Requirements, MAX_LEVEL) and the player's RebirthLevel / Level attributes; the reset sentence
--- is the design doc's rule ("Rebirthing resets Money and Speed", owner 2026-10-12).
+-- The Rebirth panel (ui_rebirth, clicks rebirth_*), rebuilt from the owner's reference image (2026-10-15,
+-- docs/REBIRTH_SPEC.md "Panel"). Numbers come from Shared/RebirthConfig (LUCK_GAIN_PER_LEVEL, GAIN_PER_LEVEL,
+-- POINTS_PER_REBIRTH, MAX_LEVEL), Shared/LevelConfig.RebirthLevelRequirement(RebirthLevel) and the player's Level /
+-- RebirthLevel attributes, never from the panel's pixels.
+-- Nodes are found BY NAME under the panel (the generator decides where the Face frames go): each must exist exactly
+-- once below its Parent node (Parent "Panel" = RacerRebirth/Panel), be shown while the panel is open, lie inside its
+-- Parent's rect and inside the panel at every UiSpec.Viewports entry, and have a row in UiResponsive.Nodes (so the
+-- phone variant is really simulated) unless its Size and Position are scale-only (then it is the same at every variant). Class: the instance's class. Text: exact text; Contains: every piece must be
+-- in the text; Colour: the heading's TextColor3 family (UiSpec.Rebirth.Colours).
 UiSpec.Rebirth = {
+	Panel = "RacerRebirth/Panel",
 	Title = "RacerRebirth/Panel/Face/Header/Face/Title",
 	TitleText = "REBIRTH",
-	Placeholder = "RacerRebirth/Panel/Face/ComingSoon", -- the baked "COMING SOON": must not be shown
-	Status = "RacerRebirth/Panel/Face/Status",
-	Button = "RacerRebirth/Panel/Face/RebirthButton",
+	Nodes = {
+		{ Name = "Header", Parent = "Panel", Class = "Frame" },
+		{ Name = "Title", Parent = "Header", Class = "TextLabel", Text = "REBIRTH" },
+		{ Name = "Close", Parent = "Header", Class = "Frame" },
+		{ Name = "Warning", Parent = "Panel", Class = "Frame" },
+		{ Name = "WarningTitle", Parent = "Warning", Class = "TextLabel", Text = "WARNING", Colour = "red" },
+		{
+			Name = "WarningText",
+			Parent = "Warning",
+			Class = "TextLabel",
+			Contains = { "Rebirth resets your Money and Speed", "(Robux purchases stay)" },
+		},
+		{ Name = "Rewards", Parent = "Panel", Class = "Frame" },
+		{
+			Name = "RewardsTitle",
+			Parent = "Rewards",
+			Class = "TextLabel",
+			Text = "REWARDS UNLOCKED",
+			Colour = "yellow",
+		},
+		{ Name = "LuckReward", Parent = "Rewards", Class = "Frame" },
+		{ Name = "SpeedReward", Parent = "Rewards", Class = "Frame" },
+		{ Name = "PointReward", Parent = "Rewards", Class = "Frame" },
+		{ Name = "LuckRewardIcon", Parent = "LuckReward", Class = "ImageLabel" },
+		{ Name = "LuckRewardCaption", Parent = "LuckReward", Class = "TextLabel" },
+		{ Name = "SpeedRewardIcon", Parent = "SpeedReward", Class = "ImageLabel" },
+		{ Name = "SpeedRewardCaption", Parent = "SpeedReward", Class = "TextLabel" },
+		{ Name = "PointRewardIcon", Parent = "PointReward", Class = "ImageLabel" },
+		{ Name = "PointRewardCaption", Parent = "PointReward", Class = "TextLabel" },
+		{ Name = "Requirements", Parent = "Panel", Class = "Frame" },
+		{
+			Name = "RequirementsTitle",
+			Parent = "Requirements",
+			Class = "TextLabel",
+			Text = "REQUIREMENTS",
+			Colour = "purple",
+		},
+		{ Name = "Bar", Parent = "Requirements", Class = "Frame" },
+		{ Name = "Fill", Parent = "Bar", Class = "Frame" },
+		{ Name = "BarText", Parent = "Bar", Class = "TextLabel" },
+		{ Name = "RebirthButton", Parent = "Panel", Class = "Frame" },
+	},
+	-- Each reward tile <Name> holds <Name>Icon (ImageLabel with a non-empty Image) and <Name>Caption (TextLabel), not
+	-- overlapping (node ids are unique in the generator, so the tile name is the prefix; both are listed in Nodes).
+	-- Caption = Format with the RebirthConfig number (Percent: the fraction as a whole percent): the NEXT rebirth's gain.
+	Tiles = {
+		{ Name = "LuckReward", Config = "LUCK_GAIN_PER_LEVEL", Percent = true, Format = "+%d%% Luck" },
+		{ Name = "SpeedReward", Config = "GAIN_PER_LEVEL", Percent = true, Format = "+%d%% Speed Gain" },
+		{ Name = "PointReward", Config = "POINTS_PER_REBIRTH", Format = "+%d Stat Point", Plural = "+%d Stat Points" },
+	},
+	-- The panel's sections, shown together: no two may overlap (at every viewport).
+	Sections = { "Header", "Warning", "Rewards", "Requirements", "RebirthButton" },
+	-- Groups of nodes inside one section, shown together: no two of a group may overlap (at every viewport).
+	Disjoint = {
+		{ "Title", "Close" },
+		{ "WarningTitle", "WarningText" },
+		{ "RewardsTitle", "LuckReward", "SpeedReward", "PointReward" },
+		{ "RequirementsTitle", "Bar" },
+		{ "LuckRewardIcon", "LuckRewardCaption" },
+		{ "SpeedRewardIcon", "SpeedRewardCaption" },
+		{ "PointRewardIcon", "PointRewardCaption" },
+	},
+	BarFormat = "%d / %d Level", -- Level / LevelConfig.RebirthLevelRequirement(RebirthLevel)
+	FillTolerance = 0.03, -- |Fill width / Fill parent width - clamp(Level / required, 0, 1)|
+	-- Gone with the rebuild: no descendant of the panel may carry these names.
+	Removed = { "ComingSoon", "Status" },
+	Button = "RacerRebirth/Panel/Face/RebirthButton/Face",
+	ButtonLabel = "RebirthButtonLabel", -- the generated label inside the button's Face
 	ButtonText = "REBIRTH",
-	LevelText = "REBIRTH LEVEL %d", -- the server's RebirthLevel
-	SpeedText = "+%d%% Speed", -- the NEXT rebirth's Speed-gain bonus: (RebirthLevel + 1) x GAIN_PER_LEVEL
-	LuckText = "+%d%% Luck", -- the NEXT rebirth's Luck bonus: (RebirthLevel + 1) x LUCK_GAIN_PER_LEVEL
-	ResetText = "Money and Speed reset",
-	RequiredText = "LEVEL %d", -- RebirthConfig.Requirements(RebirthLevel).Level
+	-- What the button may show besides ButtonText: the server's replies (RebirthService.Rebirth, REBIRTH_SPEC item 4).
+	-- "%d" = the required level. A label also passes when it starts with "REBIRTH COMPLETE".
+	ButtonReplies = {
+		"Reach Level %d",
+		"Stop Auto before rebirthing",
+		"Maximum rebirth",
+		"Please wait",
+		"Data not loaded",
+		"Stats not ready",
+	},
+	-- TextColor3 / BackgroundColor3 families (0..1 channels): red, yellow, purple headings; green = the met bar fill.
+	Colours = {
+		red = function(c)
+			return c.R >= 0.6 and c.G <= 0.45 and c.B <= 0.45
+		end,
+		yellow = function(c)
+			return c.R >= 0.6 and c.G >= 0.6 and c.B <= 0.45
+		end,
+		purple = function(c)
+			return c.R >= 0.4 and c.B >= 0.5 and c.G <= c.R - 0.15 and c.G <= c.B - 0.15
+		end,
+		green = function(c)
+			return c.G >= 0.5 and c.G >= c.R + 0.15 and c.G >= c.B + 0.15
+		end,
+	},
 }
-
 -- The HUD (ui/specs/RacerHud.ui.json). Gaps are the spec's offsets (they are not scaled by the UIScale k).
 UiSpec.Hud = {
 	Race = "RacerHud/Race/Face",
@@ -1693,7 +1786,7 @@ end
 table.insert(UiSpec.Clicks, {
 	Id = "rebirth_disabled_fires_nothing",
 	Gui = "RacerRebirth",
-	Path = "Panel/Face/RebirthButton",
+	Path = "Panel/Face/RebirthButton/Face",
 	Prepare = rebirthPrepare(false),
 	NeedSetup = { "rebirth_not_eligible", "spy", "progression_spy" },
 	Expect = { Remote = false, After = { "rebirth_not_optimistic" } },
@@ -1701,7 +1794,7 @@ table.insert(UiSpec.Clicks, {
 table.insert(UiSpec.Clicks, {
 	Id = "rebirth_asks_server",
 	Gui = "RacerRebirth",
-	Path = "Panel/Face/RebirthButton",
+	Path = "Panel/Face/RebirthButton/Face",
 	Prepare = rebirthPrepare(true),
 	NeedSetup = { "rebirth_eligible", "spy", "progression_spy" },
 	Expect = { Remote = { Name = "Rebirth", Arg = "none" }, After = { "rebirth_not_optimistic" } },

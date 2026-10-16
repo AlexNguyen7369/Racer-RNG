@@ -741,6 +741,42 @@
       "detail": "ui-test-writer updates UiSpec/UiScenarios for INVENTORY tabs, removed Bag, full-screen hex upgrade tree; then ui-tester and /compat-check. Blocks the green stamp for main.",
       "status": "next",
       "owner": "Claude"
+    },
+    {
+      "id": "rebirth-panel",
+      "title": "Rebirth panel rebuild + 1 Rebirth Point per rebirth",
+      "detail": "Reference-image layout (warning, rewards, level requirement bar). Harness 41/41, ui_rebirth 38/38 on 2026-10-15. /compat-check not run.",
+      "status": "done",
+      "done": "2026-10-15",
+      "owner": "Claude"
+    },
+    {
+      "id": "rebirth-rebake",
+      "title": "Re-bake StarterGui.rbxm with the new RacerRebirth panel",
+      "detail": "The baked RacerRebirth still has the old spec hash; Bind rebuilds it from code at runtime. Bake it in Studio Edit and export assets/studio/StarterGui.rbxm.",
+      "status": "backlog",
+      "owner": "Claude"
+    },
+    {
+      "id": "hud-redesign",
+      "title": "HUD redesign: icon tiles, top-right pills, Backpack, Settings pills, potion timers",
+      "detail": "docs/HUD_LAYOUT_SPEC.md. Code done and checked live on desktop; waiting on the UI test update (ui-test-writer), a phone-viewport check and /compat-check.",
+      "status": "doing",
+      "owner": "Claude"
+    },
+    {
+      "id": "hud-daily-quests-restyle",
+      "title": "Restyle the Daily, Quests, Shop and Market panels to the Backpack frame",
+      "detail": "They still use the plain dark Gotham modal; the owner gave references only for their buttons.",
+      "status": "backlog",
+      "owner": "Claude"
+    },
+    {
+      "id": "trail-aura-icons",
+      "title": "Icon art for trails and auras in the Backpack",
+      "detail": "Backpack shows a colour streak / orb swatch until real art exists.",
+      "status": "backlog",
+      "owner": "Claude"
     }
   ]
 }

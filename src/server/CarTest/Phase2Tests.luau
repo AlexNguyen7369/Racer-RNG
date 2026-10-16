@@ -1270,6 +1270,10 @@ function Tests.rebirth()
 	if not api then
 		return r
 	end
+	local gachaConfig = module(Shared, "GachaConfig")
+	-- design doc "Rebirth system": "Rebirth Points per rebirth: 1" (placeholder, owner 2026-10-15)
+	local perRebirth = config.POINTS_PER_REBIRTH
+	flag("rebirth_points_per_rebirth_is_1", perRebirth == 1, perRebirth, 1)
 	local players = {}
 	local oldCooldown = service.REMOTE_COOLDOWN
 	local ok, err = pcall(function()
@@ -1329,6 +1333,14 @@ function Tests.rebirth()
 			p:SetAttribute("AutoRacing", nil)
 		end)
 
+		-- Rebirth Points (owner 2026-10-15): spend every index point first, so any free point after the rebirth
+		-- can only come from the rebirth itself
+		for _ = 1, 100 do
+			if not gacha.Allocate(p, "Speed") then
+				break
+			end
+		end
+		local pointsBefore = p:GetAttribute("StatPoints")
 		local carsBefore = gacha.Snapshot(p)
 		local upgradesBefore = upgrades.Snapshot(p)
 		local accepted, newLevel = service.Rebirth(p)
@@ -1360,6 +1372,39 @@ function Tests.rebirth()
 		flag("rebirth_keeps_money_earned", p:GetAttribute("MoneyEarned") == 9000, p:GetAttribute("MoneyEarned"), 9000)
 		flag("rebirth_keeps_duel_wins", p:GetAttribute("DuelWins") == 3, p:GetAttribute("DuelWins"), 3)
 
+		-- Rebirth Points (docs/REBIRTH_SPEC.md "Rules (server)"): earned = index points + RebirthLevel * per rebirth;
+		-- they join the free StatPoints pool and are spent through the normal Allocate path
+		local per = (type(perRebirth) == "number" and perRebirth >= 1) and perRebirth or 1
+		flag("rebirth_index_points_spent_before", pointsBefore == 0, pointsBefore, 0)
+		local pointsAfter = p:GetAttribute("StatPoints")
+		flag(
+			"rebirth_grants_stat_points",
+			type(pointsBefore) == "number" and pointsAfter == pointsBefore + per,
+			pointsAfter,
+			(tonumber(pointsBefore) or 0) + per
+		)
+		local wantEarned = gachaConfig.EarnedPoints(gacha.UniqueCount(p)) + 1 * per
+		flag(
+			"rebirth_earned_points_include_rebirths",
+			gacha.EarnedPoints(p) == wantEarned,
+			gacha.EarnedPoints(p),
+			wantEarned
+		)
+		local luckBefore = p:GetAttribute("Alloc_Luck") or 0
+		local spent = gacha.Allocate(p, "Luck")
+		flag(
+			"rebirth_point_allocates",
+			spent == true and p:GetAttribute("Alloc_Luck") == luckBefore + 1,
+			p:GetAttribute("Alloc_Luck"),
+			luckBefore + 1
+		)
+		flag(
+			"rebirth_point_allocate_drops_stat_points",
+			p:GetAttribute("StatPoints") == (tonumber(pointsAfter) or 0) - 1,
+			p:GetAttribute("StatPoints"),
+			(tonumber(pointsAfter) or 0) - 1
+		)
+
 		-- the next rebirth needs the next milestone: refused, and the stats earned since are not wiped
 		p.leaderstats.Money.Value = 60
 		p.leaderstats.Speed.Value = 50
@@ -1377,6 +1422,41 @@ function Tests.rebirth()
 		spam:SetAttribute("Level", need)
 		local spammed = service.Rebirth(spam)
 		flag("rebirth_refused_cooldown_keeps_money_and_speed", spammed == false and untouched(spam, 5000, 321.5, 0))
+
+		-- Load trim: PlayerData.Load runs GachaService.Apply BEFORE RebirthService.Apply, so the trim must count the
+		-- SAVED RebirthLevel; rebirth-funded allocations survive, anything beyond index + rebirth points is cut.
+		local function loaded(name, workshopAlloc)
+			local q = fake("Rebirth" .. name, data, gacha)
+			table.insert(players, q)
+			q:SetAttribute("RebirthLevel", 0) -- not applied yet, as in PlayerData.Load
+			local save = {
+				Cars = { "go_kart", "rusty_hatchback", "wooden_car" },
+				StatAlloc = { Workshop = workshopAlloc, Speed = 1 },
+				RebirthLevel = 2,
+			}
+			gacha.Apply(q, save)
+			local index = gachaConfig.EarnedPoints(gacha.UniqueCount(q))
+			local trimmed = { Workshop = q:GetAttribute("Alloc_Workshop"), Speed = q:GetAttribute("Alloc_Speed") }
+			service.Apply(q, save)
+			return q, index, trimmed
+		end
+		local keep, index, kept = loaded("LoadKeep", 2 * per)
+		flag("rebirth_load_index_points_is_1", index == 1, index, 1)
+		flag(
+			"rebirth_load_keeps_rebirth_allocations",
+			kept.Workshop == 2 * per and kept.Speed == 1,
+			kept.Workshop,
+			2 * per
+		)
+		flag("rebirth_load_stat_points_0", keep:GetAttribute("StatPoints") == 0, keep:GetAttribute("StatPoints"), 0)
+		flag(
+			"rebirth_load_earned_points",
+			gacha.EarnedPoints(keep) == index + 2 * per,
+			gacha.EarnedPoints(keep),
+			index + 2 * per
+		)
+		local _, _, cut = loaded("LoadOver", 2 * per + 3)
+		flag("rebirth_load_trims_over_allocation", cut.Workshop == 2 * per and cut.Speed == 1, cut.Workshop, 2 * per)
 	end)
 	service.REMOTE_COOLDOWN = oldCooldown
 	for _, p in players do

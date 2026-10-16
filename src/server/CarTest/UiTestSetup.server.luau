@@ -7,7 +7,7 @@
 -- "<id>:<nonce>:<message>" is set first, and Done is still set.
 --
 -- Ids: snapshot, restore, spy, index_states, stat_points, no_stat_points, auto_racing, lose_event, turbo_next,
--- emphasized_next, auto_roll_on, duel_* (every id: UiSpec.ServerSetup), roll_odds_*, weather_* (rain, night, gold, aurora, clear, clear_event, rain_roll).
+-- emphasized_next, auto_roll_on, rebirth_eligible, rebirth_not_eligible, duel_* (every id: UiSpec.ServerSetup), roll_odds_*, weather_* (rain, night, gold, aurora, clear, clear_event, rain_roll).
 -- (Ported from the ServerSetup snippets in Client/UiTest/UiSpec.luau.)
 
 local HttpService = game:GetService("HttpService")
@@ -302,6 +302,32 @@ local function progressionSnapshot(player)
 	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
 	progressionSnapshots[player] =
 		{ upgrades = live("UpgradeService").Snapshot(player), attributes = attributes, root = root and root.CFrame }
+end
+
+-- The Rebirth panel's button state (UiSpec.ServerSetup rebirth_*): the player's Level attribute set to the rebirth
+-- requirement (eligible) or one below it (not eligible). Level / XP / XPToNext come back on 'restore'.
+-- Auto-roll goes off so no duplicate-car sale (MoneyService.Award) moves Money during the click
+-- (rebirth_money_not_reset is exact); 'restore' turns it back to the 'snapshot' value (snap.autoRoll).
+local function rebirthLevelFixture(player, offset)
+	progressionSnapshot(player)
+	setAutoRoll(player, false)
+	local attributes = progressionSnapshots[player].attributes
+	for _, name in { "Level", "XP", "XPToNext" } do
+		if attributes[name] == nil then
+			attributes[name] = { value = player:GetAttribute(name) }
+		end
+	end
+	local LevelConfig = require(Shared.LevelConfig)
+	local need = LevelConfig.RebirthLevelRequirement(player:GetAttribute("RebirthLevel") or 0)
+	player:SetAttribute("Level", need + offset)
+end
+
+function setups.rebirth_eligible(player)
+	rebirthLevelFixture(player, 0)
+end
+
+function setups.rebirth_not_eligible(player)
+	rebirthLevelFixture(player, -1)
 end
 
 function setups.progression_buyable(player)
@@ -609,12 +635,13 @@ end
 local function progressionSpy()
 	local folder = assert(ReplicatedStorage:FindFirstChild("UiTestSpy"), "spy setup required first")
 	local remotes = ReplicatedStorage:WaitForChild("Remotes")
-	for _, name in { "BuyUpgrade", "WorkshopUpgrade" } do
+	-- Rebirth too: the rebirth_* clicks must never really reset Money / Speed (UiSpec rebirth clicks, Intercept)
+	for _, name in { "BuyUpgrade", "WorkshopUpgrade", "Rebirth" } do
 		local target = remotes:FindFirstChild(name)
 		assert(target and target:IsA("RemoteFunction"), name .. " RemoteFunction required")
 		folder:SetAttribute(name, "[]")
 		if target:GetAttribute("UiTestIntercepted") ~= true then
-			-- ProgressionUi resolves both targets with WaitForChild inside Activated, so a same-name proxy
+			-- ProgressionUi and RacerUiController resolve their targets with WaitForChild inside Activated, so a same-name proxy
 			-- intercepts every argument while keeping the original callback and its cooldown closure intact.
 			target.Name = "UiTestOriginal_" .. name
 			local proxy = Instance.new("RemoteFunction")

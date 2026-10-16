@@ -19,7 +19,8 @@
       "money": "#3CFF3C",
       "dark": "#202B47",
       "row": "#293753",
-      "muted": "#686F87"
+      "muted": "#686F87",
+      "warning": "#FF4D5E"
     },
     "reserved": [
       {
@@ -57,10 +58,10 @@
         ],
         [
           0,
-          362
+          414
         ]
       ],
-      "purpose": "Rebirth coming soon modal",
+      "purpose": "Rebirth: warning, next rewards, level requirement, rebirth button",
       "phone": {
         "pos": [
           [
@@ -79,7 +80,7 @@
           ],
           [
             0,
-            280
+            276
           ]
         ]
       },
@@ -87,7 +88,7 @@
         {
           "id": "Header",
           "kind": "panel",
-          "color": "danger",
+          "color": "rebirth",
           "pos": [
             [
               0,
@@ -235,47 +236,967 @@
           ]
         },
         {
-          "id": "ComingSoon",
-          "kind": "text",
-          "text": "COMING SOON",
-          "textSize": 40,
-          "anchor": [
-            0.5,
-            0.5
-          ],
+          "id": "Warning",
+          "kind": "spacer",
           "pos": [
             [
-              0.5,
-              0
+              0,
+              12
             ],
             [
-              0.6,
-              0
+              0,
+              84
             ]
           ],
           "size": [
             [
               0,
-              450
+              576
+            ],
+            [
+              0,
+              82
+            ]
+          ],
+          "phone": {
+            "pos": [
+              [
+                0,
+                8
+              ],
+              [
+                0,
+                58
+              ]
+            ],
+            "size": [
+              [
+                0,
+                484
+              ],
+              [
+                0,
+                50
+              ]
+            ]
+          },
+          "children": [
+            {
+              "id": "WarningTitle",
+              "kind": "text",
+              "text": "WARNING",
+              "pos": [
+                [
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0
+                ]
+              ],
+              "size": [
+                [
+                  0,
+                  576
+                ],
+                [
+                  0,
+                  30
+                ]
+              ],
+              "textSize": 28,
+              "textColor": "warning",
+              "phone": {
+                "pos": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ],
+                "size": [
+                  [
+                    0,
+                    484
+                  ],
+                  [
+                    0,
+                    20
+                  ]
+                ],
+                "textSize": 18
+              }
+            },
+            {
+              "id": "WarningText",
+              "kind": "text",
+              "text": "Rebirth resets your Money and Speed\n(Robux purchases stay)",
+              "pos": [
+                [
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  32
+                ]
+              ],
+              "size": [
+                [
+                  0,
+                  576
+                ],
+                [
+                  0,
+                  48
+                ]
+              ],
+              "textSize": 19,
+              "phone": {
+                "pos": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    20
+                  ]
+                ],
+                "size": [
+                  [
+                    0,
+                    484
+                  ],
+                  [
+                    0,
+                    30
+                  ]
+                ],
+                "textSize": 12
+              }
+            }
+          ]
+        },
+        {
+          "id": "Rewards",
+          "kind": "spacer",
+          "pos": [
+            [
+              0,
+              12
+            ],
+            [
+              0,
+              170
+            ]
+          ],
+          "size": [
+            [
+              0,
+              576
+            ],
+            [
+              0,
+              148
+            ]
+          ],
+          "phone": {
+            "pos": [
+              [
+                0,
+                8
+              ],
+              [
+                0,
+                110
+              ]
+            ],
+            "size": [
+              [
+                0,
+                484
+              ],
+              [
+                0,
+                100
+              ]
+            ]
+          },
+          "children": [
+            {
+              "id": "RewardsTitle",
+              "kind": "text",
+              "text": "REWARDS UNLOCKED",
+              "pos": [
+                [
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0
+                ]
+              ],
+              "size": [
+                [
+                  0,
+                  576
+                ],
+                [
+                  0,
+                  30
+                ]
+              ],
+              "textSize": 26,
+              "textColor": "speed",
+              "phone": {
+                "pos": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ],
+                "size": [
+                  [
+                    0,
+                    484
+                  ],
+                  [
+                    0,
+                    20
+                  ]
+                ],
+                "textSize": 16
+              }
+            },
+            {
+              "id": "LuckReward",
+              "kind": "panel",
+              "color": "row",
+              "pos": [
+                [
+                  0,
+                  12
+                ],
+                [
+                  0,
+                  34
+                ]
+              ],
+              "size": [
+                [
+                  0,
+                  176
+                ],
+                [
+                  0,
+                  112
+                ]
+              ],
+              "phone": {
+                "pos": [
+                  [
+                    0,
+                    8
+                  ],
+                  [
+                    0,
+                    22
+                  ]
+                ],
+                "size": [
+                  [
+                    0,
+                    150
+                  ],
+                  [
+                    0,
+                    76
+                  ]
+                ]
+              },
+              "children": [
+                {
+                  "id": "LuckRewardIcon",
+                  "kind": "icon",
+                  "icon": "luck",
+                  "anchor": [
+                    0.5,
+                    0
+                  ],
+                  "pos": [
+                    [
+                      0.5,
+                      0
+                    ],
+                    [
+                      0,
+                      8
+                    ]
+                  ],
+                  "size": [
+                    [
+                      0,
+                      62
+                    ],
+                    [
+                      0,
+                      62
+                    ]
+                  ],
+                  "phone": {
+                    "pos": [
+                      [
+                        0.5,
+                        0
+                      ],
+                      [
+                        0,
+                        4
+                      ]
+                    ],
+                    "size": [
+                      [
+                        0,
+                        40
+                      ],
+                      [
+                        0,
+                        40
+                      ]
+                    ]
+                  }
+                },
+                {
+                  "id": "LuckRewardCaption",
+                  "kind": "text",
+                  "text": "+10% Luck",
+                  "pos": [
+                    [
+                      0,
+                      6
+                    ],
+                    [
+                      0,
+                      76
+                    ]
+                  ],
+                  "size": [
+                    [
+                      0,
+                      164
+                    ],
+                    [
+                      0,
+                      28
+                    ]
+                  ],
+                  "textSize": 18,
+                  "phone": {
+                    "pos": [
+                      [
+                        0,
+                        4
+                      ],
+                      [
+                        0,
+                        48
+                      ]
+                    ],
+                    "size": [
+                      [
+                        0,
+                        142
+                      ],
+                      [
+                        0,
+                        22
+                      ]
+                    ],
+                    "textSize": 14
+                  }
+                }
+              ]
+            },
+            {
+              "id": "SpeedReward",
+              "kind": "panel",
+              "color": "row",
+              "pos": [
+                [
+                  0,
+                  200
+                ],
+                [
+                  0,
+                  34
+                ]
+              ],
+              "size": [
+                [
+                  0,
+                  176
+                ],
+                [
+                  0,
+                  112
+                ]
+              ],
+              "phone": {
+                "pos": [
+                  [
+                    0,
+                    167
+                  ],
+                  [
+                    0,
+                    22
+                  ]
+                ],
+                "size": [
+                  [
+                    0,
+                    150
+                  ],
+                  [
+                    0,
+                    76
+                  ]
+                ]
+              },
+              "children": [
+                {
+                  "id": "SpeedRewardIcon",
+                  "kind": "icon",
+                  "icon": "speed",
+                  "anchor": [
+                    0.5,
+                    0
+                  ],
+                  "pos": [
+                    [
+                      0.5,
+                      0
+                    ],
+                    [
+                      0,
+                      8
+                    ]
+                  ],
+                  "size": [
+                    [
+                      0,
+                      62
+                    ],
+                    [
+                      0,
+                      62
+                    ]
+                  ],
+                  "phone": {
+                    "pos": [
+                      [
+                        0.5,
+                        0
+                      ],
+                      [
+                        0,
+                        4
+                      ]
+                    ],
+                    "size": [
+                      [
+                        0,
+                        40
+                      ],
+                      [
+                        0,
+                        40
+                      ]
+                    ]
+                  }
+                },
+                {
+                  "id": "SpeedRewardCaption",
+                  "kind": "text",
+                  "text": "+10% Speed Gain",
+                  "pos": [
+                    [
+                      0,
+                      6
+                    ],
+                    [
+                      0,
+                      76
+                    ]
+                  ],
+                  "size": [
+                    [
+                      0,
+                      164
+                    ],
+                    [
+                      0,
+                      28
+                    ]
+                  ],
+                  "textSize": 18,
+                  "phone": {
+                    "pos": [
+                      [
+                        0,
+                        4
+                      ],
+                      [
+                        0,
+                        48
+                      ]
+                    ],
+                    "size": [
+                      [
+                        0,
+                        142
+                      ],
+                      [
+                        0,
+                        22
+                      ]
+                    ],
+                    "textSize": 14
+                  }
+                }
+              ]
+            },
+            {
+              "id": "PointReward",
+              "kind": "panel",
+              "color": "row",
+              "pos": [
+                [
+                  0,
+                  388
+                ],
+                [
+                  0,
+                  34
+                ]
+              ],
+              "size": [
+                [
+                  0,
+                  176
+                ],
+                [
+                  0,
+                  112
+                ]
+              ],
+              "phone": {
+                "pos": [
+                  [
+                    0,
+                    326
+                  ],
+                  [
+                    0,
+                    22
+                  ]
+                ],
+                "size": [
+                  [
+                    0,
+                    150
+                  ],
+                  [
+                    0,
+                    76
+                  ]
+                ]
+              },
+              "children": [
+                {
+                  "id": "PointRewardIcon",
+                  "kind": "icon",
+                  "icon": "rebirth",
+                  "anchor": [
+                    0.5,
+                    0
+                  ],
+                  "pos": [
+                    [
+                      0.5,
+                      0
+                    ],
+                    [
+                      0,
+                      8
+                    ]
+                  ],
+                  "size": [
+                    [
+                      0,
+                      62
+                    ],
+                    [
+                      0,
+                      62
+                    ]
+                  ],
+                  "phone": {
+                    "pos": [
+                      [
+                        0.5,
+                        0
+                      ],
+                      [
+                        0,
+                        4
+                      ]
+                    ],
+                    "size": [
+                      [
+                        0,
+                        40
+                      ],
+                      [
+                        0,
+                        40
+                      ]
+                    ]
+                  }
+                },
+                {
+                  "id": "PointRewardCaption",
+                  "kind": "text",
+                  "text": "+1 Stat Point",
+                  "pos": [
+                    [
+                      0,
+                      6
+                    ],
+                    [
+                      0,
+                      76
+                    ]
+                  ],
+                  "size": [
+                    [
+                      0,
+                      164
+                    ],
+                    [
+                      0,
+                      28
+                    ]
+                  ],
+                  "textSize": 18,
+                  "phone": {
+                    "pos": [
+                      [
+                        0,
+                        4
+                      ],
+                      [
+                        0,
+                        48
+                      ]
+                    ],
+                    "size": [
+                      [
+                        0,
+                        142
+                      ],
+                      [
+                        0,
+                        22
+                      ]
+                    ],
+                    "textSize": 14
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "Requirements",
+          "kind": "spacer",
+          "pos": [
+            [
+              0,
+              12
+            ],
+            [
+              0,
+              324
+            ]
+          ],
+          "size": [
+            [
+              0,
+              376
             ],
             [
               0,
               80
             ]
           ],
-          "center": "x",
           "phone": {
-            "size": [
+            "pos": [
               [
                 0,
-                400
+                8
               ],
               [
                 0,
-                70
+                212
               ]
             ],
-            "textSize": 32
+            "size": [
+              [
+                0,
+                304
+              ],
+              [
+                0,
+                58
+              ]
+            ]
+          },
+          "children": [
+            {
+              "id": "RequirementsTitle",
+              "kind": "text",
+              "text": "REQUIREMENTS",
+              "pos": [
+                [
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0
+                ]
+              ],
+              "size": [
+                [
+                  0,
+                  376
+                ],
+                [
+                  0,
+                  28
+                ]
+              ],
+              "textSize": 24,
+              "textColor": "stats",
+              "phone": {
+                "pos": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ],
+                "size": [
+                  [
+                    0,
+                    304
+                  ],
+                  [
+                    0,
+                    18
+                  ]
+                ],
+                "textSize": 15
+              }
+            },
+            {
+              "id": "Bar",
+              "kind": "panel",
+              "color": "row",
+              "pos": [
+                [
+                  0,
+                  8
+                ],
+                [
+                  0,
+                  36
+                ]
+              ],
+              "size": [
+                [
+                  0,
+                  360
+                ],
+                [
+                  0,
+                  40
+                ]
+              ],
+              "phone": {
+                "pos": [
+                  [
+                    0,
+                    0
+                  ],
+                  [
+                    0,
+                    22
+                  ]
+                ],
+                "size": [
+                  [
+                    0,
+                    300
+                  ],
+                  [
+                    0,
+                    34
+                  ]
+                ]
+              },
+              "children": [
+                {
+                  "id": "Fill",
+                  "kind": "divider",
+                  "color": "success",
+                  "pos": [
+                    [
+                      0,
+                      0
+                    ],
+                    [
+                      0,
+                      0
+                    ]
+                  ],
+                  "size": [
+                    [
+                      0,
+                      0
+                    ],
+                    [
+                      1,
+                      0
+                    ]
+                  ]
+                },
+                {
+                  "id": "BarText",
+                  "kind": "text",
+                  "text": "0 / 10 Level",
+                  "pos": [
+                    [
+                      0,
+                      0
+                    ],
+                    [
+                      0,
+                      0
+                    ]
+                  ],
+                  "size": [
+                    [
+                      0,
+                      360
+                    ],
+                    [
+                      0,
+                      40
+                    ]
+                  ],
+                  "textSize": 20,
+                  "phone": {
+                    "pos": [
+                      [
+                        0,
+                        0
+                      ],
+                      [
+                        0,
+                        0
+                      ]
+                    ],
+                    "size": [
+                      [
+                        0,
+                        300
+                      ],
+                      [
+                        0,
+                        34
+                      ]
+                    ],
+                    "textSize": 16
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "RebirthButton",
+          "kind": "button",
+          "text": "REBIRTH",
+          "textSize": 24,
+          "color": "success",
+          "action": "Rebirth",
+          "pos": [
+            [
+              0,
+              400
+            ],
+            [
+              0,
+              356
+            ]
+          ],
+          "size": [
+            [
+              0,
+              176
+            ],
+            [
+              0,
+              48
+            ]
+          ],
+          "phone": {
+            "pos": [
+              [
+                0,
+                320
+              ],
+              [
+                0,
+                232
+              ]
+            ],
+            "size": [
+              [
+                0,
+                172
+              ],
+              [
+                0,
+                38
+              ]
+            ],
+            "textSize": 20
           }
         }
       ]

@@ -8,8 +8,9 @@
 -- against the live properties on the current viewport (responsive_model_matches_live) and fails when the UI changes
 -- without this file being regenerated (python3 over the Bind() sections; ui-test-writer does it).
 -- Regenerated 2026-10-06 from the Racer UI (spec hashes RacerHud 20a92c4ea76e, RacerIndex ab7f1fe08591, RacerStats
--- 53ff23d7d9f8, RacerSettings f7eec9b472c5, RacerRebirth 872eec02bc4b, RollShowcase 1039b947bbd9). RacerHud/Settings
--- has a UIScale but no layout row: its UDim2 is the baked one at every viewport.
+-- 53ff23d7d9f8, RacerSettings f7eec9b472c5, RollShowcase 1039b947bbd9); RacerRebirth rows regenerated 2026-10-15
+-- from the rebuilt panel (spec hash e3e844a47fa5; its Fill has no layout row: scale-only, the same at every
+-- variant). RacerHud/Settings has a UIScale but no layout row: its UDim2 is the baked one at every viewport.
 -- The solver (UiScenarios simRect) uses a node's variant props from Nodes only at a viewport of the OTHER variant than
 -- the live one (on the live variant it reads the live properties, so a live deviation still shows), and the generated
 -- UIScale (ScaleAt) at every simulated viewport; hover / press UIScales (UiSpec.TransientScales) count as 1.
@@ -709,12 +710,14 @@ local generated = {
 			Desktop = {
 				AnchorPoint = Vector2.new(0.5, 0.5),
 				Position = UDim2.fromScale(0.55, 0.52),
-				Size = UDim2.fromOffset(600, 362),
+				Size = UDim2.fromOffset(600, 414),
+				Visible = true,
 			},
 			Phone = {
 				AnchorPoint = Vector2.new(0.5, 0.5),
 				Position = UDim2.fromScale(0.62, 0.56),
-				Size = UDim2.fromOffset(500, 280),
+				Size = UDim2.fromOffset(500, 276),
+				Visible = true,
 			},
 		},
 		["RacerRebirth/Panel/Face/Header"] = {
@@ -722,11 +725,13 @@ local generated = {
 				AnchorPoint = Vector2.new(0, 0),
 				Position = UDim2.fromOffset(12, 12),
 				Size = UDim2.fromOffset(576, 64),
+				Visible = true,
 			},
 			Phone = {
 				AnchorPoint = Vector2.new(0, 0),
 				Position = UDim2.fromOffset(8, 8),
 				Size = UDim2.fromOffset(484, 48),
+				Visible = true,
 			},
 		},
 		["RacerRebirth/Panel/Face/Header/Face/Title"] = {
@@ -735,12 +740,14 @@ local generated = {
 				Position = UDim2.fromOffset(12, 0),
 				Size = UDim2.fromOffset(470, 64),
 				TextSize = 34,
+				Visible = true,
 			},
 			Phone = {
 				AnchorPoint = Vector2.new(0, 0),
 				Position = UDim2.fromOffset(8, 0),
 				Size = UDim2.fromOffset(382, 48),
 				TextSize = 25,
+				Visible = true,
 			},
 		},
 		["RacerRebirth/Panel/Face/Header/Face/Close"] = {
@@ -748,11 +755,13 @@ local generated = {
 				AnchorPoint = Vector2.new(0, 0),
 				Position = UDim2.fromOffset(512, 6),
 				Size = UDim2.fromOffset(52, 52),
+				Visible = true,
 			},
 			Phone = {
 				AnchorPoint = Vector2.new(0, 0),
 				Position = UDim2.fromOffset(428, 0),
 				Size = UDim2.fromOffset(48, 48),
+				Visible = true,
 			},
 		},
 		["RacerRebirth/Panel/Face/Header/Face/Close/Face/CloseLabel"] = {
@@ -761,26 +770,312 @@ local generated = {
 				Position = UDim2.fromOffset(0, 0),
 				Size = UDim2.fromScale(1, 1),
 				TextSize = 26,
+				Visible = true,
 			},
 			Phone = {
 				AnchorPoint = Vector2.new(0, 0),
 				Position = UDim2.fromOffset(0, 0),
 				Size = UDim2.fromScale(1, 1),
 				TextSize = 24,
+				Visible = true,
 			},
 		},
-		["RacerRebirth/Panel/Face/ComingSoon"] = {
+		["RacerRebirth/Panel/Face/Warning"] = {
 			Desktop = {
-				AnchorPoint = Vector2.new(0.5, 0.5),
-				Position = UDim2.fromScale(0.5, 0.6),
-				Size = UDim2.fromOffset(450, 80),
-				TextSize = 40,
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(12, 84),
+				Size = UDim2.fromOffset(576, 82),
+				Visible = true,
 			},
 			Phone = {
-				AnchorPoint = Vector2.new(0.5, 0.5),
-				Position = UDim2.fromScale(0.5, 0.6),
-				Size = UDim2.fromOffset(400, 70),
-				TextSize = 32,
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(8, 58),
+				Size = UDim2.fromOffset(484, 50),
+				Visible = true,
+			},
+		},
+		["RacerRebirth/Panel/Face/Warning/WarningTitle"] = {
+			Desktop = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(0, 0),
+				Size = UDim2.fromOffset(576, 30),
+				TextSize = 28,
+				Visible = true,
+			},
+			Phone = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(0, 0),
+				Size = UDim2.fromOffset(484, 20),
+				TextSize = 18,
+				Visible = true,
+			},
+		},
+		["RacerRebirth/Panel/Face/Warning/WarningText"] = {
+			Desktop = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(0, 32),
+				Size = UDim2.fromOffset(576, 48),
+				TextSize = 19,
+				Visible = true,
+			},
+			Phone = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(0, 20),
+				Size = UDim2.fromOffset(484, 30),
+				TextSize = 12,
+				Visible = true,
+			},
+		},
+		["RacerRebirth/Panel/Face/Rewards"] = {
+			Desktop = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(12, 170),
+				Size = UDim2.fromOffset(576, 148),
+				Visible = true,
+			},
+			Phone = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(8, 110),
+				Size = UDim2.fromOffset(484, 100),
+				Visible = true,
+			},
+		},
+		["RacerRebirth/Panel/Face/Rewards/RewardsTitle"] = {
+			Desktop = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(0, 0),
+				Size = UDim2.fromOffset(576, 30),
+				TextSize = 26,
+				Visible = true,
+			},
+			Phone = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(0, 0),
+				Size = UDim2.fromOffset(484, 20),
+				TextSize = 16,
+				Visible = true,
+			},
+		},
+		["RacerRebirth/Panel/Face/Rewards/LuckReward"] = {
+			Desktop = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(12, 34),
+				Size = UDim2.fromOffset(176, 112),
+				Visible = true,
+			},
+			Phone = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(8, 22),
+				Size = UDim2.fromOffset(150, 76),
+				Visible = true,
+			},
+		},
+		["RacerRebirth/Panel/Face/Rewards/LuckReward/Face/LuckRewardIcon"] = {
+			Desktop = {
+				AnchorPoint = Vector2.new(0.5, 0),
+				Position = UDim2.new(0.5, 0, 0, 8),
+				Size = UDim2.fromOffset(62, 62),
+				Visible = true,
+			},
+			Phone = {
+				AnchorPoint = Vector2.new(0.5, 0),
+				Position = UDim2.new(0.5, 0, 0, 4),
+				Size = UDim2.fromOffset(40, 40),
+				Visible = true,
+			},
+		},
+		["RacerRebirth/Panel/Face/Rewards/LuckReward/Face/LuckRewardCaption"] = {
+			Desktop = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(6, 76),
+				Size = UDim2.fromOffset(164, 28),
+				TextSize = 18,
+				Visible = true,
+			},
+			Phone = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(4, 48),
+				Size = UDim2.fromOffset(142, 22),
+				TextSize = 14,
+				Visible = true,
+			},
+		},
+		["RacerRebirth/Panel/Face/Rewards/SpeedReward"] = {
+			Desktop = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(200, 34),
+				Size = UDim2.fromOffset(176, 112),
+				Visible = true,
+			},
+			Phone = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(167, 22),
+				Size = UDim2.fromOffset(150, 76),
+				Visible = true,
+			},
+		},
+		["RacerRebirth/Panel/Face/Rewards/SpeedReward/Face/SpeedRewardIcon"] = {
+			Desktop = {
+				AnchorPoint = Vector2.new(0.5, 0),
+				Position = UDim2.new(0.5, 0, 0, 8),
+				Size = UDim2.fromOffset(62, 62),
+				Visible = true,
+			},
+			Phone = {
+				AnchorPoint = Vector2.new(0.5, 0),
+				Position = UDim2.new(0.5, 0, 0, 4),
+				Size = UDim2.fromOffset(40, 40),
+				Visible = true,
+			},
+		},
+		["RacerRebirth/Panel/Face/Rewards/SpeedReward/Face/SpeedRewardCaption"] = {
+			Desktop = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(6, 76),
+				Size = UDim2.fromOffset(164, 28),
+				TextSize = 18,
+				Visible = true,
+			},
+			Phone = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(4, 48),
+				Size = UDim2.fromOffset(142, 22),
+				TextSize = 14,
+				Visible = true,
+			},
+		},
+		["RacerRebirth/Panel/Face/Rewards/PointReward"] = {
+			Desktop = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(388, 34),
+				Size = UDim2.fromOffset(176, 112),
+				Visible = true,
+			},
+			Phone = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(326, 22),
+				Size = UDim2.fromOffset(150, 76),
+				Visible = true,
+			},
+		},
+		["RacerRebirth/Panel/Face/Rewards/PointReward/Face/PointRewardIcon"] = {
+			Desktop = {
+				AnchorPoint = Vector2.new(0.5, 0),
+				Position = UDim2.new(0.5, 0, 0, 8),
+				Size = UDim2.fromOffset(62, 62),
+				Visible = true,
+			},
+			Phone = {
+				AnchorPoint = Vector2.new(0.5, 0),
+				Position = UDim2.new(0.5, 0, 0, 4),
+				Size = UDim2.fromOffset(40, 40),
+				Visible = true,
+			},
+		},
+		["RacerRebirth/Panel/Face/Rewards/PointReward/Face/PointRewardCaption"] = {
+			Desktop = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(6, 76),
+				Size = UDim2.fromOffset(164, 28),
+				TextSize = 18,
+				Visible = true,
+			},
+			Phone = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(4, 48),
+				Size = UDim2.fromOffset(142, 22),
+				TextSize = 14,
+				Visible = true,
+			},
+		},
+		["RacerRebirth/Panel/Face/Requirements"] = {
+			Desktop = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(12, 324),
+				Size = UDim2.fromOffset(376, 80),
+				Visible = true,
+			},
+			Phone = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(8, 212),
+				Size = UDim2.fromOffset(304, 58),
+				Visible = true,
+			},
+		},
+		["RacerRebirth/Panel/Face/Requirements/RequirementsTitle"] = {
+			Desktop = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(0, 0),
+				Size = UDim2.fromOffset(376, 28),
+				TextSize = 24,
+				Visible = true,
+			},
+			Phone = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(0, 0),
+				Size = UDim2.fromOffset(304, 18),
+				TextSize = 15,
+				Visible = true,
+			},
+		},
+		["RacerRebirth/Panel/Face/Requirements/Bar"] = {
+			Desktop = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(8, 36),
+				Size = UDim2.fromOffset(360, 40),
+				Visible = true,
+			},
+			Phone = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(0, 22),
+				Size = UDim2.fromOffset(300, 34),
+				Visible = true,
+			},
+		},
+		["RacerRebirth/Panel/Face/Requirements/Bar/Face/BarText"] = {
+			Desktop = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(0, 0),
+				Size = UDim2.fromOffset(360, 40),
+				TextSize = 20,
+				Visible = true,
+			},
+			Phone = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(0, 0),
+				Size = UDim2.fromOffset(300, 34),
+				TextSize = 16,
+				Visible = true,
+			},
+		},
+		["RacerRebirth/Panel/Face/RebirthButton"] = {
+			Desktop = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(400, 356),
+				Size = UDim2.fromOffset(176, 48),
+				Visible = true,
+			},
+			Phone = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(320, 232),
+				Size = UDim2.fromOffset(172, 38),
+				Visible = true,
+			},
+		},
+		["RacerRebirth/Panel/Face/RebirthButton/Face/RebirthButtonLabel"] = {
+			Desktop = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(0, 0),
+				Size = UDim2.fromScale(1, 1),
+				TextSize = 24,
+				Visible = true,
+			},
+			Phone = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(0, 0),
+				Size = UDim2.fromScale(1, 1),
+				TextSize = 20,
+				Visible = true,
 			},
 		},
 		["RollShowcase/Card"] = {

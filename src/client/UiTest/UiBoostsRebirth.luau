@@ -7,12 +7,15 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local BoostConfig = require(Shared:WaitForChild("BoostConfig"))
 local DailyLoginConfig = require(Shared:WaitForChild("DailyLoginConfig"))
+local LevelConfig = require(Shared:WaitForChild("LevelConfig"))
 local RebirthConfig = require(Shared:WaitForChild("RebirthConfig"))
 local Spec = require(script.Parent.UiSpec)
+local UiResponsive = require(script.Parent.UiResponsive)
 
 local Extras = {}
 
--- h: check, checkList, find, visible, setPanels, player. Returns { Scenarios, After, Snapshot, BoostToken }.
+-- h: check, checkList, find, visible, setPanels, player, pathOf, render, provider, viewports, contains, intersects,
+-- rstr (UiScenarios' helpers). Returns { Scenarios, After, Snapshot, BoostToken }.
 function Extras.Build(h)
 	local RB, DB = Spec.Rebirth, Spec.DailyBoosts
 	local scenarios, after = {}, {}
@@ -29,56 +32,270 @@ function Extras.Build(h)
 
 	-- Rebirth -------------------------------------------------------------------------------------------------
 
-	local function rebirthTruth()
-		local level = attr("RebirthLevel") or 0
-		local percent = function(perLevel)
-			return math.floor((level + 1) * perLevel * 100 + 0.5)
-		end
-		return {
-			eligible = RebirthConfig.CanRebirth(level, attr("Level") or 1) and level < RebirthConfig.MAX_LEVEL,
-			pieces = {
-				{ "level", RB.LevelText:format(level) },
-				{ "next_speed_bonus", RB.SpeedText:format(percent(RebirthConfig.GAIN_PER_LEVEL)) },
-				{ "next_luck_bonus", RB.LuckText:format(percent(RebirthConfig.LUCK_GAIN_PER_LEVEL)) },
-				{ "resets_money_and_speed", RB.ResetText },
-				{ "required_level", RB.RequiredText:format(RebirthConfig.Requirements(level).Level) },
-			},
-		}
+	local function colourOk(family, c)
+		local test = RB.Colours[family]
+		return test ~= nil and test(c)
+	end
+	local function rgb(c)
+		return ("rgb(%d,%d,%d)"):format(
+			math.floor(c.R * 255 + 0.5),
+			math.floor(c.G * 255 + 0.5),
+			math.floor(c.B * 255 + 0.5)
+		)
 	end
 
-	local function rebirthStatus(res)
-		local status = h.find(RB.Status)
-		local text = status and status:IsA("TextLabel") and status.Text or "missing"
-		for _, piece in rebirthTruth().pieces do
-			h.check(res, "rebirth_status_" .. piece[1], text, "contains " .. piece[2], has(text, piece[2]))
+	-- The panel's declared nodes found by name (UiSpec.Rebirth.Nodes). Returns nodes (name -> instance, "Panel" ->
+	-- the panel) and the list of problems (missing, duplicated, under the wrong parent, wrong class).
+	local function rebirthNodes()
+		local panel = h.find(RB.Panel)
+		if not panel then
+			return nil, { RB.Panel .. " missing" }
 		end
+		local nodes, bad = { Panel = panel }, {}
+		for _, spec in RB.Nodes do
+			local found = {}
+			for _, d in panel:GetDescendants() do
+				if d.Name == spec.Name then
+					table.insert(found, d)
+				end
+			end
+			local parent = nodes[spec.Parent]
+			if #found ~= 1 then
+				table.insert(bad, ("%s: found %d, want exactly 1"):format(spec.Name, #found))
+			elseif not (parent and parent:IsAncestorOf(found[1])) then
+				table.insert(bad, ("%s: %s is not under %s"):format(spec.Name, h.pathOf(found[1]), spec.Parent))
+			elseif not found[1]:IsA(spec.Class) then
+				table.insert(bad, ("%s: %s, want %s"):format(spec.Name, found[1].ClassName, spec.Class))
+			else
+				nodes[spec.Name] = found[1]
+			end
+		end
+		return nodes, bad
 	end
 
-	function scenarios.ui_rebirth(res)
-		local restore = h.setPanels({ "RacerRebirth/Panel" })
-		local title = h.find(RB.Title)
-		local titleText = title and title:IsA("TextLabel") and title.Text or "missing"
-		h.check(res, "rebirth_title", titleText, RB.TitleText, titleText == RB.TitleText)
-		local placeholder = h.find(RB.Placeholder)
-		local placeholderShown = placeholder ~= nil and placeholder:IsA("GuiObject") and h.visible(placeholder)
-		h.check(res, "rebirth_coming_soon_not_shown", placeholderShown, false, not placeholderShown)
-		local status = h.find(RB.Status)
-		local statusShown = status ~= nil and status:IsA("TextLabel") and h.visible(status)
-		h.check(res, "rebirth_status_shown", statusShown, true, statusShown)
-		rebirthStatus(res)
+	-- A tile's <Tile>Icon and <Tile>Caption (declared in UiSpec.Rebirth.Nodes, so rebirthNodes found them once under
+	-- their tile).
+	local function tileParts(nodes, tileName)
+		return nodes[tileName .. "Icon"], nodes[tileName .. "Caption"]
+	end
+
+	local function required()
+		return LevelConfig.RebirthLevelRequirement(attr("RebirthLevel") or 0)
+	end
+
+	-- What the panel shows that follows the server and the config modules: reward captions, the requirement bar and
+	-- the RebirthButton's state. Used by ui_rebirth and after the (intercepted) rebirth clicks.
+	-- skipLabel: after an intercepted click the label shows the proxy's made-up reply for a while (not the server's).
+	local function rebirthTruth(res, nodes, skipLabel)
+		nodes = nodes or {}
+		-- Reward captions: the NEXT rebirth's gains from RebirthConfig
+		local captions = {}
+		for _, tile in RB.Tiles do
+			local value = RebirthConfig[tile.Config]
+			local _, caption = tileParts(nodes, tile.Name)
+			local text = caption and caption:IsA("TextLabel") and caption.Text or nil
+			if type(value) ~= "number" then
+				table.insert(captions, ("%s: RebirthConfig.%s is %s"):format(tile.Name, tile.Config, typeof(value)))
+			else
+				local n = tile.Percent and math.floor(value * 100 + 0.5) or value
+				local want = (tile.Plural and n ~= 1) and tile.Plural:format(n) or tile.Format:format(n)
+				if text ~= want then
+					table.insert(captions, ("%sCaption %q, want %q"):format(tile.Name, tostring(text), want))
+				end
+			end
+		end
+		h.checkList(res, "rebirth_reward_captions_match_config", captions)
+
+		-- Requirement bar: "<Level> / <required> Level", fill = Level / required
+		local level, need = attr("Level"), required()
+		local barText = nodes.BarText and nodes.BarText.Text or "missing"
+		local wantText = type(level) == "number" and RB.BarFormat:format(level, need) or "Level attribute missing"
+		h.check(res, "rebirth_bar_text_matches_server", barText, wantText, barText == wantText)
+		local fill = nodes.Fill
+		local ratio = type(level) == "number" and math.clamp(level / need, 0, 1) or nil
+		local shown = nil
+		if fill and fill.Parent and fill.Parent:IsA("GuiObject") and fill.Parent.AbsoluteSize.X > 0 then
+			h.render()
+			shown = fill.AbsoluteSize.X / fill.Parent.AbsoluteSize.X
+		end
+		h.check(
+			res,
+			"rebirth_bar_fill_matches_level",
+			shown,
+			ratio and ("%.3f +- %.2f"):format(ratio, RB.FillTolerance) or "Level attribute missing",
+			shown ~= nil and ratio ~= nil and math.abs(shown - ratio) <= RB.FillTolerance
+		)
+		local met = type(level) == "number" and level >= need
+		local fillColour = fill and fill.BackgroundColor3
+		h.check(
+			res,
+			"rebirth_bar_fill_green_when_met",
+			fillColour and rgb(fillColour) or "missing",
+			met and "green" or "any (requirement not met)",
+			fillColour ~= nil and (not met or colourOk("green", fillColour))
+		)
+
+		-- RebirthButton: a TextButton, shown, label REBIRTH or a server reply, Active only when the server would accept
 		local button = h.find(RB.Button)
 		local isButton = button ~= nil and button:IsA("TextButton")
 		h.check(res, "rebirth_button_present", button and button.ClassName or "missing", "TextButton", isButton)
 		if isButton then
-			h.check(res, "rebirth_button_shown", h.visible(button), true, h.visible(button))
-			h.check(res, "rebirth_button_label", button.Text, RB.ButtonText, button.Text == RB.ButtonText)
-			local eligible = rebirthTruth().eligible
+			local rebirthLevel = attr("RebirthLevel") or 0
+			local eligible = met and rebirthLevel < RebirthConfig.MAX_LEVEL
 			h.check(res, "rebirth_button_enabled_matches_server", button.Active, eligible, button.Active == eligible)
+			local label = button:FindFirstChild(RB.ButtonLabel, true)
+			local text = label and label:IsA("TextLabel") and label.Text or "missing"
+			if skipLabel then
+				return
+			end
+			local allowed = text == RB.ButtonText or string.sub(text, 1, 16) == "REBIRTH COMPLETE"
+			for _, reply in RB.ButtonReplies do
+				allowed = allowed or text == reply:format(need)
+			end
+			h.check(res, "rebirth_button_label", text, RB.ButtonText .. " or a server reply", allowed)
+		end
+	end
+
+	-- Every declared node (tile icons and captions included) inside its parent node and inside the panel, the sections
+	-- and the UiSpec.Rebirth.Disjoint groups apart, at every UiSpec.Viewports entry (the panel is open).
+	local function rebirthGeometry(res, nodes)
+		for _, vpSpec in h.viewports do
+			local rectOf = h.provider(vpSpec)
+			local panelRect = rectOf(nodes.Panel)
+			local outside, spill, overlaps = {}, {}, {}
+			local function place(name, obj, parent)
+				local r = rectOf(obj)
+				if not h.contains(panelRect, r) then
+					table.insert(outside, name .. h.rstr(r) .. " outside panel " .. h.rstr(panelRect))
+				end
+				if parent and parent ~= nodes.Panel then
+					local pr = rectOf(parent)
+					if not h.contains(pr, r) then
+						table.insert(spill, name .. h.rstr(r) .. " outside " .. parent.Name .. h.rstr(pr))
+					end
+				end
+				return r
+			end
+			local rects = {}
+			for _, spec in RB.Nodes do
+				if nodes[spec.Name] then
+					rects[spec.Name] = place(spec.Name, nodes[spec.Name], nodes[spec.Parent])
+				end
+			end
+			local groups = { RB.Sections }
+			for _, g in RB.Disjoint do
+				table.insert(groups, g)
+			end
+			for _, g in groups do
+				for a = 1, #g do
+					for b = a + 1, #g do
+						local ra, rb = rects[g[a]], rects[g[b]]
+						if ra and rb and h.intersects(ra, rb) then
+							table.insert(overlaps, g[a] .. h.rstr(ra) .. " x " .. g[b] .. h.rstr(rb))
+						end
+					end
+				end
+			end
+			h.checkList(res, "rebirth_nodes_inside_panel_" .. vpSpec.Name, outside)
+			h.checkList(res, "rebirth_nodes_inside_parent_" .. vpSpec.Name, spill)
+			h.checkList(res, "rebirth_no_overlap_" .. vpSpec.Name, overlaps)
+		end
+	end
+
+	function scenarios.ui_rebirth(res)
+		local restore = h.setPanels({ RB.Panel })
+		local title = h.find(RB.Title)
+		local titleText = title and title:IsA("TextLabel") and title.Text or "missing"
+		h.check(res, "rebirth_title", titleText, RB.TitleText, titleText == RB.TitleText)
+
+		local panel = h.find(RB.Panel)
+		local leftovers = {}
+		for _, d in panel and panel:GetDescendants() or {} do
+			if table.find(RB.Removed, d.Name) then
+				table.insert(leftovers, h.pathOf(d))
+			end
+		end
+		h.checkList(res, "rebirth_old_parts_gone", leftovers)
+
+		local nodes, missing = rebirthNodes()
+		h.checkList(res, "rebirth_nodes_present", missing)
+		nodes = nodes or {}
+
+		local hidden, texts, colours, fits, unmodelled, icons = {}, {}, {}, {}, {}, {}
+		local function textFits(name, label)
+			if label:IsA("TextLabel") and not (label.TextFits or label.TextScaled) then
+				table.insert(fits, ("%s %q does not fit"):format(name, label.Text))
+			end
+		end
+		for _, spec in RB.Nodes do
+			local o = nodes[spec.Name]
+			if o then
+				if not h.visible(o) then
+					table.insert(hidden, spec.Name)
+				end
+				-- A node without a model row is only fine when it is scale-only (the same at every variant)
+				local scaleOnly = o:IsA("GuiObject")
+					and o.Size.X.Offset == 0
+					and o.Size.Y.Offset == 0
+					and o.Position.X.Offset == 0
+					and o.Position.Y.Offset == 0
+				if not UiResponsive.Nodes[h.pathOf(o)] and not scaleOnly then
+					table.insert(unmodelled, h.pathOf(o))
+				end
+				if o:IsA("TextLabel") then
+					if spec.Text and o.Text ~= spec.Text then
+						table.insert(texts, ("%s %q, want %q"):format(spec.Name, o.Text, spec.Text))
+					end
+					for _, piece in spec.Contains or {} do
+						if not has(o.Text, piece) then
+							table.insert(texts, ("%s %q lacks %q"):format(spec.Name, o.Text, piece))
+						end
+					end
+					if spec.Colour and not colourOk(spec.Colour, o.TextColor3) then
+						table.insert(colours, ("%s %s, want %s"):format(spec.Name, rgb(o.TextColor3), spec.Colour))
+					end
+					textFits(spec.Name, o)
+				end
+			end
+		end
+		for _, tile in RB.Tiles do
+			local icon, caption = tileParts(nodes, tile.Name)
+			if not (icon and icon:IsA("ImageLabel") and icon.Image ~= "" and h.visible(icon)) then
+				table.insert(icons, tile.Name .. "Icon: no shown ImageLabel with an Image")
+			end
+			if not (caption and caption:IsA("TextLabel") and h.visible(caption)) then
+				table.insert(icons, tile.Name .. "Caption: no shown TextLabel")
+			end
+		end
+		local button = h.find(RB.Button)
+		local label = button and button:FindFirstChild(RB.ButtonLabel, true)
+		if label then
+			textFits(RB.ButtonLabel, label)
+		end
+		h.checkList(res, "rebirth_nodes_shown", hidden)
+		h.checkList(res, "rebirth_texts_match_spec", texts)
+		h.checkList(res, "rebirth_heading_colours", colours)
+		h.checkList(res, "rebirth_reward_tiles_icon_and_caption", icons)
+		h.checkList(res, "rebirth_texts_fit", fits)
+		h.checkList(res, "rebirth_nodes_in_responsive_model", unmodelled)
+		h.check(
+			res,
+			"rebirth_button_shown",
+			button ~= nil and h.visible(button),
+			true,
+			button ~= nil and h.visible(button)
+		)
+
+		rebirthTruth(res, nodes)
+		if #missing == 0 then
+			rebirthGeometry(res, nodes)
+		else
+			h.check(res, "rebirth_geometry_measured", "nodes missing", "all nodes present", false)
 		end
 		restore()
 	end
 
-	-- After the (intercepted, refused) click: nothing was reset and the panel still shows the server's level
+	-- After the (intercepted, refused) click: nothing was reset and the panel still shows the server's truth
 	function after.rebirth_not_optimistic(res, ctx)
 		local level = attr("RebirthLevel") or 0
 		h.check(res, "rebirth_level_unchanged", level, ctx.pre.RebirthLevel, level == ctx.pre.RebirthLevel)
@@ -94,7 +311,7 @@ function Extras.Build(h)
 		)
 		local kept = speedNow ~= nil and ctx.pre.Speed ~= nil and speedNow >= ctx.pre.Speed
 		h.check(res, "rebirth_speed_not_reset", speedNow, ">= " .. tostring(ctx.pre.Speed), kept)
-		rebirthStatus(res)
+		rebirthTruth(res, (rebirthNodes()), true)
 	end
 
 	-- Bag / Daily Rewards ---------------------------------------------------------------------------------------

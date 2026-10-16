@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+<defs><linearGradient id="c" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8ec5ff"/><stop offset="1" stop-color="#4b8fe6"/></linearGradient>
+<pattern id="k" width="32" height="32" patternUnits="userSpaceOnUse"><rect width="16" height="16" fill="#ffffff" fill-opacity=".12"/><rect x="16" y="16" width="16" height="16" fill="#ffffff" fill-opacity=".12"/></pattern></defs>
+<rect x="10" y="10" width="236" height="236" rx="34" fill="url(#c)" stroke="#17131f" stroke-width="10" stroke-linejoin="round" stroke-linecap="round"/>
+<rect x="18" y="18" width="220" height="220" rx="28" fill="url(#k)"/>
+<g transform="rotate(-18 128 128)">
+<path d="M70 70 H178 Q190 70 190 82 V196 H82 Q70 196 70 184 Z" fill="#f6c34a" stroke="#17131f" stroke-width="10" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M60 60 H172 Q184 60 184 72 V180 H72 Q60 180 60 168 Z" fill="#3b7fe0" stroke="#17131f" stroke-width="10" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M80 88 H150 M80 108 H130" stroke="#bfe0ff" stroke-width="10" stroke-linecap="round"/>
+<path d="M150 180 v38 l14 -12 l14 12 v-38" fill="#2a64c4" stroke="#17131f" stroke-width="10" stroke-linejoin="round" stroke-linecap="round"/>
+</g>
+</svg>

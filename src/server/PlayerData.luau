@@ -22,6 +22,7 @@ local RebirthService = require(script.Parent.RebirthService)
 local BoostService = require(script.Parent.BoostService)
 local DailyLoginService = require(script.Parent.DailyLoginService)
 local LevelService = require(script.Parent.LevelService)
+local QuestService = require(script.Parent.QuestService)
 
 local PlayerData = {}
 
@@ -136,6 +137,7 @@ function PlayerData.Setup(player)
 	RebirthService.Setup(player)
 	BoostService.Setup(player)
 	DailyLoginService.Setup(player)
+	QuestService.Setup(player)
 	if player:GetAttribute("RebirthLevel") == nil then
 		player:SetAttribute("RebirthLevel", RebirthConfig.DEFAULT_LEVEL)
 	end
@@ -166,6 +168,7 @@ function PlayerData.Load(player, userId)
 		RebirthService.Apply(player, data)
 		BoostService.Apply(player, data)
 		DailyLoginService.Apply(player, data)
+		QuestService.Apply(player, data)
 		LevelService.Apply(player, data)
 		player:SetAttribute("MoneyEarned", cleanInt(data.MoneyEarned, 0, MAX_MONEY, 0))
 		player:SetAttribute("DuelWins", cleanInt(data.DuelWins, 0, MAX_DUEL_WINS, 0))
@@ -251,6 +254,7 @@ function PlayerData.Save(player, userId, release)
 	local market = MarketService.Snapshot(player)
 	local boosts = BoostService.Snapshot(player)
 	local daily = DailyLoginService.Snapshot(player)
+	local quests = QuestService.Snapshot(player)
 	local level = LevelService.Snapshot(player)
 	local payload = {
 		Money = cleanInt(money.Value, 0, MAX_MONEY, 0),
@@ -268,6 +272,12 @@ function PlayerData.Save(player, userId, release)
 		ActiveBoosts = boosts.ActiveBoosts,
 		DailyStreak = daily.DailyStreak,
 		DailyLast = daily.DailyLast,
+		QuestDailyKey = quests.QuestDailyKey,
+		QuestWeeklyKey = quests.QuestWeeklyKey,
+		QuestDaily = quests.QuestDaily,
+		QuestWeekly = quests.QuestWeekly,
+		QuestDailyClaimed = quests.QuestDailyClaimed,
+		QuestWeeklyClaimed = quests.QuestWeeklyClaimed,
 		Level = level.Level,
 		XP = level.XP,
 		OwnedAuras = market.OwnedAuras,

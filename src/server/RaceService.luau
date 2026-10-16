@@ -18,6 +18,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
+local QuestService = require(script.Parent.QuestService)
 local CarConfig = require(Shared.CarConfig)
 local CarPhysics = require(Shared.CarPhysics)
 local PathDriver = require(Shared.PathDriver)
@@ -221,6 +222,7 @@ function RaceService.NewRun(car, raceRoute, player, options)
 		local win = playerTime < race.NpcTime
 		local amount = 0
 		if win then
+			QuestService.Progress(player, "Races")
 			amount = track.Pad and MoneyService.Quote(player, track.Pad) or 0
 			run.BankedTotal += amount
 			setUnbanked(run.Unbanked + amount)

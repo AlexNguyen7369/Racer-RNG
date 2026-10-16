@@ -3,7 +3,36 @@
 PROJECT CONTEXT - Idle Vehicle Simulator (read me first)
 Shown in Studio at: ServerScriptService > ProjectContext   (source file: context/ProjectContext.luau)
 Do NOT edit this in Studio: edit the file on disk, Rojo syncs it. Claude updates it at the end of every loop.
-Last updated: 2026-10-15 (Claude: smooth auto-race rail, Isaac UI merged; harness 41/41)
+Last updated: 2026-10-15 (Claude: HUD redesign, HudChrome / Backpack / PanelBand; live desktop check, UI suite not run)
+
+HUD REDESIGN - 2026-10-15 (Claude, branch main, uncommitted)
+- Owner request with reference images; rules: design doc "HUD layout" (owner 2026-10-15), docs/HUD_LAYOUT_SPEC.md.
+- New: Client/HudChrome (icon tiles Index/Stats/Rebirth left, Shop right, Items + Upgrade beside LEVEL/TURBO, top-right
+  Daily/Quests/Market pills + round Settings), Client/BackpackUi (Misc/Trails/Auras; no cars), Client/PanelBand (one
+  band for every panel: below Race, above Turbo and Money, between the grid and Shop), RollToast/Ui/HudIcons (uploaded
+  art, sources ui/icons/hud/*.svg).
+- Changed: PanelSwitch (SetAction/Action/IsOpen; undoes unrequested shows: fixes Index + Rebirth opening together on
+  join, caused by Visible = true in generated responsive rows); RacerUiController (old Navigation + Settings hidden,
+  Settings ON/OFF pills, grey header); ProgressionUi (old Bag/Upgrades icons removed, potion bottles + "9m 33s");
+  ShopUi/MarketUi/BoostDailyUi (old buttons removed, panels fitted to the band).
+- Verified live (Studio, desktop 1081x598): no errors, every entry opens its panel, no panel covers an entry or Money.
+- NOT run: phone viewport, [UITEST] suite (ui-test-writer updating it), /compat-check.
+
+REBIRTH PANEL + REBIRTH POINTS - 2026-10-15 (Claude, branch main, uncommitted)
+- Owner request with a reference image; rules: design doc "Rebirth system" (owner 2026-10-15 lines), docs/REBIRTH_SPEC.md.
+- Rebirth Points: RebirthConfig.POINTS_PER_REBIRTH = 1 (placeholder). GachaService.EarnedPoints = index points +
+  RebirthConfig.Points(RebirthLevel); the load trim counts saved.RebirthLevel (GachaService.Apply runs before
+  RebirthService.Apply); RebirthService refreshes StatPoints after Rebirth and Apply. Nothing new saved.
+- Panel (ui/specs/RacerRebirth.ui.json -> Ui/RacerRebirth.luau, hash e3e844a47fa5): WARNING (red), REWARDS UNLOCKED
+  (yellow; luck / speed / rebirth icon tiles with captions from RebirthConfig), REQUIREMENTS (purple; Level bar,
+  "<Level> / <required> Level"), generated REBIRTH button; bound in RacerUiController. StarterGui.rbxm NOT re-baked:
+  Bind rebuilds the panel from code on the hash mismatch.
+- Tests: rebirth scenario +11 checks (test-writer), ui_rebirth rewritten (ui-test-writer), UiTestSetup rebirth_eligible /
+  rebirth_not_eligible setups + Rebirth spy. Results: red 10/1 harness, ui_rebirth red; green harness
+  [CARTEST] END pass=41 fail=0; ui_rebirth 38/38; open/close clicks 5/5; rebirth button clicks 26/26 each
+  (setups pause auto-roll so Money stays exact).
+- Not run: full [UITEST], /compat-check. ui_inventory still red on unrelated bugs (ShopUi, daily quest bar, Isaac's
+  CarsTab, RacerUpgrades counts).
 
 SMOOTH AUTO-RACE RAIL - 2026-10-15 (Claude, branch main)
 - Owner report: auto racing and TOP-DOWN VIEW looked choppy. Measured on the client: the car moved only every other

@@ -5058,6 +5058,13 @@ local extras = UiBoostsRebirth.Build({
 	visible = effectivelyVisible,
 	setPanels = setPanels,
 	player = player,
+	pathOf = pathOf,
+	render = renderFrame,
+	provider = provider,
+	viewports = UiSpec.Viewports,
+	contains = contains,
+	intersects = intersects,
+	rstr = rstr,
 })
 for name, fn in extras.Scenarios do
 	S[name] = fn
@@ -5105,6 +5112,10 @@ local function readSpy()
 	end
 	local log = {}
 	for name, raw in folder:GetAttributes() do
+		-- Only the remote logs are JSON strings (progression_spy also sets the boolean ProgressionIntercepted)
+		if type(raw) ~= "string" then
+			continue
+		end
 		local ok, list = pcall(HttpService.JSONDecode, HttpService, raw)
 		log[name] = {}
 		if ok and type(list) == "table" then

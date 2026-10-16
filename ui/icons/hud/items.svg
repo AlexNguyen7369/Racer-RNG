@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+<defs><linearGradient id="b" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a87a52"/><stop offset="1" stop-color="#7b5534"/></linearGradient></defs>
+<rect x="34" y="70" width="188" height="160" rx="26" fill="url(#b)" stroke="#17131f" stroke-width="10" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M34 120 Q34 70 80 70 H176 Q222 70 222 120 Z" fill="#c09068" stroke="#17131f" stroke-width="10" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M60 40 h136 v40 H60 Z" fill="#8a6040" stroke="#17131f" stroke-width="10" stroke-linejoin="round" stroke-linecap="round"/>
+<rect x="104" y="40" width="48" height="190" fill="#4a3324" stroke="#17131f" stroke-width="10" stroke-linejoin="round" stroke-linecap="round"/>
+<rect x="88" y="120" width="80" height="64" rx="14" fill="#f2c443" stroke="#17131f" stroke-width="10" stroke-linejoin="round" stroke-linecap="round"/>
+<rect x="108" y="138" width="40" height="28" rx="6" fill="#8a6a1c" stroke="#17131f" stroke-width="6"/>
+<path d="M58 96 Q70 84 92 84" stroke="#ffffff" stroke-opacity=".45" stroke-width="10" fill="none" stroke-linecap="round"/>
+</svg>

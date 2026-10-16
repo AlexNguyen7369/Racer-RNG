@@ -5,6 +5,7 @@
 local PanelSwitch = {}
 
 local panels = {} -- name -> Frame
+local wanted = {} -- name -> true while PanelSwitch opened it
 local changed = Instance.new("BindableEvent")
 PanelSwitch.Changed = changed.Event -- fires after any panel opens or closes (deferred)
 local listeners = {}
@@ -34,7 +35,19 @@ end
 
 function PanelSwitch.Register(name, panel)
 	panels[name] = panel
-	panel:GetPropertyChangedSignal("Visible"):Connect(notify)
+	wanted[name] = panel.Visible
+	panel:GetPropertyChangedSignal("Visible"):Connect(function()
+		-- Generated responsive fits re-apply the authored Visible = true on viewport changes; only Toggle opens
+		-- a panel, so an unrequested show is undone (it would stack two panels on join).
+		if panel.Visible and not wanted[name] then
+			panel.Visible = false
+			return
+		end
+		if not panel.Visible then
+			wanted[name] = false
+		end
+		notify()
+	end)
 end
 
 -- Shows `name` and hides every other registered panel; hides it if it was already open. Returns the new state.
@@ -51,9 +64,29 @@ function PanelSwitch.Toggle(name)
 			end
 		end
 	end
+	wanted[name] = open
 	panel.Visible = open
 	notify()
 	return open
+end
+
+-- A HUD entry whose panel needs more than Toggle (it rebuilds its content, or two entries share one panel)
+-- registers its own action; Action falls back to Toggle. The owning script decides toggle behaviour.
+local actions = {}
+function PanelSwitch.SetAction(name, fn)
+	actions[name] = fn
+end
+
+function PanelSwitch.Action(name)
+	if actions[name] then
+		actions[name]()
+	else
+		PanelSwitch.Toggle(name)
+	end
+end
+
+function PanelSwitch.IsOpen(name)
+	return panels[name] ~= nil and panels[name].Visible
 end
 
 function PanelSwitch.Close(name)

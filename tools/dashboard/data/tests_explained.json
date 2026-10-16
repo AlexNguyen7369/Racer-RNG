@@ -259,10 +259,10 @@
     "files": "Server/WorkshopService, Server/PlayerData, CarTest/Phase2Tests"
   },
   "rebirth": {
-    "checks": "A rebirth is refused below the level milestone, before the save loaded, after a failed load and while auto racing; an accepted one sets Money AND Speed to 0 and keeps cars, upgrades, workshop level, Level/XP, MoneyEarned and DuelWins.",
-    "why": "Design doc: rebirthing resets Money and Speed. A wrong reset destroys or leaks progress.",
-    "limits": "docs/GAME_DESIGN_REQUIREMENTS.md Rebirth system, docs/SAVE_SPEC.md section 3",
-    "files": "Server/RebirthService, Shared/RebirthConfig"
+    "checks": "A rebirth is refused below the level milestone, before the save loaded, after a failed load and while auto racing; an accepted one sets Money AND Speed to 0 and keeps cars, upgrades, workshop level, Level/XP, MoneyEarned and DuelWins. Rebirth Points: RebirthConfig.POINTS_PER_REBIRTH is 1, a rebirth adds exactly that many free StatPoints, GachaService.EarnedPoints = index points + RebirthLevel x per rebirth, a rebirth point can be allocated (StatPoints drops by 1), and the load trim counts the SAVED RebirthLevel so rebirth-funded allocations survive while anything beyond index + rebirth points is still cut.",
+    "why": "Design doc: rebirthing resets Money and Speed, and each rebirth gives Rebirth Points for the four stats. A wrong reset destroys or leaks progress; a trim that ignores the rebirth level would cut paid-for allocations on every rejoin.",
+    "limits": "docs/GAME_DESIGN_REQUIREMENTS.md Rebirth system, docs/REBIRTH_SPEC.md Rules (server), docs/SAVE_SPEC.md section 3",
+    "files": "Server/RebirthService, Shared/RebirthConfig, Server/GachaService, Shared/GachaConfig"
   },
   "daily_login": {
     "checks": "No daily reward contains Money; every day grants a potion or the guaranteed rare; a claim never changes Money or MoneyEarned and works once per day.",

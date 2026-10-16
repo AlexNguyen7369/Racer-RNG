@@ -50,6 +50,9 @@ function Tabs.Attach(refs, player, refreshCars)
 		ScrollBarThickness = 5,
 		ScrollBarImageColor3 = Color3.fromRGB(30, 216, 255),
 	}, refs.ConsumablesHost)
+	-- Holdables are opened from the standalone Bag HUD button; Index is car discovery only.
+	refs.ConsumablesTab.Visible = false
+	refs.ConsumablesHost.Visible = false
 	make("UIListLayout", "Layout", { Padding = UDim.new(0, 12), SortOrder = Enum.SortOrder.LayoutOrder }, list)
 	make(
 		"UIPadding",
