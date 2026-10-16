@@ -37,8 +37,9 @@
 34. 2026-10-13 — Alex Nguyen — Changed weather to start every 15 minutes with an equal-chance pick of five (Clear, Rain, Night Race, Gold Rush, Aurora), replaced the banner with a bottom-right icon and hover card, and made the five skies distinguishable (harness `pass=35 fail=0`, weather 366/366, weather UI fixtures and card clicks green), without a `/compat-check`.
 35. 2026-10-14 — Isaac Li — Implemented Inventory tabs, potion bottle art, HUD captions/spacing/shadows and a full-screen zoomable upgrade tree on a review branch; focused live checks passed, full compatibility remains pending.
 36. 2026-10-15 — Alex Nguyen — Fixed the choppy auto-race motion by replacing the per-frame rail teleport with sideways velocity steering (teleports counted in `run.RailSnaps`), made the top-down camera smoothing frame-rate independent and merged Isaac's UI commit onto main (harness `pass=41 fail=0`, client saw the car move every frame), committed but not pushed because `/compat-check` has not run.
+37. 2026-10-16 — Alex Nguyen — Rebuilt the Shop from the reference images (featured Ember Wyvern 1999 R$ / Singularity 999 R$, gamepasses, potion packs + bundle, Server Luck, codes), added ShopService receipts and redeem codes (save VERSION 9, shop_purchases 76/76), restyled the Market like the Backpack, removed the compat push gate, and pushed `016c467` to main.
 
 ## What's next
-**Have ui-test-writer reconcile the UI tests with Isaac's inventory and upgrade-tree UI, then run `/compat-check` alone in Studio and push `main`.**
+**Run `/compat-check` on `016c467` (full harness already started, then ui_shop / ui_market, phone landscape, multiplayer, world, regression) and fix whatever is red.**
 
-**Why this is next:** `main` is 17 commits ahead of `origin/main`, and the push is blocked until `/compat-check` is ALL GREEN, which the UI suite cannot reach while its specs describe the old Index, Bag and upgrade panels.
+**Why this is next:** the Shop, Market, receipts and Codex's HUD polish were pushed without a full UI or harness run; the new UI tests have never run, and the owner's developer-product ids (dashboard Needs you) come after the Shop is verified.
