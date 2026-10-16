@@ -35,11 +35,10 @@
 32. 2026-10-13 — Alex Nguyen — Published the weather-sky, duel, leaderboard, HUD and dashboard updates on `feature/alex/global-leaderboards` under the owner's stale-gate exception, with dashboard/UI/Rojo/static checks passing and the three implemented TODO cards closed.
 33. 2026-10-13 — Alex Nguyen — Committed (not pushed) the roll odds that follow the roll's luck (harness `pass=35 fail=0`, `ui_roll_odds` 6/6) and the 20 duel UI fixtures with the own-prompt and duel-car `AutoRace` fixes (15 of 20 fixtures run green), without a `/compat-check`.
 34. 2026-10-13 — Alex Nguyen — Changed weather to start every 15 minutes with an equal-chance pick of five (Clear, Rain, Night Race, Gold Rush, Aurora), replaced the banner with a bottom-right icon and hover card, and made the five skies distinguishable (harness `pass=35 fail=0`, weather 366/366, weather UI fixtures and card clicks green), without a `/compat-check`.
-
-27. 2026-10-14 — Isaac Li — Implemented Inventory tabs, potion bottle art, HUD captions/spacing/shadows and a full-screen zoomable upgrade tree on a review branch; focused live checks passed, full compatibility remains pending.
+35. 2026-10-14 — Isaac Li — Implemented Inventory tabs, potion bottle art, HUD captions/spacing/shadows and a full-screen zoomable upgrade tree on a review branch; focused live checks passed, full compatibility remains pending.
+36. 2026-10-15 — Alex Nguyen — Fixed the choppy auto-race motion by replacing the per-frame rail teleport with sideways velocity steering (teleports counted in `run.RailSnaps`), made the top-down camera smoothing frame-rate independent and merged Isaac's UI commit onto main (harness `pass=41 fail=0`, client saw the car move every frame), committed but not pushed because `/compat-check` has not run.
 
 ## What's next
-**Fix the DailyBoosts `Status` overlap on phones (bug `3a6d9cb3`) and the roll-timing UI failures (`ui_roll_anim`, `ui_rolls`), then run `/compat-check` alone in Studio.**
-**Run the full /compat-check (UI, multiplayer, world and regression suites) on the smooth-rail and daily-modal commits.**
+**Have ui-test-writer reconcile the UI tests with Isaac's inventory and upgrade-tree UI, then run `/compat-check` alone in Studio and push `main`.**
 
-**Why this is next:** these are the UI scenarios still failing on commit `af99a1c`, so the UI suite cannot go green and the compatibility gate that the branch needs before `main` cannot pass until they are fixed.
+**Why this is next:** `main` is 17 commits ahead of `origin/main`, and the push is blocked until `/compat-check` is ALL GREEN, which the UI suite cannot reach while its specs describe the old Index, Bag and upgrade panels.
