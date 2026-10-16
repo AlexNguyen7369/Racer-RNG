@@ -106,7 +106,8 @@ function Workshop.LevelMulti(level)
 	return WorkshopConfig.Levels[Workshop.CleanLevel(level)].Multi
 end
 
--- Speed per second in the zone: BASE_RATE * speedMulti * LevelMulti(level) * workshopMulti / (1 + stat / GAIN_SOFT).
+-- Speed per second in the zone: BASE_RATE * speedMulti * LevelMulti(level) * workshopMulti. The stat never reduces
+-- it (docs/WORKSHOP_SPEC.md section 4, owner 2026-10-13); it is still validated.
 -- Bad inputs give 0.
 function Workshop.Rate(stat, speedMulti, level, workshopMulti)
 	if not finite(stat) or stat < 0 or not finite(speedMulti) or speedMulti < 0 then
@@ -118,16 +119,10 @@ function Workshop.Rate(stat, speedMulti, level, workshopMulti)
 	if level ~= nil and not finite(level) then
 		return 0
 	end
-	stat = math.min(stat, RaceConfig.MAX_STAT)
-	return WorkshopConfig.BASE_RATE
-		* speedMulti
-		* Workshop.LevelMulti(level)
-		* workshopMulti
-		/ (1 + stat / RaceConfig.GAIN_SOFT)
+	return WorkshopConfig.BASE_RATE * speedMulti * Workshop.LevelMulti(level) * workshopMulti
 end
 
--- Integrate ds/dt = A/(1+s/H), rather than multiplying a frozen rate by hours.
--- The rationalized expression retains precision for small gains at high stats.
+-- Offline Speed: the workshop rate x OFFLINE_FRACTION x the capped time, never past MAX_STAT.
 function Workshop.OfflineGain(stat, speedMulti, level, workshopMulti, seconds)
 	if
 		not finite(stat)
@@ -143,21 +138,8 @@ function Workshop.OfflineGain(stat, speedMulti, level, workshopMulti, seconds)
 	end
 	stat = math.min(stat, RaceConfig.MAX_STAT)
 	local duration = math.clamp(seconds, 0, WorkshopConfig.OFFLINE_CAP)
-	local a = WorkshopConfig.BASE_RATE
-		* speedMulti
-		* Workshop.LevelMulti(level)
-		* workshopMulti
-		* WorkshopConfig.OFFLINE_FRACTION
-	local h = RaceConfig.GAIN_SOFT
-	local q = 2 * h * a * duration
-	local gain = q / (math.sqrt((stat + h) ^ 2 + q) + stat + h)
+	local gain = Workshop.Rate(stat, speedMulti, level, workshopMulti) * WorkshopConfig.OFFLINE_FRACTION * duration
 	return math.min(gain, RaceConfig.MAX_STAT - stat)
-end
-
--- Offline Money is a deterministic companion credit based on the same capped Speed interval.
-function Workshop.OfflineMoney(stat, speedMulti, level, workshopMulti, seconds)
-	local speedGain = Workshop.OfflineGain(stat, speedMulti, level, workshopMulti, seconds)
-	return math.floor(speedGain * WorkshopConfig.OFFLINE_MONEY_FRACTION)
 end
 
 return Workshop

@@ -6,52 +6,328 @@
     "Only test-writer / ui-test-writer edit tests. The loop is: write the test (red), implement, audit the tests were not loosened, run the FULL suite, repeat until fail=0.",
     "Pushing to main needs /compat-check ALL GREEN: harness + ui + multiplayer + world + the final regression pass, for exactly the code being pushed (tools/compat.py)."
   ],
-  "static_settle": {"checks": "A parked car settles and stays still. Four fresh drops (new car each, dropped 0, 0.25, 0.5 and 1 stud above the spawn pose): after 3 s each one is checked for speed, suspension compression and level body (worst of the four), then watched every frame for 6 s more: peak speed, peak vertical speed and peak-to-peak chassis height. The last drop's hold adds a 20 ms server stall every 0.5 s, like a busy cold start, and is reported separately as hitch_*.", "why": "A single sample at 3 s caught the at-rest vertical jitter (~0.8 studs/s suspension kicks) only about 1 run in 3. Watching the whole hold window over several drops makes a jittering car fail every run, and a green run means the jitter is really gone. If the car jitters or sinks at rest, every other physics result is unreliable.", "limits": "PhysicsTargets.static_settle: MaxSettleSpeed 0.5 studs/s (at 3 s and peak over the hold), compression 0.15-0.65, MaxTiltDeg 3, MaxRestVerticalSpeed 0.3 studs/s peak |vy|, MaxRestBobStuds 0.03 peak-to-peak Y", "files": "CarConfig, CarPhysics"},
-  "accel": {"checks": "From standstill the car reaches 40 studs/s fast enough, gets near TopSpeed, and drives straight.", "why": "Feel of the car and the base for the race speeds.", "limits": "accel: MaxTimeTo40 2.5 s, MinTopSpeedFrac 0.85, MaxDrift 3", "files": "CarConfig, CarPhysics"},
-  "brake": {"checks": "From 60 studs/s the car stops within the distance and does not swerve.", "why": "PathDriver slows for corners by braking; bad brakes mean overshoot and off-track.", "limits": "brake: MaxStopDistance 45, MaxDrift 3", "files": "CarConfig, CarPhysics"},
-  "skidpad": {"checks": "At 40 studs/s and full steer the car turns tightly enough and stays upright.", "why": "Corner grip decides the safe corner speed in the auto race.", "limits": "skidpad: MaxRadius 70, MinUpY 0.85", "files": "CarConfig, CarPhysics"},
-  "car_size": {"checks": "The car is about half its original 13.2 stud length, with body, wheels and suspension scaled together.", "why": "The half-size car is a design decision; this stops it drifting back.", "limits": "Scenario constants", "files": "CarConfig, CarFactory"},
-  "chain": {"checks": "Tracks joined finish-to-start in Number order connect smoothly and never overlap each other.", "why": "Track rule 3: the finish of track N is the start of N+1.", "limits": "TrackValidator rules", "files": "Tracks/*, TrackBuilder, TrackRegistry"},
-  "money": {"checks": "MoneyService contract: pad payouts are decided by the server, paid once per pass, with a per-player cooldown, and bad awards are rejected.", "why": "Money is the economy; clients must never be able to pay themselves.", "limits": "MoneyService.COOLDOWN", "files": "Server/MoneyService"},
-  "race": {"checks": "The real chain is auto-raced by RaceService at the Speed stat's cruise speed: stays on its path, never flips or tilts, pads pay once, the stat grows, also at MAX_STAT speed.", "why": "This is the core loop of the game.", "limits": "race: MaxPathDeviation 5, MinUpY 0.9, MaxFlips 0; lap.MinUpYStrict 0.9", "files": "RaceService, PathDriver, RaceConfig, CarPhysics, Tracks"},
-  "flip_recovery": {"checks": "A car put upside down mid-race is set upright back on the path in time and keeps racing.", "why": "Safety net: a stuck car would end the idle loop.", "limits": "race.FlipRecoverySeconds 3", "files": "RaceService (FLIP_UP_Y, FLIP_SECONDS)"},
-  "economy": {"checks": "RaceConfig maths: SpeedFor rises from BASE_SPEED towards MAX_SPEED with diminishing returns; GainPerSecond is proportional to actual speed and shrinks as the stat grows.", "why": "Balancing numbers in one place, tested as pure functions.", "limits": "RaceConfig constants", "files": "Shared/RaceConfig"},
-  "data": {"checks": "PlayerData saves and loads Money, Speed, cars, rolls, stat allocation, upgrade tiles, BestTrack, TurboCount and WorkshopLevel through a stub store; never writes before the load finished; old save formats (v1-v3) still load (v3: TurboCount = Rolls % 10, BestTrack 0, WorkshopLevel 1).", "why": "Lost or overwritten saves are the worst bug a game can ship.", "limits": "PlayerData VERSION 4 rules; WorkshopLevel clamped to 1..WorkshopConfig.MAX_LEVEL", "files": "Server/PlayerData, Server/UpgradeService, Server/WorkshopService"},
-  "hud": {"checks": "HudFormat: the Speed / Money numbers are formatted correctly and the count-up smoothing behaves.", "why": "The HUD must show the server's truth, readable at any size.", "limits": "Scenario constants", "files": "Shared/HudFormat, Client/SpeedHud"},
-  "auto_toggle": {"checks": "Stop Auto / Auto Race: stopping returns the avatar on foot to the spawn area, resuming starts at the start line, the Speed stat is kept, rapid toggles and bad input are safe, hidden avatars never collide.", "why": "The most-clicked control; swapping in and out must never bug the car.", "limits": "SpawnArea.START_COOLDOWN", "files": "CarService, RaceService, Client/AutoRaceButton"},
-  "spawn_area": {"checks": "The purple spawn floor (228 x 232, with the old 160 x 144 area as the hub) is the only SpawnLocation, sits right of Track 1's start, the spawn is at the hub centre, edges only on the outer sides, never overlaps a track; walking on the StartPad starts racing with a cooldown.", "why": "First thing every player sees.", "limits": "docs/SPAWN_AND_ROLLS_SPEC.md, docs/WORKSHOP_SPEC.md section 1", "files": "Shared/SpawnArea, CarService"},
-  "gacha": {"checks": "Car catalog and config, seeded roll odds (rarest first, min(1, luck/Chance)), turbo every 10th roll, owning = discovering, the auto-roll timer.", "why": "The odds are the game's promise to players; they must match what is shown.", "limits": "GachaConfig", "files": "Server/GachaService, Shared/GachaConfig, Shared/Cars/*"},
-  "index": {"checks": "Discoveries give stat points, allocation is validated, equip works, and the multipliers change Speed gain and pad pay but never physics.", "why": "Progression maths and anti-cheat on AllocateStat / EquipCar.", "limits": "GachaService multis", "files": "Server/GachaService, RaceService, MoneyService"},
-  "npc": {"checks": "Each track's NPC drives the left lane as pure maths; win if you finish before it, lose plays out then resets to Track 1; a loss empties the bank.", "why": "The race against the NPC is the game's challenge.", "limits": "NpcConfig", "files": "Shared/NpcRacer, Shared/NpcConfig, RaceService"},
-  "bank": {"checks": "In NPC mode wins add to Unbanked and pay nothing at the finish; CashOut pays once and zeroes; Stop, death and leaving pay the bank.", "why": "Banked money is a promise; paying twice or never is a real-money-feel bug.", "limits": "docs/SPAWN_AND_ROLLS_SPEC.md section 3", "files": "RaceService, MoneyService"},
-  "multiplayer": {"checks": "Two players racing from the same spot pass through each other, both stay upright on their path, and each player's NPC race is their own.", "why": "Bugs that only show with 2+ players are the hardest to catch later.", "limits": "Collision group Cars", "files": "CarService, RaceService, NpcRacerView"},
-  "admin": {"checks": "Admin chat commands work for admins only, change nothing for others, reply only to the sender, and /tp jumps tracks correctly.", "why": "Admin commands are a security boundary.", "limits": "AdminConfig", "files": "Server/AdminService, Server/AdminConfig"},
-  "roll_anim": {"checks": "Roll animation timing contract (pop, spin, land, hold by rarity, exit, emphasized extra), compact size and panel positions, emphasized roll rules, the auto-roll pause.", "why": "Rolls must never overlap or desync from the server's roll timer.", "limits": "Shared/RollAnimConfig, docs/ROLL_ANIMATION_CONTRACT.md", "files": "Client/RollToast, Shared/RollAnimConfig, GachaService"},
-  "upgrades": {"checks": "Upgrade tree: tiles, prices, gates, bonuses, roll interval, turbo and walkspeed tables (pure); UpgradeService.Buy takes Money once and refuses unknown / owned / locked / gated / poor / non-string / too-fast buys without changing anything; a buy changes only the buyer (another player's Money, tiles, BestTrack, TurboCount and badge stay the same, and one player's cooldown never blocks another); the gate uses the real track count; bonuses are ADDED to stat points in Luck, Money and Speed multis; turbo rolls follow TurboCount and the tier; the auto-roll interval and on-foot WalkSpeed follow the tiles; the badge count and save fields are right.", "why": "Money buys permanent power: a double charge, a free tile or a wrong multi breaks the economy.", "limits": "docs/UPGRADE_TREE_SPEC.md (owner numbers), UpgradeConfig", "files": "Shared/UpgradeTree, Shared/UpgradeConfig, Server/UpgradeService, GachaService, GachaConfig, CarService"},
-  "workshop": {"checks": "Mechanical Workshop: 7 plots with the spec rects in the spawn floor, never overlapping each other, the hub, the spawn, the StartPad or any track, each open toward the hub; zone and rate maths (Shared/Workshop); WorkshopService gives each player the lowest free plot with their workshop and sign, frees it on leave, an 8th player gets none; standing in your own zone (alive, on foot) earns exactly rate x dt Speed, anywhere else nothing.", "why": "Idle Speed must only be earned in your own workshop, decided by the server, and no plot may ever block a road.", "limits": "docs/WORKSHOP_SPEC.md, WorkshopConfig", "files": "Shared/Workshop, Shared/WorkshopConfig, Server/WorkshopService, Shared/SpawnArea"},
-  "track:*": {"checks": "The track's own acceptance spec (written first by test-writer): length, width, min radius, turns, hills, lap time, checkpoint and pad rules, then a driven lap.", "why": "Track rules 1-8 in CLAUDE.md; every track goes through /build-track.", "limits": "src/server/CarTest/TrackTests/<Track>.luau + PhysicsTargets.lap", "files": "Shared/Tracks/<Track>, TrackBuilder, TrackValidator"},
-  "ui_client_rendering": {"checks": "Every declared ScreenGui exists and renders on the client.", "why": "Catches UI that silently failed to load.", "limits": "UiSpec", "files": "Client/*"},
-  "ui_inventory": {"checks": "Every button and panel in UiSpec exists; nothing undeclared is clickable.", "why": "Keeps UiSpec the single list of what players can press.", "limits": "UiSpec", "files": "src/client/UiTest/UiSpec.luau"},
-  "ui_layout": {"checks": "No two reachable buttons or panels overlap at any tested viewport, including phone landscape.", "why": "Overlap = mis-clicks, especially on phones.", "limits": "UiSpec.Tolerance, viewports", "files": "All UI"},
-  "ui_hitboxes": {"checks": "Click areas stay inside their parent and close to their visuals.", "why": "Invisible hitboxes steal clicks from other buttons.", "limits": "UiSpec.Tolerance", "files": "All UI"},
-  "ui_buttons": {"checks": "Each button does exactly what its label says.", "why": "Rule: buttons do what they show.", "limits": "UiSpec clicks", "files": "All UI"},
-  "ui_hud": {"checks": "The left HUD shows the server's Speed, Money and Unbanked.", "why": "Client only displays; it must match leaderstats.", "limits": "UiSpec", "files": "Client/SpeedHud"},
-  "ui_index": {"checks": "The Index panel lists cars, owned state and opens below the Auto Race button.", "why": "Panel placement rules.", "limits": "UiSpec", "files": "Client/IndexUi"},
-  "ui_stats": {"checks": "The Stats panel shows points and allocation and fits its area.", "why": "Panel placement rules.", "limits": "UiSpec", "files": "Client/StatsUi"},
-  "ui_toast": {"checks": "The roll toast sits above the turbo bar and stays shown through panels and HUD clicks (final design).", "why": "Roll animation spec decisions 4 and 6.", "limits": "UiSpec.Compact", "files": "Client/RollToast"},
-  "ui_rolls": {"checks": "The turbo bar fills per roll and shows the TURBO pop on turbo rolls.", "why": "Players must see the turbo rhythm.", "limits": "UiSpec", "files": "Client/RollUi"},
-  "ui_roll_anim": {"checks": "Compact roll: bare model + '1 in N', about 12% of screen width, phases in order, never hidden.", "why": "docs/ROLL_ANIMATION_SPEC.md", "limits": "RollAnimConfig", "files": "Client/RollToast"},
-  "ui_showcase": {"checks": "The enlarged roll card opens from the toast, stays open on card clicks, closes on the backdrop, AUTO toggle works.", "why": "Click-anywhere-to-close must not swallow other clicks.", "limits": "UiSpec clicks", "files": "Client/RollToast"},
-  "ui_loser": {"checks": "The loser screen shows after a lost NPC race and goes away after LOSE_SCREEN_SECONDS.", "why": "Players must know why they were sent back.", "limits": "NpcConfig.LOSE_SCREEN_SECONDS", "files": "Client/LoserScreen"},
-  "ui_billboards": {"checks": "Pad $ text and NPC labels show only within their MaxDistance.", "why": "Track rule 6 and NPC label distance.", "limits": "TrackBuilder.WIN_TEXT_DISTANCE 60, NpcConfig.LABEL_DISTANCE", "files": "TrackBuilder, NpcRacerView"},
-  "ui_panels": {"checks": "Index and Stats panels are mutually exclusive through PanelSwitch.", "why": "Two panels at once would overlap.", "limits": "UiSpec", "files": "Client/PanelSwitch"},
-  "ui_roll_emphasized": {"checks": "An emphasized roll (undiscovered and rarer than the 5th-rarest owned car) gets the longer reveal and the chat announce.", "why": "Rare moments must feel special and be shared.", "limits": "GachaConfig.IsEmphasized", "files": "Client/RollToast, Client/RollAnnounce"},
-  "workshop_offline": {"checks": "Independent integral oracle checks 25% offline gain, diminishing returns, eight-hour cap, every configured level, invalid inputs and MAX_STAT.", "why": "A frozen rate times hours overpays offline progression.", "limits": "WorkshopConfig.OFFLINE_FRACTION and OFFLINE_CAP, RaceConfig.MAX_STAT", "files": "Shared/Workshop, CarTest/Phase2Tests"},
-  "workshop_phase2": {"checks": "Owned nearby alive loaded players can buy only the next level at its configured price. Atomic offline claims persist before credit, cannot replay on reconnect or repeated Load, and failed loads/claims cannot save.", "why": "Protects Money, saved levels and offline rewards from double payment.", "limits": "WorkshopConfig.Levels, UPGRADE_DISTANCE, PlayerData VERSION 4", "files": "Server/WorkshopService, Server/PlayerData, CarTest/Phase2Tests"},
-  "weather": {"checks": "Event expiry, replication, exact multipliers, actual roll thresholds, payouts, NPC start speed and all three event-only car eligibility rules.", "why": "Server events must change gameplay only for their declared duration and eligible cars.", "limits": "WeatherConfig, docs/WEATHER_EVENTS_SPEC.md", "files": "Server/WeatherService, Server/GachaService, Server/RaceService, Shared/GachaConfig"},
-  "ui_upgrades": {"checks": "Hex tiles, scroll canvas, buyable badge, ownership, gates, prices and hub world pad match server state; real clicks invoke the purchase remote.", "why": "Players need a readable tree with truthful purchase feedback.", "limits": "UiSpec.Progression, UpgradeTree", "files": "Client/ProgressionUi, UiTest/UiProgression"},
-  "ui_workshop_modal": {"checks": "E prompt, current level, next price, affordability and purchase result; remote receives no client amount.", "why": "A workshop upgrade must be owner-controlled and show the actual next cost.", "limits": "WorkshopConfig, UiSpec clicks", "files": "Client/ProgressionUi, UiTest/UiProgression"},
-  "ui_progression_hud": {"checks": "Workshop HUD rate and zone state, upgrade entry and badge match server attributes.", "why": "Players must see whether their workshop is paying.", "limits": "UiSpec.Progression", "files": "Client/ProgressionUi, UiTest/UiProgression"},
-  "ui_offline_welcome": {"checks": "Positive offline credit displays the welcome panel with exact credited Speed and duration; zero credit stays closed.", "why": "The welcome panel must report actual persisted rewards.", "limits": "OfflineSpeed, OfflineSeconds", "files": "Client/ProgressionUi, UiTest/UiProgression"},
-  "ui_weather": {"checks": "Weather name and server countdown, clear state, Rain, Night Race and Gold Rush fixtures.", "why": "Event presentation must agree with server timing.", "limits": "WeatherEvent, WeatherEndsAt, WeatherConfig", "files": "Client/ProgressionUi, UiTest/UiProgression"}
+  "static_settle": {
+    "checks": "A parked car settles and stays still. Four fresh drops (new car each, dropped 0, 0.25, 0.5 and 1 stud above the spawn pose): after 3 s each one is checked for speed, suspension compression and level body (worst of the four), then watched every frame for 6 s more: peak speed, peak vertical speed and peak-to-peak chassis height. The last drop's hold adds a 20 ms server stall every 0.5 s, like a busy cold start, and is reported separately as hitch_*.",
+    "why": "A single sample at 3 s caught the at-rest vertical jitter (~0.8 studs/s suspension kicks) only about 1 run in 3. Watching the whole hold window over several drops makes a jittering car fail every run, and a green run means the jitter is really gone. If the car jitters or sinks at rest, every other physics result is unreliable.",
+    "limits": "PhysicsTargets.static_settle: MaxSettleSpeed 0.5 studs/s (at 3 s and peak over the hold), compression 0.15-0.65, MaxTiltDeg 3, MaxRestVerticalSpeed 0.3 studs/s peak |vy|, MaxRestBobStuds 0.03 peak-to-peak Y",
+    "files": "CarConfig, CarPhysics"
+  },
+  "accel": {
+    "checks": "From standstill the car reaches 40 studs/s fast enough, gets near TopSpeed, and drives straight.",
+    "why": "Feel of the car and the base for the race speeds.",
+    "limits": "accel: MaxTimeTo40 2.5 s, MinTopSpeedFrac 0.85, MaxDrift 3",
+    "files": "CarConfig, CarPhysics"
+  },
+  "brake": {
+    "checks": "From 60 studs/s the car stops within the distance and does not swerve.",
+    "why": "PathDriver slows for corners by braking; bad brakes mean overshoot and off-track.",
+    "limits": "brake: MaxStopDistance 45, MaxDrift 3",
+    "files": "CarConfig, CarPhysics"
+  },
+  "skidpad": {
+    "checks": "At 40 studs/s and full steer the car turns tightly enough and stays upright.",
+    "why": "Corner grip decides the safe corner speed in the auto race.",
+    "limits": "skidpad: MaxRadius 70, MinUpY 0.85",
+    "files": "CarConfig, CarPhysics"
+  },
+  "car_size": {
+    "checks": "The car is about half its original 13.2 stud length, with body, wheels and suspension scaled together.",
+    "why": "The half-size car is a design decision; this stops it drifting back.",
+    "limits": "Scenario constants",
+    "files": "CarConfig, CarFactory"
+  },
+  "chain": {
+    "checks": "Tracks joined finish-to-start in Number order connect smoothly and never overlap each other.",
+    "why": "Track rule 3: the finish of track N is the start of N+1.",
+    "limits": "TrackValidator rules",
+    "files": "Tracks/*, TrackBuilder, TrackRegistry"
+  },
+  "money": {
+    "checks": "MoneyService contract: pad payouts are decided by the server, paid once per pass, with a per-player cooldown, and bad awards are rejected.",
+    "why": "Money is the economy; clients must never be able to pay themselves.",
+    "limits": "MoneyService.COOLDOWN",
+    "files": "Server/MoneyService"
+  },
+  "race": {
+    "checks": "The real chain is auto-raced by RaceService at the Speed stat's cruise speed: stays on its path, never flips or tilts, pads pay once, the stat grows, also at MAX_STAT speed. race_rail_never_snaps / max_speed_rail_never_snaps: from start to the last checkpoint the rail never teleports the car (run.RailSnaps, frames where the rail fell back to PivotTo; missing counts as a fail).",
+    "why": "This is the core loop of the game. A server PivotTo every frame replicates to the client as a stutter (the car moves 3.7, 0, 3.7, 0 studs on alternate frames at speed 111, measured 2026-10-15); steering by velocity moves it smoothly every frame.",
+    "limits": "race: MaxPathDeviation 5, MinUpY 0.9, MaxFlips 0; lap.MinUpYStrict 0.9; race.MaxRailSnaps 0",
+    "files": "RaceService, PathDriver, RaceConfig, CarPhysics, Tracks"
+  },
+  "flip_recovery": {
+    "checks": "A car put upside down mid-race is set upright back on the path in time and keeps racing.",
+    "why": "Safety net: a stuck car would end the idle loop.",
+    "limits": "race.FlipRecoverySeconds 3",
+    "files": "RaceService (FLIP_UP_Y, FLIP_SECONDS)"
+  },
+  "economy": {
+    "checks": "RaceConfig maths: SpeedFor rises from BASE_SPEED towards MAX_SPEED with diminishing returns; GainPerSecond is GAIN_PER_STUD x actual speed at every stat (owner 2026-10-13: the stat never reduces it, GAIN_SOFT removed), so the gain at cruise speed rises with the stat; every doubling of a high stat adds (MAX_SPEED - BASE_SPEED) / 2 studs/s of cruise speed.",
+    "why": "Balancing numbers in one place, tested as pure functions.",
+    "limits": "RaceConfig constants",
+    "files": "Shared/RaceConfig"
+  },
+  "data": {
+    "checks": "PlayerData saves and loads Money, Speed, cars, rolls, stat allocation, upgrade tiles, BestTrack, TurboCount and WorkshopLevel through a stub store; never writes before the load finished; old save formats (v1-v3) still load (v3: TurboCount = Rolls % 10, BestTrack 0, WorkshopLevel 1).",
+    "why": "Lost or overwritten saves are the worst bug a game can ship.",
+    "limits": "PlayerData VERSION 4 rules; WorkshopLevel clamped to 1..WorkshopConfig.MAX_LEVEL",
+    "files": "Server/PlayerData, Server/UpgradeService, Server/WorkshopService"
+  },
+  "hud": {
+    "checks": "HudFormat: the Speed / Money numbers are formatted correctly and the count-up smoothing behaves.",
+    "why": "The HUD must show the server's truth, readable at any size.",
+    "limits": "Scenario constants",
+    "files": "Shared/HudFormat, Client/SpeedHud"
+  },
+  "auto_toggle": {
+    "checks": "Stop Auto / Auto Race: stopping returns the avatar on foot to the spawn area, resuming starts at the start line, the Speed stat is kept, rapid toggles and bad input are safe, hidden avatars never collide.",
+    "why": "The most-clicked control; swapping in and out must never bug the car.",
+    "limits": "SpawnArea.START_COOLDOWN",
+    "files": "CarService, RaceService, Client/AutoRaceButton"
+  },
+  "spawn_area": {
+    "checks": "The purple spawn floor (228 x 232, with the old 160 x 144 area as the hub) is the only SpawnLocation, sits right of Track 1's start, the spawn is at the hub centre, edges only on the outer sides, never overlaps a track; walking on the StartPad starts racing with a cooldown.",
+    "why": "First thing every player sees.",
+    "limits": "docs/SPAWN_AND_ROLLS_SPEC.md, docs/WORKSHOP_SPEC.md section 1",
+    "files": "Shared/SpawnArea, CarService"
+  },
+  "gacha": {
+    "checks": "Car catalog and config, seeded roll odds (rarest first, min(1, luck/Chance)), turbo every 10th roll, owning = discovering, the auto-roll timer.",
+    "why": "The odds are the game's promise to players; they must match what is shown.",
+    "limits": "GachaConfig",
+    "files": "Server/GachaService, Shared/GachaConfig, Shared/Cars/*"
+  },
+  "index": {
+    "checks": "Discoveries give stat points, allocation is validated, equip works, and the multipliers change Speed gain and pad pay but never physics.",
+    "why": "Progression maths and anti-cheat on AllocateStat / EquipCar.",
+    "limits": "GachaService multis",
+    "files": "Server/GachaService, RaceService, MoneyService"
+  },
+  "npc": {
+    "checks": "Each track's NPC drives the left lane as pure maths; win if you finish before it, lose plays out then resets to Track 1; a loss empties the bank.",
+    "why": "The race against the NPC is the game's challenge.",
+    "limits": "NpcConfig",
+    "files": "Shared/NpcRacer, Shared/NpcConfig, RaceService"
+  },
+  "bank": {
+    "checks": "In NPC mode wins add to Unbanked and pay nothing at the finish; CashOut pays once and zeroes; Stop, death and leaving pay the bank.",
+    "why": "Banked money is a promise; paying twice or never is a real-money-feel bug.",
+    "limits": "docs/SPAWN_AND_ROLLS_SPEC.md section 3",
+    "files": "RaceService, MoneyService"
+  },
+  "multiplayer": {
+    "checks": "Two players racing from the same spot pass through each other, both stay upright on their path, and each player's NPC race is their own.",
+    "why": "Bugs that only show with 2+ players are the hardest to catch later.",
+    "limits": "Collision group Cars",
+    "files": "CarService, RaceService, NpcRacerView"
+  },
+  "admin": {
+    "checks": "Admin chat commands work for admins only, change nothing for others, reply only to the sender, and /tp jumps tracks correctly.",
+    "why": "Admin commands are a security boundary.",
+    "limits": "AdminConfig",
+    "files": "Server/AdminService, Server/AdminConfig"
+  },
+  "roll_anim": {
+    "checks": "Roll animation timing contract (pop, spin, land, hold by rarity, exit, emphasized extra), compact size and panel positions, emphasized roll rules, the auto-roll pause.",
+    "why": "Rolls must never overlap or desync from the server's roll timer.",
+    "limits": "Shared/RollAnimConfig, docs/ROLL_ANIMATION_CONTRACT.md",
+    "files": "Client/RollToast, Shared/RollAnimConfig, GachaService"
+  },
+  "upgrades": {
+    "checks": "Upgrade tree: tiles, prices, gates, bonuses, roll interval, turbo and walkspeed tables (pure); UpgradeService.Buy takes Money once and refuses unknown / owned / locked / gated / poor / non-string / too-fast buys without changing anything; a buy changes only the buyer (another player's Money, tiles, BestTrack, TurboCount and badge stay the same, and one player's cooldown never blocks another); the gate uses the real track count; bonuses are ADDED to stat points in Luck, Money and Speed multis; turbo rolls follow TurboCount and the tier; the auto-roll interval and on-foot WalkSpeed follow the tiles; the badge count and save fields are right.",
+    "why": "Money buys permanent power: a double charge, a free tile or a wrong multi breaks the economy.",
+    "limits": "docs/UPGRADE_TREE_SPEC.md (owner numbers), UpgradeConfig",
+    "files": "Shared/UpgradeTree, Shared/UpgradeConfig, Server/UpgradeService, GachaService, GachaConfig, CarService"
+  },
+  "workshop": {
+    "checks": "Mechanical Workshop: 7 plots with the spec rects in the spawn floor, never overlapping each other, the hub, the spawn, the StartPad or any track, each open toward the hub; zone and rate maths (Shared/Workshop); WorkshopService gives each player the lowest free plot with their workshop and sign, frees it on leave, an 8th player gets none; standing in your own zone (alive, on foot) earns exactly rate x dt Speed, anywhere else nothing.",
+    "why": "Idle Speed must only be earned in your own workshop, decided by the server, and no plot may ever block a road.",
+    "limits": "docs/WORKSHOP_SPEC.md, WorkshopConfig",
+    "files": "Shared/Workshop, Shared/WorkshopConfig, Server/WorkshopService, Shared/SpawnArea"
+  },
+  "track:*": {
+    "checks": "The track's own acceptance spec (written first by test-writer): length, width, min radius, turns, hills, lap time, checkpoint and pad rules, then a driven lap.",
+    "why": "Track rules 1-8 in CLAUDE.md; every track goes through /build-track.",
+    "limits": "src/server/CarTest/TrackTests/<Track>.luau + PhysicsTargets.lap",
+    "files": "Shared/Tracks/<Track>, TrackBuilder, TrackValidator"
+  },
+  "ui_client_rendering": {
+    "checks": "Every declared ScreenGui exists and renders on the client.",
+    "why": "Catches UI that silently failed to load.",
+    "limits": "UiSpec",
+    "files": "Client/*"
+  },
+  "ui_inventory": {
+    "checks": "Every button and panel in UiSpec exists; nothing undeclared is clickable.",
+    "why": "Keeps UiSpec the single list of what players can press.",
+    "limits": "UiSpec",
+    "files": "src/client/UiTest/UiSpec.luau"
+  },
+  "ui_layout": {
+    "checks": "No two reachable buttons or panels overlap at any tested viewport, including phone landscape.",
+    "why": "Overlap = mis-clicks, especially on phones.",
+    "limits": "UiSpec.Tolerance, viewports",
+    "files": "All UI"
+  },
+  "ui_hitboxes": {
+    "checks": "Click areas stay inside their parent and close to their visuals.",
+    "why": "Invisible hitboxes steal clicks from other buttons.",
+    "limits": "UiSpec.Tolerance",
+    "files": "All UI"
+  },
+  "ui_buttons": {
+    "checks": "Each button does exactly what its label says.",
+    "why": "Rule: buttons do what they show.",
+    "limits": "UiSpec clicks",
+    "files": "All UI"
+  },
+  "ui_hud": {
+    "checks": "The left HUD shows the server's Speed, Money and Unbanked.",
+    "why": "Client only displays; it must match leaderstats.",
+    "limits": "UiSpec",
+    "files": "Client/SpeedHud"
+  },
+  "ui_index": {
+    "checks": "The Index panel lists cars, owned state and opens below the Auto Race button.",
+    "why": "Panel placement rules.",
+    "limits": "UiSpec",
+    "files": "Client/IndexUi"
+  },
+  "ui_stats": {
+    "checks": "The Stats panel shows points and allocation and fits its area.",
+    "why": "Panel placement rules.",
+    "limits": "UiSpec",
+    "files": "Client/StatsUi"
+  },
+  "ui_toast": {
+    "checks": "The roll toast sits above the turbo bar and stays shown through panels and HUD clicks (final design).",
+    "why": "Roll animation spec decisions 4 and 6.",
+    "limits": "UiSpec.Compact",
+    "files": "Client/RollToast"
+  },
+  "ui_rolls": {
+    "checks": "The turbo bar fills per roll and shows the TURBO pop on turbo rolls.",
+    "why": "Players must see the turbo rhythm.",
+    "limits": "UiSpec",
+    "files": "Client/RollUi"
+  },
+  "ui_roll_anim": {
+    "checks": "Compact roll: bare model + '1 in N', about 12% of screen width, phases in order, never hidden.",
+    "why": "docs/ROLL_ANIMATION_SPEC.md",
+    "limits": "RollAnimConfig",
+    "files": "Client/RollToast"
+  },
+  "ui_showcase": {
+    "checks": "The enlarged roll card opens from the toast, stays open on card clicks, closes on the backdrop, AUTO toggle works.",
+    "why": "Click-anywhere-to-close must not swallow other clicks.",
+    "limits": "UiSpec clicks",
+    "files": "Client/RollToast"
+  },
+  "ui_loser": {
+    "checks": "The loser screen shows after a lost NPC race and goes away after LOSE_SCREEN_SECONDS.",
+    "why": "Players must know why they were sent back.",
+    "limits": "NpcConfig.LOSE_SCREEN_SECONDS",
+    "files": "Client/LoserScreen"
+  },
+  "ui_billboards": {
+    "checks": "Pad $ text and NPC labels show only within their MaxDistance. The Best Roll Ever pedestal and the two gamepass car pedestals have their Stats billboard (finite MaxDistance from config, label texts, labels inside the billboard, not clickable) and the gamepass Buy prompt text.",
+    "why": "Track rule 6, NPC label distance, LEADERBOARD_SPEC 3a and GAMEPASS_CARS_SPEC 5.",
+    "limits": "TrackBuilder.WIN_TEXT_DISTANCE 60, NpcConfig.LABEL_DISTANCE, LeaderboardConfig.BEST_ROLL.TEXT_DISTANCE, PassCarConfig.TEXT_DISTANCE",
+    "files": "TrackBuilder, NpcRacerView, SpawnArea"
+  },
+  "ui_panels": {
+    "checks": "Index and Stats panels are mutually exclusive through PanelSwitch.",
+    "why": "Two panels at once would overlap.",
+    "limits": "UiSpec",
+    "files": "Client/PanelSwitch"
+  },
+  "ui_roll_emphasized": {
+    "checks": "An emphasized roll (undiscovered and rarer than the 5th-rarest owned car) gets the longer reveal and the chat announce.",
+    "why": "Rare moments must feel special and be shared.",
+    "limits": "GachaConfig.IsEmphasized",
+    "files": "Client/RollToast, Client/RollAnnounce"
+  },
+  "workshop_offline": {
+    "checks": "Independent oracle checks offline gain = workshop rate x 25% x time capped at eight hours, the same at every stat (owner 2026-10-13: no diminishing term), every configured level, invalid inputs and MAX_STAT.",
+    "why": "Offline Speed must be exactly the workshop rate share for the capped time, never more than MAX_STAT allows.",
+    "limits": "WorkshopConfig.OFFLINE_FRACTION and OFFLINE_CAP, RaceConfig.MAX_STAT",
+    "files": "Shared/Workshop, CarTest/Phase2Tests"
+  },
+  "workshop_phase2": {
+    "checks": "Owned nearby alive loaded players can buy only the next level at its configured price. Atomic offline claims persist before credit, cannot replay on reconnect or repeated Load, and failed loads/claims cannot save.",
+    "why": "Protects Money, saved levels and offline rewards from double payment.",
+    "limits": "WorkshopConfig.Levels, UPGRADE_DISTANCE, PlayerData VERSION 4",
+    "files": "Server/WorkshopService, Server/PlayerData, CarTest/Phase2Tests"
+  },
+  "rebirth": {
+    "checks": "A rebirth is refused below the level milestone, before the save loaded, after a failed load and while auto racing; an accepted one sets Money AND Speed to 0 and keeps cars, upgrades, workshop level, Level/XP, MoneyEarned and DuelWins.",
+    "why": "Design doc: rebirthing resets Money and Speed. A wrong reset destroys or leaks progress.",
+    "limits": "docs/GAME_DESIGN_REQUIREMENTS.md Rebirth system, docs/SAVE_SPEC.md section 3",
+    "files": "Server/RebirthService, Shared/RebirthConfig"
+  },
+  "daily_login": {
+    "checks": "No daily reward contains Money; every day grants a potion or the guaranteed rare; a claim never changes Money or MoneyEarned and works once per day.",
+    "why": "Design doc: Money comes only from race cash-outs and duplicate car sales.",
+    "limits": "docs/GAME_DESIGN_REQUIREMENTS.md Economy, Shared/DailyLoginConfig",
+    "files": "Server/DailyLoginService, Shared/DailyLoginConfig"
+  },
+  "weather": {
+    "checks": "Schedule: a weather starts exactly every 15 minutes start to start, lasts 3, and an expiry does not move the next start. Five weathers (clear, rain, night, gold, aurora) with exact multipliers, names and icons, picked with equal chance (2000 picks, each share 0.14 to 0.26). Replication, actual roll thresholds, payouts, NPC start speed, event-only car eligibility (none for clear and aurora), and the Describe stat line. Sky: every weather with a sky applies it, holds it and restores the exact baseline; clear changes nothing.",
+    "why": "Server weather must change gameplay only for its declared duration and eligible cars, on the owner's 15 minute schedule with equal chances, and the design doc says a weather also changes the sky and lighting.",
+    "limits": "WeatherConfig, docs/WEATHER_EVENTS_SPEC.md",
+    "files": "Server/WeatherService, Shared/WeatherConfig, Server/GachaService, Server/RaceService, Shared/GachaConfig"
+  },
+  "leaderboard": {
+    "checks": "With a fake OrderedDataStore: the four boards (Speed, Money earned, rolls, rarest car) are read highest first and capped at 10, scores are whole numbers, a lower Speed never overwrites the best one, nothing is written for a failed or unloaded save or for a score of 0. The four signs exist in the hub, are anchored and solid, overlap no plot, pad, spawn, marketplace, race platform or track part, and their rows match the board; a broken store raises no error and keeps the last rows, no store shows \"No data yet\", and there is no remote. The BEST ROLL EVER pedestal: the BestRoll model, its anchored solid Pedestal inside the hub at LeaderboardConfig.BEST_ROLL, clear of every plot, pad, spawn, marketplace, race platform, track part and leaderboard sign, with a Stats billboard (finite distance, labels Title, Odds, Car, Player). After a board read it shows row 1 of the rarest-car board (odds, car name, \"by <player>\", CarId, an anchored non-colliding Car model on the platform), keeps the same Car model while row 1 is the same car, replaces it when the car changes, shows no car for a score that matches no catalog car, keeps the last row when the store breaks, and shows \"No data yet\" with no car for an empty or missing store.",
+    "why": "Players compare themselves on these signs; a wrong write could erase a best Speed after a rebirth, and a DataStore outage must never break the server.",
+    "limits": "docs/LEADERBOARD_SPEC.md, docs/GAME_DESIGN_REQUIREMENTS.md Global leaderboards, Shared/LeaderboardConfig",
+    "files": "Server/LeaderboardService, Shared/LeaderboardConfig, Shared/SpawnArea, Client/BestRollView"
+  },
+  "duel": {
+    "checks": "Player vs player duels with two fake players on the live route and an injected clock: every refused request (self, save not loaded or failed, not on foot, dead, busy, cooldown), the track list both players unlocked and a rejected out-of-list pick, the pick and invite timeouts, decline, the re-check on accept, leaving before the race, then real duels: both cars held at the picked track's start, released together after the countdown, the first car at the finish wins, a same-step finish goes to the lower time or is a draw, nobody finishing in 180 s is a draw, Stop / leaving / death is a forfeit. After every duel both players are on foot at the walk spawn, the cars are gone, Money, MoneyEarned and Unbanked are unchanged, and only the winner's DuelWins went up; DuelWins is saved and loaded. Both cars stay upright and on the path. The options.Duel run is also driven alone at maximum stat: starts on its track, pays no pad, calls OnFinish once at the finish.",
+    "why": "A duel must be decided by the server, cost nobody anything and never leave a player stuck in a car, a pending request or a half-started race.",
+    "limits": "docs/DUEL_SPEC.md, docs/GAME_DESIGN_REQUIREMENTS.md Duels, Shared/DuelConfig, PhysicsTargets.lap.MinUpYStrict, PhysicsTargets.race.MaxPathDeviation",
+    "files": "Server/DuelService, Shared/DuelConfig, Server/RaceService, Server/CarService, Server/PlayerData"
+  },
+  "ui_upgrades": {
+    "checks": "Hex tiles, scroll canvas, buyable badge, ownership, gates and prices match server state, and no UpgradePad exists outside the workshop plots (the tree opens only from the HUD Upgrade button); real clicks invoke the purchase remote.",
+    "why": "Players need a readable tree with truthful purchase feedback.",
+    "limits": "UiSpec.Progression, UpgradeTree",
+    "files": "Client/ProgressionUi, UiTest/UiProgression"
+  },
+  "ui_workshop_modal": {
+    "checks": "E prompt, current level, next price, affordability and purchase result; remote receives no client amount.",
+    "why": "A workshop upgrade must be owner-controlled and show the actual next cost.",
+    "limits": "WorkshopConfig, UiSpec clicks",
+    "files": "Client/ProgressionUi, UiTest/UiProgression"
+  },
+  "ui_progression_hud": {
+    "checks": "Workshop HUD rate and zone state, upgrade entry and badge match server attributes.",
+    "why": "Players must see whether their workshop is paying.",
+    "limits": "UiSpec.Progression",
+    "files": "Client/ProgressionUi, UiTest/UiProgression"
+  },
+  "ui_offline_welcome": {
+    "checks": "Positive offline credit displays the welcome panel with exact credited Speed and duration; zero credit stays closed.",
+    "why": "The welcome panel must report actual persisted rewards.",
+    "limits": "OfflineSpeed, OfflineSeconds",
+    "files": "Client/ProgressionUi, UiTest/UiProgression"
+  },
+  "ui_weather": {
+    "checks": "The weather icon (owner 2026-10-13): the old WeatherBanner is gone; RacerProgression/WeatherIcon is a 44 x 44 TextButton in the bottom-right corner at every tested viewport, always visible, showing the weather's icon (the Clear icon with no weather); its Card is hidden at rest, stays on screen at every viewport, and its Title, Stats and Time match WeatherConfig and the server countdown (Time empty with no weather). Fixtures: Rain, Night Race, Gold Rush, Aurora, no weather, and the Clear weather. Clicks weather_card_open / weather_card_close toggle the Card; the showcase clicks check the icon hides while the roll showcase is open and comes back. With the weather_rain_roll fixture, a roll during Rain shows its odds divided by the roll's luck on both roll cards.",
+    "why": "Event presentation must agree with server timing and config, the icon must never cover or be covered by other HUD controls, and free event luck must still show in the odds.",
+    "limits": "WeatherEvent, WeatherEndsAt, WeatherConfig, UiSpec.Weather, UiSpec.RollOdds",
+    "files": "Client/ProgressionUi, Client/RollToast, UiTest/UiProgression, UiTest/UiSpec"
+  },
+  "ui_roll_odds": {
+    "checks": "A planted roll with a known luck (RollResult's 6th argument) shows 1 in max(1, round(Chance / luck)) on the compact roll and on the enlarged card: luck 2, a rounded case, the 1 in 1 floor, luck 1, no luck sent, and the catch-all car (1 in ?).",
+    "why": "The odds a player reads must be the odds of that roll, not the car's base odds.",
+    "limits": "UiSpec.RollOdds, car Chance values, HudFormat.Odds",
+    "files": "Client/RollToast, UiTest/UiScenarios, CarTest/UiTestSetup"
+  },
+  "pass_cars": {
+    "checks": "Gamepass cars (Ember Wyvern, Singularity): CarCatalog.Passes() returns both, sorted by Order, each with a whole-number GamepassId, Rollable false and no Chance, and neither is in All() (the Index) or Rollable(); 16,000 seeded rolls at luck 1 to 1e12, with and without weather, never give one. With a fake market: GamepassId 0 is never asked, never owned and never prompts; equip is refused without the pass and accepted with it; a fake purchase sets Pass_<carId> and equips the car; the pedestal prompt equips an owned car and otherwise asks to buy; Apply keeps a saved gamepass car and the ownership check puts the starter back when it is not owned; a failing market raises no error and counts as not owned. A pass car is never in GachaData, never saved in Cars, adds no stat points and does not change the Rarest Car score. The two pedestals (PassCars.Pass_<carId>): smaller than the Best Roll pedestal, either side of it, anchored and solid at PassCarConfig's centres inside the hub, with a Stats billboard (car name, GAMEPASS, finite distance), a Buy prompt (E, instant, car name, Coming soon / Unlock) and a static Car model at CAR_SCALE on top; no footprint overlaps a plot, pad, spawn, marketplace, race platform, track part, leaderboard sign, the Best Roll pedestal or the other pass pedestal.",
+    "why": "Paid cars must only come from a real purchase: never from a roll, a save edit or a pass id of 0, and a market outage must never break the server or hand out a car.",
+    "limits": "docs/GAMEPASS_CARS_SPEC.md, docs/GAME_DESIGN_REQUIREMENTS.md Monetization (Gamepass cars), docs/LEADERBOARD_SPEC.md 3a, Shared/PassCarConfig",
+    "files": "Server/PassCarService, Shared/PassCarConfig, Shared/CarCatalog, Server/GachaService, Shared/SpawnArea, Shared/DraftCarModels"
+  }
 }

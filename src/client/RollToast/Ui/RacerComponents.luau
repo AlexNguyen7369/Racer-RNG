@@ -245,14 +245,7 @@ function Components.BakeHud(refs)
 	-- Add the meter at runtime as well, so an asset/Rojo resync is not required
 	-- for the progression HUD to appear in an existing place.
 	if not refs.LevelFill or not refs.LevelLabel then
-		local level = face(
-			"Frame",
-			"Level",
-			UDim2.new(0.5, 0, 1, -60),
-			UDim2.fromOffset(250, 32),
-			DARK,
-			refs.Gui
-		)
+		local level = face("Frame", "Level", UDim2.new(0.5, 0, 1, -60), UDim2.fromOffset(250, 32), DARK, refs.Gui)
 		level.AnchorPoint = Vector2.new(0.5, 1)
 		level.BackgroundTransparency = 0
 		local fill = make("Frame", {

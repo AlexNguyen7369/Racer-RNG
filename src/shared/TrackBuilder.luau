@@ -20,6 +20,7 @@
 -- Heading convention: 0 = facing -Z (Roblox forward), positive = turning left. Height is Y.
 
 local CollectionService = game:GetService("CollectionService")
+local BiomeDressing = require(script.Parent.BiomeDressing)
 
 local TrackBuilder = {}
 
@@ -497,6 +498,7 @@ function TrackBuilder.Build(spec, origin)
 		Enum.Material.Grass
 	)
 	ground.Position = Vector3.new(ground.Position.X, GROUND_TOP - 0.5, ground.Position.Z)
+	BiomeDressing.Build(model, layout, spec, origin)
 
 	-- Invisible spawn marker: facing along the first straight, a little above the road
 	local start = newPart(model, "Start", Vector3.new(4, 1, 4), origin * CFrame.new(0, 0.5, 0), colors.Line)

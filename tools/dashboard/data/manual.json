@@ -44,18 +44,19 @@
       "id": "rojo-connect",
       "title": "Click Connect in Studio's Rojo plugin",
       "priority": "high",
-      "why": "Rojo is running again (rojo serve) but Studio has to connect to it so the place runs exactly the repo code for /compat-check. It will replace Studio's RollToast with the repo version (the Studio versions are saved on branch studio/racer-hud-ui).",
-      "blocks": "Finishing /compat-check and pushing to main",
-      "when": "Now (Studio in Edit mode).",
+      "why": "Claude can not open Studio or click Connect. On 2026-10-12 no Studio was connected to the MCP and `rojo serve` was not running, so the red tests and the design-doc fixes (rebirth, Money sources, session-locked saves, turbo) have never been run.",
+      "blocks": "TODO: conflict-rebirth-speed, conflict-money-sources, conflict-session-lock, turbo-10x; every later phase (weather sky, leaderboards, duels) and /compat-check",
+      "when": "Before the next Claude session continues this work.",
       "steps": [
-        "In Studio, open the Plugins tab > Rojo.",
-        "Click Connect (localhost:34872). Accept the sync if it asks.",
-        "Tell Claude \"rojo connected\"."
+        "Run `rojo serve` in the project root (branch design-doc-conflicts).",
+        "Open the Racer RNG place in Roblox Studio with the Roblox Studio MCP plugin active.",
+        "Click Connect in the Rojo plugin.",
+        "Tell Claude \"studio connected\"."
       ],
       "status": "open",
       "added": "2026-10-05T20:00:00-07:00",
       "by": "Claude",
-      "updated": "2026-10-08T23:18:38-07:00",
+      "updated": "2026-10-12T00:50:26-07:00",
       "updatedBy": "Codex",
       "verified": "Current Edit DataModel lacks the new RebirthService, BoostService, and DailyLoginService; reconnect localhost:34872 before live testing."
     },
@@ -308,6 +309,77 @@
       ],
       "status": "open",
       "added": "2026-10-11T23:20:00-07:00",
+      "by": "Claude"
+    },
+    {
+      "id": "duel-two-player-live",
+      "title": "Play one duel with two clients in Studio",
+      "priority": "high",
+      "why": "The duel request is a ProximityPrompt on another player's avatar. The Studio MCP starts one client only, so Claude cannot walk up to a second player. The server flow is covered by the `duel` harness scenario with fake players and the UI by `ui_duel`; the real prompt, the real seats and the countdown on two screens are not.",
+      "blocks": "Calling the duel feature verified end to end (docs/DUEL_SPEC.md section 4, multiplayer flow)",
+      "when": "When no agent session is using Studio.",
+      "steps": [
+        "Studio > Test tab > Clients and Servers: pick `Local Server`, `2 Players`, press Start. Rojo must be connected first.",
+        "In client 1 check: no `Duel` prompt on your own avatar.",
+        "Walk client 1 next to client 2's avatar (within 10 studs). A `Duel` prompt with the other player's name shows; hold F.",
+        "Client 1: the PICK A TRACK panel opens; click `TRACK 1`.",
+        "Client 2: the DUEL REQUEST panel shows `<name> challenges you on Track 1`; click ACCEPT.",
+        "Both: a car each at the Track 1 start, side by side, `3 2 1 GO!`, both cars race to the finish. During the countdown press R and W: the car must not move.",
+        "Both: `YOU WIN!` on one screen and `YOU LOSE` on the other, then both stand in the spawn area. Money is unchanged.",
+        "Repeat once with DECLINE (client 1 sees `DUEL DECLINED`) and once pressing STOP AUTO mid-race (the other player wins).",
+        "Tell Claude what happened at each step."
+      ],
+      "status": "open",
+      "added": "2026-10-13T06:40:00-07:00",
+      "by": "Claude"
+    },
+    {
+      "id": "weather-icon-live-check",
+      "title": "Reconnect Rojo and keep the screen unlocked for the weather icon UI run",
+      "priority": "high",
+      "why": "Studio was restarted and its Rojo plugin is not connected, so the phone position of the weather icon is not in Studio. With the Mac's screen locked the client does not render (Camera.ViewportSize 1,1): no clicks, no hover, no valid [UITEST] run.",
+      "blocks": "Verifying bug 44fd8ec5 (icon over Market button on phones), the weather card clicks, mouse hover and the full UI suite; card weather-15min-icon.",
+      "when": "Before the next UI test run.",
+      "steps": [
+        "Unlock the Mac and bring Roblox Studio (Racer RNG) to the front.",
+        "In Studio's Rojo plugin click Connect (rojo serve is already running on port 34872).",
+        "Leave the game view visible and Device emulation off.",
+        "Tell Claude to rerun the weather UI checks."
+      ],
+      "status": "done",
+      "added": "2026-10-13T13:05:06-07:00",
+      "by": "Claude"
+    },
+    {
+      "id": "gamepass-car-ids",
+      "title": "Create the two gamepass car passes and send their ids",
+      "priority": "medium",
+      "why": "The Ember Wyvern and Singularity pedestals offer a gamepass purchase, but the game has no pass ids yet (GamepassId = 0), so both prompts say \"Coming soon\". Only the owner can create passes and set prices.",
+      "blocks": "Selling the two gamepass cars (docs/GAMEPASS_CARS_SPEC.md).",
+      "when": "Whenever you want the cars on sale.",
+      "steps": [
+        "Open the Creator Dashboard for the game, Monetization > Passes.",
+        "Create a pass \"Ember Wyvern\" and a pass \"Singularity\", give each an icon and a price, and put both on sale.",
+        "Copy each pass id and give them to Claude (or paste them into GamepassId in src/shared/Cars/ember_wyvern.luau and singularity.luau)."
+      ],
+      "status": "open",
+      "added": "2026-10-13T20:30:00-07:00",
+      "by": "Claude"
+    },
+    {
+      "id": "rojo-connect-smooth-rail",
+      "title": "Connect Studio's Rojo plugin to the running rojo serve",
+      "priority": "high",
+      "why": "Studio holds stale scripts (rojo serve was not running). The smooth-auto-race fix (soft rail) cannot be tested until the latest files sync.",
+      "blocks": "The car-loop red/green runs for the choppy auto-race fix, then /compat-check.",
+      "when": "Now.",
+      "steps": [
+        "Claude started rojo serve on localhost:34872.",
+        "In Roblox Studio (Racer RNG, Edit mode) open the Rojo plugin and click Connect.",
+        "Tell Claude it is connected."
+      ],
+      "status": "open",
+      "added": "2026-10-15T15:45:00-07:00",
       "by": "Claude"
     }
   ]

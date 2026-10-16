@@ -29,7 +29,13 @@ MarketplaceBuilder.ROTATION = 90 -- additional half-turn from the owner's previo
 MarketplaceBuilder.SIZE = Vector3.new(48, 0.2, 44)
 MarketplaceBuilder.VENDORS = {
 	{ Name = "Aura", Kind = "Aura", Counter = Vector3.new(-17, 0, -3), Width = 9, Npc = Vector3.new(-17, 0, -7) },
-	{ Name = "Workshop", Kind = "Upgrades", Counter = Vector3.new(0, 0, -11), Width = 18, Npc = Vector3.new(0, 0, -15) },
+	{
+		Name = "Workshop",
+		Kind = "Upgrades",
+		Counter = Vector3.new(0, 0, -11),
+		Width = 18,
+		Npc = Vector3.new(0, 0, -15),
+	},
 	{ Name = "Parts", Kind = "Trail", Counter = Vector3.new(17, 0, -3), Width = 9, Npc = Vector3.new(17, 0, -7) },
 }
 
@@ -104,7 +110,13 @@ function MarketplaceBuilder.Build(placement)
 		local points = Instance.new("Folder")
 		points.Name = "InteractionPoints"
 		points.Parent = vendor
-		local anchor = box(points, "PromptAnchor", Vector3.new(1, 1, 1), placement * CFrame.new(c + Vector3.new(0, 4.5, 1.7)), false)
+		local anchor = box(
+			points,
+			"PromptAnchor",
+			Vector3.new(1, 1, 1),
+			placement * CFrame.new(c + Vector3.new(0, 4.5, 1.7)),
+			false
+		)
 		CollectionService:AddTag(anchor, "MarketPad")
 		local prompt = Instance.new("ProximityPrompt")
 		prompt.Name = "OpenMarket"
@@ -115,11 +127,13 @@ function MarketplaceBuilder.Build(placement)
 		prompt.MaxActivationDistance = 8
 		prompt.RequiresLineOfSight = false
 		prompt.Parent = anchor
-		for name, position in {
-			NPC = spec.Npc + Vector3.new(0, 3.2, 0),
-			ShopButton = c + Vector3.new(2, 4.6, 1.6),
-			ItemDisplay = c + Vector3.new(0, 4.8, 0),
-		} do
+		for name, position in
+			{
+				NPC = spec.Npc + Vector3.new(0, 3.2, 0),
+				ShopButton = c + Vector3.new(2, 4.6, 1.6),
+				ItemDisplay = c + Vector3.new(0, 4.8, 0),
+			}
+		do
 			local point = Instance.new("Attachment")
 			point.Name = name
 			point.Position = position - (c + Vector3.new(0, 4.5, 1.7))
@@ -141,8 +155,17 @@ function MarketplaceBuilder.Build(placement)
 	local lights = Instance.new("Folder")
 	lights.Name = "Lighting"
 	lights.Parent = model
-	for index, pos in { Vector3.new(-17, 8, -4), Vector3.new(0, 10, -10), Vector3.new(17, 8, -4), Vector3.new(-21, 4, 18), Vector3.new(21, 4, 18) } do
-		local mount = box(lights, "LanternMount_" .. index, Vector3.new(0.2, 0.2, 0.2), placement * CFrame.new(pos), false)
+	for index, pos in
+		{
+			Vector3.new(-17, 8, -4),
+			Vector3.new(0, 10, -10),
+			Vector3.new(17, 8, -4),
+			Vector3.new(-21, 4, 18),
+			Vector3.new(21, 4, 18),
+		}
+	do
+		local mount =
+			box(lights, "LanternMount_" .. index, Vector3.new(0.2, 0.2, 0.2), placement * CFrame.new(pos), false)
 		local light = Instance.new("PointLight")
 		light.Name = "WarmLantern"
 		light.Color = Color3.fromRGB(255, 201, 117)

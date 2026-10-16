@@ -1370,6 +1370,16 @@ local function checkStability(checks, prefix, st)
 	check(checks, pre .. "body_never_tilted", st.minUpOwn, minUp, R.MinUpY ~= nil and st.minUpOwn >= minUp)
 	local rec = type(st.recoveries) == "number" and st.recoveries or -1
 	check(checks, pre .. "no_flip_recoveries", rec, 0, rec == 0)
+	-- smooth motion (user 2026-10-15): a PivotTo every frame replicates as a stutter (3.7, 0, 3.7, 0 studs/frame),
+	-- so the rail must steer with velocity and teleport only as a fallback; run.RailSnaps counts those frames
+	local snaps = type(st.railSnaps) == "number" and st.railSnaps or math.huge
+	check(
+		checks,
+		pre .. "rail_never_snaps",
+		snaps == math.huge and -1 or snaps,
+		R.MaxRailSnaps or 0,
+		R.MaxRailSnaps ~= nil and snaps <= R.MaxRailSnaps
+	)
 	check(checks, pre .. "flips_limit", st.flips, R.MaxFlips or 0, R.MaxFlips ~= nil and st.flips <= R.MaxFlips)
 	check(checks, pre .. "sticks_to_path", st.dev, maxDev, R.MaxPathDeviation ~= nil and st.dev <= maxDev)
 	check(checks, pre .. "sticks_to_path_track1", st.dev1, maxDev, R.MaxPathDeviation ~= nil and st.dev1 <= maxDev)
@@ -1427,7 +1437,7 @@ function Scenarios.race()
 		and type(RaceConfig.SpeedFor) == "function"
 		and type(RaceConfig.GainPerSecond) == "function"
 		and type(RaceConfig.HALF_STAT) == "number"
-		and type(RaceConfig.GAIN_SOFT) == "number"
+		and type(RaceConfig.GAIN_PER_STUD) == "number"
 		and type(PlayerData.Setup) == "function"
 		and type(PlayerData.SpeedStat) == "function"
 		and type(PlayerData.AddSpeed) == "function"
@@ -1441,7 +1451,7 @@ function Scenarios.race()
 	end
 
 	local HALF = RaceConfig.HALF_STAT
-	local BIG = 10 * RaceConfig.GAIN_SOFT
+	local BIG = 20 * HALF -- 20000 with HALF_STAT 1000: the same high-stat run as before (was 10 * GAIN_SOFT)
 	local targetHalf = RaceConfig.SpeedFor(HALF)
 	if type(targetHalf) ~= "number" then
 		check(checks, "race_speed_for_number", 0, 1, false)
@@ -1560,6 +1570,7 @@ function Scenarios.race()
 			speedAt8 = nil,
 			startStat = startStat,
 			integral = 0,
+			dist = 0,
 			minPadDist = math.huge,
 			distinct = {},
 			distinctCount = 0,
@@ -1623,9 +1634,11 @@ function Scenarios.race()
 			st.maxTarget = math.max(st.maxTarget, target)
 			st.targetSum += target
 			st.targetN += 1
+			st.dist += speed * dt
 			if t >= 8 and st.speedAt8 == nil then
 				st.speedAt8 = speed
 				st.gainAt8 = speedValue.Value - startStat
+				st.distAt8 = st.dist
 			end
 			-- our own integral of the gain formula using the committed stat and the ACTUAL speed
 			local g = RaceConfig.GainPerSecond(speedValue.Value, speed)
@@ -1735,6 +1748,7 @@ function Scenarios.race()
 		st.runMinUpY = run.MinUpY
 		st.runMaxDev = run.MaxPathDeviation
 		st.recoveries = run.FlipRecoveries
+		st.railSnaps = run.RailSnaps
 		st.payouts = run.Payouts
 		st.paidTotal = run.PaidTotal
 		st.offTrack = run.OffTrackSeconds
@@ -1900,12 +1914,30 @@ function Scenarios.race()
 		local g0 = slow.gainAt8 or -1
 		check(checks, "fresh_player_gains", g0, 0, g0 > 0)
 
-		-- Diminishing returns end to end: a player with a 10x larger stat drives faster yet gains LESS.
+		-- Owner, 2026-10-13 (design doc "Core stat model"): the stat never reduces the gain. End to end: a player
+		-- with a far larger stat gains the same GAIN_PER_STUD per stud driven (band as gain_matches_speed_integral),
+		-- so the car that covers more ground in 8 s gains MORE. (Was diminishing_gain_in_8s: it gained less.)
 		local big = drive(BIG, 8, false)
 		check(checks, "big_run_started", big.ok and 1 or 0, 1, big.ok)
 		if big.ok then
-			local gb = big.gainAt8 or math.huge
-			check(checks, "diminishing_gain_in_8s", gb, g0, slow.gainAt8 ~= nil and big.gainAt8 ~= nil and gb < g0)
+			local gb = big.gainAt8 or -1
+			local dB, d0 = big.distAt8 or 0, slow.distAt8 or 0
+			local per = RaceConfig.GAIN_PER_STUD
+			local perStud = dB > 0 and gb / dB or -1
+			check(
+				checks,
+				"high_stat_gain_per_stud_not_reduced_in_8s",
+				perStud,
+				per,
+				big.gainAt8 ~= nil and dB > 0 and perStud >= 0.8 * per and perStud <= 1.2 * per
+			)
+			check(
+				checks,
+				"faster_car_gains_more_in_8s",
+				gb,
+				g0,
+				slow.gainAt8 ~= nil and big.gainAt8 ~= nil and d0 > 0 and (dB <= d0 or gb > g0)
+			)
 		end
 	end
 
@@ -3284,12 +3316,14 @@ function Scenarios.economy()
 		MAX_SPEED = 75,
 		HALF_STAT = 1000,
 		GAIN_PER_STUD = 0.05,
-		GAIN_SOFT = 2000,
 		MAX_STAT = 1e9,
 	}
 	for name, want in consts do
 		check(checks, "const_" .. string.lower(name), RaceConfig[name] or -1, want, RaceConfig[name] == want)
 	end
+	-- Owner, 2026-10-13: nothing divides the gain by the stat, so the soft constant is gone.
+	local softGone = RaceConfig.GAIN_SOFT == nil
+	check(checks, "const_gain_soft_removed", softGone and 1 or 0, 1, softGone)
 	local removed = RaceConfig.MAX_LEVEL == nil and RaceConfig.SPEED_PER_LEVEL == nil
 	check(checks, "level_model_removed", removed and 1 or 0, 1, removed)
 	local base, top, half, maxStat =
@@ -3347,13 +3381,45 @@ function Scenarios.economy()
 	check(checks, "speed_for_max_stat_above_reference", atMax or -1, top, num(atMax) and atMax > top)
 	local d1, d2 = (sf(2000) or 0) - (sf(1000) or 0), (sf(1000) or 0) - (sf(0) or 0)
 	check(checks, "speed_for_diminishing", d1, d2, d1 > 0 and d1 < d2)
+	-- Owner, 2026-10-13 (design doc "Core stat model"): diminishing per point, never flat, no cap.
+	-- +1000 at a high stat still adds speed, but less than +1000 at a low stat.
+	local dHigh = (sf(1e6 + 1000) or 0) - (sf(1e6) or 0)
+	check(checks, "speed_for_diminishing_at_high_stat", dHigh, d2, dHigh > 0 and dHigh < d1 and d1 < d2)
+	-- Every doubling well above HALF_STAT (here >= 100 x HALF_STAT, where the exact step is within 0.17 of the
+	-- limit) adds (MAX_SPEED - BASE_SPEED) / 2 studs/s, and always more than 1 stud/s ("can tell it apart").
+	local step = (top - base) / 2
+	local doubleOk, tellOk, worst, least = true, true, 0, math.huge
+	for _, s in { 100 * half, 1e7, maxStat / 2 } do
+		local a, b = sf(s), sf(2 * s)
+		if not (num(a) and num(b)) then
+			doubleOk, tellOk = false, false
+			break
+		end
+		worst = math.max(worst, math.abs((b - a) - step))
+		least = math.min(least, b - a)
+		doubleOk = doubleOk and math.abs((b - a) - step) <= 0.25
+		tellOk = tellOk and b - a > 1
+	end
+	check(checks, "speed_for_doubling_adds_half_range", worst, 0.25, doubleOk)
+	check(checks, "speed_for_doubling_tellable", least == math.huge and -1 or least, 1, tellOk)
 
-	-- GainPerSecond(stat, speed) = GAIN_PER_STUD * speed / (1 + stat / GAIN_SOFT)
-	local soft, per = RaceConfig.GAIN_SOFT, RaceConfig.GAIN_PER_STUD
+	-- Owner, 2026-10-13: GainPerSecond(stat, speed) = GAIN_PER_STUD * speed for every valid stat (also above
+	-- MAX_STAT). Nothing divides it by the stat. (Was: / (1 + stat / GAIN_SOFT).)
+	local per = RaceConfig.GAIN_PER_STUD
 	local formulaOk = true
-	for _, pair in { { 0, 30 }, { 1000, 50 }, { 2000, 75 }, { 20000, 40 } } do
+	for _, pair in
+		{
+			{ 0, 30 },
+			{ half, 50 },
+			{ 2000, 75 },
+			{ 20000, 40 },
+			{ 1e6, 60 },
+			{ maxStat, 90 },
+			{ 2 * maxStat, 90 },
+		}
+	do
 		local g = gp(pair[1], pair[2])
-		local want = per * pair[2] / (1 + pair[1] / soft)
+		local want = per * pair[2]
 		if not num(g) or math.abs(g - want) > 1e-9 * math.max(1, want) then
 			formulaOk = false
 		end
@@ -3389,17 +3455,27 @@ function Scenarios.economy()
 		end
 	end
 	check(checks, "gain_proportional_to_speed", propOk and 1 or 0, 1, propOk)
-	local dec, p = true, math.huge
-	for _, s in { 0, 100, 1000, 10000, 1e5, 1e7 } do
+	-- The stat never reduces the gain: the same speed gains the same at every stat (was
+	-- gain_strictly_decreasing_in_stat).
+	local same, atZero = true, gp(0, 50)
+	for _, s in { 100, 1000, 10000, 1e5, 1e7, maxStat, 2 * maxStat } do
 		local g = gp(s, 50)
-		if not (num(g) and g > 0 and g < p) then
-			dec = false
+		if not (num(g) and num(atZero) and atZero > 0 and g == atZero) then
+			same = false
+		end
+	end
+	check(checks, "gain_same_at_every_stat", same and 1 or 0, 1, same)
+	-- Increasing rate (was gain_diminishes_strongly, the opposite): at its own cruise speed a larger stat gains
+	-- strictly more per second.
+	local inc, p = true, 0
+	for _, s in { 0, 1000, 1e5, 1e7 } do
+		local g = gp(s, sf(s))
+		if not (num(g) and g > p) then
+			inc = false
 		end
 		p = num(g) and g or p
 	end
-	check(checks, "gain_strictly_decreasing_in_stat", dec and 1 or 0, 1, dec)
-	local far, near = gp(10 * soft, 50), gp(0, 50)
-	check(checks, "gain_diminishes_strongly", far or -1, (near or 0) / 5, num(far) and num(near) and far < near / 5)
+	check(checks, "gain_at_cruise_increases_with_stat", inc and 1 or 0, 1, inc)
 	return result("economy", checks, {})
 end
 
@@ -3441,9 +3517,10 @@ local function anyCountAttribute(player)
 end
 
 -- Data: PlayerData saves/loads Money and the float Speed stat through an injected store (no real DataStore is touched).
--- The current save version is 7 (market, rebirth/boosts/daily login, and level/XP); older versions still load.
+-- The current save version is 8 (docs/SAVE_SPEC.md, owner 2026-10-12: session lock, MoneyEarned, DuelWins; 7 was
+-- market, rebirth/boosts/daily login, and level/XP); older versions still load.
 function Scenarios.data()
-	local DATA_VERSION = 7
+	local DATA_VERSION = 8
 	local checks = {}
 	local PlayerData = serverModule("PlayerData")
 	local RaceConfig = sharedModule("RaceConfig")
@@ -3483,15 +3560,59 @@ function Scenarios.data()
 		local v = stat(p, name)
 		return v and v.Value or nil
 	end
+	local function deepCopy(v)
+		if type(v) ~= "table" then
+			return v
+		end
+		local copy = {}
+		for k, x in v do
+			copy[k] = deepCopy(x)
+		end
+		return copy
+	end
+	local function deepEqual(a, b)
+		if type(a) ~= "table" or type(b) ~= "table" then
+			return a == b
+		end
+		for k, v in a do
+			if not deepEqual(v, b[k]) then
+				return false
+			end
+		end
+		for k in b do
+			if a[k] == nil then
+				return false
+			end
+		end
+		return true
+	end
+	-- `sets` counts every write (SetAsync or an UpdateAsync whose transform returned a value), `plainSets` only
+	-- SetAsync, `updates` every UpdateAsync call (written or not).
 	local function makeStore(initial)
-		local store = { data = initial or {}, sets = 0, gets = 0 }
+		local store = { data = initial or {}, sets = 0, gets = 0, updates = 0, plainSets = 0 }
 		function store:GetAsync(key)
 			self.gets += 1
 			return self.data[key]
 		end
 		function store:SetAsync(key, value)
 			self.sets += 1
+			self.plainSets += 1
 			self.data[key] = value
+		end
+		-- docs/SAVE_SPEC.md section 1: returns the new value; a transform that returns nil writes nothing (and, like
+		-- the real DataStore, the call then returns nil). The transform gets a copy, as a real store would hand out.
+		function store:UpdateAsync(key, transform)
+			self.updates += 1
+			if self.onUpdate then
+				self.onUpdate(self.updates, key)
+			end
+			local value = transform(deepCopy(self.data[key]))
+			if value == nil then
+				return nil
+			end
+			self.sets += 1
+			self.data[key] = value
+			return value
 		end
 		return store
 	end
@@ -3662,6 +3783,9 @@ function Scenarios.data()
 	function failStore:SetAsync()
 		self.sets += 1
 	end
+	function failStore:UpdateAsync() -- VERSION 8: Load is one UpdateAsync (docs/SAVE_SPEC.md section 1)
+		error("DataStore unavailable")
+	end
 	PlayerData.SetStore(failStore)
 	local pf = newPlayer("CarTestDataFail")
 	local okf, loadedf = pcall(PlayerData.Load, pf, 9301)
@@ -3701,13 +3825,23 @@ function Scenarios.data()
 	)
 
 	-- failing store: set throws
+	-- (VERSION 8: Save is one UpdateAsync, so that call throws too once the load is done)
 	local setFail = makeStore()
+	local writesFail = false
+	local workingUpdate = setFail.UpdateAsync
 	function setFail:SetAsync()
 		error("write throttled")
+	end
+	function setFail:UpdateAsync(key, transform)
+		if writesFail then
+			error("write throttled")
+		end
+		return workingUpdate(self, key, transform)
 	end
 	PlayerData.SetStore(setFail)
 	local pss = newPlayer("CarTestDataSetFail")
 	PlayerData.Load(pss, 9302)
+	writesFail = true
 	local oks2, saved2 = pcall(PlayerData.Save, pss, 9302)
 	check(checks, "set_error_save_no_throw", oks2 and 1 or 0, 1, oks2)
 	check(checks, "set_error_save_returns_false", saved2 == false and 1 or 0, 1, oks2 and saved2 == false)
@@ -4389,6 +4523,412 @@ function Scenarios.data()
 		end
 	end
 
+	-- Version 8 (owner 2026-10-12, docs/SAVE_SPEC.md sections 1 and 2): session-locked saves (Load and Save are one
+	-- UpdateAsync each, the record carries Lock = { Id, At }), MoneyEarned and DuelWins. Every number below is from
+	-- that spec. The two refused-load cases wait in real time (LOAD_RETRY_WAIT): about 6 s for this section.
+	local LOCK_TIMEOUT, LOAD_RETRIES, LOAD_RETRY_WAIT = 120, 3, 2
+	check(
+		checks,
+		"lock_timeout_120",
+		tonumber(PlayerData.LOCK_TIMEOUT) or -1,
+		LOCK_TIMEOUT,
+		PlayerData.LOCK_TIMEOUT == LOCK_TIMEOUT
+	)
+	check(
+		checks,
+		"load_retries_3",
+		tonumber(PlayerData.LOAD_RETRIES) or -1,
+		LOAD_RETRIES,
+		PlayerData.LOAD_RETRIES == LOAD_RETRIES
+	)
+	check(
+		checks,
+		"load_retry_wait_2",
+		tonumber(PlayerData.LOAD_RETRY_WAIT) or -1,
+		LOAD_RETRY_WAIT,
+		PlayerData.LOAD_RETRY_WAIT == LOAD_RETRY_WAIT
+	)
+	local v8ApiOk = type(PlayerData.SessionId) == "function"
+		and type(PlayerData.SetSessionId) == "function"
+		and type(PlayerData.SetClock) == "function"
+		and type(Money.Award) == "function"
+	check(checks, "data_v8_api_exists", v8ApiOk and 1 or 0, 1, v8ApiOk)
+	if v8ApiOk then
+		local okV8, errV8 = pcall(function()
+			local function flag(name, ok)
+				check(checks, name, ok == true and 1 or 0, 1, ok == true)
+			end
+			local SESSION_A, SESSION_B = "CarTestSessionA", "CarTestSessionB"
+			local T = 1790000000
+			local now = T
+			PlayerData.SetClock(function()
+				return now
+			end)
+			local function lockIs(record, id, at)
+				return type(record) == "table"
+					and type(record.Lock) == "table"
+					and record.Lock.Id == id
+					and record.Lock.At == at
+			end
+			local function withoutLock(record)
+				local copy = deepCopy(record)
+				if type(copy) == "table" then
+					copy.Lock = nil
+				end
+				return copy
+			end
+
+			-- SessionId: a stable non-empty string by default (game.JobId, or one GUID per server in Studio)
+			PlayerData.SetSessionId(nil)
+			local okD, d1 = pcall(PlayerData.SessionId)
+			local _, d2 = pcall(PlayerData.SessionId)
+			flag("session_id_default_stable_string", okD and type(d1) == "string" and #d1 > 0 and d1 == d2)
+			PlayerData.SetSessionId(SESSION_A)
+			flag("set_session_id_overrides", PlayerData.SessionId() == SESSION_A)
+			PlayerData.SetSessionId(nil)
+			flag("set_session_id_nil_restores_default", PlayerData.SessionId() == d1)
+			PlayerData.SetSessionId(SESSION_A)
+
+			-- Load: one UpdateAsync that writes the lock; a missing record becomes { Lock = ... }
+			local sNew = makeStore()
+			PlayerData.SetStore(sNew)
+			local pNew = newPlayer("CarTestDataV8New")
+			local loadedNew = PlayerData.Load(pNew, 9801)
+			local recNew = sNew.data["Player_9801"]
+			flag("load_writes_lock_on_new_record", loadedNew == true and lockIs(recNew, SESSION_A, T))
+			flag("load_new_record_is_lock_only", type(recNew) == "table" and deepEqual(withoutLock(recNew), {}))
+			check(
+				checks,
+				"load_is_one_update_async",
+				sNew.updates,
+				1,
+				sNew.updates == 1 and sNew.plainSets == 0 and sNew.sets == 1
+			)
+
+			-- an existing (older-version) record is written back unchanged plus the lock
+			local original = { Money = 640, Speed = 12.5, Version = 7, WorkshopLevel = 1, Mystery = { Keep = "yes" } }
+			local sOld = makeStore({ ["Player_9802"] = deepCopy(original) })
+			PlayerData.SetStore(sOld)
+			local pOld = newPlayer("CarTestDataV8Old")
+			local loadedOld = PlayerData.Load(pOld, 9802)
+			local recOld = sOld.data["Player_9802"]
+			flag(
+				"load_writes_lock_on_existing_record",
+				loadedOld == true and lockIs(recOld, SESSION_A, T) and val(pOld, "Money") == 640
+			)
+			flag("load_keeps_every_other_field", type(recOld) == "table" and deepEqual(withoutLock(recOld), original))
+
+			-- Save: one UpdateAsync that refreshes Lock.At (and upgrades the record to version 8)
+			now = T + 30
+			local updatesBefore = sOld.updates
+			local savedOld = PlayerData.Save(pOld, 9802)
+			recOld = sOld.data["Player_9802"]
+			flag(
+				"save_refreshes_lock_at",
+				savedOld == true
+					and lockIs(recOld, SESSION_A, T + 30)
+					and recOld.Version == DATA_VERSION
+					and recOld.Money == 640
+			)
+			check(
+				checks,
+				"save_is_one_update_async",
+				sOld.updates - updatesBefore,
+				1,
+				sOld.updates == updatesBefore + 1 and sOld.plainSets == 0
+			)
+
+			-- Save after another server took the lock: returns false and writes nothing
+			sOld.data["Player_9802"].Lock = { Id = SESSION_B, At = now }
+			local takenSnapshot = deepCopy(sOld.data["Player_9802"])
+			local setsBefore = sOld.sets
+			stat(pOld, "Money").Value = 999
+			local okLost, savedLost = pcall(PlayerData.Save, pOld, 9802)
+			flag("save_refused_when_lock_lost", okLost and savedLost == false)
+			flag(
+				"save_refused_writes_nothing",
+				sOld.sets == setsBefore and deepEqual(sOld.data["Player_9802"], takenSnapshot)
+			)
+			-- ... but a lock of another server that timed out (clock - At = LOCK_TIMEOUT, no longer < it) is dead
+			sOld.data["Player_9802"].Lock = { Id = SESSION_B, At = now - LOCK_TIMEOUT }
+			local savedDead = PlayerData.Save(pOld, 9802)
+			recOld = sOld.data["Player_9802"]
+			flag(
+				"save_takes_timed_out_lock",
+				savedDead == true and lockIs(recOld, SESSION_A, now) and recOld.Money == 999
+			)
+
+			-- Release: Save(player, userId, true) writes the payload with Lock = nil; another server loads at once
+			local savedRelease = PlayerData.Save(pOld, 9802, true)
+			recOld = sOld.data["Player_9802"]
+			flag(
+				"release_save_writes_payload_without_lock",
+				savedRelease == true
+					and type(recOld) == "table"
+					and recOld.Lock == nil
+					and recOld.Money == 999
+					and recOld.Version == DATA_VERSION
+			)
+			PlayerData.SetSessionId(SESSION_B)
+			updatesBefore = sOld.updates
+			local pHop = newPlayer("CarTestDataV8Hop")
+			local loadedHop = PlayerData.Load(pHop, 9802)
+			flag(
+				"released_record_loads_on_other_server",
+				loadedHop == true
+					and val(pHop, "Money") == 999
+					and lockIs(sOld.data["Player_9802"], SESSION_B, now)
+					and sOld.updates == updatesBefore + 1
+			)
+			PlayerData.SetSessionId(SESSION_A)
+
+			-- a lock held by the SAME session id loads fine and is refreshed
+			local sSame = makeStore({
+				["Player_9803"] = { Money = 5, Speed = 1, Version = 8, Lock = { Id = SESSION_A, At = now - 5 } },
+			})
+			PlayerData.SetStore(sSame)
+			local pSame = newPlayer("CarTestDataV8Same")
+			local loadedSame = PlayerData.Load(pSame, 9803)
+			flag(
+				"same_session_lock_loads",
+				loadedSame == true
+					and val(pSame, "Money") == 5
+					and lockIs(sSame.data["Player_9803"], SESSION_A, now)
+					and sSame.updates == 1
+			)
+
+			-- MoneyEarned (lifetime Money earned) and DuelWins: missing = 0
+			local sStat = makeStore()
+			PlayerData.SetStore(sStat)
+			local m1 = newPlayer("CarTestDataV8Earned")
+			PlayerData.Load(m1, 9810)
+			check(
+				checks,
+				"money_earned_missing_is_0",
+				tonumber(m1:GetAttribute("MoneyEarned")) or -1,
+				0,
+				m1:GetAttribute("MoneyEarned") == 0
+			)
+			check(
+				checks,
+				"duel_wins_missing_is_0",
+				tonumber(m1:GetAttribute("DuelWins")) or -1,
+				0,
+				m1:GetAttribute("DuelWins") == 0
+			)
+			-- Award adds what it actually paid (7.9 pays $7)
+			Money.Award(m1, 250)
+			Money.Award(m1, 7.9)
+			local earned = m1:GetAttribute("MoneyEarned")
+			check(
+				checks,
+				"award_raises_money_earned_by_paid_amount",
+				tonumber(earned) or -1,
+				257,
+				earned == 257 and val(m1, "Money") == 257
+			)
+			for _, bad in { 0, -5, 0 / 0, 0.4, "9" } do
+				pcall(Money.Award, m1, bad)
+			end
+			flag("rejected_award_keeps_money_earned", m1:GetAttribute("MoneyEarned") == 257 and val(m1, "Money") == 257)
+			stat(m1, "Money").Value -= 200 -- spending
+			check(
+				checks,
+				"spending_keeps_money_earned",
+				tonumber(m1:GetAttribute("MoneyEarned")) or -1,
+				257,
+				m1:GetAttribute("MoneyEarned") == 257 and val(m1, "Money") == 57
+			)
+			local pBare = newPlayer("CarTestDataV8BareAward")
+			pcall(Money.Award, pBare, 30)
+			check(
+				checks,
+				"award_without_attribute_starts_at_0",
+				tonumber(pBare:GetAttribute("MoneyEarned")) or -1,
+				30,
+				pBare:GetAttribute("MoneyEarned") == 30
+			)
+			-- saved and loaded
+			m1:SetAttribute("DuelWins", 4)
+			local savedStat = PlayerData.Save(m1, 9810)
+			local recStat = sStat.data["Player_9810"]
+			flag(
+				"v8_save_has_money_earned_and_duel_wins",
+				savedStat == true
+					and type(recStat) == "table"
+					and recStat.Version == DATA_VERSION
+					and recStat.Money == 57
+					and recStat.MoneyEarned == 257
+					and recStat.DuelWins == 4
+			)
+			local m2 = newPlayer("CarTestDataV8EarnedB")
+			PlayerData.Load(m2, 9810)
+			flag(
+				"v8_roundtrip_money_earned_and_duel_wins",
+				m2:GetAttribute("MoneyEarned") == 257 and m2:GetAttribute("DuelWins") == 4 and val(m2, "Money") == 57
+			)
+			-- integers >= 0, MoneyEarned capped like Money (1e12): on save ...
+			local saveBad = 0
+			for _, c in
+				{
+					{ 2e12, 5, 1e12, 1e12, 5, 5 },
+					{ -5, -3, 0, 0, 0, 0 },
+					{ 12.7, 2.6, 12, 13, 2, 3 },
+					{ 0 / 0, 0 / 0, 0, 0, 0, 0 },
+				}
+			do
+				m1:SetAttribute("MoneyEarned", c[1])
+				m1:SetAttribute("DuelWins", c[2])
+				local okS = PlayerData.Save(m1, 9810)
+				local r = sStat.data["Player_9810"]
+				local me, dw = type(r) == "table" and r.MoneyEarned, type(r) == "table" and r.DuelWins
+				if
+					okS ~= true
+					or type(me) ~= "number"
+					or type(dw) ~= "number"
+					or me ~= math.floor(me)
+					or dw ~= math.floor(dw)
+					or me < c[3]
+					or me > c[4]
+					or dw < c[5]
+					or dw > c[6]
+				then
+					saveBad += 1
+				end
+			end
+			check(checks, "v8_fields_sanitised_on_save", saveBad, 0, saveBad == 0)
+			-- ... and on load
+			local loadBad = 0
+			for i, c in
+				{
+					{ { MoneyEarned = "lots", DuelWins = "many" }, 0, 0 },
+					{ { MoneyEarned = -5, DuelWins = -3 }, 0, 0 },
+					{ { MoneyEarned = 0 / 0, DuelWins = 0 / 0 }, 0, 0 },
+					{ { MoneyEarned = 2e12, DuelWins = 6 }, 1e12, 6 },
+					{ { Money = 9, Version = 7 }, 0, 0 },
+				}
+			do
+				local id = 9820 + i
+				PlayerData.SetStore(makeStore({ ["Player_" .. id] = c[1] }))
+				local pc = newPlayer("CarTestDataV8Clean" .. i)
+				local okC, loadedC = pcall(PlayerData.Load, pc, id)
+				if
+					not okC
+					or loadedC ~= true
+					or pc:GetAttribute("MoneyEarned") ~= c[2]
+					or pc:GetAttribute("DuelWins") ~= c[3]
+				then
+					loadBad += 1
+				end
+			end
+			check(checks, "v8_fields_sanitised_on_load", loadBad, 0, loadBad == 0)
+
+			-- A record locked by ANOTHER session with a fresh lock (clock - At = LOCK_TIMEOUT - 1 < LOCK_TIMEOUT):
+			-- LOAD_RETRIES attempts LOAD_RETRY_WAIT apart, then DataFailed. Nothing is written, not even the offline
+			-- claim the record is due, and the player is never saved.
+			local lockedRec = {
+				Money = 777,
+				Speed = 100,
+				Version = 7,
+				WorkshopLevel = 1,
+				OfflineAt = now - 3600,
+				Lock = { Id = SESSION_B, At = now - (LOCK_TIMEOUT - 1) },
+			}
+			local sLocked = makeStore({ ["Player_9805"] = deepCopy(lockedRec) })
+			PlayerData.SetStore(sLocked)
+			local pLocked = newPlayer("CarTestDataV8Locked")
+			local startedAt = os.clock()
+			local okLocked, loadedLocked = pcall(PlayerData.Load, pLocked, 9805)
+			local waited = os.clock() - startedAt
+			flag("locked_load_returns_false", okLocked and loadedLocked == false)
+			flag(
+				"locked_load_flags_data_failed",
+				pLocked:GetAttribute("DataFailed") == true and pLocked:GetAttribute("DataLoaded") ~= true
+			)
+			flag(
+				"locked_load_leaves_record_unchanged",
+				sLocked.sets == 0 and deepEqual(sLocked.data["Player_9805"], lockedRec)
+			)
+			check(checks, "locked_load_attempts", sLocked.updates, LOAD_RETRIES, sLocked.updates == LOAD_RETRIES)
+			local minWait = (LOAD_RETRIES - 1) * LOAD_RETRY_WAIT
+			check(checks, "locked_load_waits_between_attempts", waited, minWait, waited >= minWait - 0.05)
+			local lockedMoney = stat(pLocked, "Money")
+			if lockedMoney then
+				lockedMoney.Value = 5
+			end
+			local okLs, savedLs = pcall(PlayerData.Save, pLocked, 9805)
+			flag(
+				"locked_player_save_writes_nothing",
+				okLs and savedLs == false and sLocked.sets == 0 and deepEqual(sLocked.data["Player_9805"], lockedRec)
+			)
+
+			-- The same record once the other server's lock is LOCK_TIMEOUT old: taken over at the first attempt, and
+			-- the offline Speed claim is paid in that same transform, exactly once.
+			local deadRec = deepCopy(lockedRec)
+			deadRec.Lock.At = now - LOCK_TIMEOUT
+			local sDead = makeStore({ ["Player_9806"] = deadRec })
+			PlayerData.SetStore(sDead)
+			local pDead = newPlayer("CarTestDataV8Takeover")
+			local loadedDead = PlayerData.Load(pDead, 9806)
+			local recDead = sDead.data["Player_9806"]
+			flag(
+				"timed_out_lock_is_taken_over",
+				loadedDead == true
+					and lockIs(recDead, SESSION_A, now)
+					and val(pDead, "Money") == 777
+					and pDead:GetAttribute("DataFailed") ~= true
+			)
+			check(checks, "takeover_is_one_update_async", sDead.updates, 1, sDead.updates == 1)
+			local claimedSpeed = val(pDead, "Speed")
+			local claimOk = type(claimedSpeed) == "number"
+				and claimedSpeed > 100
+				and type(recDead) == "table"
+				and near(recDead.Speed, claimedSpeed)
+				and recDead.OfflineAt == now
+				and recDead.Money == 777
+			check(checks, "takeover_offline_claim_in_load_transform", tonumber(claimedSpeed) or -1, "> 100", claimOk)
+			local pDead2 = newPlayer("CarTestDataV8TakeoverB")
+			PlayerData.Load(pDead2, 9806)
+			check(
+				checks,
+				"takeover_offline_claim_paid_once",
+				tonumber(val(pDead2, "Speed")) or -1,
+				tonumber(claimedSpeed) or 0,
+				type(claimedSpeed) == "number"
+					and near(val(pDead2, "Speed"), claimedSpeed)
+					and pDead2:GetAttribute("OfflineSpeed") == 0
+					and val(pDead2, "Money") == 777
+			)
+
+			-- The other server releases the lock while this one waits: the second attempt loads
+			local sHop = makeStore({
+				["Player_9807"] = { Money = 31, Speed = 2, Version = 8, Lock = { Id = SESSION_B, At = now } },
+			})
+			sHop.onUpdate = function(attempt, key)
+				if attempt == 2 then
+					sHop.data[key].Lock = nil
+				end
+			end
+			PlayerData.SetStore(sHop)
+			local pWait = newPlayer("CarTestDataV8Retry")
+			local okWait, loadedWait = pcall(PlayerData.Load, pWait, 9807)
+			flag(
+				"lock_released_during_retry_loads",
+				okWait
+					and loadedWait == true
+					and val(pWait, "Money") == 31
+					and pWait:GetAttribute("DataFailed") ~= true
+					and lockIs(sHop.data["Player_9807"], SESSION_A, now)
+			)
+			check(checks, "lock_released_during_retry_attempts", sHop.updates, 2, sHop.updates == 2)
+		end)
+		pcall(PlayerData.SetSessionId, nil)
+		pcall(PlayerData.SetClock, nil)
+		if not okV8 then
+			check(checks, "data_v8_no_error", 0, tostring(errV8), false)
+		end
+	end
+
 	for _, inst in cleanup do
 		inst:Destroy()
 	end
@@ -4574,6 +5114,44 @@ function Scenarios.hud()
 			end
 		end
 		check(checks, "odds_text_format", oddsOk and 1 or 0, 1, oddsOk)
+		-- BRIEF (owner, 2026-10-13; design doc "Weather events", ROLL_ANIMATION_CONTRACT `RollResult` bullet):
+		-- Odds(chance, luck) = "1 in " .. commas(max(1, round(chance / luck))); a missing or invalid luck counts as 1.
+		-- No case sits on a .5 boundary, so the rounding direction of a tie is not assumed.
+		do
+			local luckCases = {
+				{ 500, 2, "1 in 250" },
+				{ 2500, 2, "1 in 1,250" },
+				{ 5, 10, "1 in 1" },
+				{ 500, 1, "1 in 500" },
+				{ 500, 3, "1 in 167" },
+				{ 1000, 3, "1 in 333" },
+				{ 100000, 1.5, "1 in 66,667" },
+				{ 10, 1000, "1 in 1" },
+			}
+			local luckBad = 0
+			for _, c in luckCases do
+				if call(HudFormat.Odds, c[1], c[2]) ~= c[3] then
+					luckBad += 1
+				end
+			end
+			check(checks, "odds_text_luck_divides_chance", luckBad, 0, luckBad == 0)
+			local invalidLuckBad = call(HudFormat.Odds, 500, nil) == "1 in 500" and 0 or 1
+			for _, bad in { 0 / 0, 0, 0.5, -2, math.huge, -math.huge, "2", true, {} } do
+				if call(HudFormat.Odds, 500, bad) ~= "1 in 500" then
+					invalidLuckBad += 1
+				end
+			end
+			check(checks, "odds_text_invalid_luck_counts_as_one", invalidLuckBad, 0, invalidLuckBad == 0)
+			local badChanceBad = call(HudFormat.Odds, nil, 2) == "1 in ?" and 0 or 1
+			for _, bad in { 0 / 0, 0, 0.5, -5, math.huge, "500", true, {} } do
+				for _, luck in { 2, 10, 0 / 0 } do
+					if call(HudFormat.Odds, bad, luck) ~= "1 in ?" then
+						badChanceBad += 1
+					end
+				end
+			end
+			check(checks, "odds_text_bad_chance_ignores_luck", badChanceBad, 0, badChanceBad == 0)
+		end
 	end
 	return result("hud", checks, {})
 end
@@ -5129,8 +5707,10 @@ function Scenarios.gacha()
 		-- Turbo luck (docs/SPAWN_AND_ROLLS_SPEC.md section 4). BRIEF (owner, 2026-10-01): "A turbo luck bar: every X
 		-- auto rolls one roll gets multiplied luck." Every TURBO_EVERY-th roll (Rolls = 10, 20, ...) rolls at
 		-- Luck * TURBO_LUCK; Roll returns (id, isNew, turboMulti).
+		-- Owner, 2026-10-12 (docs/UPGRADE_TREE_SPEC.md section 4, design doc "Jett Fuel"): without a Turbo tier the
+		-- 10th roll is x10 (was x5).
 		check(checks, "turbo_every", GachaConfig.TURBO_EVERY or -1, 10, GachaConfig.TURBO_EVERY == 10)
-		check(checks, "turbo_luck", GachaConfig.TURBO_LUCK or -1, 5, GachaConfig.TURBO_LUCK == 5)
+		check(checks, "turbo_luck", GachaConfig.TURBO_LUCK or -1, 10, GachaConfig.TURBO_LUCK == 10)
 		local turboApi = type(GachaConfig.IsTurbo) == "function" and type(GachaConfig.TurboProgress) == "function"
 		check(checks, "turbo_api_exists", turboApi and 1 or 0, 1, turboApi)
 		if turboApi then
@@ -5171,18 +5751,18 @@ function Scenarios.gacha()
 		local multiBad, turboRolls = 0, 0
 		for k = 1, 25 do
 			local okT, _, _, multi = pcall(GachaService.Roll, tp, Random.new(7000 + k))
-			local want = k % 10 == 0 and 5 or 1
+			local want = k % 10 == 0 and 10 or 1
 			if not okT or multi ~= want then
 				multiBad += 1
 			end
-			if okT and multi == 5 then
+			if okT and multi == 10 then
 				turboRolls += 1
 			end
 		end
 		check(checks, "turbo_multi_every_10th_roll", multiBad, 0, multiBad == 0 and turboRolls == 2)
 		check(checks, "turbo_rolls_counted", tp:GetAttribute("Rolls") or -1, 25, tp:GetAttribute("Rolls") == 25)
-		-- The turbo roll really uses Luck * 5: with a seed where luck and luck * 5 pick different cars, the service's
-		-- 10th roll matches GachaConfig.Roll at luck * 5 and its 11th roll matches it at plain luck.
+		-- The turbo roll really uses Luck * 10: with a seed where luck and luck * 10 pick different cars, the service's
+		-- 10th roll matches GachaConfig.Roll at luck * 10 and its 11th roll matches it at plain luck.
 		-- Upgrade tree phase 2 (docs/UPGRADE_TREE_DESIGN.md "Turbo"): the turbo rhythm comes from the saved
 		-- TurboCount (rolls since the last turbo roll, player attribute), no longer from Rolls, so the jump to "9
 		-- rolls done" sets both (a design change, not a loosening: the 10th roll is still the turbo roll).
@@ -5191,7 +5771,7 @@ function Scenarios.gacha()
 		local luck = GachaService.Luck(tq)
 		local seed, idTurbo, idPlain = nil, nil, nil
 		for sd = 1, 5000 do
-			local a = GachaConfig.Roll(Random.new(sd), luck * 5)
+			local a = GachaConfig.Roll(Random.new(sd), luck * 10)
 			local b = GachaConfig.Roll(Random.new(sd), luck)
 			if a ~= b then
 				seed, idTurbo, idPlain = sd, a, b
@@ -5204,16 +5784,40 @@ function Scenarios.gacha()
 			tq:SetAttribute("Rolls", 9)
 			tq:SetAttribute("TurboCount", 9)
 			local okA, idA, _, mA = pcall(GachaService.Roll, tq, Random.new(seed))
-			local turboOk = okA and idA == idTurbo and mA == 5 and tq:GetAttribute("Rolls") == 10
-			check(checks, "turbo_roll_uses_luck_x5", turboOk and 1 or 0, 1, turboOk)
+			local turboOk = okA and idA == idTurbo and mA == 10 and tq:GetAttribute("Rolls") == 10
+			check(checks, "turbo_roll_uses_luck_x10", turboOk and 1 or 0, 1, turboOk)
 			local okB, idB, _, mB = pcall(GachaService.Roll, tq, Random.new(seed))
 			local plainOk = okB and idB == idPlain and mB == 1 and tq:GetAttribute("Rolls") == 11
 			check(checks, "turbo_next_roll_plain_luck", plainOk and 1 or 0, 1, plainOk)
 			tq:SetAttribute("Rolls", 19)
 			tq:SetAttribute("TurboCount", 9)
 			local okC, idC, _, mC = pcall(GachaService.Roll, tq, Random.new(seed))
-			local turbo20 = okC and idC == idTurbo and mC == 5 and tq:GetAttribute("Rolls") == 20
-			check(checks, "turbo_roll_20th_uses_luck_x5", turbo20 and 1 or 0, 1, turbo20)
+			local turbo20 = okC and idC == idTurbo and mC == 10 and tq:GetAttribute("Rolls") == 20
+			check(checks, "turbo_roll_20th_uses_luck_x10", turbo20 and 1 or 0, 1, turbo20)
+		end
+		-- BRIEF (owner, 2026-10-13; ROLL_ANIMATION_CONTRACT `RollResult` bullet): Roll returns the roll's luck as its
+		-- 6th value: GachaService.Luck(player) at that moment, without the turbo multi (the TURBO badge shows that).
+		do
+			local tl = newTestPlayer(cleanup, "CarTestGachaRollLuck")
+			GachaService.Setup(tl)
+			local wantLuck = GachaService.Luck(tl)
+			local okL, _, _, mL, _, _, luckL = pcall(GachaService.Roll, tl, Random.new(8001))
+			local plainLuckOk = okL and mL == 1 and type(luckL) == "number" and luckL == wantLuck
+			check(checks, "service_roll_returns_luck", type(luckL) == "number" and luckL or -1, wantLuck, plainLuckOk)
+			tl:SetAttribute("TurboCount", 9)
+			local okM, _, _, mM, _, _, luckM = pcall(GachaService.Roll, tl, Random.new(8002))
+			local turboLuckOk = okM
+				and mM == 10
+				and type(luckM) == "number"
+				and luckM == wantLuck
+				and luckM == GachaService.Luck(tl)
+			check(
+				checks,
+				"service_roll_luck_excludes_turbo",
+				type(luckM) == "number" and luckM or -1,
+				wantLuck,
+				turboLuckOk
+			)
 		end
 
 		-- Remotes exist (GachaService.Start is called by Main at boot)
@@ -9462,7 +10066,9 @@ function Scenarios.roll_anim()
 		GachaService.Setup(r1)
 		local packed = table.pack(pcall(GachaService.Roll, r1, secret))
 		local okR1 = packed[1] == true
-		check(checks, "service_roll_returns_five_values", okR1 and packed.n - 1 or -1, 5, okR1 and packed.n == 6)
+		-- Owner, 2026-10-13 (docs/ROLL_ANIMATION_CONTRACT.md `RollResult` bullet): a 6th value, luck, was added (was 5).
+		local sixOk = okR1 and packed.n == 7 and type(packed[7]) == "number" and packed[7] == GachaService.Luck(r1)
+		check(checks, "service_roll_returns_six_values", okR1 and packed.n - 1 or -1, 6, sixOk)
 		local first = okR1 and packed[2] == "void_racer" and packed[3] == true and packed[4] == 1 and packed[5] == true
 		check(checks, "service_roll_new_secret_emphasized", first and 1 or 0, 1, first)
 		local ann1 = #calls == 1
@@ -9716,11 +10322,12 @@ UPG.PRICES = {
 	walkspeed = { 75, 170, 360, 800, 1800 },
 	turbo = { 660, 3200, 15000, 34000 },
 }
+-- Owner, 2026-10-12 (docs/UPGRADE_TREE_SPEC.md section 4; replaces x10/15, x50/25, x100/40, x1000/100)
 UPG.TURBO = {
-	{ Multi = 10, Every = 15 },
-	{ Multi = 50, Every = 25 },
-	{ Multi = 100, Every = 40 },
-	{ Multi = 1000, Every = 100 },
+	{ Multi = 50, Every = 50 },
+	{ Multi = 200, Every = 200 },
+	{ Multi = 500, Every = 500 },
+	{ Multi = 1000, Every = 1000 },
 }
 UPG.WALKSPEED = { 18, 20, 23, 26, 30 }
 UPG.ROLL_INTERVALS = { 2.727, 2.5, 2.308, 2.143, 2.0 }
@@ -9948,7 +10555,7 @@ function UPG.upgradesServerChecks(checks, metrics, UpgradeTree)
 		local okAuto, handle = try("StartAutoRoll", GachaService.StartAutoRoll, pAuto)
 		autoHandle = okAuto and handle or nil
 
-		-- Setup: one Upgrades folder, attributes at their fresh values (base turbo x5 every 10)
+		-- Setup: one Upgrades folder, attributes at their fresh values (base turbo x10 every 10)
 		local p0 = fake("Setup")
 		svc("Setup", p0)
 		local folders = 0
@@ -9965,7 +10572,7 @@ function UPG.upgradesServerChecks(checks, metrics, UpgradeTree)
 			and p0:GetAttribute("BestTrack") == 0
 			and p0:GetAttribute("TurboCount") == 0
 			and p0:GetAttribute("TurboEvery") == 10
-			and p0:GetAttribute("TurboMulti") == 5
+			and p0:GetAttribute("TurboMulti") == 10
 			and p0:GetAttribute("UpgradesBuyable") == 0
 		flag("upgrades_setup_folder_and_attributes", setupOk)
 		local okO, owned0 = svc("Owned", p0)
@@ -10147,8 +10754,8 @@ function UPG.upgradesServerChecks(checks, metrics, UpgradeTree)
 			and near(b3s.Luck, 0.25)
 			and near(b3s.Money, 0.10)
 			and type(tu3) == "table"
-			and tu3.Multi == 100
-			and tu3.Every == 40
+			and tu3.Multi == 500
+			and tu3.Every == 500
 			and ws4 == 26
 		flag("upgrades_effects_spec_values", specOk)
 		local bare = Instance.new("Folder")
@@ -10166,7 +10773,7 @@ function UPG.upgradesServerChecks(checks, metrics, UpgradeTree)
 			and near(bb.RollSpeed, 0)
 			and near(bri, 3)
 			and type(btu) == "table"
-			and btu.Multi == 5
+			and btu.Multi == 10
 			and btu.Every == 10
 			and bws == 16
 		flag("upgrades_effects_bare_player_base", bareOk)
@@ -10242,30 +10849,30 @@ function UPG.upgradesServerChecks(checks, metrics, UpgradeTree)
 		local seqOk = true
 		for k = 1, 10 do
 			local okR, _, _, m = try("Roll", GachaService.Roll, pT, Random.new(8100 + k))
-			local wantM = k == 10 and 5 or 1
+			local wantM = k == 10 and 10 or 1
 			local wantC = k == 10 and 0 or k
 			seqOk = seqOk and okR and m == wantM and pT:GetAttribute("TurboCount") == wantC
 		end
 		seqOk = seqOk
 			and pT:GetAttribute("Rolls") == 10
 			and pT:GetAttribute("TurboEvery") == 10
-			and pT:GetAttribute("TurboMulti") == 5
-		flag("upgrades_turbo_base_every_10_x5", seqOk)
+			and pT:GetAttribute("TurboMulti") == 10
+		flag("upgrades_turbo_base_every_10_x10", seqOk)
 		local pT1 = fake("TurboTier1")
-		apply(pT1, { Upgrades = { "rollspeed_1", "turbo_1" }, TurboCount = 13 })
-		local attrsT1 = pT1:GetAttribute("TurboEvery") == 15 and pT1:GetAttribute("TurboMulti") == 10
+		apply(pT1, { Upgrades = { "rollspeed_1", "turbo_1" }, TurboCount = 48 })
+		local attrsT1 = pT1:GetAttribute("TurboEvery") == 50 and pT1:GetAttribute("TurboMulti") == 50
 		local _, _, _, ma = try("Roll", GachaService.Roll, pT1, Random.new(8201))
 		local ca = pT1:GetAttribute("TurboCount")
 		local _, _, _, mb = try("Roll", GachaService.Roll, pT1, Random.new(8202))
 		local cb = pT1:GetAttribute("TurboCount")
-		flag("upgrades_turbo_tier_1_every_15_x10", attrsT1 and ma == 1 and ca == 14 and mb == 10 and cb == 0)
+		flag("upgrades_turbo_tier_1_every_50_x50", attrsT1 and ma == 1 and ca == 49 and mb == 50 and cb == 0)
 		local pOver = fake("TurboOver")
 		apply(pOver, { Upgrades = {}, TurboCount = 50 })
 		local _, _, _, mo = try("Roll", GachaService.Roll, pOver, Random.new(8301))
-		flag("upgrades_turbo_count_at_or_over_every_is_turbo", mo == 5 and pOver:GetAttribute("TurboCount") == 0)
+		flag("upgrades_turbo_count_at_or_over_every_is_turbo", mo == 10 and pOver:GetAttribute("TurboCount") == 0)
 		-- the turbo roll really rolls at Luck x tier Multi (Turbo IV: x1000)
 		local pT4 = fake("TurboTier4")
-		apply(pT4, { Upgrades = { "rollspeed_1", "turbo_1", "turbo_2", "turbo_3", "turbo_4" }, TurboCount = 99 })
+		apply(pT4, { Upgrades = { "rollspeed_1", "turbo_1", "turbo_2", "turbo_3", "turbo_4" }, TurboCount = 999 })
 		local _, luck4 = try("Luck", GachaService.Luck, pT4)
 		local seed, idTurbo, idPlain = nil, nil, nil
 		if type(luck4) == "number" then
@@ -10287,7 +10894,7 @@ function UPG.upgradesServerChecks(checks, metrics, UpgradeTree)
 				and idB == idPlain
 				and mB == 1
 				and pT4:GetAttribute("TurboCount") == 1
-				and pT4:GetAttribute("TurboEvery") == 100
+				and pT4:GetAttribute("TurboEvery") == 1000
 				and pT4:GetAttribute("TurboMulti") == 1000
 		end
 		flag("upgrades_turbo_tier_4_rolls_at_luck_x1000", t4Ok)
@@ -10297,22 +10904,23 @@ function UPG.upgradesServerChecks(checks, metrics, UpgradeTree)
 		local _, rk = svc("Buy", pK, "turbo_1")
 		local keepOk = rk == true
 			and pK:GetAttribute("TurboCount") == 9
-			and pK:GetAttribute("TurboEvery") == 15
-			and pK:GetAttribute("TurboMulti") == 10
+			and pK:GetAttribute("TurboEvery") == 50
+			and pK:GetAttribute("TurboMulti") == 50
 		local _, _, _, mk = try("Roll", GachaService.Roll, pK, Random.new(8401))
 		keepOk = keepOk and mk == 1 and pK:GetAttribute("TurboCount") == 10
 		flag("upgrades_turbo_buy_keeps_progress", keepOk)
 		local pK2 = fake("TurboKeep2", UPG.RICH)
-		apply(pK2, { Upgrades = { "rollspeed_1", "turbo_1" }, TurboCount = 14, BestTrack = 0 })
+		apply(pK2, { Upgrades = { "rollspeed_1", "turbo_1" }, TurboCount = 49, BestTrack = 0 })
 		local _, rk2 = svc("Buy", pK2, "turbo_2")
 		local count2 = pK2:GetAttribute("TurboCount")
 		flag(
 			"upgrades_turbo_buy_progress_capped_below_every",
 			rk2 == true
-				and count2 == 14
-				and pK2:GetAttribute("TurboEvery") == 25
+				and count2 == 49
+				and pK2:GetAttribute("TurboEvery") == 200
+				and pK2:GetAttribute("TurboMulti") == 200
 				and type(count2) == "number"
-				and count2 <= 25 - 1
+				and count2 <= 200 - 1
 		)
 
 		-- Roll interval: GachaService.WaitAfter(id, emphasized, player) uses UpgradeService.RollInterval(player);
@@ -10610,7 +11218,7 @@ function Scenarios.upgrades()
 		and UpgradeConfig.MIN_ROLL_INTERVAL == 2
 		and UpgradeConfig.BASE_WALKSPEED == 16
 		and type(UpgradeConfig.BASE_TURBO) == "table"
-		and UpgradeConfig.BASE_TURBO.Multi == 5
+		and UpgradeConfig.BASE_TURBO.Multi == 10
 		and UpgradeConfig.BASE_TURBO.Every == 10
 		and #UpgradeConfig.Branches == #UPG.BRANCH_ORDER
 	local configTierTotal = 0
@@ -10982,17 +11590,17 @@ function Scenarios.upgrades()
 		local okc, v = call("Turbo", UPG.idSet(ids))
 		return okc and type(v) == "table" and v.Multi == multi and v.Every == every
 	end
-	flag("upgrades_turbo_base", turboIs({}, 5, 10))
+	flag("upgrades_turbo_base", turboIs({}, 10, 10))
 	local turboTiersOk = true
 	for k, want in UPG.TURBO do
 		turboTiersOk = turboIs(UPG.tierIds("turbo", k), want.Multi, want.Every) and turboTiersOk
 	end
 	flag("upgrades_turbo_tiers", turboTiersOk)
-	local turboHighOk = turboIs({ "turbo_1" }, 10, 15)
-		and turboIs({ "turbo_2" }, 50, 25)
-		and turboIs({ "turbo_1", "turbo_3" }, 100, 40)
-		and turboIs({ "turbo_4" }, 1000, 100)
-		and turboIs({ "rollspeed_1", "luck_5" }, 5, 10)
+	local turboHighOk = turboIs({ "turbo_1" }, 50, 50)
+		and turboIs({ "turbo_2" }, 200, 200)
+		and turboIs({ "turbo_1", "turbo_3" }, 500, 500)
+		and turboIs({ "turbo_4" }, 1000, 1000)
+		and turboIs({ "rollspeed_1", "luck_5" }, 10, 10)
 	flag("upgrades_turbo_highest_owned_wins", turboHighOk)
 
 	-- WalkSpeed: highest owned tier wins.
@@ -11041,7 +11649,8 @@ end
 -- servers hold at most 7 players. A player's workshop loads when they join. With one player in the server: 1 plot with
 -- their workshop, 6 empty plots. For now everyone gets the starter workshop (level 1)."
 -- Design doc: Speed is earned ONLY while standing inside your own workshop zone, checked on the server on a timer from
--- the character's position: rate = BASE_RATE x SpeedMulti x LevelMulti x WorkshopPointsMulti / (1 + stat / GAIN_SOFT).
+-- the character's position: rate = BASE_RATE x SpeedMulti x LevelMulti x WorkshopPointsMulti. Owner, 2026-10-13
+-- (design doc "Core stat model", WORKSHOP_SPEC section 4): nothing divides it by the Speed stat.
 --
 -- What the checks read:
 --   * pure rules: Shared/Workshop (PlotCFrame, ZoneBounds, InZone, FreePlot, LevelMulti, Rate)
@@ -11164,7 +11773,6 @@ function Scenarios.workshop()
 		and PlayerData ~= nil
 		and Money ~= nil
 		and CarService ~= nil
-		and type(RaceConfig.GAIN_SOFT) == "number"
 	flag("workshop_module_api_exists", pureOk)
 	flag("workshop_service_api_exists", serviceOk)
 	flag("workshop_dependencies_exist", depsOk)
@@ -11390,10 +11998,11 @@ function Scenarios.workshop()
 		local okOne, one = try("LevelMulti", Workshop.LevelMulti, 1)
 		flag("workshop_level_multi_clamped", lmOk and okOne and one == 1)
 
-		-- Rate = BASE_RATE x speedMulti x LevelMulti(level) x workshopMulti / (1 + stat / GAIN_SOFT); bad inputs 0
-		local soft = RaceConfig.GAIN_SOFT
-		local function rateWant(stat, sm, level, wm)
-			return WSHOP.BASE_RATE * sm * levelMultiWant(level) * wm / (1 + stat / soft)
+		-- Rate = BASE_RATE x speedMulti x LevelMulti(level) x workshopMulti, the same at every stat (owner,
+		-- 2026-10-13; was / (1 + stat / GAIN_SOFT)); bad inputs 0
+		local soft = 2000 -- the old GAIN_SOFT: the rate there was half, now it is the full rate
+		local function rateWant(_stat, sm, level, wm)
+			return WSHOP.BASE_RATE * sm * levelMultiWant(level) * wm
 		end
 		local rateOk = true
 		for _, c in
@@ -11416,8 +12025,15 @@ function Scenarios.workshop()
 			"workshop_rate_formula",
 			okBase and vBase or -1,
 			WSHOP.BASE_RATE,
-			rateOk and okBase and vBase == 1 and okHalf and near(vHalf, 0.5, 1e-9)
+			rateOk and okBase and vBase == 1 and okHalf and vHalf == 1
 		)
+		local statFree = true
+		local wantFree = WSHOP.BASE_RATE * 2.4 * levelMultiWant(MAXL) * 1.2
+		for _, stat in { 0, 2000, 1e6, RaceConfig.MAX_STAT or 1e9 } do
+			local okf, v = try("Rate", Workshop.Rate, stat, 2.4, MAXL, 1.2)
+			statFree = statFree and okf and near(v, wantFree, 1e-9)
+		end
+		flag("workshop_rate_same_at_every_stat", statFree)
 		local badRate = table.pack(
 			{ -1, 1, 1, 1 },
 			{ 0 / 0, 1, 1, 1 },
@@ -11841,11 +12457,7 @@ function Scenarios.workshop()
 		-- SpeedMulti = stat points + tree Speed; the equipped car only changes cruise speed.
 		local wantSpeedMulti = 1 + GACHA_PER_POINT.Speed + 0.10
 		local wantWorkshopMulti = 1 + GACHA_PER_POINT.Workshop
-		local wantRate = WSHOP.BASE_RATE
-			* wantSpeedMulti
-			* levelMultiWant(1)
-			* wantWorkshopMulti
-			/ (1 + WSHOP.STAT / RaceConfig.GAIN_SOFT)
+		local wantRate = WSHOP.BASE_RATE * wantSpeedMulti * levelMultiWant(1) * wantWorkshopMulti
 		metrics.want_rate = wantRate
 		local _, rate2 = svc("Rate", p2)
 		local okSM, sm = try("SpeedMulti", GachaService.SpeedMulti, p2)
@@ -11921,15 +12533,9 @@ function Scenarios.workshop()
 		setSpeed(pNo, WSHOP.STAT)
 		local outNoPlot = noGain("no_plot", pNo, avatar)
 		flag("workshop_tick_without_plot_no_gain", outNoPlot)
-		-- back in the zone: the gain resumes (the stat is now higher, so the rate is a little lower)
-		local stat2 = speedOf(p2)
+		-- back in the zone: the gain resumes at the same rate (owner, 2026-10-13: the higher stat does not lower it)
 		local okBack, addedBack = svc("Tick", p2, WSHOP.TICK, avatar)
-		local wantBack = WSHOP.BASE_RATE
-			* wantSpeedMulti
-			* levelMultiWant(1)
-			* wantWorkshopMulti
-			/ (1 + (stat2 or 0) / RaceConfig.GAIN_SOFT)
-			* WSHOP.TICK
+		local wantBack = wantRate * WSHOP.TICK
 		flag(
 			"workshop_tick_resumes_in_zone",
 			okBack and near(addedBack, wantBack, 1e-6) and p2:GetAttribute("InWorkshop") == true
@@ -12090,5 +12696,11 @@ local Phase2Tests = require(script.Parent.Phase2Tests)
 Scenarios.workshop_offline = Phase2Tests.workshop_offline
 Scenarios.workshop_phase2 = Phase2Tests.workshop_phase2
 Scenarios.weather = Phase2Tests.weather
+Scenarios.rebirth = Phase2Tests.rebirth
+Scenarios.daily_login = Phase2Tests.daily_login
+-- docs/LEADERBOARD_SPEC.md section 4 (its own module: this file is near Luau's 200-local limit)
+Scenarios.leaderboard = require(script.Parent.LeaderboardTests).leaderboard
+Scenarios.duel = require(script.Parent.DuelTests).duel -- docs/DUEL_SPEC.md section 4
+Scenarios.pass_cars = require(script.Parent.PassCarTests).pass_cars -- docs/GAMEPASS_CARS_SPEC.md section 7
 
 return Scenarios

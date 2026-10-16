@@ -12,12 +12,14 @@ local TextChatService = game:GetService("TextChatService")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local CarCatalog = require(Shared.CarCatalog)
 local RaceConfig = require(Shared.RaceConfig)
+local WeatherConfig = require(Shared.WeatherConfig)
 local AdminConfig = require(script.Parent.AdminConfig)
 local CarService = require(script.Parent.CarService)
 local GachaService = require(script.Parent.GachaService)
 local MoneyService = require(script.Parent.MoneyService)
 local PlayerData = require(script.Parent.PlayerData)
 local UpgradeService = require(script.Parent.UpgradeService)
+local WeatherService = require(script.Parent.WeatherService)
 
 local AdminService = {}
 
@@ -155,6 +157,11 @@ local function amount(args)
 	return AdminService.ParseNumber(args[1])
 end
 
+local function positiveAmount(args)
+	local n = amount(args)
+	return n and n > 0 and n or nil
+end
+
 -- Each command: Usage, Help, Min/Max arguments before the optional target, Check(args) -> value or nil
 -- (validated before anything changes) and Apply(target, value) -> ok, message.
 AdminService.Commands = {
@@ -220,6 +227,107 @@ AdminService.Commands = {
 			local speed = speedValue(p)
 			speed.Value = cleanSpeed(speed.Value + n)
 			return true, "Speed = " .. speed.Value
+		end,
+	},
+	resetspeed = {
+		Usage = "/resetspeed [player]",
+		Help = "reset the Speed stat to zero",
+		Min = 0,
+		Max = 0,
+		Check = function()
+			return true
+		end,
+		Apply = function(p)
+			speedValue(p).Value = 0
+			return true, "Speed = 0"
+		end,
+	},
+	givespeed = {
+		Usage = "/givespeed <amount> [player]",
+		Help = "add positive Speed",
+		Min = 1,
+		Max = 1,
+		Check = positiveAmount,
+		Apply = function(p, n)
+			local speed = speedValue(p)
+			speed.Value = cleanSpeed(speed.Value + n)
+			return true, "Speed = " .. speed.Value
+		end,
+	},
+	givemoney = {
+		Usage = "/givemoney <amount> [player]",
+		Help = "add positive Money",
+		Min = 1,
+		Max = 1,
+		Check = function(args)
+			local n = positiveAmount(args)
+			return n and n <= MAX_MONEY and math.floor(n) or nil
+		end,
+		Apply = function(p, n)
+			local money = moneyValue(p)
+			money.Value = math.clamp(money.Value + n, 0, MAX_MONEY)
+			return true, "Money = " .. money.Value
+		end,
+	},
+	luck = {
+		Usage = "/luck <multiplier> [player]",
+		Help = "set a session-only direct Luck multiplier",
+		Min = 1,
+		Max = 1,
+		Check = function(args)
+			local n = amount(args)
+			return n and n >= 1 and n <= MAX_MONEY and n or nil
+		end,
+		Apply = function(p, n)
+			p:SetAttribute("AdminLuck", n)
+			return true, "Luck = " .. n .. "x"
+		end,
+	},
+	giveluck = {
+		Usage = "/giveluck <multiplier> [player]",
+		Help = "set a session-only direct Luck multiplier",
+		Min = 1,
+		Max = 1,
+		Check = function(args)
+			local n = amount(args)
+			return n and n >= 1 and n <= MAX_MONEY and n or nil
+		end,
+		Apply = function(p, n)
+			p:SetAttribute("AdminLuck", n)
+			return true, "Luck = " .. n .. "x"
+		end,
+	},
+	resetluck = {
+		Usage = "/resetluck [player]",
+		Help = "remove the session-only direct Luck multiplier",
+		Min = 0,
+		Max = 0,
+		Check = function()
+			return true
+		end,
+		Apply = function(p)
+			p:SetAttribute("AdminLuck", nil)
+			return true, "Luck reset"
+		end,
+	},
+	weather = {
+		Usage = "/weather <clear|rain|night|gold|aurora|off>",
+		Help = "set the server weather",
+		Min = 1,
+		Max = 1,
+		NoTarget = true,
+		Check = function(args)
+			local id = args[1]:lower()
+			if id == "off" then
+				return ""
+			end
+			return WeatherConfig.Events[id] and id or nil
+		end,
+		Apply = function(_, id)
+			if WeatherService.SetEvent(id) then
+				return true, id == "" and "Weather off" or ("Weather = " .. WeatherConfig.Events[id].Name)
+			end
+			return false, "Could not set weather"
 		end,
 	},
 	give = {
@@ -334,7 +442,25 @@ AdminService.Commands = {
 	},
 }
 
-local ORDER = { "help", "money", "addmoney", "speed", "addspeed", "give", "equip", "roll", "wipe", "tp" }
+local ORDER = {
+	"help",
+	"money",
+	"addmoney",
+	"givemoney",
+	"speed",
+	"addspeed",
+	"givespeed",
+	"resetspeed",
+	"luck",
+	"giveluck",
+	"resetluck",
+	"weather",
+	"give",
+	"equip",
+	"roll",
+	"wipe",
+	"tp",
+}
 
 local function helpText()
 	local lines = { "Admin commands:" }
@@ -356,6 +482,16 @@ local function execute(sender, text)
 	end
 	if name == "help" then
 		return true, helpText()
+	end
+	if cmd.NoTarget then
+		if #args ~= cmd.Min then
+			return false, "Usage: " .. cmd.Usage
+		end
+		local value = cmd.Check(args)
+		if value == nil then
+			return false, "Usage: " .. cmd.Usage
+		end
+		return cmd.Apply(sender, value)
 	end
 
 	-- The last word is a target when there is one argument too many, or (for /roll) when it is not a number

@@ -39,6 +39,9 @@ RaceService.COMMIT_INTERVAL = 0.25 -- seconds between writes of the gained Speed
 RaceService.FLIP_UP_Y = 0.5 -- body up-vector Y below this counts as flipped...
 RaceService.FLIP_SECONDS = 0.4 -- ...after this long, and the car is put back upright on the path
 RaceService.START_AHEAD = 5 -- studs along the path from the road's first edge: all four wheels start on the road
+RaceService.RAIL_POS_GAIN = 20 -- 1/s: the rail steers the car back onto the path with velocity, not a teleport
+RaceService.RAIL_ROT_GAIN = 20 -- 1/s: same for heading (a teleport replicates as a jump and the client sees a stutter)
+RaceService.RAIL_SNAP_DISTANCE = 3 -- studs off the rail before it falls back to a teleport (counted in run.RailSnaps)
 local DEVIATION_GRACE = 3 -- seconds after the start before path deviation is measured (the car starts on the centre line)
 
 local CAR_GROUP = "Cars"
@@ -98,6 +101,8 @@ end
 -- options: { Loop = true } puts the car back at the start of the route after the last finish.
 --          { Npc = true } races every track against its NPC. Test hooks: NpcSpeeds = { [number] = speed },
 --          LoseScreenSeconds, OnRaceEvent(event).
+--          { Duel = { Track = n, OnFinish = fn(run, seconds) } } is a duel run (docs/DUEL_SPEC.md): no NPC, starts
+--          on track n, pays no pad, banks nothing, and is Finished (OnFinish called once) at that track's finish.
 function RaceService.NewRun(car, raceRoute, player, options)
 	options = options or {}
 	local chassis = car.PrimaryPart
@@ -125,6 +130,7 @@ function RaceService.NewRun(car, raceRoute, player, options)
 		MinUpY = 1,
 		MaxPathDeviation = 0,
 		FlipRecoveries = 0,
+		RailSnaps = 0, -- frames the rail had to teleport the car (each one is a visible jump on the client)
 		OffTrackSeconds = 0,
 		Laps = 0,
 		Driver = driver,
@@ -142,6 +148,8 @@ function RaceService.NewRun(car, raceRoute, player, options)
 		player:SetAttribute("LastWinBoost", id)
 	end
 	local npcMode = options.Npc == true and type(raceRoute.Tracks) == "table" and #raceRoute.Tracks > 0
+	local duel = not npcMode and type(options.Duel) == "table" and options.Duel or nil
+	local duelIndex = nil -- index in raceRoute.Tracks of the duel's track
 	local race = nil -- { Index, Number, Started, NpcTime }
 	local alive = true
 	local paid = {} -- pad entry -> already paid this pass
@@ -331,9 +339,19 @@ function RaceService.NewRun(car, raceRoute, player, options)
 				run.FlipRecoveries += 1 -- the rail rights a flipped car at once: still a recovery
 			end
 		end
-		car:PivotTo(CFrame.lookAt(position, position + bestDir))
-		chassis.AssemblyLinearVelocity = bestDir * forwardSpeed
-		chassis.AssemblyAngularVelocity = Vector3.zero
+		local target = CFrame.lookAt(position, position + bestDir)
+		local offset = position - chassis.Position
+		if offset.Magnitude > RaceService.RAIL_SNAP_DISTANCE or up < RaceService.FLIP_UP_Y then
+			car:PivotTo(target)
+			chassis.AssemblyLinearVelocity = bestDir * forwardSpeed
+			chassis.AssemblyAngularVelocity = Vector3.zero
+			run.RailSnaps += 1
+			return
+		end
+		-- Steer onto the rail with velocity: physics moves the car, so the client interpolates it smoothly
+		local axis, angle = (target.Rotation * chassis.CFrame.Rotation:Inverse()):ToAxisAngle()
+		chassis.AssemblyLinearVelocity = bestDir * forwardSpeed + offset * RaceService.RAIL_POS_GAIN
+		chassis.AssemblyAngularVelocity = axis * angle * RaceService.RAIL_ROT_GAIN
 	end
 
 	-- A flipped car is put back upright on the path, facing along it
@@ -414,6 +432,15 @@ function RaceService.NewRun(car, raceRoute, player, options)
 		return true
 	end
 
+	if duel then
+		for i, track in raceRoute.Tracks or {} do
+			if track.Number == duel.Track then
+				duelIndex = i
+			end
+		end
+		run:JumpToTrack(duel.Track)
+	end
+
 	run.Connection = RunService.PreSimulation:Connect(function(dt)
 		if not car.Parent then
 			run:Destroy()
@@ -429,6 +456,18 @@ function RaceService.NewRun(car, raceRoute, player, options)
 				local last = race.Index == #raceRoute.Tracks
 				if driver.Index >= track.FinishIndex or (last and driver.Done) then
 					finishRace()
+				end
+			end
+		elseif duel then
+			local track = duelIndex and raceRoute.Tracks[duelIndex]
+			local last = duelIndex == #raceRoute.Tracks -- the driver stops just before the route's last waypoint
+			if track and not run.Finished and (driver.Index >= track.FinishIndex or (last and driver.Done)) then
+				run.Finished = true
+				if duel.OnFinish then
+					local ok, err = pcall(duel.OnFinish, run, runTime)
+					if not ok then
+						warn("Duel OnFinish: " .. tostring(err))
+					end
 				end
 			end
 		else
@@ -450,7 +489,7 @@ function RaceService.NewRun(car, raceRoute, player, options)
 			commitStat()
 		end
 
-		if not npcMode and driver.Done and not run.Finished then
+		if not npcMode and not duel and driver.Done and not run.Finished then
 			run.Finished = true
 			run.Laps += 1
 			if options.Loop then
@@ -509,6 +548,20 @@ function RaceService.NewRun(car, raceRoute, player, options)
 end
 
 RaceService.SetCarGroup = setCarGroup
+
+-- Where a car starts track `number` of the live route (START_AHEAD in, in the lane, facing along the path), or nil.
+function RaceService.TrackStartCFrame(number)
+	for _, track in route and route.Tracks or {} do
+		if track.Number == number then
+			local wps = route.Path.WorldWaypoints
+			local s = math.clamp(track.StartIndex, 1, #wps - 1)
+			local dir = (wps[s + 1] - wps[s]).Unit
+			local pos = wps[s] + dir * RaceService.START_AHEAD + Vector3.new(0, CarConfig.RestHeight + 0.5, 0)
+			return CFrame.lookAt(pos, pos + Vector3.new(dir.X, 0, dir.Z))
+		end
+	end
+	return nil
+end
 
 -- Called by CarService once the player's car exists. Returns the run, or nil if there is no route
 -- (then the car is driven manually).

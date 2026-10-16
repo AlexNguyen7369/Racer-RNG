@@ -51,7 +51,7 @@ end
 -- Loser screen
 local gui = Instance.new("ScreenGui")
 gui.Name = "LoserScreen"
-gui.DisplayOrder = 10 -- the overlay draws above every other game GUI
+gui.DisplayOrder = 20 -- the overlay draws above every other game GUI, including DuelUi
 gui.ResetOnSpawn = false
 gui.IgnoreGuiInset = true
 gui.Enabled = false
@@ -108,13 +108,17 @@ remote.OnClientEvent:Connect(function(event)
 	end
 	if event.Type == "Start" then
 		startNpc(event)
+		-- A new race clears any previous loss before the NPC becomes visible.
+		loseToken += 1
+		gui.Enabled = false
 	elseif event.Type == "Result" and event.Result == "Lose" then
 		showLoser(event)
 	elseif event.Type == "Reset" or event.Type == "Stop" then
 		clearNpc()
-		if event.Type == "Stop" then
-			gui.Enabled = false
-		end
+		-- A reset or stop clears the previous loss immediately; the server's next
+		-- Result event is the only thing allowed to show it again.
+		loseToken += 1
+		gui.Enabled = false
 	end
 end)
 

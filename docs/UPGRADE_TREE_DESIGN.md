@@ -93,8 +93,7 @@ tests that the server refuses a gated tile.
 - **Tile states:** owned = blue with icon + name; buyable = name + price (green if affordable, red if not), click to buy;
   gated = grey "Reach Track N"; further out = dark "?". Hover/tap shows the effect ("Roll Speed II: +20 % (2.50 s)").
 - **Feedback:** a buy plays a pop + coin sound; a rejected buy shakes the tile and shows the server's reason.
-- **World pad:** "UPGRADES" sign + pad in the spawn area (spec section 5, around local (150, -70) of Track 1's Start;
-  `SpawnArea` adds it, tag `UpgradePad`). Touching it with the local avatar opens the panel; leaving closes it.
+- **World pad:** removed (owner, 2026-10-13; spec section 5). The panel opens only from the UPGRADES button.
 
 ## Tests (written first, by test-writer / ui-test-writer)
 Harness `upgrades` (pure + server, no physics): tile list and ids; prerequisite order; Turbo forks off Roll Speed I;

@@ -60,4 +60,30 @@ function CarAppearance.Apply(car, id, config)
 	return skin ~= nil
 end
 
+-- A static display copy of a car's skin (the spawn-area pedestals): named "Car", standing on `cframe` at `scale`,
+-- every part anchored and non-colliding. nil when the car has no model in CarModels.
+function CarAppearance.Display(spec, cframe, scale)
+	local templates = ReplicatedStorage:FindFirstChild("CarModels")
+	local template = spec and templates and templates:FindFirstChild(spec.Model or spec.Id)
+	if not (template and template:IsA("Model")) then
+		return nil
+	end
+	local car = template:Clone()
+	car.Name = "Car"
+	for _, part in car:GetDescendants() do
+		if part:IsA("BasePart") then
+			if spec.Tint and part.Material ~= Enum.Material.Glass then
+				part.Color = part.Color:Lerp(spec.Tint, 0.35)
+			end
+			part.Anchored = true
+			part.CanCollide = false
+			part.CanTouch = false
+			part.CanQuery = false
+		end
+	end
+	car:ScaleTo(car:GetScale() * scale) -- imported templates do not sit at scale 1
+	car:PivotTo(cframe) -- templates have a base-centred pivot
+	return car
+end
+
 return CarAppearance

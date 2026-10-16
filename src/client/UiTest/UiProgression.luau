@@ -11,6 +11,7 @@ local WorkshopConfig = require(Shared.WorkshopConfig)
 local Format = require(Shared.HudFormat)
 local WeatherConfig = require(Shared.WeatherConfig)
 local Spec = require(script.Parent.UiSpec)
+local Responsive = require(script.Parent.UiResponsive)
 local Progression = {}
 
 function Progression.Build(h)
@@ -124,13 +125,19 @@ function Progression.Build(h)
 			canvas.CanvasPosition = original
 			restore()
 		end
-		local worldPad = false
+		-- Owner 2026-10-13: the spawn-area upgrade pad is removed; the tree opens only from the HUD Upgrade button
+		-- (clicks open_upgrades / toggle_upgrades_closed). Only the workshop plots keep an UpgradePad.
+		local plots = workspace:FindFirstChild("Workshops")
+		local worldPads = 0
 		for _, pad in CollectionService:GetTagged("UpgradePad") do
-			if pad:IsDescendantOf(workspace) and not pad:FindFirstAncestor("Workshops") then
-				worldPad = pad:IsA("BasePart")
+			if pad:IsDescendantOf(workspace) and not (plots and pad:IsDescendantOf(plots)) then
+				worldPads += 1
 			end
 		end
-		expect(res, "upgrade_world_pad_present", worldPad, true)
+		expect(res, "upgrade_no_world_pad", worldPads, 0)
+		local spawnArea = workspace:FindFirstChild("SpawnArea")
+		local spawnPad = spawnArea and spawnArea:FindFirstChild("UpgradePad", true)
+		expect(res, "upgrade_no_spawn_area_pad", spawnPad and spawnPad:GetFullName() or "none", "none")
 	end
 	function scenarios.ui_workshop_modal(res)
 		local level = h.player:GetAttribute("WorkshopLevel")
@@ -308,40 +315,183 @@ function Progression.Build(h)
 			panel ~= nil and h.visible(panel)
 		)
 	end
-	function scenarios.ui_weather(res)
+	-- Weather icon (UiSpec.Weather; docs/WEATHER_EVENTS_SPEC.md "Weather icon"). The weather the UI must show now:
+	-- the replicated id, its WeatherConfig entry (the Clear entry when no weather is active) and whether one runs.
+	local W = Spec.Weather
+	local function weatherNow()
 		local event = ReplicatedStorage:GetAttribute("WeatherEvent")
 		local endsAt = ReplicatedStorage:GetAttribute("WeatherEndsAt")
-		local text = label(res, "RacerProgression/WeatherBanner")
-		local banner = h.find("RacerProgression/WeatherBanner")
-		expect(
-			res,
-			"weather_banner_hidden_without_event",
-			banner and banner.Visible,
-			type(event) == "string" and event ~= ""
-		)
-		h.check(res, "weather_event_replicated", event or "missing", "string", type(event) == "string")
-		h.check(res, "weather_end_replicated", endsAt or "missing", "number", type(endsAt) == "number")
-		if type(event) == "string" then
-			local config = WeatherConfig.Events[event]
-			local name = config and config.Name or event
+		local active = type(event) == "string" and event ~= ""
+		return event, endsAt, active, WeatherConfig.Events[active and event or W.ClearId]
+	end
+	-- The Card's three labels against the server's weather (the Card may be hidden: labels are kept current).
+	local function weatherCardContent(res)
+		local _, endsAt, active, config = weatherNow()
+		local texts = {}
+		for _, name in W.Labels do
+			local obj = h.find(W.Card .. "/" .. name)
 			h.check(
 				res,
-				"weather_banner_event",
-				text,
-				name,
-				string.find(string.lower(text), string.lower(name), 1, true) ~= nil
+				"weather_card_label_" .. string.lower(name),
+				obj and obj.ClassName or "missing",
+				"TextLabel",
+				obj ~= nil and obj:IsA("TextLabel")
 			)
+			texts[name] = obj and obj:IsA("TextLabel") and obj.Text or "missing"
 		end
-		if type(endsAt) == "number" and endsAt > workspace:GetServerTimeNow() then
-			local shown = tonumber(string.match(text, "(%d+)s"))
+		expect(res, "weather_card_title", texts.Title, active and config and config.Name or W.ClearTitle)
+		local parts = {}
+		for _, part in W.StatParts do
+			local multi = config and config[part.Key]
+			if type(multi) == "number" and multi ~= 1 then
+				table.insert(parts, part.Text .. tostring(multi))
+			end
+		end
+		expect(res, "weather_card_stats", texts.Stats, #parts > 0 and table.concat(parts, W.Separator) or W.NoBonus)
+		if active and type(endsAt) == "number" then
+			local shown = tonumber(string.match(texts.Time, W.TimeText))
 			local remaining = math.max(0, math.ceil(endsAt - workspace:GetServerTimeNow()))
 			h.check(
 				res,
-				"weather_banner_server_countdown",
-				shown or "missing",
+				"weather_card_time_server_countdown",
+				shown or texts.Time,
 				remaining,
-				shown ~= nil and math.abs(shown - remaining) <= 1
+				shown ~= nil and math.abs(shown - remaining) <= W.TimeTolerance
 			)
+		else
+			expect(res, "weather_card_time_empty_without_weather", texts.Time, "")
+		end
+	end
+	-- Waits (ProgressionUi polls its visibility) until the icon's shown state is `want`, then returns the state.
+	local function iconShown(want)
+		local deadline = os.clock() + Spec.HiddenWhilePanelOpenWait
+		local icon = h.find(W.Icon)
+		while icon and h.visible(icon) ~= want and os.clock() < deadline do
+			h.frames(1)
+		end
+		return icon ~= nil and h.visible(icon)
+	end
+	function scenarios.ui_weather(res)
+		local event, endsAt, active, config = weatherNow()
+		h.check(res, "weather_event_replicated", event or "missing", "string", type(event) == "string")
+		h.check(res, "weather_end_replicated", endsAt or "missing", "number", type(endsAt) == "number")
+		h.check(
+			res,
+			"weather_event_in_config",
+			event or "missing",
+			"'' or a WeatherConfig.Events id",
+			event == "" or (active and WeatherConfig.Events[event] ~= nil)
+		)
+		local banner = h.find(W.Banner)
+		h.check(res, "weather_banner_removed", banner and banner.ClassName or "absent", "absent", banner == nil)
+
+		local restore = h.setPanels({})
+		local icon, card = h.find(W.Icon), h.find(W.Card)
+		h.check(
+			res,
+			"weather_icon_is_textbutton",
+			icon and icon.ClassName or "missing",
+			"TextButton",
+			icon ~= nil and icon:IsA("TextButton")
+		)
+		h.check(
+			res,
+			"weather_card_is_frame",
+			card and card.ClassName or "missing",
+			"Frame",
+			card ~= nil and card:IsA("Frame")
+		)
+		-- Always on the HUD, with or without a weather
+		expect(res, "weather_icon_visible", iconShown(true), true)
+		local wantIcon = config and config.Icon
+		h.check(
+			res,
+			"weather_icon_text",
+			icon and icon:IsA("TextButton") and icon.Text or "missing",
+			wantIcon or "WeatherConfig.Events[id].Icon missing",
+			icon ~= nil
+				and icon:IsA("TextButton")
+				and type(wantIcon) == "string"
+				and wantIcon ~= ""
+				and icon.Text == wantIcon
+		)
+		expect(res, "weather_card_hidden_at_rest", card and card.Visible, false)
+		weatherCardContent(res)
+
+		-- Geometry at every tested viewport. The live one is also solved ("current_sim"), so the hidden Card's
+		-- rect never depends on the engine laying out an invisible Frame.
+		local _, liveVp = h.provider({ Name = "current" })
+		for _, vpSpec in Spec.Viewports do
+			local rect, vp, ctx = h.provider(vpSpec)
+			local tag = vpSpec.Name
+			if icon and icon:IsA("GuiObject") then
+				local r = rect(icon)
+				h.check(
+					res,
+					"weather_icon_size_" .. tag,
+					{ r.w, r.h },
+					{ W.IconSize.X, W.IconSize.Y },
+					math.abs(r.w - W.IconSize.X) <= Spec.Tolerance and math.abs(r.h - W.IconSize.Y) <= Spec.Tolerance
+				)
+				local right, bottom = vp.X - (r.x + r.w), vp.Y - (r.y + r.h)
+				local bottomOk = bottom >= -Spec.Tolerance and bottom <= W.CornerMargin
+				if vp.Y <= Responsive.PHONE_MAX_HEIGHT then
+					h.check(
+						res,
+						"weather_icon_bottom_right_" .. tag,
+						{ right, bottom },
+						("phone: right edge %d px, bottom edge 0..%d px from the screen's"):format(
+							W.PhoneRight,
+							W.CornerMargin
+						),
+						math.abs(right - W.PhoneRight) <= Spec.Tolerance and bottomOk
+					)
+					local market = h.find(W.MarketButton)
+					local m = market and rect(market)
+					h.check(
+						res,
+						"weather_icon_left_of_market_" .. tag,
+						m and { r.x + r.w, m.x } or "MarketButton missing",
+						"icon right edge <= Market button left edge",
+						m ~= nil and r.x + r.w <= m.x + Spec.Tolerance and not h.intersects(r, m)
+					)
+				else
+					h.check(
+						res,
+						"weather_icon_bottom_right_" .. tag,
+						{ right, bottom },
+						"right and bottom edge 0.." .. W.CornerMargin .. " px from the screen's",
+						right >= -Spec.Tolerance and right <= W.CornerMargin and bottomOk
+					)
+				end
+			else
+				expect(res, "weather_icon_size_" .. tag, "missing", "present")
+				expect(res, "weather_icon_bottom_right_" .. tag, "missing", "present")
+			end
+			if card and card:IsA("GuiObject") then
+				if not vpSpec.Size then
+					rect, vp, ctx = h.provider({ Name = "current_sim", Size = liveVp })
+				end
+				local r = rect(card)
+				local unsupported = ctx.unsupported[W.Card] or ctx.unsupported[W.Icon]
+				h.check(
+					res,
+					"weather_card_inside_screen_" .. tag,
+					unsupported and ("layout the solver can not model: " .. unsupported) or r,
+					"whole Card on screen, positive size",
+					not unsupported and r.w > 0 and r.h > 0 and h.contains({ x = 0, y = 0, w = vp.X, h = vp.Y }, r)
+				)
+			else
+				expect(res, "weather_card_inside_screen_" .. tag, "missing", "present")
+			end
+		end
+		restore()
+		-- WEATHER_EVENTS_SPEC "Displayed odds": a roll during Rain keeps its catalog rarity. Only
+		-- with the weather_rain_roll fixture (it plants that roll; checks roll_odds_*, see UiSpec.RollOdds).
+		local fixture = h.rollOddsFixture()
+		if fixture and fixture.fixture == "weather_rain_roll" then
+			expect(res, "weather_rain_roll_event_is_rain", event, "rain")
+			h.rollOdds(res)
 		end
 	end
 	function scenarios.ui_offline_zero(res)
@@ -350,37 +500,44 @@ function Progression.Build(h)
 		local panel = h.find("RacerWelcome/Panel")
 		expect(res, "offline_zero_hides_welcome", panel and panel.Visible, false)
 	end
-	function scenarios.ui_progression_world(res)
-		h.frames(2)
-		local setup = h.player:GetAttribute("UiTestProgressionFixture")
-		-- ProgressionUi polls the pad every 0.25 s and the server's teleport must replicate first: wait (up to
-		-- WorldPadWait s) for the panels to reach the expected state before judging them
-		local function settled()
-			for path in Spec.PanelSwitch.Names do
-				local obj = h.find(path)
-				if (obj and obj.Visible) ~= (setup == "upgrade_world_enter" and path == "RacerUpgrades/Panel") then
-					return false
-				end
-			end
-			return true
-		end
-		local deadline = os.clock() + Spec.Progression.WorldPadWait
-		while not settled() and os.clock() < deadline do
+	-- Click post-conditions (UiSpec.Clicks Expect.After), run by UiScenarios.RunClick.
+	local function cardVisible(res, name, want)
+		local card = h.find(W.Card)
+		local deadline = os.clock() + Spec.HiddenWhilePanelOpenWait
+		while card and h.visible(card) ~= want and os.clock() < deadline do
 			h.frames(1)
 		end
-		h.check(
-			res,
-			"world_fixture_present",
-			setup,
-			"upgrade_world_enter or upgrade_world_leave",
-			setup == "upgrade_world_enter" or setup == "upgrade_world_leave"
-		)
-		for path in Spec.PanelSwitch.Names do
-			local obj = h.find(path)
-			local want = setup == "upgrade_world_enter" and path == "RacerUpgrades/Panel"
-			expect(res, "world_pad_panel_" .. string.lower(path), obj and obj.Visible, want)
-		end
+		h.check(res, name, card and h.visible(card), want, card ~= nil and h.visible(card) == want)
+		return card
 	end
+	Progression.After = {
+		weather_card_shown = function(res)
+			local card = cardVisible(res, "weather_card_shown_after_click", true)
+			weatherCardContent(res)
+			if card then
+				local _, vp = h.provider({ Name = "current" })
+				local r = h.rect(card)
+				h.check(
+					res,
+					"weather_card_inside_screen_live",
+					r,
+					"whole Card on screen, positive size",
+					r.w > 0 and r.h > 0 and h.contains({ x = 0, y = 0, w = vp.X, h = vp.Y }, r)
+				)
+			end
+		end,
+		weather_card_hidden = function(res)
+			cardVisible(res, "weather_card_hidden_after_second_click", false)
+			expect(res, "weather_icon_still_visible", iconShown(true), true)
+		end,
+		weather_icon_hidden_while_showcase_open = function(res)
+			h.check(res, "weather_icon_present", h.find(W.Icon) ~= nil, true, h.find(W.Icon) ~= nil)
+			expect(res, "weather_icon_hidden_while_showcase_open", iconShown(false), false)
+		end,
+		weather_icon_shown_after_showcase = function(res)
+			expect(res, "weather_icon_shown_after_showcase", iconShown(true), true)
+		end,
+	}
 	return scenarios
 end
 

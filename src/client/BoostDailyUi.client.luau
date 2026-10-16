@@ -7,6 +7,8 @@ local player = Players.LocalPlayer
 local gui = player:WaitForChild("PlayerGui")
 local boosts = require(ReplicatedStorage.Shared.BoostConfig)
 local dailyConfig = require(ReplicatedStorage.Shared.DailyLoginConfig)
+local PanelSwitch = require(script.Parent:WaitForChild("PanelSwitch"))
+local HudButtonStyle = require(script.Parent.RollToast.Ui.HudButtonStyle)
 
 local screen = Instance.new("ScreenGui")
 screen.Name = "DailyBoosts"
@@ -47,11 +49,10 @@ local function button(name, parent, position, size, text)
 	return instance
 end
 
-local bagButton = button("BagButton", screen, UDim2.new(1, -16, 0, 64), UDim2.fromOffset(112, 36), "BAG")
-bagButton.AnchorPoint = Vector2.new(1, 0)
 local dailyButton =
-	button("DailyRewardButton", screen, UDim2.new(1, -16, 0, 106), UDim2.fromOffset(176, 36), "DAILY REWARDS")
+	button("DailyRewardButton", screen, UDim2.new(1, -16, 0.22, 0), UDim2.fromOffset(160, 48), "DAILY\nREWARDS")
 dailyButton.AnchorPoint = Vector2.new(1, 0)
+HudButtonStyle.Utility(dailyButton, 2, HudButtonStyle.Colors.Daily)
 
 local backdrop = make("Frame", "ModalBackdrop", screen, {
 	Position = UDim2.fromScale(0, 0),
@@ -60,10 +61,11 @@ local backdrop = make("Frame", "ModalBackdrop", screen, {
 	BackgroundTransparency = 0.35,
 	Visible = false,
 })
+PanelSwitch.Register("Daily", backdrop)
 local modal = make("Frame", "Modal", backdrop, {
-	AnchorPoint = Vector2.new(0.5, 0.5),
-	Position = UDim2.fromScale(0.5, 0.5),
-	Size = UDim2.fromScale(0.86, 0.76),
+	AnchorPoint = Vector2.new(0.5, 0),
+	Position = UDim2.new(0.5, 0, 0, 146),
+	Size = UDim2.fromScale(0.58, 0.24),
 	BackgroundColor3 = Color3.fromRGB(29, 32, 53),
 })
 rounded(modal, 14)
@@ -75,7 +77,7 @@ local title = make("TextLabel", "Title", modal, {
 	Font = Enum.Font.GothamBold,
 	TextSize = 21,
 	TextXAlignment = Enum.TextXAlignment.Left,
-	Text = "BAG",
+	Text = "DAILY REWARDS",
 })
 local close = button("Close", modal, UDim2.new(1, -50, 0, 8), UDim2.fromOffset(36, 30), "×")
 close.BackgroundColor3 = Color3.fromRGB(210, 75, 90)
@@ -93,8 +95,9 @@ layout.Padding = UDim.new(0, 8)
 layout.Parent = content
 
 local status = make("TextLabel", "Status", screen, {
-	Position = UDim2.new(1, -300, 0, 146),
-	Size = UDim2.fromOffset(284, 42),
+	AnchorPoint = Vector2.new(1, 0),
+	Position = UDim2.new(1, -16, 1, -130),
+	Size = UDim2.fromOffset(160, 42),
 	BackgroundTransparency = 1,
 	TextColor3 = Color3.new(1, 1, 1),
 	Font = Enum.Font.GothamBold,
@@ -103,6 +106,17 @@ local status = make("TextLabel", "Status", screen, {
 	TextXAlignment = Enum.TextXAlignment.Right,
 	Text = "",
 })
+
+local function refreshChrome()
+	local camera = workspace.CurrentCamera
+	local compact = camera and camera.ViewportSize.Y <= 500
+	local visible = not compact and not PanelSwitch.AnyOpen()
+	dailyButton.Visible = visible
+	status.Visible = visible
+end
+
+PanelSwitch.OnChange(refreshChrome)
+backdrop:GetPropertyChangedSignal("Visible"):Connect(refreshChrome)
 
 local function clearContent()
 	for _, child in content:GetChildren() do
@@ -123,86 +137,20 @@ local function formatTime(seconds)
 	return string.format("%02d:%02d:%02d", math.floor(seconds / 3600), math.floor(seconds / 60) % 60, seconds % 60)
 end
 
-local function showBag()
-	backdrop.Visible = true
-	title.Text = "BAG • CONSUMABLES"
-	clearContent()
-	for _, category in ipairs(boosts.Order) do
-		make("TextLabel", category .. "Heading", content, {
-			Size = UDim2.new(1, -8, 0, 26),
-			BackgroundTransparency = 1,
-			TextColor3 = Color3.fromRGB(140, 210, 255),
-			Font = Enum.Font.GothamBold,
-			TextSize = 16,
-			TextXAlignment = Enum.TextXAlignment.Left,
-			Text = category .. " POTIONS",
-		})
-		for _, item in ipairs(boosts.ItemsFor(category)) do
-			local count = player:GetAttribute("Boost_" .. item.Id) or 0
-			local untilAt = player:GetAttribute("BoostUntil_" .. item.Id) or 0
-			if count > 0 or untilAt > os.time() then
-				local row = make("Frame", item.Id, content, {
-					Size = UDim2.new(1, -8, 0, 58),
-					BackgroundColor3 = Color3.fromRGB(42, 54, 84),
-				})
-				rounded(row, 8)
-				make("TextLabel", "Label", row, {
-					Position = UDim2.fromOffset(10, 5),
-					Size = UDim2.new(1, -150, 1, -10),
-					BackgroundTransparency = 1,
-					TextColor3 = Color3.new(1, 1, 1),
-					Font = Enum.Font.GothamBold,
-					TextSize = 14,
-					TextXAlignment = Enum.TextXAlignment.Left,
-					Text = item.Name
-						.. "  •  x"
-						.. tostring(count)
-						.. "\n"
-						.. tostring(item.Multiplier)
-						.. "x for 60 seconds",
-				})
-				local readyToUse = count > 0 and untilAt <= os.time()
-				local action = button(
-					"Use",
-					row,
-					UDim2.new(1, -126, 0.5, -18),
-					UDim2.fromOffset(116, 36),
-					untilAt > os.time() and ("ACTIVE " .. formatTime(untilAt - os.time())) or "USE"
-				)
-				action.Active = readyToUse
-				action.AutoButtonColor = action.Active
-				action.BackgroundColor3 = action.Active and Color3.fromRGB(74, 172, 105) or Color3.fromRGB(70, 75, 95)
-				action.Activated:Connect(function()
-					if not action.Active then
-						return
-					end
-					local ok, used, message = pcall(function()
-						return ReplicatedStorage.Remotes:WaitForChild("UseBoost"):InvokeServer(item.Id)
-					end)
-					status.Text = ok and (used and (item.Name .. " active for 60 seconds") or tostring(message))
-						or "Connection error"
-					showBag()
-				end)
-			end
-		end
-	end
-end
-
 local function showDaily()
+	if not backdrop.Visible then
+		PanelSwitch.Toggle("Daily")
+	end
 	backdrop.Visible = true
+	refreshChrome()
 	title.Text = "DAILY REWARDS • 7 DAYS"
 	clearContent()
 	local streak = math.clamp(player:GetAttribute("DailyStreak") or 0, 0, 7)
 	local last = player:GetAttribute("DailyLast") or -1
 	local claimedToday = last == math.floor(os.time() / 86400)
 	for day, reward in ipairs(dailyConfig.Rewards) do
-		local details = "+$" .. tostring(reward.Money)
-		if reward.Boost then
-			details ..= "  •  " .. reward.Boost .. " Potion I"
-		end
-		if reward.GuaranteedRare then
-			details ..= "  •  Guaranteed rare car"
-		end
+		local details = reward.GuaranteedRare and "Guaranteed rare car"
+			or ("%d x %s Potion I"):format(reward.BoostCount or 1, reward.Boost)
 		local row = make("TextLabel", "Day" .. day, content, {
 			Size = UDim2.new(1, -8, 0, 38),
 			BackgroundColor3 = day <= streak and Color3.fromRGB(48, 110, 78) or Color3.fromRGB(42, 54, 84),
@@ -232,7 +180,7 @@ local function showDaily()
 			return ReplicatedStorage.Remotes:WaitForChild("DailyClaim"):InvokeServer()
 		end)
 		if ok and success then
-			status.Text = "Claimed Day " .. tostring(reward.Day) .. " • +$" .. tostring(reward.Money)
+			status.Text = "Claimed Day " .. tostring(reward.Day)
 			showDaily()
 		else
 			status.Text = ok and tostring(reward) or "Connection error"
@@ -240,22 +188,28 @@ local function showDaily()
 	end)
 end
 
-bagButton.Activated:Connect(showBag)
 dailyButton.Activated:Connect(showDaily)
 close.Activated:Connect(function()
+	PanelSwitch.Close("Daily")
 	backdrop.Visible = false
+	refreshChrome()
+end)
+
+refreshChrome()
+task.spawn(function()
+	while screen.Parent do
+		refreshChrome()
+		task.wait(0.05)
+	end
 end)
 
 local function refreshButtons()
 	local last = player:GetAttribute("DailyLast") or -1
 	local today = math.floor(os.time() / 86400)
 	if last == today then
-		dailyButton.Text = "NEXT DAILY  " .. formatTime(remainingToday())
+		dailyButton.Text = "DAILY\n" .. formatTime(remainingToday())
 	else
-		dailyButton.Text = "DAILY REWARDS  •  CLAIM"
-	end
-	if backdrop.Visible and title.Text:find("BAG", 1, true) then
-		showBag()
+		dailyButton.Text = "DAILY\nREWARDS"
 	end
 end
 

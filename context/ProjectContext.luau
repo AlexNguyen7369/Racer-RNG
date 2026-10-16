@@ -3,7 +3,255 @@
 PROJECT CONTEXT - Idle Vehicle Simulator (read me first)
 Shown in Studio at: ServerScriptService > ProjectContext   (source file: context/ProjectContext.luau)
 Do NOT edit this in Studio: edit the file on disk, Rojo syncs it. Claude updates it at the end of every loop.
-Last updated: 2026-10-11 (smooth Hermite rail, test reconciliation, Codex bus hook; harness 31/31, full gate not run)
+Last updated: 2026-10-13 (Claude: gamepass car pedestals)
+
+GAMEPASS CAR PEDESTALS - 2026-10-13 (Claude, branch feature/alex/global-leaderboards, uncommitted)
+- Rule (owner 2026-10-13, design doc Monetization "Gamepass cars", docs/GAMEPASS_CARS_SPEC.md): Ember Wyvern and
+  Singularity are gamepass cars (GamepassId, 0 = not on sale). Never rolled, not in the Index, no stat points, not on
+  the Rarest board, never saved in Cars. Ownership = Roblox (Pass_<carId> attribute from Server/PassCarService).
+- Showcase row in the hub: Best Roll pedestal (RADIUS 12, CAR_SCALE 3.5) at (150, -70) between Pass_singularity
+  (129, -84) and Pass_ember_wyvern (162, -48), Shared/PassCarConfig. Prompt "Buy": equip if owned, else
+  PromptGamePassPurchase; "Coming soon" at id 0. Stand-in models from Shared/DraftCarModels.
+- TEST RESULT 2026-10-13 (live Studio, Rojo): [CARTEST] END pass=42 fail=4; pass_cars 159 checks and leaderboard
+  green; the 4 failures are Codex's unbuilt track tests. Dragon floats 0.9 to 2.1 studs above its platform, no drift.
+- UNVERIFIED: [UITEST] ui_billboards pedestal checks, real Robux purchase, /compat-check. Pass ids not created yet.
+
+BEST ROLL EVER PEDESTAL - 2026-10-13 (Claude, branch feature/alex/global-leaderboards, uncommitted)
+- Rule (owner 2026-10-13, design doc "Global leaderboards", docs/LEADERBOARD_SPEC.md 3a): Workspace.SpawnArea.BestRoll
+  shows row 1 of the RarestCar board: Pedestal (round, local (150, -70), LeaderboardConfig.BEST_ROLL), Pedestal.Stats
+  (Title / Odds / Car / Player), attribute CarId, and a Car model (CarModels clone, CAR_SCALE 2, anchored, no
+  collision). LeaderboardService fills it after every board read; Client/BestRollView only turns the car.
+- The spawn-area UpgradePad and its UPGRADES sign are REMOVED (owner 2026-10-13). The upgrade tree opens only from the
+  UPGRADES button. Workshop plot UpgradePads are unchanged.
+- TEST RESULT 2026-10-13 (live Studio, Rojo): [CARTEST] END pass=35 fail=0, leaderboard 178 checks (69 bestroll).
+  Live with the real store: car, "1 in N", name and "by <player>" shown, spin 41 to 45 deg/s.
+- UNVERIFIED: [UITEST] suite (upgrade_no_world_pad, upgrade_no_spawn_area_pad), /compat-check. No red run.
+- KNOWN: RarestCar is written with SetAsync, so a wiped save lowers the pedestal. Ties: the store picks row 1.
+- INCIDENT: the Studio test save was wiped while Codex and Claude shared one Play session; an older DataStore version
+  (Speed 311,220) exists. Owner decides on a restore. See handoff.md.
+
+SPEED GAIN MATHS - 2026-10-13 (Claude, branch feature/alex/global-leaderboards, uncommitted)
+- Rule (owner 2026-10-13, design doc "Core stat model"): the Speed number climbs at an increasing rate; its effect on
+  cruise speed has diminishing returns that never flatten, no cap.
+- RaceConfig.GainPerSecond(stat, speed) = GAIN_PER_STUD * speed. Workshop.Rate = BASE_RATE * SpeedMulti * LevelMulti
+  * Workshop points. Workshop.OfflineGain = Rate * OFFLINE_FRACTION * capped time. RaceConfig.GAIN_SOFT and every
+  "/ (1 + stat / GAIN_SOFT)" term are removed. RaceConfig.SpeedFor is unchanged (logarithmic).
+- Tests (test-writer): economy, race, workshop, workshop_offline, workshop_phase2 moved to the new rule.
+- VERIFIED LIVE 2026-10-13 (Rojo connected, Studio Racer RNG): full harness [CARTEST] END pass=35 fail=0 on this
+  code, incl. economy, race (high_stat_gain_per_stud_not_reduced_in_8s, faster_car_gains_more_in_8s), workshop,
+  workshop_offline, workshop_phase2, data and all five track tests. No red run was made (owner: implement without
+  it). No /compat-check (UI, multiplayer-tester, world, regression not run).
+- BALANCE: gain at a high stat is far faster than before (about 150x at stat 300,000). GAIN_PER_STUD and BASE_RATE
+  are the knobs; their values were not changed. NOT cleared for main.
+
+WEATHER SCHEDULE, FIVE WEATHERS, HUD ICON - 2026-10-13 (Claude, branch feature/alex/global-leaderboards, uncommitted)
+- Rules (owner 2026-10-13, design doc "Weather events", docs/WEATHER_EVENTS_SPEC.md "Schedule" and "Weather icon"):
+  a weather starts every 15 minutes start to start (WeatherConfig.INTERVAL, replaces MIN/MAX_INTERVAL) and lasts 3;
+  equal-chance pick from Order = clear, rain, night, gold, aurora. clear = no effect, baseline sky. aurora = luck
+  x1.5, money x1.5 (placeholder). Planned, not built: bigger benefit = lower chance.
+- WeatherConfig.Describe(id) gives the stat line ("LUCK x2", "MONEY x2 • NPC SPEED x1.25", "NO BONUS"); every event
+  has an Icon (text glyph for now). WeatherService.Tick: an expiry does not move the next start.
+- UI: RacerProgression/WeatherBanner is gone. RacerProgression/WeatherIcon (44x44 TextButton, bottom right, always
+  visible) with Card (Title / Stats / Time), shown on hover, toggled by tap. Phones (height <= 500): the icon sits
+  8 px left of the Market button (right edge 140 px in), because the Bag / Daily / Market stack fills the corner.
+- Tests first: weather harness checks seen red (264/366), then green. UI: ui_weather rewritten for the icon, new
+  fixtures weather_aurora and weather_clear_event, clicks weather_card_open / weather_card_close.
+- Skies must be told apart by eye (owner 2026-10-13): Clear blue, Rain grey, Night Race black + stars, Gold Rush gold
+  haze, Aurora teal-green. All five were screenshotted live; Gold Rush (looked like Clear) and Aurora (looked like
+  Night Race) got stronger values in WeatherConfig.
+- TEST RESULT 2026-10-13 (live Studio, Rojo, viewport 1081x598): [CARTEST] END pass=35 fail=0, weather 366/366, run on
+  the final sky values (red before the change: weather 264/366).
+  ui_weather green for all 7 fixtures (38 checks each, 48 for rain_roll); ui_hitboxes 90/90; clicks weather_card_open
+  24/24 and weather_card_close 18/18; real-mouse hover shows and hides the card; the icon hides under the roll
+  showcase and returns. Bug 44fd8ec5 (icon over Market button on phones) verified fixed.
+- All 25 UI scenarios run once (no [UITEST] END line; ui-tester ran them one by one): 21 pass, 4 fail, none from
+  the weather change: ui_layout 2/812 (bug 3a6d9cb3, DailyBoosts Status over Daily Rewards / Bag on phones),
+  ui_roll_anim 3/36 and ui_rolls (roll timing, older), ui_roll_emphasized 3/23 (fixture not applied, not judged).
+- UNVERIFIED: no /compat-check (multiplayer, world, regression not run); NOT cleared for main.
+
+WEATHER DISPLAYED ODDS - 2026-10-15 (Codex)
+- Rule (owner 2026-10-15, docs/WEATHER_EVENTS_SPEC.md "Displayed odds"): the roll card and compact roll show catalog
+  rarity, `HudFormat.Odds(Chance)`. Server luck still changes actual roll probability, but never changes the displayed
+  rarity. Catch-all cars keep "1 in ?". The Index and the roll announcement keep base odds.
+- RollResult is now (id, isNew, turboMulti, emphasized, scrapMoney, luck); GachaService.Roll returns the same six.
+  HudFormat.Odds(chance, luck) remains available for compatibility, but Client/RollToast displays base Chance only.
+- Tests first: 9 new harness checks (weather_roll_luck_*, service_roll_returns_luck, service_roll_luck_excludes_turbo,
+  odds_text_luck_divides_chance) seen red, then green; roll_anim's count check is service_roll_returns_six_values.
+  New UI scenario ui_roll_odds with setups roll_odds_luck2/round/clamp/luck1/no_luck/catchall and weather_rain_roll.
+- TEST RESULT 2026-10-13 (live Studio, Rojo): [CARTEST] END pass=35 fail=0, weather 216/216. ui_weather green for
+  weather_rain / night / gold / clear / rain_roll; ui_roll_odds green for all 6 setups. Sky looked at live for the
+  three events; the clear sky returned to the exact baseline. Bug 719d4705 fixed.
+- UNVERIFIED: no /compat-check on this code (gate red, not cleared for main); the full [UITEST] suite was not rerun.
+- Known trap: roll_odds_* fixtures need every panel closed (RacerWelcome/Panel opens on join and hides the compact roll).
+
+LATEST PUBLICATION AUDIT — 2026-10-13 (Codex)
+- Owner authorized committing and pushing the current feature batch despite the stale
+  compatibility gate. Branch: feature/alex/global-leaderboards.
+- Dashboard tests 14/14, UI verification, Rojo build, JSON validation and git diff check
+  pass. TODO cards weather (5c89de92), duels (75e286a3), and global leaderboards (487b1922)
+  were moved to Done from current-tree harness evidence: weather 210/210, duels 191/191,
+  leaderboards 109/109, overall 35/35.
+- No new .compat green stamp exists. Standalone UI, NPC/LoserScreen, multiplayer, world,
+  regression and exact-final-fingerprint compatibility verdicts remain outstanding.
+- Remaining open TODOs in this batch: npc-loser-live and 178d5653 (Codex hook delivery).
+
+LATEST CODEX AUDIT - 2026-10-13 (current fingerprint `f5aa6a4bfd71ef5e865be17f7192ca358e4167f25b83d48a9f09e58ee9ee471c`)
+- Static checks pass: dashboard tests, UI verification, Rojo build, targeted StyLua/Selene,
+  and `git diff --check`.
+- Final rebuilt continuation6 live UI fixture checks passed the captured UI scenarios:
+  `ui_hitboxes`, `ui_buttons`, `ui_hud`, `ui_index`, and `ui_stats`.
+- The prior exact-tree car harness was green at `[CARTEST] END pass=35 fail=0`, but source
+  changed afterward and it must be rerun for this fingerprint.
+- Click protocol is not green: `open_market` passes after using viewport Y (the mouse
+  bridge adds the top-bar inset), but the automated sequence has red early panel clicks,
+  `allocate_workshop` red, and `sound_on`/`top_down_on` target timeouts after state
+  drift. No current compatibility stamp, standalone multiplayer/world/regression verdict,
+  commit, or push exists.
+
+LATEST CODEX AUDIT - 2026-10-13 (current fingerprint `1d9ade91986031c670c165b8d9b52c42fe711edf26a652431fe5a7ac914c11b3`)
+- Static preflight passed: dashboard tests 14/14, UI verification, Rojo build, and diff checks.
+- Fresh exact-tree Studio harness passed: `[CARTEST] END pass=35 fail=0`, covering weather,
+  leaderboards, duels, Phase 1, multiplayer, and all five tracks.
+- The unprepared full UI run was RED at `pass=13 fail=12`. Failures were
+  `ui_client_rendering`, `ui_inventory`, `ui_layout`, `ui_toast`, `ui_hitboxes`, `ui_roll_anim`,
+  `ui_rolls`, `ui_showcase`, `ui_roll_emphasized`, `ui_upgrades`, `ui_loser`, and `ui_billboards`.
+  The live MCP client reported `Camera.ViewportSize = 1,1`, RenderStepped samples `0`, and
+  missing scenario fixtures for rolls/loser/billboards; this is not an ALL GREEN UI result.
+- Device simulation changed the editor viewport but left the Play camera invalid; the MCP place then
+  unloaded. All listed Studio instances now report `Place is not open`, so multiplayer, world, and
+  regression suites cannot be run or interpreted until the owner exposes the project DataModel again.
+- Compatibility remains RED/stale: no current `.compat` record or green stamp was written. Doing cards
+  remain open; no TODO was closed and no commit or push was made.
+
+CODEX LOOP UPDATE - 2026-10-13
+- Latest fingerprint `225cec42d0c7b7ccd1017a71ae704a3e1a1846e1df7b2f80c1bf3f8b53029c4d`:
+  HUD speed now uses `HudFormat.SpeedText`; live `ui_hud` and corrected `ui_index` pass.
+  The index fixture now clears existing rollable entries before granting all but the rarest.
+  Turbo and NPC billboard isolated checks pass. Emphasized roll behavior/chat pass but
+  MCP viewport geometry fails; loser overlay visibility/order/reset pass but MCP button
+  hit-testing returns `nothing`. Full harness reached `[CARTEST] END pass=35 fail=0`.
+  Standalone UI/multiplayer/world/regression suite verdicts and compatibility record remain
+  missing; all static gates pass.
+- Resume audit: MCP Studio `becb779e-2210-48a1-8724-1d029892e429` was available and
+  exercised in Play. Live UI geometry showed no numeric overlap on the 1081x638 viewport,
+  but the UI suite was RED (`ui_hud` speed mismatch 2,979 vs 297,946 and `ui_index`
+  missing undiscovered state; roll/turbo checks also red). `CarTestRun` was triggered;
+  physics scenarios observed passed, but no terminal `[CARTEST] END pass=N fail=0` was
+  reached before stopping. Multiplayer, world and regression were not run; compatibility
+  remains RED.
+- Current working-tree fingerprint is `4a2628dee078c5e844652ad8c4710843e978449af638d84cb8e15e310569bca8`.
+- Fresh first-patch UI run reached 22/25; remaining layout failures showed desktop upgrade/Money and Duel-toast overlaps, plus fixture/device-state hitbox/upgrades failures.
+- Corrected the source formulas again: Duel toast `0.22,+48`, utility stack `0.22,+138/+178/+218`, Daily status 160px lower-right. Static validation passes; the second rebuilt place is not MCP-open yet.
+- Latest audit found no Studio instance in the MCP registry. Dashboard tests 14/14, UI verification, Rojo build, targeted formatting/lint, and diff checks pass; all five current Doing cards and the live compatibility gate remain open/RED.
+- BLOCKED AUDIT: the MCP-open Studio DataModel has been unavailable across repeated continuation turns. Resume requires opening the Racer-RNG place in Studio, connecting Rojo, and exposing it through MCP before live gates or TODO closure can proceed.
+- Current working-tree fingerprint is `f16a24240fb878b78bc4c70e4f5fa2bfb244d7aadb35aede4edd3770f908cf03`.
+- Live UI rerun before the latest source patch reached 24/25; the only failure was `ui_layout` with two phone overlap checks.
+- The latest source patch reserves a lower-right utility stack, moves Daily status lower-left, and places Duel result toast in a compact upper-right band. Static validation and Rojo build pass.
+- The old Studio process was stopped as stale; the uniquely rebuilt place currently has no MCP-open DataModel, so the patch has no post-fix live evidence or compatibility stamp.
+- Client contract fixes were made in the generated HUD fallback, Auto Race label,
+  exact Money formatting, turbo-pop refresh ordering, and overlay DisplayOrder.
+- Required-fixture UI run after the fixes reached 21/25 scenarios; remaining failures
+  are MarketUi inventory/action-button coverage, DailyBoosts/MarketUi layout overlaps,
+  DuelUi small-phone placement, and one chat-announcement fixture.
+- `ui/tooling/verify.py`, changed-file StyLua, Rojo build, JSON validation and diff
+  checks passed. The post-fix harness rerun did not produce a terminal END line, so
+  there is no current ALL GREEN compatibility stamp and regression was not run.
+- Responsive UI implementation pass: `BoostDailyUi` and `MarketUi` utility controls use
+  a right-hand stack below the upgrade control; Daily/Market modal bodies and DuelUi
+  panels start below Auto Race. Targeted StyLua, Rojo build and diff checks pass.
+- Fresh required-fixture UI result after those edits: `pass=23 fail=2`. Inventory,
+  button, hitbox, roll animation, showcase, loser and billboard checks pass. Remaining
+  failures are layout geometry that still models Daily/Market controls and Status as
+  always-on while panels/toast are open, plus `roll_announce_chat_message=none`.
+- A fresh current-fingerprint harness was started but did not expose a terminal result
+  before the Play session was stopped; it is not compatibility evidence.
+- Fresh current Studio UI terminal result: `[UITEST] END pass=17 fail=8`; all failures
+  include the MCP viewport/device mismatch, layout/hitbox probes, and
+  `ui_roll_emphasized`'s LegacyChatService message observation. The source project declares
+  TextChatService, but the loaded scratchpad place could not be changed through `execute_luau`
+  because RobloxScript capability is unavailable.
+- Utility controls were changed to a scale-plus-offset stack under the upgrade entry, and
+  `NpcRacerView` now hides LoserScreen on Start, Reset, and Stop. Targeted StyLua, UI verify,
+  Rojo build, dashboard tests (14/14), and diff checks pass. A freshly built place launched
+  without an MCP-open DataModel, so no post-fix live result or compatibility stamp exists.
+- `PanelSwitch` now keeps the listener `pcall` isolation without an empty lint block;
+  targeted Selene reports 0 errors / 0 warnings. Current working-tree fingerprint is
+  `d7e34c2fce7d223f6bef52c57a480f98a3f9c3bc9c5237be27cc27e90c724dc1`; no live gate or
+  compatibility stamp exists.
+- `RollToast` now uses `DisplayOrder = 3` so the compact toast is above the base HUD;
+  targeted StyLua, UI verify, Rojo build and diff checks pass. Current fingerprint is
+  `45cc97d11905b91fcadaca104a46eb3861b47d7da5228e2d962c0c3800936e01`.
+- A fresh `/tmp/racer-rng-current.rbxlx` build contains the declared TextChatService
+  setting, but its launched Studio instance reported `Place is not open` through MCP;
+  no fresh-place gate was possible. The orphaned launch was closed, leaving the shared
+  scratchpad Studio stopped in Edit mode.
+
+LATEST FEATURE RUN - 2026-10-13 (Codex, after Claude session limit)
+- Current uncommitted weather, leaderboard, duel and Phase 1 feature set passed one fresh Studio run:
+  `[CARTEST] END pass=35 fail=0` (29 configured scenarios, leaderboard 109/109, duel 191/191, and
+  track:Circuit/DragRace/Hill/Oval/Serpentine all pass). Studio returned to Edit mode afterward.
+- Weather sky checks (210), global leaderboard checks (109), and duel checks (191) are green. The prior
+  isolated duel run's `d5.Ready` failure did not reproduce after the duel seating fix (`DUEL_SLOT_GAP`).
+- Codex added `src/client/DuelUi.client.luau` to implement the server contract: PickTrack/Invite panels,
+  dynamic track buttons, Accept/Decline/Pick remotes, server-time countdown, Result/Cancelled toast and
+  PanelSwitch registration. Static validation is pending; live UI validation has not run.
+- UI/multiplayer/world/regression suites and `/compat-check` remain outstanding. Do not treat this as an
+  ALL GREEN stamp or publish to main.
+
+WEATHER SKY - 2026-10-13 (Claude, branch feature/alex/weather-sky, card 5c89de92)
+- WeatherConfig.Events[id].Sky = { Atmosphere = { Color, Density, Haze }, Clouds = { Cover, Density, Color },
+  StarCount }. WeatherService.Start finds or creates Lighting.Atmosphere (Density 0, Haze 0), Lighting.Sky and
+  Terrain.Clouds (Cover 0), saves their baseline; publish() applies the event's Sky and restores the baseline
+  exactly on clear / expiry. No skybox textures.
+- Tests first (test-writer): 34 weather_sky_* checks in the weather scenario (CarTest/Phase2Tests.luau). Red seen
+  by physics-tester (33 of 34 failing) before the code.
+- TEST RESULT 2026-10-13 (physics-tester, rojo serve): [CARTEST] END pass=33 fail=0, weather 210/210 (lap:
+  scenarios not in this run). NOT RUN: UI suite, multiplayer / world / regression testers, live screenshots.
+- Seen once, unverified: client warning "Infinite yield possible on RacerHud:WaitForChild("Race")"
+  (Client/RollToast/init.client.luau:1298).
+
+DESIGN DOCS ARE HARD RULES - 2026-10-12 (Claude, docs only, no test run)
+- RULE: docs/GAME_DESIGN_REQUIREMENTS.md is the top rule; docs/*_SPEC.md are hard rules for their feature.
+  Read them before any gameplay / economy / data / UI work. Only "placeholder", "proposed" and "open
+  question" values are tunable. On a conflict: stop and ask the owner. New feature = design doc + spec first.
+  (CLAUDE.md and AGENTS.md, section "Design docs are hard rules".)
+- Design doc changed (owner, 2026-10-12): Money comes ONLY from race cash-outs and duplicate car sales;
+  Jett Fuel / TURBO starts at every 10 rolls for x10; new sections Duels, Global leaderboards, Weather events.
+- New contracts: docs/DUEL_SPEC.md, docs/LEADERBOARD_SPEC.md (both NOT BUILT). WEATHER_EVENTS_SPEC gained
+  the sky rule (not built). SPAWN_AND_ROLLS_SPEC section 1 now matches the moved StartPad.
+- DESIGN-DOC FIXES IMPLEMENTED, HARNESS GREEN (branch design-doc-conflicts, tests written first by test-writer):
+  * RebirthService.Rebirth sets Money AND Speed to 0.
+  * Money only from race cash-outs and duplicate sales: Workshop.OfflineMoney / OFFLINE_MONEY_FRACTION and the
+    OfflineMoney attribute are gone; DailyLoginConfig has no Money (days 1-2 are a Luck and a Money potion).
+  * PlayerData VERSION 8, session lock (docs/SAVE_SPEC.md): Load and Save are one UpdateAsync each with
+    Lock = { Id, At }; LOCK_TIMEOUT 120, LOAD_RETRIES 3, LOAD_RETRY_WAIT 2; leave / BindToClose release the lock.
+    New saved fields MoneyEarned (MoneyService.Award) and DuelWins. API: SessionId, SetSessionId.
+  * Turbo: BASE_TURBO 10 rolls / x10, tiers 50/x50, 200/x200, 500/x500, 1000/x1000; GachaConfig.TURBO_LUCK 10.
+  * New harness scenarios: rebirth, daily_login. data / gacha / upgrades / workshop_phase2 expectations updated.
+- TEST RESULT 2026-10-12 (commit f687f40, rojo-built place): [CARTEST] END pass=32 fail=1, 5 lap scenarios pass.
+  The 1 failure was a stale test literal (upgrades_effects_bare_player_base expected base turbo x5); test-writer
+  fixed it to x10. Red run never happened (red state = commit 6579b81).
+- TEST RESULT 2026-10-12 late (commit 7908631, rojo serve + Rojo plugin connected, physics-tester):
+  [CARTEST] END pass=38 fail=0 (28 scenarios + 5 lap + 5 track). upgrades 97/97, rebirth 23/23,
+  daily_login 59/59, data 127/127, gacha 128/128, workshop_phase2 37/37. 0 server errors.
+- NOT RUN: UI suite, multiplayer-tester, world-tester, regression-tester. No ALL GREEN stamp.
+- A rojo-built place loads Workspace.Baseplate at Y = 0 (not -8): move it before running tests on a built place.
+- UNVERIFIED RISK: the load transform applies the save to the player inside UpdateAsync (must not yield in a
+  real DataStore); only the fake store path is covered (it passes in the data scenario).
+- Plan for all of it: ~/.claude/plans/look-at-dashboard-todo-zazzy-knuth.md (phases 0-5).
+Last updated: 2026-10-14 (inventory, upgrade UI, potion icons; focused checks only)
+
+INVENTORY + UPGRADE UI - 2026-10-14 (Isaac Li / Codex)
+- INVENTORY replaces INDEX; CARS and CONSUMABLES tabs share the panel. Bag entry/panel removed.
+- Luck, Money and Speed potion icons: 128405731425889 / 86771144323676 / 79990997148018.
+- Styled STATS/AUTO RACE captions, wider HUD spacing and slight shadows; rolls use illustrated car art.
+- Full-screen hex upgrade tree supports dragging, wheel and +/- zoom. Walkspeed nodes hidden only;
+  existing purchased effects and saves remain unchanged. Server purchase/equip/use endpoints retained.
+- Focused live checks passed: tabs, stats, race toggle, tree open/close, wheel/buttons/drag, icon loading.
+  Consumable use effects and full compatibility suite NOT certified; StyLua gate unavailable.
+- Studio contains newer collaborator changes than origin/main 39350ed. Apply this review branch's UI
+  patches onto that newer source; do not sync this older-baseline checkout wholesale over Studio.
+- See docs/INVENTORY_UPGRADE_UI_HANDOFF.md for source/snapshot distinctions and validation limits.
 
 SMOOTH RAIL + TEST RECONCILIATION - 2026-10-11 (Claude)
 - RaceService rail: cubic Hermite curve through the path waypoints, applied in PostSimulation
@@ -16,7 +264,7 @@ SMOOTH RAIL + TEST RECONCILIATION - 2026-10-11 (Claude)
   push without the full gate). No ALL GREEN stamp.
 - Codex bus hook: .codex/hooks.json (needs the developer to trust it in Codex); shell-edit attribution
   via agent_bus.py shell.
-- Known: SPAWN_AND_ROLLS_SPEC / CLAUDE.md still describe the old StartPad position.
+- (Fixed 2026-10-12) SPAWN_AND_ROLLS_SPEC / CLAUDE.md described the old StartPad position.
 
 COMPATIBILITY REVIEW - 2026-10-10
 - Added urgent dashboard TODO `urgent-auto-race-path-stability` in Doing with
@@ -480,6 +728,23 @@ CHANGE LOG (newest last)
    under them: the backdrop ignores presses inside the card).
 
 TEST RESULTS (latest first; update after every full run)
+- 2026-10-13 (fingerprint 225cec42d0c7): harness `[CARTEST] END pass=35 fail=0`.
+  UI isolation: HUD/index/turbo/billboard green; emphasized geometry and loser hit-test
+  remain red under MCP viewport coordinates. Multiplayer/world/regression standalone
+  verdicts are unverified; no `.compat` record written.
+- 2026-10-13 (resume audit, live Studio): UI RED with `ui_hud` speed mismatch,
+  `ui_index` missing undiscovered state, and roll/turbo failures. Harness was started but
+  stopped before a terminal END line; multiplayer, world and regression are unverified.
+  No compatibility record was written.
+- 2026-10-13 (fingerprint 45cc97d11905): latest complete fixture-backed UI evidence before the final
+  position-only rerun was `23 pass / 2 fail`; the final rerun returned Studio to Edit before its mirrored
+  result could be read. The live place still reports LegacyChatService, so `roll_announce_chat_message` is
+  red/unverified. Current-fingerprint harness did not yield a terminal END line. No multiplayer, world,
+  regression, compatibility stamp, commit, or push.
+- 2026-10-13 (fingerprint 16e90251b96e): current-tree harness evidence remains `[CARTEST] END pass=35 fail=0` from the
+  authoritative feature run. Fixture-backed UI rerun is RED on DailyBoosts/MarketUi and compact-device layout checks,
+  DuelUi overlaps, and the LegacyChatService roll-announcement fixture. Multiplayer, world, and regression were not
+  launched because the required UI prerequisite was red; no compatibility stamp recorded.
 - 2026-10-08 (/compat-check, fingerprint a42243ab82b4): ALL GREEN. Harness `[CARTEST] END pass=31 fail=0`
   (all configured scenarios plus track:Circuit/DragRace/Hill/Oval/Serpentine). UI `[UITEST] END pass=22 fail=0`.
   Multiplayer, world, and regression live probes were GREEN in the same Play session: server NPC leakage absent,

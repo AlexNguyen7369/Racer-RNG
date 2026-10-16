@@ -12,7 +12,7 @@ GachaConfig.DISCOVERIES_PER_POINT = 3 -- every 3 unique cars in the index grant 
 -- Turbo luck: every TURBO_EVERY-th roll (Rolls = 10, 20, ...) rolls with TURBO_LUCK times the player's luck.
 -- Derived from the saved roll count, so nothing extra is saved.
 GachaConfig.TURBO_EVERY = 10
-GachaConfig.TURBO_LUCK = 5
+GachaConfig.TURBO_LUCK = 10
 
 GachaConfig.STATS = { "Speed", "Money", "Luck", "Workshop" }
 GachaConfig.PER_POINT = { -- each point adds this to its multi (additive, easier to tune)

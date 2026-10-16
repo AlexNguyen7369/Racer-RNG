@@ -1,16 +1,17 @@
 --!nonstrict
 -- UTC-day login rewards. The server owns claim timing.
+-- No Money: Money comes only from race cash-outs and duplicate car sales (design doc, "Economy").
 
 local DailyLoginConfig = {}
 
 DailyLoginConfig.Rewards = {
-	{ Money = 500 },
-	{ Money = 1000 },
-	{ Money = 2500, Boost = "Luck" },
-	{ Money = 5000, Boost = "Money" },
-	{ Money = 10000, Boost = "Speed" },
-	{ Money = 25000, Boost = "Luck", BoostCount = 2 },
-	{ Money = 50000, GuaranteedRare = true },
+	{ Boost = "Luck" },
+	{ Boost = "Money" },
+	{ Boost = "Luck" },
+	{ Boost = "Money" },
+	{ Boost = "Speed" },
+	{ Boost = "Luck", BoostCount = 2 },
+	{ GuaranteedRare = true },
 }
 
 return DailyLoginConfig

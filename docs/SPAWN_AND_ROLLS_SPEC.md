@@ -24,8 +24,11 @@ the start at z ~ 40..140, so the area sits to the RIGHT of the start straight, n
 | Constant | Value |
 |---|---|
 | `SpawnArea.COLOR` | `Color3.fromRGB(140, 70, 220)` (purple) |
-| `SpawnArea.AREA_MIN` / `AREA_MAX` | local (x, z) `(24, -100)` / `(184, 44)`: 160 x 144 studs |
-| `SpawnArea.PAD_MIN` / `PAD_MAX` | local (x, z) `(-20, 2)` / `(24, 38)`: the start platform, right behind the start line, joining the area to the road |
+| `SpawnArea.AREA_MIN` / `AREA_MAX` | local (x, z) `(24, -188)` / `(252, 44)`: the floor, 228 x 232 studs (hub + 7 workshop plots, 2026-10-06) |
+| `SpawnArea.HUB_MIN` / `HUB_MAX` | local (x, z) `(24, -100)` / `(184, 44)`: the hub, 160 x 144 studs, kept free of plots; `Spawn` and the walk spawn are at its centre |
+| `SpawnArea.PAD_MIN` / `PAD_MAX` | local (x, z) `(-20, 2)` / `(24, 38)`: the start platform AS AUTHORED (44 x 36). Its placement comes from the two rows below |
+| `SpawnArea.PAD_CENTER` | local (x, z) `(34.3031235, 28.4993916)`: centre of the placed platform, inside the hub (owner, 2026-10-10) |
+| `SpawnArea.PAD_FRONT` | `(1, 0)`: the sign faces local +X, the hub entrance faces -Z. Placed footprint: 36 (x) by 44 (z) |
 | `SpawnArea.TOP_Y` | `1`: floor top = road top (`TRACK_LIFT` road surface) |
 | `SpawnArea.START_COOLDOWN` | `2` s: a player can not be started by the pad again this soon after a stop or a pad start |
 | `SpawnArea.WALK_ROOT_HEIGHT` | `3` studs: HumanoidRootPart above the floor top when standing |
@@ -35,17 +38,21 @@ the start at z ~ 40..140, so the area sits to the RIGHT of the start straight, n
 - `Edge*`: low (2 stud) anchored edge walls on the three outer sides of the area (not the side facing the pad/road).
 - `Spawn`: `SpawnLocation` in the middle of the area (`Neutral = true`, `Duration = 0`, 12 x 1 x 12, `COLOR`), top
   at `TOP_Y`. It is the game's only SpawnLocation.
-- `StartPad`: anchored Part covering PAD_MIN..PAD_MAX, top at `TOP_Y + 0.2`, bright green `Neon`, tagged
-  `StartPad`, with a `SurfaceGui`/`BillboardGui` "RACE ▶". It never overlaps a road part or a wall.
+- `StartPad`: anchored Part covering PAD_MIN..PAD_MAX in the frame `SpawnArea.PadBase(startCFrame)` (which moves
+  the pad, pavilion meshes, boundaries and lights together to `PAD_CENTER` facing `PAD_FRONT`), top at
+  `TOP_Y + 0.2`, bright green, tagged `StartPad`, under the "RACE START" pavilion. It never overlaps a road part
+  or a wall. The near curb is open only where the platform crosses it (local x = 24 .. 54.303); the hub entrance
+  in the platform's side rail is 20 studs wide.
 
-API: `SpawnArea.Build(startCFrame) -> Model`, `SpawnArea.WalkCFrame(startCFrame) -> CFrame` (area centre,
+API: `SpawnArea.Build(startCFrame) -> Model`, `SpawnArea.WalkCFrame(startCFrame) -> CFrame` (hub centre,
 root at `TOP_Y + WALK_ROOT_HEIGHT`, facing the pad), `SpawnArea.Bounds(startCFrame) -> { Area = {Min, Max},
 Pad = {Min, Max} }` (world Vector3 corners, Y = TOP_Y). `CarService.WalkSpawnCFrame()` returns
 `SpawnArea.WalkCFrame(start)`.
 
 Rules (tests): the area and pad overlap no road / wall / checkpoint part of ANY chained track (horizontally,
 ignoring each track's `Ground`); every waypoint of the race path is at least `CarService` `WALK_CLEARANCE` (75)
-from the walk spawn; the pad touches the area (gap <= 1 stud) and touches the road's first edge (Track 1 Start).
+from the walk spawn; the placed pad footprint is `PAD_CENTER` ± (18, 22). Since the 2026-10-10 move the pad no
+longer spans the road centre or touches Track 1's Start: walking onto it starts the race by teleport (section 2).
 
 ## 2. Player flow (`Server/CarService`)
 
@@ -83,13 +90,13 @@ from the walk spawn; the pad touches the area (gap <= 1 stud) and touches the ro
 | Constant | Value |
 |---|---|
 | `GachaConfig.TURBO_EVERY` | `10`: every 10th roll (Rolls = 10, 20, ...) is a turbo roll |
-| `GachaConfig.TURBO_LUCK` | `5`: the turbo roll's luck is `Luck * 5` |
+| `GachaConfig.TURBO_LUCK` | `10`: the turbo roll's luck is `Luck * 10` (owner, 2026-10-12; upgrade tiers: `docs/UPGRADE_TREE_SPEC.md` section 4) |
 
 - `GachaConfig.IsTurbo(rollNumber)` -> `rollNumber > 0 and rollNumber % TURBO_EVERY == 0`.
 - `GachaConfig.TurboProgress(rolls)` -> `rolls % TURBO_EVERY` (0..TURBO_EVERY-1; rolls done towards the next turbo).
 - `GachaService.Roll(player, roller)` rolls with `Luck * (IsTurbo(Rolls + 1) and TURBO_LUCK or 1)`, then
   increments `Rolls`, and returns `id, isNew, turboMulti, emphasized, scrapMoney`. Duplicate rolls award direct Money
-  from the car's rarity table; `Remotes.RollResult:FireClient(player, id, isNew, turboMulti, emphasized, scrapMoney)`
+  from the car's rarity table; `Remotes.RollResult:FireClient(player, id, isNew, turboMulti, emphasized, scrapMoney, luck)`
   includes the server-calculated payout for the duplicate card. No Parts currency is created.
   (`turboMulti` = 1 or TURBO_LUCK). Derived from the saved `Rolls`, so nothing new is saved.
 
@@ -111,7 +118,7 @@ from the walk spawn; the pad touches the area (gap <= 1 stud) and touches the ro
     - `Card` (Frame on top of the backdrop, centred, Active so clicks on it do NOT close): the CURRENT roll, updated
       live on every RollResult while open (it opens on the latest roll): `Viewport` (ViewportFrame; the car's model
       from `ReplicatedStorage.CarModels[spec.Model]` when it has one, else `Placeholder` "?"), `Odds` (big, rarity
-      colour: `HudFormat.Odds(Chance)` style "1 in 250"; catch-all cars use "1 in ?"), `CarName`, `Rarity`
+      colour: `HudFormat.Odds(Chance)` style "1 in 250"; temporary luck does not alter the catalog rarity; catch-all cars use "1 in ?"), `CarName`, `Rarity`
       (rarity colour; Secret readable), `SpeedMulti` ("Speed x6"), `NewBadge` (first discovery), `TurboBadge`
       ("TURBO x5" on a turbo roll).
     - Opening it closes any open panel (Index / Stats). While it is open the toast does not show.

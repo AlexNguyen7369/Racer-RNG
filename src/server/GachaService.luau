@@ -128,6 +128,10 @@ local function owns(player, id)
 	if id == STARTER then
 		return true
 	end
+	local spec = CarCatalog.Get(id)
+	if spec and spec.GamepassId then
+		return player:GetAttribute("Pass_" .. id) == true -- set by PassCarService from Roblox, never saved
+	end
 	local data = player:FindFirstChild("GachaData")
 	return data ~= nil and data:FindFirstChild(id) ~= nil
 end
@@ -172,14 +176,16 @@ end
 
 -- One roll at the player's luck, times the Turbo tier's Multi on every turbo roll (UpgradeService.AdvanceTurbo: the
 -- player's TurboCount reaches the tier's Every; x5 every 10th roll with no Turbo tier). Returns the car Id,
--- whether it was new, the turbo multi (1 on a normal roll) and whether it is emphasized (GachaConfig.IsEmphasized:
--- played enlarged and announced to the whole server).
+-- whether it was new, the turbo multi (1 on a normal roll), whether it is emphasized (GachaConfig.IsEmphasized:
+-- played enlarged and announced to the whole server), the scrap Money of a duplicate and the roll's luck without
+-- the turbo multi (the client divides the displayed odds by it, docs/WEATHER_EVENTS_SPEC.md).
 function GachaService.Roll(player, roller)
 	GachaService.Setup(player)
 	local rollNumber = math.min(cleanCount(player:GetAttribute("Rolls")) + 1, MAX_COUNT)
 	local turboMulti = UpgradeService.AdvanceTurbo(player)
 	local event = require(script.Parent.WeatherService).Current()
-	local id = GachaConfig.Roll(roller or rng, GachaService.Luck(player) * turboMulti, event)
+	local luck = GachaService.Luck(player)
+	local id = GachaConfig.Roll(roller or rng, luck * turboMulti, event)
 	local emphasized = GachaConfig.IsEmphasized(id, ownedIds(player))
 	player:SetAttribute("Rolls", rollNumber)
 	local isNew = GachaService.Grant(player, id)
@@ -191,12 +197,12 @@ function GachaService.Roll(player, roller)
 		MoneyService.Award(player, scrapMoney)
 	end
 	if rollRemote and player:IsA("Player") then
-		rollRemote:FireClient(player, id, isNew, turboMulti, emphasized, scrapMoney)
+		rollRemote:FireClient(player, id, isNew, turboMulti, emphasized, scrapMoney, luck)
 	end
 	if emphasized then
 		GachaService.Announce(player, id, rollNumber)
 	end
-	return id, isNew, turboMulti, emphasized, scrapMoney
+	return id, isNew, turboMulti, emphasized, scrapMoney, luck
 end
 
 -- The AUTO toggle: while false the auto-roll loop makes no roll. Returns true if the value was applied.
@@ -267,6 +273,10 @@ function GachaService.Luck(player)
 		local WorkshopConfig = require(Shared.WorkshopConfig)
 		luck *= WorkshopConfig.LuckMulti(player:GetAttribute("WorkshopLevel"))
 	end
+	local adminLuck = player:GetAttribute("AdminLuck")
+	if type(adminLuck) == "number" and adminLuck >= 1 and adminLuck == adminLuck then
+		luck *= adminLuck
+	end
 	return luck
 end
 
@@ -311,6 +321,10 @@ function GachaService.Apply(player, saved)
 			elseif value == true or (type(value) == "number" and value == value and value > 0) then
 				id = key
 			end
+			local spec = type(id) == "string" and CarCatalog.Get(id)
+			if spec and spec.GamepassId then
+				id = nil -- a gamepass car is owned through Roblox, never through the save
+			end
 			if type(id) == "string" and id ~= "" and id ~= STARTER and #id <= 64 and not data:FindFirstChild(id) then
 				addEntry(data, id)
 			end
@@ -337,7 +351,9 @@ function GachaService.Apply(player, saved)
 	end
 
 	local equipped = saved.Equipped
-	if type(equipped) ~= "string" or not CarCatalog.Get(equipped) or not owns(player, equipped) then
+	local spec = type(equipped) == "string" and CarCatalog.Get(equipped)
+	-- A saved gamepass car stays until PassCarService has asked Roblox; it resets the car when the pass is not owned
+	if not spec or not (spec.GamepassId or owns(player, equipped)) then
 		equipped = STARTER
 	end
 	player:SetAttribute("EquippedCar", equipped)

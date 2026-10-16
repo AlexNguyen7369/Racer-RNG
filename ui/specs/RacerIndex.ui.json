@@ -60,7 +60,7 @@
           524
         ]
       ],
-      "purpose": "CAR INDEX modal",
+      "purpose": "Inventory with cars and consumables",
       "phone": {
         "pos": [
           [
@@ -108,7 +108,7 @@
               64
             ]
           ],
-          "purpose": "CAR INDEX title band",
+          "purpose": "Inventory category tabs",
           "phone": {
             "pos": [
               [
@@ -133,35 +133,37 @@
           },
           "children": [
             {
-              "id": "Title",
-              "kind": "text",
-              "text": "CAR INDEX",
+              "id": "CarsTab",
+              "kind": "button",
+              "text": "CARS",
+              "textSize": 25,
+              "color": "index",
               "pos": [
                 [
                   0,
-                  12
+                  18
                 ],
                 [
                   0,
-                  0
+                  8
                 ]
               ],
               "size": [
                 [
                   0,
-                  650
+                  190
                 ],
                 [
                   0,
-                  64
+                  48
                 ]
               ],
-              "textSize": 34,
+              "action": "ShowCars",
               "phone": {
                 "pos": [
                   [
                     0,
-                    8
+                    12
                   ],
                   [
                     0,
@@ -171,14 +173,65 @@
                 "size": [
                   [
                     0,
-                    382
+                    140
                   ],
                   [
                     0,
                     48
                   ]
                 ],
-                "textSize": 25
+                "textSize": 22
+              }
+            },
+            {
+              "id": "ConsumablesTab",
+              "kind": "button",
+              "text": "CONSUMABLES",
+              "textSize": 23,
+              "color": "dark",
+              "pos": [
+                [
+                  0,
+                  228
+                ],
+                [
+                  0,
+                  8
+                ]
+              ],
+              "size": [
+                [
+                  0,
+                  270
+                ],
+                [
+                  0,
+                  48
+                ]
+              ],
+              "action": "ShowConsumables",
+              "phone": {
+                "pos": [
+                  [
+                    0,
+                    168
+                  ],
+                  [
+                    0,
+                    0
+                  ]
+                ],
+                "size": [
+                  [
+                    0,
+                    214
+                  ],
+                  [
+                    0,
+                    48
+                  ]
+                ],
+                "textSize": 20
               }
             },
             {
@@ -328,6 +381,54 @@
               ]
             ]
           }
+        },
+        {
+          "id": "ConsumablesHost",
+          "kind": "spacer",
+          "pos": [
+            [
+              0,
+              16
+            ],
+            [
+              0,
+              134
+            ]
+          ],
+          "size": [
+            [
+              0,
+              748
+            ],
+            [
+              0,
+              374
+            ]
+          ],
+          "phone": {
+            "pos": [
+              [
+                0,
+                12
+              ],
+              [
+                0,
+                100
+              ]
+            ],
+            "size": [
+              [
+                0,
+                476
+              ],
+              [
+                0,
+                168
+              ]
+            ]
+          },
+          "visible": false,
+          "purpose": "Owned consumable inventory and server-use actions"
         }
       ]
     }

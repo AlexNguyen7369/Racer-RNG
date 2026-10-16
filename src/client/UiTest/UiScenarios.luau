@@ -23,12 +23,17 @@ local Workspace = game:GetService("Workspace")
 local UiSpec = require(script.Parent:WaitForChild("UiSpec"))
 local UiResponsive = require(script.Parent:WaitForChild("UiResponsive"))
 local UiLegacyControls = require(script.Parent:WaitForChild("UiLegacyControls"))
+local UiDuel = require(script.Parent:WaitForChild("UiDuel"))
+local UiBoostsRebirth = require(script.Parent:WaitForChild("UiBoostsRebirth"))
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local HudFormat = require(Shared:WaitForChild("HudFormat"))
 local CarCatalog = require(Shared:WaitForChild("CarCatalog"))
 local GachaConfig = require(Shared:WaitForChild("GachaConfig"))
 local NpcConfig = require(Shared:WaitForChild("NpcConfig"))
+local WeatherConfig = require(Shared:WaitForChild("WeatherConfig"))
 local TrackBuilder = require(Shared:WaitForChild("TrackBuilder"))
+local LeaderboardConfig = require(Shared:WaitForChild("LeaderboardConfig"))
+local PassCarConfig = require(Shared:WaitForChild("PassCarConfig"))
 local UpgradeTree = require(Shared:WaitForChild("UpgradeTree"))
 
 local player = Players.LocalPlayer
@@ -103,8 +108,13 @@ UiScenarios.Names = {
 	"ui_workshop_modal",
 	"ui_progression_layout",
 	"ui_progression_hud",
+	"ui_rebirth",
+	"ui_daily_boosts",
+	-- At rest here (no duel message yet); after each duel_* server fixture it runs again through
+	-- UiSpec.Duel.FixtureChecks (UiTestScenario) and judges that message.
+	"ui_duel",
 	-- ui_offline_welcome needs its offline_welcome server fixture, so it runs only through
-	-- UiSpec.Progression.FixtureChecks (UiTestScenario), like ui_offline_zero and ui_progression_world.
+	-- UiSpec.Progression.FixtureChecks (UiTestScenario), like ui_offline_zero.
 	"ui_weather",
 	-- Last: its server setup (emphasized_next) takes the cars away until the emphasized roll happened
 	"ui_roll_emphasized",
@@ -120,6 +130,9 @@ local STATES = {
 	{ Name = "upgrades_open", Open = { "RacerUpgrades/Panel" } },
 	{ Name = "workshop_open", Open = { "RacerWorkshop/Panel" } },
 	{ Name = "welcome_open", Open = { "RacerWelcome/Panel" } },
+	{ Name = "daily_boosts_open", Open = { "DailyBoosts/ModalBackdrop" } },
+	{ Name = "duel_pick_open", Open = { "DuelUi/PickPanel" } },
+	{ Name = "duel_invite_open", Open = { "DuelUi/InvitePanel" } },
 	-- Two panels open at once is NOT a reachable state: ui_panels proves the panels are mutually exclusive
 	-- through the real mechanism (PanelSwitch) and the Clicks open_*_while_*_open prove it through the buttons.
 	-- If exclusivity ever breaks, ui_panels fails, and this state must be added back here.
@@ -343,6 +356,14 @@ local function setPanels(open)
 			o.Visible = v
 		end
 	end
+end
+
+-- The part of a declared panel that is the panel for geometry: the panel itself, or its UiSpec.PanelBody child when
+-- the toggled Frame is only a see-through, click-through dimmer.
+local function panelBody(path)
+	local panel = findPath(path)
+	local body = UiSpec.PanelBody[path]
+	return panel and body and panel:FindFirstChild(body) or panel
 end
 
 ---------------------------------------------------------------------------------------------------------------
@@ -843,7 +864,7 @@ simRect = function(obj, ctx)
 				local size = variantProps(obj, ctx)
 				fitted = UiResponsive.RacerPanelFit(ctx.vp, dependencies, size)
 				ctx.scaleOverride[obj] = fitted.Scale
-			elseif isProgressionPanel or isRate then
+			elseif isProgressionPanel or isRate or path == UiSpec.Weather.Icon then
 				fitted = UiResponsive.Progression(path, ctx.vp, dependencies)
 			end
 			local vSize, vPosition, vAnchor = variantProps(obj, ctx)
@@ -989,6 +1010,7 @@ local events = {
 	rollsChanged = 0,
 	recs = {}, -- one roll-animation record per RollResult (UiScenarios.SampleRoll)
 	announces = {}, -- Remotes.RollAnnounce events
+	oddsFixtureAt = nil, -- os.clock() of the last UiSpec.RollOdds.Attr change (a displayed-odds fixture was planted)
 	chat = {}, -- TextChatService.MessageReceived
 }
 
@@ -1064,8 +1086,22 @@ function UiScenarios.Init()
 			hits = hitsAt,
 		})
 	end
+	UiDuel.Observe({
+		check = check,
+		checkList = checkList,
+		find = findPath,
+		frames = frames,
+		visible = effectivelyVisible,
+		rect = realRect,
+		viewport = viewport,
+		player = player,
+		playerGui = playerGui,
+	})
 	player:GetAttributeChangedSignal("Rolls"):Connect(function()
 		events.rollsChanged = os.clock()
+	end)
+	player:GetAttributeChangedSignal(UiSpec.RollOdds.Attr):Connect(function()
+		events.oddsFixtureAt = os.clock()
 	end)
 	pcall(function()
 		TextChatService.MessageReceived:Connect(function(msg)
@@ -1085,12 +1121,13 @@ function UiScenarios.Init()
 		task.spawn(function()
 			local roll = remotes:WaitForChild("RollResult", 30)
 			if roll then
-				roll.OnClientEvent:Connect(function(id, isNew, turboMulti, emphasized)
+				roll.OnClientEvent:Connect(function(id, isNew, turboMulti, emphasized, _scrapMoney, luck)
 					local ev = {
 						id = id,
 						isNew = isNew,
 						turboMulti = type(turboMulti) == "number" and turboMulti or 1,
 						emphasized = emphasized == true,
+						luck = luck, -- as sent (6th argument, docs/ROLL_ANIMATION_CONTRACT.md); nil when not sent
 						rolls = player:GetAttribute("Rolls"), -- set by the server before it fires RollResult
 						t = os.clock(),
 					}
@@ -1153,6 +1190,12 @@ end
 local function owned(id)
 	local data = player:FindFirstChild("GachaData")
 	return data ~= nil and data:FindFirstChild(id) ~= nil
+end
+
+-- The roll animation shows catalog rarity. The server's luck remains gameplay-only and is still recorded in the
+-- RollResult payload for diagnostics and compatibility.
+local function oddsText(chance, _luck)
+	return HudFormat.Odds(chance)
 end
 
 local function digits(text)
@@ -1378,7 +1421,7 @@ local function cardProblems(card, ev, skipGeometry)
 		end
 	end
 	local odds = part("Odds")
-	local wantOdds = HudFormat.Odds(spec.Chance)
+	local wantOdds = oddsText(spec.Chance, ev.luck)
 	if not (odds and odds:IsA("TextLabel") and odds.Text == wantOdds and effectivelyVisible(odds)) then
 		table.insert(bad, ("Odds %q want %q"):format(odds and odds.Text or "nil", wantOdds))
 	else
@@ -1584,6 +1627,13 @@ local function partShown(card, name)
 	return p ~= nil and p:IsA("GuiObject") and effectivelyVisible(p)
 end
 
+-- A card's TextLabel `name` right now: { text ("missing" without one), shown }.
+local function labelState(card, name)
+	local p = partOf(card, name)
+	local isLabel = p ~= nil and p:IsA("TextLabel")
+	return { text = isLabel and p.Text or "missing", shown = isLabel and effectivelyVisible(p) }
+end
+
 -- Draws something a player can see: itself or a visible descendant with an opaque-enough background, text or image.
 local function drawsSomething(obj)
 	for _, d in { obj, table.unpack(obj:GetDescendants()) } do
@@ -1665,7 +1715,7 @@ local function compactProblems(toast, ev)
 	local bad = {}
 	local tr = realRect(toast)
 	local odds = toast:FindFirstChild("Odds", true)
-	local wantOdds = HudFormat.Odds(spec.Chance)
+	local wantOdds = oddsText(spec.Chance, ev.luck)
 	if not (odds and odds:IsA("TextLabel") and odds.Text == wantOdds and effectivelyVisible(odds)) then
 		table.insert(bad, ("Odds %q want %q"):format(odds and odds:IsA("TextLabel") and odds.Text or "nil", wantOdds))
 	else
@@ -1940,6 +1990,9 @@ function UiScenarios.SampleRoll(ev)
 					local grad = glowGradient(card)
 					local compact = key == "Compact"
 					rec.hold[key] = {
+						-- The odds labels as landed: Odds on both cards (the enlarged one's is the alias of ResultOdds)
+						odds = labelState(card, "Odds"),
+						resultOdds = labelState(card, "ResultOdds"),
 						rollId = card:GetAttribute("RollId"),
 						serial = card:GetAttribute("RollSerial"),
 						reelIds = reel and reel:GetAttribute("ReelIds"),
@@ -2161,9 +2214,9 @@ local function elementsFor(open)
 		end
 	end
 	for _, p in open do
-		local panel = findPath(p)
+		local panel = panelBody(p)
 		if panel then
-			table.insert(list, { path = p, obj = panel, panel = true })
+			table.insert(list, { path = pathOf(panel), obj = panel, panel = true })
 			for _, b in buttonsIn(panel) do
 				table.insert(list, { path = pathOf(b), obj = b })
 			end
@@ -2354,9 +2407,14 @@ function S.ui_inventory(res)
 				want = #GachaConfig.STATS
 			elseif spec.Count == "upgrades" then
 				want = #UpgradeTree.Tiles()
+			elseif spec.Count == "duel_tracks" then
+				want = UiDuel.OfferedTracks()
 			end
 			local got = counts[guiName .. "#" .. i] or 0
-			check(res, "button_count_" .. guiName .. "/" .. spec.Path, got, want, got == want)
+			-- "dynamic": the count depends on the view last rendered; ui_daily_boosts and its clicks count the rows
+			if spec.Count ~= "dynamic" then
+				check(res, "button_count_" .. guiName .. "/" .. spec.Path, got, want, got == want)
+			end
 		end
 	end
 
@@ -2779,7 +2837,7 @@ function S.ui_layout(res)
 			end
 			-- An open panel never covers the top controls (Race top centre, Settings top right): both stay clickable
 			for _, panelPath in state.Open do
-				local panel = findPath(panelPath)
+				local panel = panelBody(panelPath)
 				for _, key in { "Race", "Settings" } do
 					local name = "panel_clear_of_top_controls_" .. panelPath .. "_" .. key .. "_" .. vpSpec.Name
 					local control = findPath(UiSpec.TopControls[key])
@@ -2843,6 +2901,43 @@ function S.ui_layout(res)
 						end
 					else
 						check(res, prefix .. "_centred_x" .. tagV, "missing", "panel, Race, Turbo, Navigation", false)
+					end
+				end
+			end
+
+			-- The duel panels (docs/DUEL_SPEC.md section 3): centred horizontally, top at least PanelTopMargin below
+			-- the Race button, bottom at least PanelTopMargin above the TURBO LUCK bar (the progression panels' rule)
+			for _, panelPath in state.Open do
+				local prefix = UiSpec.Duel.Panels[panelPath]
+				if prefix then
+					local p = findPath(panelPath)
+					local race, turbo = findPath(UiSpec.Hud.Race), findPath(UiSpec.Hud.Turbo)
+					local tagV = "_" .. vpSpec.Name
+					if p and race and turbo then
+						local margin = UiSpec.PanelTopMargin
+						local r, root = rectOf(p), rootRect(guiOf(p), vp)
+						local ar, br = rectOf(race), rectOf(turbo)
+						local dx = math.abs(centre(r) - (root.x + root.w / 2))
+						check(res, prefix .. "_centred_x" .. tagV, dx, TOL, dx <= TOL)
+						local minTop = ar.y + ar.h + margin
+						check(res, prefix .. "_below_autorace" .. tagV, r.y, ">= " .. minTop, r.y >= minTop - TOL)
+						local maxBottom = br.y - margin
+						check(
+							res,
+							prefix .. "_above_turbo" .. tagV,
+							r.y + r.h,
+							"<= " .. maxBottom,
+							r.y + r.h <= maxBottom + TOL
+						)
+						check(
+							res,
+							prefix .. "_positive_size" .. tagV,
+							("%dx%d"):format(r.w, r.h),
+							"positive area inside the viewport",
+							r.w > 0 and r.h > 0 and contains(root, r)
+						)
+					else
+						check(res, prefix .. "_centred_x" .. tagV, "missing", "panel, Race, Turbo", false)
 					end
 				end
 			end
@@ -3677,7 +3772,7 @@ function S.ui_toast(res)
 	check(res, "toast_reached_hold", holdRec.landed, true, holdRec.landed == true)
 	-- Owner decision 4: the compact roll shows the odds, not the car's name (CarName / NewBadge are checked on the
 	-- enlarged card: showcase_card_is_latest_roll, showcase_updates_live, emphasized_card_matches_roll)
-	local wantOdds = HudFormat.Odds(spec.Chance)
+	local wantOdds = oddsText(spec.Chance, ev.luck)
 	check(res, "toast_shows_odds", holdRec.odds, wantOdds, holdRec.odds == wantOdds and holdRec.oddsShown == true)
 	checkList(res, "toast_is_no_card", holdRec.shape)
 	checkList(res, "toast_model_over_odds", holdRec.layout)
@@ -4350,6 +4445,105 @@ function S.ui_billboards(res)
 	end
 	checkList(res, "win_text_matches_pad", wrong)
 
+	-- Pedestal billboards (UiSpec.Billboards.BestRollStats / PassCarStats). Run before the NPC part, which returns
+	-- early when no NPC is on track.
+	local spawnArea = Workspace:WaitForChild("SpawnArea", UiSpec.Waits.GuiAppear)
+	-- A GuiObject's rectangle lies inside its parent's, judged from UDim2 alone (a billboard's pixel size depends on
+	-- the camera): scale edges within 0..1 and offsets that only pull inward. Each ancestor up to the billboard too.
+	local function insideBillboard(label, bb)
+		local o = label
+		while o and o ~= bb do
+			if not o:IsA("GuiObject") then
+				return false
+			end
+			for _, axis in { "X", "Y" } do
+				local p, s, a = o.Position[axis], o.Size[axis], o.AnchorPoint[axis]
+				local lo = p.Scale - a * s.Scale
+				local loOff = p.Offset - a * s.Offset
+				if lo < -1e-3 or lo + s.Scale > 1 + 1e-3 or loOff < 0 or loOff + s.Offset > 0 then
+					return false
+				end
+			end
+			o = o.Parent
+		end
+		return o == bb
+	end
+	-- Checks one Stats billboard: BillboardGui, MaxDistance, each label present (text when a string is given) and
+	-- inside, nothing clickable. `labels` maps label name -> expected text or true (any text).
+	local function pedestalStats(prefix, bb, maxDistance, labels)
+		local isBb = bb ~= nil and bb:IsA("BillboardGui")
+		check(res, prefix .. "_present", bb and bb:GetFullName(), "BillboardGui", isBb)
+		if not isBb then
+			return
+		end
+		check(res, prefix .. "_max_distance", bb.MaxDistance, maxDistance, bb.MaxDistance == maxDistance)
+		local bad = {}
+		local names = {}
+		for name in labels do
+			table.insert(names, name)
+		end
+		table.sort(names)
+		for _, name in names do
+			local want = labels[name]
+			local label = bb:FindFirstChild(name, true)
+			if not (label and label:IsA("TextLabel")) then
+				table.insert(bad, name .. ": no TextLabel")
+			else
+				if type(want) == "string" and label.Text ~= want then
+					table.insert(bad, ("%s: text %q want %q"):format(name, label.Text, want))
+				end
+				if not insideBillboard(label, bb) then
+					table.insert(bad, name .. ": outside the billboard")
+				end
+			end
+		end
+		checkList(res, prefix .. "_labels", bad)
+		check(res, prefix .. "_not_clickable", bb.Active, false, not bb.Active and #buttonsIn(bb) == 0)
+	end
+
+	local best = spawnArea and spawnArea:FindFirstChild("BestRoll")
+	local bestPedestal = best and best:FindFirstChild("Pedestal")
+	local bestStats = bestPedestal and bestPedestal:FindFirstChild("Stats")
+	pedestalStats(
+		"best_roll_stats",
+		bestStats,
+		LeaderboardConfig.BEST_ROLL.TEXT_DISTANCE,
+		{ Title = "BEST ROLL EVER", Odds = true, Car = true, Player = true }
+	)
+	local mount = bestPedestal and bestPedestal:FindFirstChild("CarMount")
+	check(
+		res,
+		"best_roll_stats_adornee",
+		bestStats and bestStats:IsA("BillboardGui") and bestStats.Adornee and bestStats.Adornee:GetFullName(),
+		"Pedestal.CarMount",
+		mount ~= nil and bestStats ~= nil and bestStats:IsA("BillboardGui") and bestStats.Adornee == mount
+	)
+
+	local passCars = spawnArea and spawnArea:FindFirstChild("PassCars")
+	for _, entry in PassCarConfig.Pedestals do
+		local spec = CarCatalog.Get(entry.CarId)
+		local carName = spec and spec.Name or entry.CarId
+		local model = passCars and passCars:FindFirstChild("Pass_" .. entry.CarId)
+		local pedestal = model and model:FindFirstChild("Pedestal")
+		local prefix = "pass_" .. entry.CarId
+		pedestalStats(
+			prefix .. "_stats",
+			pedestal and pedestal:FindFirstChild("Stats"),
+			PassCarConfig.TEXT_DISTANCE,
+			{ Title = carName, Tag = "GAMEPASS" }
+		)
+		local prompt = pedestal and pedestal:FindFirstChild("Buy")
+		local isPrompt = prompt ~= nil and prompt:IsA("ProximityPrompt")
+		local wantAction = (spec and (spec.GamepassId or 0) > 0) and "Unlock" or "Coming soon"
+		check(
+			res,
+			prefix .. "_prompt_text",
+			isPrompt and (prompt.ObjectText .. " / " .. prompt.ActionText) or "no Buy ProximityPrompt",
+			carName .. " / " .. wantAction,
+			isPrompt and prompt.ObjectText == carName and prompt.ActionText == wantAction
+		)
+	end
+
 	local function npcs()
 		local list = {}
 		for _, m in Workspace:GetChildren() do
@@ -4426,9 +4620,17 @@ function S.ui_panels(res)
 			UiSpec.PanelSwitch.Names[p] ~= nil
 		)
 	end
-	-- Open each panel in turn from every other open panel: exactly the newly opened one is visible
-	for _, a in panels do
-		for _, b in panels do
+	-- Open each panel in turn from every other open panel: exactly the newly opened one is visible. A panel with no
+	-- PanelSwitch name (panel_registered_* failed above) can not be opened through the switch, so it is left out of
+	-- these loops; it stays red on panel_registered_*.
+	local registered = {}
+	for _, p in panels do
+		if UiSpec.PanelSwitch.Names[p] then
+			table.insert(registered, p)
+		end
+	end
+	for _, a in registered do
+		for _, b in registered do
 			if a ~= b then
 				setPanels({})
 				Switch.Toggle(UiSpec.PanelSwitch.Names[a])
@@ -4444,7 +4646,7 @@ function S.ui_panels(res)
 		end
 	end
 	if type(Switch.Close) == "function" then
-		for _, p in panels do
+		for _, p in registered do
 			setPanels({})
 			Switch.Toggle(UiSpec.PanelSwitch.Names[p])
 			Switch.Close(UiSpec.PanelSwitch.Names[p])
@@ -4712,6 +4914,116 @@ function S.ui_roll_emphasized(res)
 	restore()
 end
 
+-- Displayed odds (UiSpec.RollOdds): judges the two RollResults a roll_odds_* / weather_rain_roll fixture planted, the
+-- compact one on RollToast/Toast and the emphasized one on RollShowcase/Card, from the samples SampleRoll took when
+-- each card landed (Hold). Only reads; the fixture is the server's.
+local function rollOddsFixture()
+	local ok, fx = pcall(function()
+		return HttpService:JSONDecode(attr(UiSpec.RollOdds.Attr))
+	end)
+	return (ok and type(fx) == "table" and UiSpec.RollOdds.Fixtures[fx.fixture]) and fx or nil
+end
+
+local function rollOddsChecks(res)
+	local cfg = UiSpec.RollOdds
+	local fx = rollOddsFixture()
+	if not fx then
+		stateMissing(res, "roll_odds_fixture_present", "roll_odds_luck2", "no " .. cfg.Attr .. " attribute")
+		return
+	end
+	local want = cfg.Fixtures[fx.fixture]
+	local spec = CarCatalog.Get(fx.id)
+	check(
+		res,
+		"roll_odds_fixture_car",
+		("%s Chance=%s"):format(tostring(fx.id), tostring(spec and spec.Chance)),
+		want.CatchAll and "a catalog car without a Chance" or "a catalog car with a Chance",
+		spec ~= nil and (type(spec.Chance) == "number") == (want.CatchAll ~= true)
+	)
+	if not spec then
+		return
+	end
+	local luckOk, luckLimit = fx.luck == want.Luck, tostring(want.Luck)
+	if want.NoLuck then
+		luckLimit = "nil (no 6th argument)"
+	elseif want.ChanceTimes then
+		local n = type(spec.Chance) == "number" and spec.Chance * want.ChanceTimes or nil
+		luckOk, luckLimit = n ~= nil and fx.luck == n, tostring(n)
+	elseif want.Event then
+		-- Every other luck source is >= 1, so the luck of a roll during the event is at least the event's own
+		local eventLuck = WeatherConfig.Events[want.Event].Luck
+		luckOk, luckLimit = type(fx.luck) == "number" and fx.luck >= eventLuck, ">= " .. tostring(eventLuck)
+	end
+	check(res, "roll_odds_fixture_luck", fx.luck, luckLimit, luckOk)
+	local wantText = oddsText(spec.Chance, fx.luck)
+
+	local since = events.oddsFixtureAt or 0
+	local function planted(emphasized)
+		for i = #events.recs, 1, -1 do
+			local ev = events.recs[i].ev
+			-- The attribute's luck went through JSON: a fractional luck may differ in the last digits
+			local sameLuck = ev.luck == fx.luck
+				or (
+					type(ev.luck) == "number"
+					and type(fx.luck) == "number"
+					and math.abs(ev.luck - fx.luck) <= 1e-6 * fx.luck
+				)
+			if ev.t >= since and ev.id == fx.id and ev.emphasized == emphasized and sameLuck then
+				return events.recs[i]
+			end
+		end
+		return nil
+	end
+	local deadline = os.clock() + cfg.Wait
+	local views = { { Key = "Compact", Emphasized = false }, { Key = "Enlarged", Emphasized = true } }
+	for _, view in views do
+		local name = string.lower(view.Key)
+		local rec = planted(view.Emphasized)
+		while not (rec and (rec.hold[view.Key] or rec.done)) and os.clock() < deadline do
+			task.wait(0.05)
+			rec = planted(view.Emphasized)
+		end
+		check(
+			res,
+			"roll_odds_" .. name .. "_roll_received",
+			rec and ("%s luck=%s"):format(tostring(rec.ev.id), tostring(rec.ev.luck)) or "none",
+			("%s luck=%s emphasized=%s within %d s"):format(
+				fx.id,
+				tostring(fx.luck),
+				tostring(view.Emphasized),
+				cfg.Wait
+			),
+			rec ~= nil
+		)
+		local hold = rec and rec.hold[view.Key]
+		check(res, "roll_odds_" .. name .. "_reached_hold", hold ~= nil, true, hold ~= nil)
+		if hold and view.Key == "Compact" then
+			check(
+				res,
+				"roll_odds_compact_odds",
+				hold.odds.text,
+				wantText,
+				hold.odds.text == wantText and hold.odds.shown == true
+			)
+		elseif hold then
+			check(
+				res,
+				"roll_odds_enlarged_result_odds",
+				hold.resultOdds.text,
+				wantText,
+				hold.resultOdds.text == wantText and hold.resultOdds.shown == true
+			)
+			check(res, "roll_odds_enlarged_odds_alias", hold.odds.text, wantText, hold.odds.text == wantText)
+		end
+	end
+end
+
+-- Runs only through UiSpec.Progression.FixtureChecks (UiTestScenario), after a roll_odds_* fixture.
+function S.ui_roll_odds(res)
+	waitGuis()
+	rollOddsChecks(res)
+end
+
 -- Progression scenarios reuse the same geometry provider and limits as the existing suite.
 local Progression = require(script.Parent.UiProgression)
 local progressionChecks = Progression.Build({
@@ -4728,8 +5040,26 @@ local progressionChecks = Progression.Build({
 	top = topAt,
 	centre = centre,
 	player = player,
+	rollOddsFixture = rollOddsFixture,
+	rollOdds = rollOddsChecks,
 })
 for name, fn in progressionChecks do
+	S[name] = fn
+end
+
+-- Duel UI, Rebirth panel and Bag / Daily Rewards scenarios (their own modules, same helpers).
+for name, fn in UiDuel.Build() do
+	S[name] = fn
+end
+local extras = UiBoostsRebirth.Build({
+	check = check,
+	checkList = checkList,
+	find = findPath,
+	visible = effectivelyVisible,
+	setPanels = setPanels,
+	player = player,
+})
+for name, fn in extras.Scenarios do
 	S[name] = fn
 end
 
@@ -4803,6 +5133,7 @@ local function attrSnapshot()
 	for _, stat in GachaConfig.STATS do
 		snap["Alloc_" .. stat] = attr("Alloc_" .. stat) or 0
 	end
+	extras.Snapshot(snap) -- Speed, RebirthLevel, DailyLast, DailyStreak, the fixture potion's count and timer
 	return snap
 end
 
@@ -5075,6 +5406,15 @@ function UiScenarios.RunClick(id)
 		tileId = equipped
 		path = string.gsub(path, "{equipped}", tileId)
 	end
+	local boostId = nil
+	if string.find(path, "{boost}", 1, true) then
+		boostId = extras.BoostToken()
+		if not boostId then
+			stateMissing(res, "target_row", "bag_potion", "the server says the Bag has no row for the fixture potion")
+			return res
+		end
+		path = string.gsub(path, "{boost}", boostId)
+	end
 	local rowStat = spec.Gui == "RacerStats" and splitPath(path)[5] or nil
 	local upgradeId = spec.Gui == "RacerUpgrades" and splitPath(path)[3] or nil
 	local button = findPath(spec.Gui .. "/" .. path)
@@ -5143,15 +5483,36 @@ function UiScenarios.RunClick(id)
 			return res
 		end
 	end
+	if prep.TargetActive ~= nil then
+		-- A view that re-renders (the Bag, once a second) replaces its buttons: read the one there now
+		button = findPath(spec.Gui .. "/" .. path) or button
+		if button.Active ~= prep.TargetActive then
+			stateMissing(
+				res,
+				"target_active_before_click",
+				spec.NeedSetup and spec.NeedSetup[1] or previous,
+				("%s Active=%s, want %s"):format(pathOf(button), tostring(button.Active), tostring(prep.TargetActive))
+			)
+			restore()
+			return res
+		end
+	end
 	local preSpy = readSpy()
 	if not preSpy then
 		stateMissing(res, "spy_installed", "spy", "ReplicatedStorage.UiTestSpy missing")
 		restore()
 		return res
 	end
-	if spec.Expect.Remote and table.find(UiSpec.RemoteFunctions, spec.Expect.Remote.Name) then
+	-- A RemoteFunction this click invokes, or could invoke by mistake (Prepare.Intercept), must be the logging proxy
+	local guarded = prep.Intercept
+		or (
+			spec.Expect.Remote
+			and table.find(UiSpec.RemoteFunctions, spec.Expect.Remote.Name)
+			and spec.Expect.Remote.Name
+		)
+	if guarded then
 		local spyFolder = ReplicatedStorage:FindFirstChild("UiTestSpy")
-		local remote = ReplicatedStorage.Remotes:FindFirstChild(spec.Expect.Remote.Name)
+		local remote = ReplicatedStorage.Remotes:FindFirstChild(guarded)
 		local ready = spyFolder
 			and spyFolder:GetAttribute("ProgressionIntercepted") == true
 			and remote
@@ -5223,6 +5584,8 @@ function UiScenarios.RunClick(id)
 			local o = findPath(p)
 			prePanels[p] = o and o.Visible
 		end
+		-- (a re-rendered view replaced the button: aim at, and judge the press against, the one there now)
+		button = findPath(spec.Gui .. "/" .. path) or button
 		cx, cy = clickPoint()
 		if not cx then
 			check(res, "click_point_exists", spec.ClickAt, "present", false)
@@ -5248,7 +5611,9 @@ function UiScenarios.RunClick(id)
 			then
 				local tl = inset()
 				local px, py = input.Position.X + tl.X, input.Position.Y + tl.Y
+				button = findPath(spec.Gui .. "/" .. path) or button
 				press = { x = px, y = py, hit = topAt(px, py), targetShown = shownNow(button), t = os.clock() }
+				press.target = button
 			end
 		end)
 
@@ -5292,7 +5657,8 @@ function UiScenarios.RunClick(id)
 	clickedAt = press and press.t or os.clock()
 	if done then
 		if press then
-			local landed = press.hit ~= nil and (press.hit == button or button:IsAncestorOf(press.hit))
+			-- press.target: the button at that path at the press (the same instance unless its view re-rendered)
+			local landed = press.hit ~= nil and (press.hit == press.target or press.target:IsAncestorOf(press.hit))
 			check(
 				res,
 				"click_landed_on_button",
@@ -5369,6 +5735,27 @@ function UiScenarios.RunClick(id)
 		end
 		local want = expect.Remote.Name .. "(" .. tostring(wantArg) .. ")"
 		local ok = #fired == 1 and fired[1].name == expect.Remote.Name and fired[1].args[1] == wantArg
+		if expect.Remote.Args then
+			-- The whole argument list, in order: exactly these values and no more
+			local wantArgs, shown = {}, {}
+			for i, v in expect.Remote.Args do
+				wantArgs[i] = v == "{boost}" and boostId or v
+				shown[i] = tostring(wantArgs[i])
+			end
+			want = expect.Remote.Name .. "(" .. table.concat(shown, ", ") .. ")"
+			names = {}
+			for _, f in fired do
+				local parts = {}
+				for i = 1, #f.args do
+					parts[i] = tostring(f.args[i])
+				end
+				table.insert(names, f.name .. "(" .. table.concat(parts, ", ") .. ")")
+			end
+			ok = #fired == 1 and fired[1].name == expect.Remote.Name and #fired[1].args == #wantArgs
+			for i, v in wantArgs do
+				ok = ok and fired[1].args[i] == v
+			end
+		end
 		if ok and (expect.Remote.Arg == "upgrade_id" or expect.Remote.Arg == "none") then
 			ok = #fired[1].args == (expect.Remote.Arg == "none" and 0 or 1)
 		end
@@ -5757,6 +6144,10 @@ function UiScenarios.RunClick(id)
 		elseif cond == "normal_view_back" then
 			checkList(res, "normal_view_buttons_clickable", alwaysOnCovered())
 			checkList(res, "showcase_not_clickable_after_close", showcaseHits())
+		elseif extras.After[cond] then
+			extras.After[cond](res, { pre = pre })
+		elseif Progression.After[cond] then
+			Progression.After[cond](res) -- weather icon / card (UiSpec.Weather)
 		else
 			check(res, "unknown_condition_" .. tostring(cond), cond, "known", false)
 		end

@@ -8,7 +8,9 @@ local gui = player:WaitForChild("PlayerGui")
 local shared = ReplicatedStorage:WaitForChild("Shared")
 local Market = require(shared:WaitForChild("MarketConfig"))
 local Format = require(shared:WaitForChild("HudFormat"))
+local HudButtonStyle = require(script.Parent.RollToast.Ui.HudButtonStyle)
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
+local PanelSwitch = require(script.Parent:WaitForChild("PanelSwitch"))
 
 local function make(class, name, parent, props)
 	local object = Instance.new(class)
@@ -24,12 +26,13 @@ local root = make(
 	"ScreenGui",
 	"MarketUi",
 	gui,
-	{ ResetOnSpawn = false, IgnoreGuiInset = true, DisplayOrder = 8, ZIndexBehavior = Enum.ZIndexBehavior.Sibling }
+	{ ResetOnSpawn = false, IgnoreGuiInset = true, DisplayOrder = 4, ZIndexBehavior = Enum.ZIndexBehavior.Sibling }
 )
 local openButton = make("TextButton", "MarketButton", root, {
 	AnchorPoint = Vector2.new(1, 0),
-	Position = UDim2.new(1, -16, 0.32, 0),
-	Size = UDim2.fromOffset(124, 44),
+	-- Continue the reserved responsive right-hand utility stack below the duel/result-toast band.
+	Position = UDim2.new(1, -16, 0.22, 218),
+	Size = UDim2.fromOffset(116, 44),
 	Text = "MARKET",
 	Font = Enum.Font.GothamBlack,
 	TextSize = 16,
@@ -37,6 +40,7 @@ local openButton = make("TextButton", "MarketButton", root, {
 	BackgroundColor3 = Color3.fromRGB(255, 170, 45),
 })
 make("UICorner", "Corner", openButton, { CornerRadius = UDim.new(0, 9) })
+HudButtonStyle.Utility(openButton, 3, HudButtonStyle.Colors.Market)
 local backdrop = make("TextButton", "Backdrop", root, {
 	Size = UDim2.fromScale(1, 1),
 	Text = "",
@@ -45,10 +49,11 @@ local backdrop = make("TextButton", "Backdrop", root, {
 	Visible = false,
 	AutoButtonColor = false,
 })
+PanelSwitch.Register("Market", backdrop)
 local panel = make("Frame", "Panel", backdrop, {
-	AnchorPoint = Vector2.new(0.5, 0.5),
-	Position = UDim2.fromScale(0.5, 0.5),
-	Size = UDim2.fromScale(0.84, 0.72),
+	AnchorPoint = Vector2.new(0.5, 0),
+	Position = UDim2.new(0.5, 0, 0, 124),
+	Size = UDim2.fromScale(0.84, 0.48),
 	BackgroundColor3 = Color3.fromRGB(29, 32, 53),
 	Active = true,
 })
@@ -275,12 +280,22 @@ refresh = function()
 end
 
 local function open()
+	PanelSwitch.Toggle("Market")
 	refresh()
-	backdrop.Visible = true
 end
 local function closeMarket()
-	backdrop.Visible = false
+	PanelSwitch.Close("Market")
 end
+PanelSwitch.OnChange(function()
+	openButton.Visible = not PanelSwitch.AnyOpen()
+end)
+openButton.Visible = not PanelSwitch.AnyOpen()
+task.spawn(function()
+	while root.Parent do
+		openButton.Visible = not PanelSwitch.AnyOpen()
+		task.wait(0.05)
+	end
+end)
 openButton.Activated:Connect(open)
 close.Activated:Connect(closeMarket)
 backdrop.Activated:Connect(closeMarket)

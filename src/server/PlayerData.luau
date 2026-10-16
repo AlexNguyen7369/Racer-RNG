@@ -6,6 +6,7 @@
 -- flagged DataFailed and their stats are never written, so a failed load can not wipe a save.
 
 local DataStoreService = game:GetService("DataStoreService")
+local HttpService = game:GetService("HttpService")
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -25,10 +26,18 @@ local LevelService = require(script.Parent.LevelService)
 local PlayerData = {}
 
 local STORE_NAME = "PlayerStats_v1"
-local VERSION = 7 -- 3: gacha; 4: upgrades/workshop; 5: market; 6: rebirth/boosts/daily login; 7: level/xp
+local VERSION = 8 -- 3: gacha; 4: upgrades/workshop; 5: market; 6: rebirth/boosts/daily login; 7: level/xp;
+-- 8: session lock, MoneyEarned, DuelWins (docs/SAVE_SPEC.md)
 local MAX_MONEY = 1e12
 local MAX_ADD = 1e6 -- most a single AddSpeed call may add
 local AUTOSAVE_SECONDS = 60
+local MAX_DUEL_WINS = 1e9
+
+-- Session lock (docs/SAVE_SPEC.md): the saved record names the server that holds it, so two servers never
+-- write the same save.
+PlayerData.LOCK_TIMEOUT = 120 -- seconds: a lock this old is dead and may be taken
+PlayerData.LOAD_RETRIES = 3 -- attempts in total
+PlayerData.LOAD_RETRY_WAIT = 2 -- seconds between attempts
 
 local store = nil
 local clock = os.time
@@ -38,6 +47,34 @@ function PlayerData.SetClock(fn)
 end
 
 local leaveHooks = {}
+
+local defaultSession = nil
+local sessionId = nil
+
+-- This server's id in save locks: game.JobId, or a GUID made once when JobId is empty (Studio).
+function PlayerData.SessionId()
+	if sessionId then
+		return sessionId
+	end
+	if not defaultSession then
+		defaultSession = game.JobId ~= "" and game.JobId or HttpService:GenerateGUID(false)
+	end
+	return defaultSession
+end
+
+-- Tests: act as another server. nil restores the default.
+function PlayerData.SetSessionId(id)
+	sessionId = id
+end
+
+-- True when another server holds a lock that has not timed out.
+local function lockedElsewhere(record, at)
+	local lock = type(record) == "table" and record.Lock
+	return type(lock) == "table"
+		and lock.Id ~= PlayerData.SessionId()
+		and type(lock.At) == "number"
+		and at - lock.At < PlayerData.LOCK_TIMEOUT
+end
 
 function PlayerData.SetStore(newStore)
 	store = newStore
@@ -114,103 +151,89 @@ function PlayerData.Load(player, userId)
 	local money = MoneyService.Setup(player)
 	local speed = speedValue(player)
 	local dataStore = getStore()
-	local ok, data
-	if dataStore then
-		ok, data = pcall(function()
-			return dataStore:GetAsync(PlayerData.KeyFor(userId))
-		end)
-	end
-	if not ok then
+	if not dataStore then
 		player:SetAttribute("DataFailed", true)
 		return false
 	end
-	if type(data) ~= "table" then
-		data = {}
+
+	local function apply(data)
+		money.Value = cleanInt(data.Money, 0, MAX_MONEY, 0)
+		speed.Value = cleanStat(data.Speed)
+		GachaService.Apply(player, data) -- older saves have no gacha fields: starter car, nothing allocated
+		UpgradeService.Apply(player, data) -- version 3 and older: no tiles, BestTrack 0, TurboCount from Rolls % 10
+		MarketService.Apply(player, data)
+		player:SetAttribute("WorkshopLevel", Workshop.CleanLevel(data.WorkshopLevel)) -- missing = the starter workshop
+		RebirthService.Apply(player, data)
+		BoostService.Apply(player, data)
+		DailyLoginService.Apply(player, data)
+		LevelService.Apply(player, data)
+		player:SetAttribute("MoneyEarned", cleanInt(data.MoneyEarned, 0, MAX_MONEY, 0))
+		player:SetAttribute("DuelWins", cleanInt(data.DuelWins, 0, MAX_DUEL_WINS, 0))
 	end
-	money.Value = cleanInt(data.Money, 0, MAX_MONEY, 0)
-	speed.Value = cleanStat(data.Speed)
-	GachaService.Apply(player, data) -- older saves have no gacha fields: starter car, nothing allocated
-	UpgradeService.Apply(player, data) -- version 3 and older: no tiles, BestTrack 0, TurboCount from Rolls % 10
-	MarketService.Apply(player, data)
-	player:SetAttribute("WorkshopLevel", Workshop.CleanLevel(data.WorkshopLevel)) -- missing = the starter workshop
-	RebirthService.Apply(player, data)
-	BoostService.Apply(player, data)
-	DailyLoginService.Apply(player, data)
-	LevelService.Apply(player, data)
-	local at = clock()
-	local offlineAt = data.OfflineAt
-	local seconds = type(offlineAt) == "number"
-			and offlineAt == offlineAt
-			and offlineAt >= 0
-			and offlineAt <= at
-			and math.min(at - offlineAt, Workshop.Config.OFFLINE_CAP)
-		or 0
-	local gain = Workshop.OfflineGain(
-		speed.Value,
-		GachaService.SpeedMulti(player),
-		data.WorkshopLevel,
-		GachaService.WorkshopMulti(player),
-		seconds
-	)
-	local moneyGain =
-		Workshop.OfflineMoney(
-			speed.Value,
-			GachaService.SpeedMulti(player),
-			data.WorkshopLevel,
-			GachaService.WorkshopMulti(player),
-			seconds
-		)
-	if gain > 0 or moneyGain > 0 then
-		-- Persist the claim before exposing it. UpdateAsync retries can never award the same saved absence twice.
-		local claimed = 0
-		local claimedMoney = 0
-		local claimOk, updated = pcall(function()
+
+	-- One UpdateAsync per attempt takes the lock and claims the offline Speed together, so a retried or competing
+	-- load can never pay the same absence twice. Nothing in the transform yields.
+	local gain, seconds = 0, 0
+	local updated = nil
+	for attempt = 1, PlayerData.LOAD_RETRIES do
+		local refused = false
+		local ok, result = pcall(function()
 			return dataStore:UpdateAsync(PlayerData.KeyFor(userId), function(current)
-				claimed = 0
-				claimedMoney = 0
-				if type(current) ~= "table" or current.OfflineAt ~= offlineAt then
+				local at = clock()
+				refused = lockedElsewhere(current, at)
+				if refused then
 					return nil
 				end
-				local result = table.clone(current)
-				claimed = gain
-				claimedMoney = moneyGain
-				result.Speed = cleanStat(cleanStat(current.Speed) + gain)
-				result.Money = cleanInt(cleanInt(current.Money, 0, MAX_MONEY, 0) + moneyGain, 0, MAX_MONEY, 0)
-				result.OfflineAt = at
-				return result
+				local record = type(current) == "table" and table.clone(current) or {}
+				apply(record) -- the multis below read the player's loaded cars, points and upgrades
+				local offlineAt = record.OfflineAt
+				seconds = type(offlineAt) == "number"
+						and offlineAt == offlineAt
+						and offlineAt >= 0
+						and offlineAt <= at
+						and math.min(at - offlineAt, Workshop.Config.OFFLINE_CAP)
+					or 0
+				gain = Workshop.OfflineGain(
+					speed.Value,
+					GachaService.SpeedMulti(player),
+					record.WorkshopLevel,
+					GachaService.WorkshopMulti(player),
+					seconds
+				)
+				if gain > 0 then
+					record.Speed = cleanStat(speed.Value + gain)
+					record.OfflineAt = at
+				end
+				record.Lock = { Id = PlayerData.SessionId(), At = at }
+				return record
 			end)
 		end)
-		if not claimOk then
-			player:SetAttribute("DataFailed", true)
-			return false
+		if not ok then
+			break -- store error: never guess a save
 		end
-		if type(updated) ~= "table" then
-			player:SetAttribute("DataFailed", true)
-			return false -- competing load: don't overwrite a save whose claim changed under us
+		if not refused and type(result) == "table" then
+			updated = result
+			break
 		end
-		speed.Value = cleanStat(updated.Speed)
-		money.Value = cleanInt(updated.Money, 0, MAX_MONEY, 0)
-		GachaService.Apply(player, updated)
-		UpgradeService.Apply(player, updated)
-		MarketService.Apply(player, updated)
-		player:SetAttribute("WorkshopLevel", Workshop.CleanLevel(updated.WorkshopLevel))
-		RebirthService.Apply(player, updated)
-		BoostService.Apply(player, updated)
-		DailyLoginService.Apply(player, updated)
-		LevelService.Apply(player, updated)
-		gain = claimed
-		moneyGain = claimedMoney
+		if attempt < PlayerData.LOAD_RETRIES then
+			task.wait(PlayerData.LOAD_RETRY_WAIT) -- another server may be saving this player out right now
+		end
 	end
+	if not updated then
+		player:SetAttribute("DataFailed", true)
+		return false
+	end
+	apply(updated)
 	player:SetAttribute("OfflineSpeed", gain)
-	player:SetAttribute("OfflineMoney", moneyGain)
 	player:SetAttribute("OfflineSeconds", seconds)
 	player:SetAttribute("DataFailed", nil)
 	player:SetAttribute("DataLoaded", true)
 	return true
 end
 
--- Returns true if the stats were written. Never writes for a player whose load failed or has not finished.
-function PlayerData.Save(player, userId)
+-- Returns true if the stats were written. Never writes for a player whose load failed or has not finished, or
+-- when another server took the session lock. `release` (leave, shutdown) writes the record without a lock.
+function PlayerData.Save(player, userId, release)
 	userId = userId or player.UserId
 	-- Never write before the load finished: a leaving player whose GetAsync is still pending would
 	-- otherwise overwrite their real save with defaults.
@@ -251,13 +274,24 @@ function PlayerData.Save(player, userId)
 		OwnedTrails = market.OwnedTrails,
 		EquippedAura = market.EquippedAura,
 		EquippedTrail = market.EquippedTrail,
+		MoneyEarned = cleanInt(player:GetAttribute("MoneyEarned"), 0, MAX_MONEY, 0),
+		DuelWins = cleanInt(player:GetAttribute("DuelWins"), 0, MAX_DUEL_WINS, 0),
 		OfflineAt = clock(),
 		Version = VERSION,
 	}
+	local refused = false
 	local ok = pcall(function()
-		dataStore:SetAsync(PlayerData.KeyFor(userId), payload)
+		dataStore:UpdateAsync(PlayerData.KeyFor(userId), function(current)
+			local at = clock()
+			refused = lockedElsewhere(current, at)
+			if refused then
+				return nil -- this server lost the session: never overwrite the other server's save
+			end
+			payload.Lock = if release then nil else { Id = PlayerData.SessionId(), At = at }
+			return payload
+		end)
 	end)
-	return ok
+	return ok and not refused
 end
 
 -- The player's Speed stat, a number in [0, MAX_STAT] (0 if they have none).
@@ -315,11 +349,11 @@ function PlayerData.Start()
 		for _, hook in leaveHooks do
 			pcall(hook, player) -- e.g. CarService stops the run, committing its last Speed gain
 		end
-		PlayerData.Save(player)
+		PlayerData.Save(player, nil, true)
 	end)
 	game:BindToClose(function()
 		for _, player in Players:GetPlayers() do
-			PlayerData.Save(player)
+			PlayerData.Save(player, nil, true)
 		end
 	end)
 	task.spawn(function()

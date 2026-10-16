@@ -13,6 +13,7 @@ local MoneyService = {}
 MoneyService.COOLDOWN = 5 -- seconds before the same player can collect from the same pad again
 
 local MAX_AWARD = 1e9
+local MAX_EARNED = 1e12 -- same cap as PlayerData MAX_MONEY
 
 local lastCollect = setmetatable({}, { __mode = "k" }) -- player -> { [pad] = time }
 
@@ -44,6 +45,8 @@ function MoneyService.Award(player, amount)
 	end
 	local money = MoneyService.Setup(player)
 	money.Value += amount
+	-- Lifetime Money earned (leaderboard, docs/SAVE_SPEC.md): every award counts, spending never lowers it.
+	player:SetAttribute("MoneyEarned", math.min((player:GetAttribute("MoneyEarned") or 0) + amount, MAX_EARNED))
 	return money.Value
 end
 

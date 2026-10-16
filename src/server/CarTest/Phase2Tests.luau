@@ -1,8 +1,14 @@
 --!nonstrict
--- BRIEF: Workshop phase 2: exact integrated 25% offline rate, eight-hour cap,
+-- BRIEF: Workshop phase 2: exact 25% offline rate, eight-hour cap,
 -- MAX_STAT, guarded next-level purchase, OfflineAt persistence and one-time credit.
+-- Owner, 2026-10-13 (design doc "Core stat model", WORKSHOP_SPEC section 4): no diminishing term. Offline Speed =
+-- Workshop.Rate x OFFLINE_FRACTION x min(seconds, OFFLINE_CAP), never above MAX_STAT - stat; the stat itself
+-- never reduces it. (Was: the integral of rate / (1 + stat / GAIN_SOFT).)
 -- Weather: rain luck 2, night NPC speed 1.25/money 2, gold money 3, expiry,
 -- actual rolls/payouts and Event-only catalog eligibility. No owner prices assumed.
+-- Weather, owner 2026-10-13 (design doc "Weather events", WEATHER_EVENTS_SPEC "Schedule"): a weather every
+-- 15 minutes start to start for 3 minutes, five weathers picked with equal chance (clear, rain, night, gold,
+-- aurora), clear changes nothing, aurora luck 1.5 / money 1.5, WeatherConfig.Describe.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
@@ -35,15 +41,12 @@ local function near(a, b, tolerance)
 	return type(a) == "number" and a == a and math.abs(a - b) <= (tolerance or 1e-6)
 end
 
--- Independent oracle: ds/dt = A/(1+s/H). Rationalized to avoid cancellation
--- close to MAX_STAT; this deliberately never calls Workshop.Rate/OfflineGain.
+-- Independent oracle (owner, 2026-10-13): 25% of the workshop rate x the time capped at eight hours, clamped to
+-- MAX_STAT - stat. The stat does not reduce it. This deliberately never calls Workshop.Rate/OfflineGain.
 local function integrated(stat, speedMulti, levelMulti, workshopMulti, seconds, config, race)
 	local a = 0.25 * config.BASE_RATE * speedMulti * levelMulti * workshopMulti
-	local h = race.GAIN_SOFT
 	local t = math.clamp(seconds, 0, 8 * 60 * 60)
-	local q = 2 * h * a * t
-	local gain = q / (math.sqrt((stat + h) ^ 2 + q) + stat + h)
-	return math.min(gain, math.max(0, race.MAX_STAT - stat))
+	return math.min(a * t, math.max(0, race.MAX_STAT - stat))
 end
 
 function Tests.workshop_offline()
@@ -63,7 +66,7 @@ function Tests.workshop_offline()
 		return got, want
 	end
 	exact("offline_exact_quarter_rate_from_zero", 0, 1, 1, 1, 3600)
-	exact("offline_exact_diminishing_existing_stat", race.GAIN_SOFT, 3, 1, 2, 7200)
+	exact("offline_exact_existing_stat_not_reduced", 2000, 3, 1, 2, 7200)
 	exact("offline_eight_hour_cap", 1234, 2, 1, 3, 8 * 3600)
 	exact("offline_beyond_eight_hours_same_gain", 1234, 2, 1, 3, 48 * 3600)
 	exact("offline_zero_seconds", 100, 2, 1, 3, 0)
@@ -72,14 +75,33 @@ function Tests.workshop_offline()
 	exact("offline_zero_workshop_multi", 100, 2, 1, 0, 3600)
 	exact("offline_max_stat_no_gain", race.MAX_STAT, 2, 1, 3, 8 * 3600)
 	exact("offline_crossing_max_stat_clamped", race.MAX_STAT - 0.25, 1e8, 1, 2, 8 * 3600)
-	-- A frozen rate * seconds approximation must fail this discriminating fixture.
-	local got, want = exact("offline_integrates_instead_of_frozen_rate", 0, 10, 1, 5, 8 * 3600)
-	local frozen = 0.25 * config.BASE_RATE * 10 * 5 * 8 * 3600
-	flag("offline_oracle_distinguishes_linear_shortcut", math.abs(want - frozen) > 1 and near(got, want))
+	-- Owner, 2026-10-13: the rate x the capped time IS the rule (was: an integral that paid less).
+	local got = exact("offline_is_rate_times_capped_time", 0, 10, 1, 5, 8 * 3600)
+	local linear = 0.25 * config.BASE_RATE * 10 * 5 * 8 * 3600
+	flag("offline_no_diminishing_from_zero", near(got, linear), type(got) == "number" and got or -1, linear)
+	-- The public contract: OfflineGain = Rate x OFFLINE_FRACTION x clamp(seconds, 0, OFFLINE_CAP).
+	local contract = type(workshop.Rate) == "function"
+		and type(config.OFFLINE_FRACTION) == "number"
+		and type(config.OFFLINE_CAP) == "number"
+	for _, case in { { 0, 3600 }, { 2000, 3600 }, { 1e6, 7200 }, { 1e6, 48 * 3600 }, { 5e8, 100 } } do
+		local stat, seconds = case[1], case[2]
+		local okWant, wantGain = pcall(function()
+			return workshop.Rate(stat, 2, 1, 3) * config.OFFLINE_FRACTION * math.clamp(seconds, 0, config.OFFLINE_CAP)
+		end)
+		local okGot, gotGain = pcall(workshop.OfflineGain, stat, 2, 1, 3, seconds)
+		contract = contract and okWant and okGot and near(gotGain, wantGain) and wantGain > 0
+	end
+	flag("offline_equals_rate_times_fraction_times_time", contract)
+	local same = true
+	local atZero = workshop.OfflineGain(0, 2, 1, 3, 3600)
+	for _, stat in { 2000, 1e6, 5e8 } do
+		same = same and atZero > 0 and workshop.OfflineGain(stat, 2, 1, 3, 3600) == atZero
+	end
+	flag("offline_same_gain_at_any_stat", same, type(atZero) == "number" and atZero or -1, 0.25 * 2 * 3 * 3600)
 	local first = workshop.OfflineGain(500, 2, 1, 3, 1800)
 	local second = workshop.OfflineGain(500 + first, 2, 1, 3, 1800)
 	local whole = workshop.OfflineGain(500, 2, 1, 3, 3600)
-	flag("offline_integral_composes", near(first + second, whole))
+	flag("offline_gain_composes", near(first + second, whole))
 	for level, entry in config.Levels do
 		exact("offline_configured_level_" .. level, 500, 2, level, 3, 3600)
 		flag("offline_level_multi_valid_" .. level, type(entry.Multi) == "number" and entry.Multi > 0)
@@ -244,13 +266,17 @@ function Tests.workshop_phase2()
 			saved = payload
 			initial = payload
 		end
+		-- docs/SAVE_SPEC.md section 1 (VERSION 8): Load and Save are one UpdateAsync each. It returns the new value
+		-- and writes nothing (returning nil, like the real DataStore) when the transform returns nil.
 		function store:UpdateAsync(_key, transform)
 			self.claims += 1
 			local updated = transform(table.clone(initial))
-			if updated ~= nil then
-				initial = updated
+			if updated == nil then
+				return nil
 			end
-			return initial
+			saved = updated
+			initial = updated
+			return updated
 		end
 		data.SetStore(store)
 		local p = player("OfflineLoad")
@@ -265,11 +291,12 @@ function Tests.workshop_phase2()
 			race
 		)
 		local want = initial.Speed + offlineGain
-		-- Money credit: 10% of the integrated Speed credit, floored (WORKSHOP_SPEC); the oracle, not Workshop.OfflineMoney
-		local wantMoney = 41 + math.floor(offlineGain * 0.10)
+		-- Owner, 2026-10-12 (docs/SAVE_SPEC.md section 3): offline earnings are Speed ONLY. Money after the load is
+		-- the saved Money exactly (was: + 10% of the Speed credit).
+		local wantMoney = 41
 		flag("offline_load_succeeds", data.Load(p, 74002, at) == true)
 		flag(
-			"offline_load_credits_exact_integral",
+			"offline_load_credits_rate_times_time",
 			near(p.leaderstats.Speed.Value, want, 0.002),
 			p.leaderstats.Speed.Value,
 			want
@@ -279,10 +306,24 @@ function Tests.workshop_phase2()
 			store.claims == 1
 				and near(initial.Speed, want, 0.002)
 				and initial.OfflineAt == at
-				and initial.Money == wantMoney
-				and workshop ~= nil
-				and 41 + workshop.OfflineMoney(2500, gacha.SpeedMulti(p), 1, gacha.WorkshopMulti(p), 3600) == wantMoney
 				and initial.WorkshopLevel == 1
+		)
+		flag(
+			"offline_load_credits_no_money",
+			p.leaderstats.Money.Value == wantMoney,
+			p.leaderstats.Money.Value,
+			wantMoney
+		)
+		flag(
+			"offline_claim_leaves_saved_money",
+			initial.Money == wantMoney,
+			type(initial.Money) == "number" and initial.Money or -1,
+			wantMoney
+		)
+		flag("offline_money_attribute_not_set", p:GetAttribute("OfflineMoney") == nil)
+		flag(
+			"offline_money_api_removed",
+			workshop ~= nil and workshop.OfflineMoney == nil and config.OFFLINE_MONEY_FRACTION == nil
 		)
 		flag(
 			"offline_welcome_attributes",
@@ -305,7 +346,10 @@ function Tests.workshop_phase2()
 		end
 		function racedStore:UpdateAsync(_key, transform)
 			local updated = transform(table.clone(claimed))
-			return updated or claimed
+			if updated ~= nil then
+				claimed = updated
+			end
+			return updated
 		end
 		data.SetStore(racedStore)
 		local raced = player("ConcurrentClaim")
@@ -315,6 +359,7 @@ function Tests.workshop_phase2()
 			raceLoaded == true
 					and near(raced.leaderstats.Speed.Value, want, 0.002)
 					and raced:GetAttribute("OfflineSpeed") == 0
+					and raced.leaderstats.Money.Value == wantMoney
 				or raceLoaded == false
 					and raced:GetAttribute("DataFailed") == true
 					and raced:GetAttribute("DataLoaded") ~= true
@@ -332,13 +377,15 @@ function Tests.workshop_phase2()
 		flag("offline_save_succeeds", data.Save(p, 74002) == true)
 		flag(
 			"offline_at_saved_unix_timestamp",
-			saved ~= nil and type(saved.OfflineAt) == "number" and saved.OfflineAt == clock and saved.Version == 7
+			saved ~= nil and type(saved.OfflineAt) == "number" and saved.OfflineAt == clock and saved.Version == 8
 		)
 		local afterSave = player("ReconnectAfterSave")
 		data.Load(afterSave, 74002)
 		flag(
 			"offline_save_does_not_replay_previous_absence",
-			near(afterSave.leaderstats.Speed.Value, once, 0.002) and afterSave:GetAttribute("OfflineSpeed") == 0
+			near(afterSave.leaderstats.Speed.Value, once, 0.002)
+				and afterSave:GetAttribute("OfflineSpeed") == 0
+				and afterSave.leaderstats.Money.Value == wantMoney
 		)
 		clock = at
 		for _, case in { { "Legacy", nil }, { "Future", at + 3600 }, { "Malformed", "bad" } } do
@@ -376,6 +423,9 @@ function Tests.workshop_phase2()
 		end
 		data.SetStore(store)
 		function store:GetAsync(_key)
+			error("injected load failure")
+		end
+		function store:UpdateAsync(_key, _transform) -- VERSION 8: the load is this call
 			error("injected load failure")
 		end
 		local failed = player("Failed")
@@ -474,8 +524,19 @@ function Tests.weather()
 		local at = Workspace:GetServerTimeNow()
 		weather.SetEvent("", at)
 		local baseLuck, baseMoney = gacha.Luck(p), gacha.MoneyMulti(p)
-		local expected = { rain = { 2, 1, 1 }, night = { 1, 2, 1.25 }, gold = { 1, 3, 1 } }
-		for _, id in { "rain", "night", "gold" } do
+		-- Spec table (owner, 2026-10-13): Luck, Money, NPC speed. "clear" is a real pick that changes nothing.
+		local expected = {
+			clear = { 1, 1, 1 },
+			rain = { 2, 1, 1 },
+			night = { 1, 2, 1.25 },
+			gold = { 1, 3, 1 },
+			aurora = { 1.5, 1.5, 1 },
+		}
+		-- "" is the state between weathers; "clear" is now a weather id, so "" is labelled "none".
+		local function label(id)
+			return id == "" and "none" or id
+		end
+		for _, id in { "clear", "rain", "night", "gold", "aurora" } do
 			local values = expected[id]
 			flag("weather_set_" .. id, weather.SetEvent(id, at) == true)
 			local current, expiry = weather.Current()
@@ -532,7 +593,7 @@ function Tests.weather()
 		local route = races and races.GetRoute()
 		flag("weather_npc_live_route_available", route ~= nil and factory ~= nil and carConfig ~= nil)
 		if route and factory and carConfig then
-			for _, event in { "", "night" } do
+			for _, event in { "", "night", "clear", "aurora" } do
 				weather.SetEvent(event, at)
 				local car = factory.build(carConfig)
 				car.Parent = Workspace
@@ -547,11 +608,8 @@ function Tests.weather()
 					end,
 				})
 				table.insert(resources, run)
-				local wantSpeed = route.Tracks[1].Npc.Config.Speed * (event == "night" and 1.25 or 1)
-				flag(
-					"weather_reaches_npc_track_start_" .. (event == "" and "clear" or event),
-					start ~= nil and near(start.Speed, wantSpeed)
-				)
+				local wantSpeed = route.Tracks[1].Npc.Config.Speed * (event == "" and 1 or expected[event][3])
+				flag("weather_reaches_npc_track_start_" .. label(event), start ~= nil and near(start.Speed, wantSpeed))
 				run:Destroy()
 				resources[#resources] = nil
 				car:Destroy()
@@ -592,6 +650,75 @@ function Tests.weather()
 			local wet = gacha.Roll(p, sample("rain"))
 			flag("weather_rain_changes_actual_roll_threshold", dry ~= target.Id and wet == target.Id)
 		end
+		-- BRIEF (owner, 2026-10-13; design doc "Weather events": "Luck from an event is free, but the displayed
+		-- odds must still update while it is active"; WEATHER_EVENTS_SPEC "Displayed odds"): Roll returns the
+		-- roll's luck as its 6th value, GachaService.Luck(player) at that moment, WITHOUT the turbo multi.
+		do
+			local function rollLuck(event, turboCount)
+				weather.SetEvent(event, at)
+				p:SetAttribute("TurboCount", turboCount)
+				local want = gacha.Luck(p)
+				local _, _, turboMulti, _, _, luck = gacha.Roll(p, {
+					NextNumber = function()
+						return 0.999999
+					end,
+				})
+				return luck, want, turboMulti
+			end
+			local clearLuck, clearWant = rollLuck("", 0)
+			flag(
+				"weather_roll_luck_none",
+				type(clearLuck) == "number" and clearLuck == clearWant and near(clearLuck, baseLuck),
+				type(clearLuck) == "number" and clearLuck or -1,
+				baseLuck
+			)
+			-- x2 is exact in floating point, so "exactly 2x" is an equality, not a tolerance.
+			-- x1.5 (aurora) may differ by one rounding step depending on the product order, so it gets a tolerance.
+			for _, event in { "clear", "rain", "night", "gold", "aurora" } do
+				local luck, want = rollLuck(event, 0)
+				local factor = expected[event][1]
+				local limit = factor * baseLuck
+				flag(
+					"weather_roll_luck_" .. event,
+					type(luck) == "number"
+						and luck == want
+						and (luck == factor * clearLuck or event == "aurora" and near(luck, factor * clearLuck, 1e-9)),
+					type(luck) == "number" and luck or -1,
+					limit
+				)
+			end
+			-- TurboCount 9 makes this the turbo roll (x10 with no Turbo tier): the multi is the 3rd value, never in luck.
+			local turboLuck, turboWant, turboMulti = rollLuck("rain", 9)
+			flag(
+				"weather_roll_luck_excludes_turbo",
+				type(turboMulti) == "number"
+					and turboMulti > 1
+					and type(turboLuck) == "number"
+					and turboLuck == turboWant
+					and near(turboLuck, 2 * baseLuck),
+				type(turboLuck) == "number" and turboLuck or -1,
+				2 * baseLuck
+			)
+			local restoredLuck, restoredWant = rollLuck("", 0)
+			flag(
+				"weather_roll_luck_restored_after_clear",
+				type(restoredLuck) == "number" and restoredLuck == restoredWant and restoredLuck == clearLuck,
+				type(restoredLuck) == "number" and restoredLuck or -1,
+				baseLuck
+			)
+			p:SetAttribute("TurboCount", 0)
+		end
+		-- Spec: "Three permanent catalog keys are available only during their matching event (Clear and Aurora
+		-- have none)."
+		for _, event in { "clear", "aurora" } do
+			local count = 0
+			for _, spec in catalog.All() do
+				if spec.Event == event then
+					count += 1
+				end
+			end
+			flag("weather_no_event_only_car_" .. event, count == 0, count, 0)
+		end
 		for _, event in { "rain", "night", "gold" } do
 			local eventCar
 			for _, spec in catalog.All() do
@@ -609,8 +736,9 @@ function Tests.weather()
 					end
 				end
 				flag("weather_variant_shares_existing_mesh_" .. event, sharedMesh)
-				for _, active in { "", "rain", "night", "gold" } do
-					weather.SetEvent(active, at)
+				for _, active in { "", "rain", "night", "gold", "clear", "aurora" } do
+					-- the state must really be `active`: a refused SetEvent would leave the previous weather on
+					local set = weather.SetEvent(active, at) == true and weather.Current() == active
 					local eligible = {}
 					for _, spec in catalog.Rollable() do
 						if spec.Chance and (not spec.Event or spec.Event == active) then
@@ -630,8 +758,8 @@ function Tests.weather()
 					p:SetAttribute("TurboCount", 0)
 					local rolled = gacha.Roll(p, rng)
 					flag(
-						"weather_event_car_eligibility_" .. event .. "_" .. (active == "" and "clear" or active),
-						active == event and rolled == eventCar.Id or active ~= event and rolled ~= eventCar.Id
+						"weather_event_car_eligibility_" .. event .. "_" .. label(active),
+						set and (active == event and rolled == eventCar.Id or active ~= event and rolled ~= eventCar.Id)
 					)
 				end
 			end
@@ -644,7 +772,7 @@ function Tests.weather()
 				catchAll = spec.Id
 			end
 		end
-		for _, active in { "", "rain", "night", "gold" } do
+		for _, active in { "", "rain", "night", "gold", "clear", "aurora" } do
 			local eligible = {}
 			for _, spec in catalog.Rollable() do
 				if spec.Chance and (spec.Event == nil or spec.Event == active) then
@@ -659,7 +787,7 @@ function Tests.weather()
 				end,
 			}, 1, active)
 			flag(
-				"weather_filters_before_rng_" .. (active == "" and "clear" or active),
+				"weather_filters_before_rng_" .. label(active),
 				draws == #eligible and fallback == catchAll,
 				draws,
 				#eligible
@@ -683,12 +811,7 @@ function Tests.weather()
 						-- When filtered, the unfiltered target index can hit a normal
 						-- car; the required assertion is exclusion of this event car.
 						flag(
-							"weather_catalog_roll_"
-								.. candidate.Id
-								.. "_"
-								.. (active == "" and "clear" or active)
-								.. "_"
-								.. boundary,
+							"weather_catalog_roll_" .. candidate.Id .. "_" .. label(active) .. "_" .. boundary,
 							allowed and got == want or not allowed and got ~= candidate.Id
 						)
 					end
@@ -698,10 +821,7 @@ function Tests.weather()
 							return 1
 						end,
 					}, 1, active)
-					flag(
-						"weather_catalog_catch_all_" .. (active == "" and "clear" or active),
-						got == candidate.Id and candidate.Event == nil
-					)
+					flag("weather_catalog_catch_all_" .. label(active), got == candidate.Id and candidate.Event == nil)
 				end
 			end
 		end
@@ -743,7 +863,375 @@ function Tests.weather()
 			flag("catalog_saved_ownership_" .. spec.Id, owned ~= nil and owned:FindFirstChild(spec.Id) ~= nil)
 		end
 	end)
+	-- BRIEF (owner, 2026-10-13; docs/GAME_DESIGN_REQUIREMENTS.md "Weather events", docs/WEATHER_EVENTS_SPEC.md
+	-- "Schedule" and "Weather icon"): "A weather starts every 15 minutes (WeatherConfig.INTERVAL, start to start)
+	-- and lasts 3 minutes (DURATION) ... The server picks one id from WeatherConfig.Order with equal chance
+	-- (1 in 5): clear, rain, night, gold, aurora. An explicit WeatherService.SetEvent(id, at) restarts the 15
+	-- minutes from at; a weather that simply expires does not move the next start." "Describe lists every
+	-- multiplier that is not 1 as LUCK x2, MONEY x2, NPC SPEED x1.25, joined by ' • ', and returns NO BONUS for
+	-- Clear, for '' and for an unknown id."
+	local scheduleOk, scheduleErr = pcall(function()
+		local interval, duration = config.INTERVAL, config.DURATION
+		flag("weather_interval_15_minutes", interval == 15 * 60, type(interval) == "number" and interval or -1, 900)
+		flag("weather_duration_3_minutes", duration == 3 * 60, type(duration) == "number" and duration or -1, 180)
+		flag("weather_random_interval_removed", config.MIN_INTERVAL == nil and config.MAX_INTERVAL == nil)
+		local wantOrder = { "clear", "rain", "night", "gold", "aurora" }
+		local wantNames =
+			{ clear = "CLEAR", rain = "RAIN", night = "NIGHT RACE", gold = "GOLD RUSH", aurora = "AURORA" }
+		local wantMultis = {
+			clear = { 1, 1, 1 },
+			rain = { 2, 1, 1 },
+			night = { 1, 2, 1.25 },
+			gold = { 1, 3, 1 },
+			aurora = { 1.5, 1.5, 1 },
+		}
+		local order = type(config.Order) == "table" and config.Order or {}
+		local orderExact = #order == #wantOrder
+		for i, id in wantOrder do
+			orderExact = orderExact and order[i] == id
+		end
+		flag("weather_order_exact_five", orderExact, #order, #wantOrder)
+		local inOrder = {}
+		for _, id in wantOrder do
+			inOrder[id] = true
+			local spec = type(config.Events) == "table" and config.Events[id] or nil
+			local values = wantMultis[id]
+			flag("weather_config_name_" .. id, type(spec) == "table" and spec.Name == wantNames[id])
+			flag(
+				"weather_config_icon_" .. id,
+				type(spec) == "table" and type(spec.Icon) == "string" and spec.Icon ~= ""
+			)
+			flag(
+				"weather_config_multipliers_" .. id,
+				type(spec) == "table"
+					and spec.Luck == values[1]
+					and spec.Money == values[2]
+					and spec.NpcSpeed == values[3]
+			)
+		end
+
+		-- Schedule. Every time is explicit; the background loop is suspended while CarTestRunning is true.
+		local timed = type(interval) == "number" and type(duration) == "number" and interval > duration + 1
+		-- true when an automatic weather from Order is running that started at `start`
+		local function startedAt(start)
+			local id, ends = weather.Current()
+			return inOrder[id] == true
+				and near(ends, start + duration)
+				and ReplicatedStorage:GetAttribute("WeatherEvent") == id
+				and near(ReplicatedStorage:GetAttribute("WeatherEndsAt"), start + duration)
+		end
+		local t = Workspace:GetServerTimeNow() + 100000
+		-- 1. From the state between weathers: SetEvent("", t) restarts the 15 minutes from t.
+		local quiet, onTime = false, false
+		if timed then
+			weather.SetEvent("", t)
+			weather.Tick(t + interval - 1)
+			quiet = weather.Current() == ""
+			weather.Tick(t + interval)
+			onTime = startedAt(t + interval)
+		end
+		flag("weather_none_nothing_before_interval", quiet)
+		flag("weather_none_starts_exactly_at_interval", onTime)
+		-- 2. The automatic weather that started at s = t + INTERVAL counts start to start: the next one is at
+		-- s + INTERVAL, and its own expiry at s + DURATION moves nothing.
+		local s = t + (timed and interval or 0)
+		local expired, stillQuiet, nextOnTime = false, false, false
+		if timed and onTime then
+			weather.Tick(s + duration)
+			expired = weather.Current() == ""
+			weather.Tick(s + interval - 1)
+			stillQuiet = weather.Current() == ""
+			weather.Tick(s + interval)
+			nextOnTime = startedAt(s + interval)
+		end
+		flag("weather_auto_expires_after_duration", expired)
+		flag("weather_auto_expiry_does_not_move_next_start", stillQuiet)
+		flag("weather_auto_start_to_start_interval", nextOnTime)
+		-- 3. An explicit weather, for every id: it expires through Tick and the next start stays at at + INTERVAL.
+		for _, id in wantOrder do
+			t += 100000
+			local set, gone, calm, again = false, false, false, false
+			if timed then
+				set = weather.SetEvent(id, t) == true and weather.Current() == id
+				weather.Tick(t + duration)
+				gone = weather.Current() == ""
+				weather.Tick(t + interval - 1)
+				calm = weather.Current() == ""
+				weather.Tick(t + interval)
+				again = startedAt(t + interval)
+			end
+			flag("weather_schedule_expires_" .. id, set and gone)
+			flag("weather_schedule_nothing_before_interval_" .. id, set and calm)
+			flag("weather_schedule_starts_exactly_at_interval_" .. id, set and again)
+		end
+
+		-- Equal chance: 2000 automatic picks. The band is about 6.7 standard deviations around 1/5, so a uniform
+		-- pick practically never fails it, while a missing weather (0) or a 3-weather pick (1/3) always does.
+		local PICKS = 2000
+		local counts, valid = {}, 0
+		if timed then
+			for _ = 1, PICKS do
+				t += interval + duration + 10
+				weather.SetEvent("", t)
+				weather.Tick(t + interval)
+				local id = weather.Current()
+				if inOrder[id] then
+					valid += 1
+					counts[id] = (counts[id] or 0) + 1
+				end
+			end
+		end
+		weather.SetEvent("")
+		flag("weather_pick_always_from_order", valid == PICKS, valid, PICKS)
+		for _, id in wantOrder do
+			local share = (counts[id] or 0) / PICKS
+			flag("weather_pick_share_" .. id, share >= 0.14 and share <= 0.26, share, 0.2)
+		end
+
+		-- Describe: multipliers that are not 1, in the order Luck, Money, NPC speed.
+		local describe = config.Describe
+		flag("weather_describe_api_exists", type(describe) == "function")
+		local function described(name, id, want)
+			local called, got = pcall(function()
+				return describe(id)
+			end)
+			flag(
+				"weather_describe_" .. name,
+				called and got == want,
+				called and type(got) == "string" and got or -1,
+				want
+			)
+		end
+		described("rain", "rain", "LUCK x2")
+		described("night", "night", "MONEY x2 • NPC SPEED x1.25")
+		described("gold", "gold", "MONEY x3")
+		described("aurora", "aurora", "LUCK x1.5 • MONEY x1.5")
+		described("clear", "clear", "NO BONUS")
+		described("none", "", "NO BONUS")
+		described("unknown", "nope", "NO BONUS")
+		described("nil", nil, "NO BONUS")
+	end)
 	weather.SetEvent("")
+	flag("weather_schedule_no_runtime_error", scheduleOk, nil, scheduleOk and 1 or tostring(scheduleErr))
+	-- BRIEF (owner, 2026-10-12; docs/WEATHER_EVENTS_SPEC.md "Sky"): "Each event also changes the sky, and the
+	-- clear state restores the exact baseline values that WeatherService.Start saved. No uploaded skybox
+	-- textures: the server sets Lighting.Atmosphere (Color, Density, Haze), Terrain.Clouds (Cover, Density,
+	-- Color) and Lighting.Sky.StarCount from WeatherConfig.Events[id].Sky." Table: Rain = grey-blue, dense,
+	-- hazy / heavy cover, dark / 0 stars; Night Race = dark violet, thin / light cover / many stars;
+	-- Gold Rush = warm gold, light haze / thin, golden / 0 stars. Numbers come from the config, never from here.
+	-- Owner, 2026-10-13: Aurora = teal-green, thin / light cover, violet / many stars. "clear is a real pick with
+	-- its own 3 minutes, but it has no Sky, ClockTime, Brightness or Color effect: Lighting and the sky stay at
+	-- the baseline."
+	local skyOk, skyErr = pcall(function()
+		local Lighting = game:GetService("Lighting")
+		local ids = { "rain", "night", "gold", "aurora" }
+		local function only(parent, class)
+			local found, count = nil, 0
+			for _, child in parent:GetChildren() do
+				if child:IsA(class) then
+					found = found or child
+					count += 1
+				end
+			end
+			return found, count
+		end
+		local function num(v)
+			return type(v) == "number" and v == v and math.abs(v) ~= math.huge
+		end
+		local function shaped(sky)
+			return type(sky) == "table"
+				and type(sky.Atmosphere) == "table"
+				and typeof(sky.Atmosphere.Color) == "Color3"
+				and num(sky.Atmosphere.Density)
+				and num(sky.Atmosphere.Haze)
+				and type(sky.Clouds) == "table"
+				and num(sky.Clouds.Cover)
+				and num(sky.Clouds.Density)
+				and typeof(sky.Clouds.Color) == "Color3"
+				and num(sky.StarCount)
+		end
+		local skies, allShaped = {}, true
+		for _, id in ids do
+			local sky = config.Events[id] and config.Events[id].Sky
+			local good = shaped(sky)
+			flag("weather_sky_config_shape_" .. id, good)
+			flag(
+				"weather_sky_config_ranges_" .. id,
+				good
+					and sky.Atmosphere.Density >= 0
+					and sky.Atmosphere.Density <= 1
+					and sky.Atmosphere.Haze >= 0
+					and sky.Clouds.Cover >= 0
+					and sky.Clouds.Cover <= 1
+					and sky.Clouds.Density >= 0
+					and sky.Clouds.Density <= 1
+					and sky.StarCount >= 0
+					and sky.StarCount % 1 == 0
+			)
+			skies[id] = good and sky or nil
+			allShaped = allShaped and good
+		end
+		local rain, night, gold, aurora = skies.rain, skies.night, skies.gold, skies.aurora
+		flag(
+			"weather_sky_rain_densest_haziest",
+			allShaped
+				and rain.Atmosphere.Density > night.Atmosphere.Density
+				and rain.Atmosphere.Density > gold.Atmosphere.Density
+				and rain.Atmosphere.Density > aurora.Atmosphere.Density
+				and rain.Atmosphere.Haze > night.Atmosphere.Haze
+				and rain.Atmosphere.Haze > gold.Atmosphere.Haze
+				and rain.Atmosphere.Haze > aurora.Atmosphere.Haze
+		)
+		flag(
+			"weather_sky_rain_heaviest_cloud_cover",
+			allShaped
+				and rain.Clouds.Cover > night.Clouds.Cover
+				and rain.Clouds.Cover > gold.Clouds.Cover
+				and rain.Clouds.Cover > aurora.Clouds.Cover
+		)
+		flag(
+			"weather_sky_night_thinnest_atmosphere",
+			allShaped
+				and night.Atmosphere.Density < rain.Atmosphere.Density
+				and night.Atmosphere.Density <= gold.Atmosphere.Density
+		)
+		flag(
+			"weather_sky_stars_only_at_night_and_aurora",
+			allShaped and rain.StarCount == 0 and gold.StarCount == 0 and night.StarCount > 0 and aurora.StarCount > 0
+		)
+		flag(
+			"weather_sky_aurora_teal_green_atmosphere",
+			allShaped and aurora.Atmosphere.Color.G > aurora.Atmosphere.Color.R,
+			allShaped and aurora.Atmosphere.Color.G - aurora.Atmosphere.Color.R or -1,
+			0
+		)
+		flag(
+			"weather_sky_aurora_violet_clouds",
+			allShaped and aurora.Clouds.Color.B > aurora.Clouds.Color.G,
+			allShaped and aurora.Clouds.Color.B - aurora.Clouds.Color.G or -1,
+			0
+		)
+		flag(
+			"weather_sky_gold_warm_atmosphere",
+			allShaped and gold.Atmosphere.Color.R > gold.Atmosphere.Color.B,
+			allShaped and gold.Atmosphere.Color.R - gold.Atmosphere.Color.B or -1,
+			0
+		)
+		flag(
+			"weather_sky_gold_thin_golden_clouds",
+			allShaped and gold.Clouds.Density < rain.Clouds.Density and gold.Clouds.Color.R > gold.Clouds.Color.B
+		)
+
+		-- Main ran WeatherService.Start() before the harness: the three instances must already exist.
+		weather.SetEvent("")
+		local atmosphere, atmospheres = only(Lighting, "Atmosphere")
+		local skyBox, skyBoxes = only(Lighting, "Sky")
+		local clouds, cloudCount = only(Workspace.Terrain, "Clouds")
+		flag("weather_sky_atmosphere_exists", atmospheres == 1, atmospheres, 1)
+		flag("weather_sky_skybox_exists", skyBoxes == 1, skyBoxes, 1)
+		flag("weather_sky_clouds_exist", cloudCount == 1, cloudCount, 1)
+		local live = atmosphere ~= nil and skyBox ~= nil and clouds ~= nil
+		local function read()
+			return {
+				atmosphere.Color,
+				atmosphere.Density,
+				atmosphere.Haze,
+				clouds.Cover,
+				clouds.Density,
+				clouds.Color,
+				skyBox.StarCount,
+			}
+		end
+		-- The clear state IS the baseline Start saved; a read-back of a property is exact.
+		local baseline = live and read() or nil
+		local function restored()
+			if not (live and allShaped) then
+				return false
+			end
+			local got = read()
+			for i, want in baseline do
+				if got[i] ~= want then
+					return false
+				end
+			end
+			return true
+		end
+		-- Instance properties are 32-bit floats: "exactly the config value" is within one float step.
+		local function applied(id)
+			local sky = skies[id]
+			return live
+				and sky ~= nil
+				and atmosphere.Color == sky.Atmosphere.Color
+				and near(atmosphere.Density, sky.Atmosphere.Density, 1e-5)
+				and near(atmosphere.Haze, sky.Atmosphere.Haze, 1e-5)
+				and near(clouds.Cover, sky.Clouds.Cover, 1e-5)
+				and near(clouds.Density, sky.Clouds.Density, 1e-5)
+				and clouds.Color == sky.Clouds.Color
+				and skyBox.StarCount == sky.StarCount
+		end
+		local at = Workspace:GetServerTimeNow()
+		for _, id in ids do
+			weather.SetEvent(id, at)
+			local _, expiry = weather.Current()
+			flag("weather_sky_applied_" .. id, applied(id))
+			weather.Tick(expiry - 0.001)
+			flag("weather_sky_held_until_expiry_" .. id, applied(id))
+			weather.Tick(expiry)
+			flag("weather_sky_restored_on_expiry_" .. id, weather.Current() == "" and restored())
+			at += config.DURATION + 10
+			weather.SetEvent(id, at)
+			flag("weather_sky_reapplied_" .. id, applied(id))
+			weather.SetEvent("", at)
+			flag("weather_sky_restored_on_clear_" .. id, restored())
+		end
+		-- Clear is a weather that changes nothing: started over Rain or Aurora, the sky and Lighting are the same
+		-- as with no weather active. ClockTime and Brightness are read back from Lighting, hence the tolerance.
+		weather.SetEvent("", at)
+		local lightingBase = { Lighting.ClockTime, Lighting.Brightness, Lighting.OutdoorAmbient }
+		local function lightingRestored()
+			return near(Lighting.ClockTime, lightingBase[1], 1e-3)
+				and near(Lighting.Brightness, lightingBase[2], 1e-4)
+				and Lighting.OutdoorAmbient == lightingBase[3]
+		end
+		for _, before in { "rain", "aurora" } do
+			at += config.DURATION + 10
+			local changed = weather.SetEvent(before, at) == true and applied(before)
+			local set = weather.SetEvent("clear", at) == true
+			local current, ends = weather.Current()
+			local active = set and current == "clear" and near(ends, at + config.DURATION)
+			flag("weather_clear_starts_after_" .. before, changed and active)
+			flag("weather_clear_keeps_sky_baseline_after_" .. before, changed and active and restored())
+			flag("weather_clear_keeps_lighting_baseline_after_" .. before, changed and active and lightingRestored())
+			weather.Tick(at + config.DURATION - 0.001)
+			flag(
+				"weather_clear_held_until_expiry_after_" .. before,
+				changed and active and weather.Current() == "clear" and restored() and lightingRestored()
+			)
+			weather.Tick(at + config.DURATION)
+			flag(
+				"weather_clear_expires_to_baseline_after_" .. before,
+				changed and active and weather.Current() == "" and restored() and lightingRestored()
+			)
+		end
+		-- One event replacing another must not move the baseline: clear restores Start's values, not rain's.
+		weather.SetEvent("rain", at)
+		weather.SetEvent("night", at)
+		flag("weather_sky_switch_applies_new_event", applied("night"))
+		weather.SetEvent("gold", at)
+		weather.SetEvent("", at)
+		flag("weather_sky_restored_after_event_switch", restored())
+		local _, atmospheresAfter = only(Lighting, "Atmosphere")
+		local _, skyBoxesAfter = only(Lighting, "Sky")
+		local _, cloudsAfter = only(Workspace.Terrain, "Clouds")
+		flag(
+			"weather_sky_no_duplicate_instances",
+			atmospheresAfter == 1 and skyBoxesAfter == 1 and cloudsAfter == 1,
+			atmospheresAfter + skyBoxesAfter + cloudsAfter,
+			3
+		)
+	end)
+	weather.SetEvent("")
+	flag("weather_sky_no_runtime_error", skyOk, nil, skyOk and 1 or tostring(skyErr))
 	for i = #resources, 1, -1 do
 		pcall(function()
 			resources[i]:Destroy()
@@ -755,6 +1243,236 @@ function Tests.weather()
 	p:Destroy()
 	pad:Destroy()
 	flag("weather_no_runtime_error", ok, nil, ok and 1 or tostring(err))
+	return r
+end
+
+-- BRIEF (owner, 2026-10-12; docs/GAME_DESIGN_REQUIREMENTS.md "Rebirth system", docs/SAVE_SPEC.md sections 2 and 3):
+-- "Rebirthing resets Money and Speed." RebirthService.Rebirth(player) sets BOTH leaderstats.Money and
+-- leaderstats.Speed to 0. A refused rebirth changes nothing. The rebirth level, cars, upgrades, workshop level,
+-- Level / XP, MoneyEarned and DuelWins survive.
+function Tests.rebirth()
+	local r, flag = report("rebirth")
+	local service = module(Server, "RebirthService")
+	local data = module(Server, "PlayerData")
+	local gacha = module(Server, "GachaService")
+	local upgrades = module(Server, "UpgradeService")
+	local config = module(Shared, "RebirthConfig")
+	local api = service
+		and data
+		and gacha
+		and upgrades
+		and config
+		and type(service.Rebirth) == "function"
+		and type(config.Requirements) == "function"
+		and type(upgrades.Apply) == "function"
+		and type(upgrades.Snapshot) == "function"
+	flag("rebirth_api_exists", api == true)
+	if not api then
+		return r
+	end
+	local players = {}
+	local oldCooldown = service.REMOTE_COOLDOWN
+	local ok, err = pcall(function()
+		service.REMOTE_COOLDOWN = 0 -- the remote's rate limit is tested on its own below
+		local need = config.Requirements(0).Level
+		local function ready(name, level)
+			local p = fake("Rebirth" .. name, data, gacha)
+			table.insert(players, p)
+			p:SetAttribute("DataLoaded", true)
+			p:SetAttribute("Level", level)
+			p:SetAttribute("XP", 37)
+			p:SetAttribute("WorkshopLevel", 1)
+			p:SetAttribute("MoneyEarned", 9000)
+			p:SetAttribute("DuelWins", 3)
+			p.leaderstats.Money.Value = 5000
+			p.leaderstats.Speed.Value = 321.5
+			gacha.Grant(p, "wooden_car")
+			gacha.Grant(p, "go_kart")
+			gacha.Equip(p, "go_kart")
+			upgrades.Apply(p, { Upgrades = { "money_1", "rollspeed_1" }, BestTrack = 2, TurboCount = 7 })
+			return p
+		end
+		local function untouched(p, money, speed, level)
+			return p.leaderstats.Money.Value == money
+				and near(p.leaderstats.Speed.Value, speed)
+				and p:GetAttribute("RebirthLevel") == level
+		end
+		-- every refusal leaves Money, Speed and the rebirth level alone
+		local function refused(label, p, change, restore)
+			change()
+			local accepted = service.Rebirth(p)
+			flag("rebirth_refused_" .. label, accepted == false)
+			flag(
+				"rebirth_refused_" .. label .. "_keeps_money_and_speed",
+				untouched(p, 5000, 321.5, 0),
+				p.leaderstats.Speed.Value,
+				321.5
+			)
+			restore()
+		end
+		local low = ready("Low", need - 1)
+		refused("below_level", low, function() end, function() end)
+		local p = ready("Main", need)
+		refused("unloaded", p, function()
+			p:SetAttribute("DataLoaded", false)
+		end, function()
+			p:SetAttribute("DataLoaded", true)
+		end)
+		refused("failed_load", p, function()
+			p:SetAttribute("DataFailed", true)
+		end, function()
+			p:SetAttribute("DataFailed", nil)
+		end)
+		refused("auto_racing", p, function()
+			p:SetAttribute("AutoRacing", true)
+		end, function()
+			p:SetAttribute("AutoRacing", nil)
+		end)
+
+		local carsBefore = gacha.Snapshot(p)
+		local upgradesBefore = upgrades.Snapshot(p)
+		local accepted, newLevel = service.Rebirth(p)
+		flag("rebirth_accepted_at_required_level", accepted == true and newLevel == 1)
+		flag("rebirth_level_raised", p:GetAttribute("RebirthLevel") == 1, p:GetAttribute("RebirthLevel"), 1)
+		flag("rebirth_resets_money", p.leaderstats.Money.Value == 0, p.leaderstats.Money.Value, 0)
+		flag("rebirth_resets_speed", p.leaderstats.Speed.Value == 0, p.leaderstats.Speed.Value, 0)
+		flag("rebirth_speed_stat_is_0", data.SpeedStat(p) == 0, data.SpeedStat(p), 0)
+		local carsAfter = gacha.Snapshot(p)
+		flag(
+			"rebirth_keeps_cars",
+			#carsAfter.Cars == #carsBefore.Cars
+				and table.find(carsAfter.Cars, "wooden_car") ~= nil
+				and table.find(carsAfter.Cars, "go_kart") ~= nil
+				and carsAfter.Equipped == "go_kart"
+				and p:GetAttribute("EquippedCar") == "go_kart"
+		)
+		local upgradesAfter = upgrades.Snapshot(p)
+		flag(
+			"rebirth_keeps_upgrades",
+			#upgradesAfter.Upgrades == #upgradesBefore.Upgrades
+				and table.find(upgradesAfter.Upgrades, "money_1") ~= nil
+				and table.find(upgradesAfter.Upgrades, "rollspeed_1") ~= nil
+				and upgradesAfter.BestTrack == 2
+				and upgradesAfter.TurboCount == 7
+		)
+		flag("rebirth_keeps_workshop_level", p:GetAttribute("WorkshopLevel") == 1)
+		flag("rebirth_keeps_level_and_xp", p:GetAttribute("Level") == need and p:GetAttribute("XP") == 37)
+		flag("rebirth_keeps_money_earned", p:GetAttribute("MoneyEarned") == 9000, p:GetAttribute("MoneyEarned"), 9000)
+		flag("rebirth_keeps_duel_wins", p:GetAttribute("DuelWins") == 3, p:GetAttribute("DuelWins"), 3)
+
+		-- the next rebirth needs the next milestone: refused, and the stats earned since are not wiped
+		p.leaderstats.Money.Value = 60
+		p.leaderstats.Speed.Value = 50
+		local again = service.Rebirth(p)
+		flag(
+			"rebirth_refused_next_milestone_keeps_money_and_speed",
+			again == false and untouched(p, 60, 50, 1),
+			p.leaderstats.Speed.Value,
+			50
+		)
+		-- rate limit: a second request inside REMOTE_COOLDOWN is refused and changes nothing
+		service.REMOTE_COOLDOWN = 60
+		local spam = ready("Spam", need - 1)
+		service.Rebirth(spam) -- refused (level), starts the cooldown
+		spam:SetAttribute("Level", need)
+		local spammed = service.Rebirth(spam)
+		flag("rebirth_refused_cooldown_keeps_money_and_speed", spammed == false and untouched(spam, 5000, 321.5, 0))
+	end)
+	service.REMOTE_COOLDOWN = oldCooldown
+	for _, p in players do
+		p:Destroy()
+	end
+	flag("rebirth_no_runtime_error", ok, nil, ok and 1 or tostring(err))
+	return r
+end
+
+-- BRIEF (owner, 2026-10-12; docs/GAME_DESIGN_REQUIREMENTS.md "Economy (Money)", docs/SAVE_SPEC.md section 3): Money
+-- comes ONLY from race cash-outs and duplicate car sales. "Daily login rewards contain no Money (no Money field on
+-- any day; every day grants a potion or the guaranteed rare car). DailyLoginService.Claim never changes
+-- leaderstats.Money." Seven days.
+function Tests.daily_login()
+	local r, flag = report("daily_login")
+	local service = module(Server, "DailyLoginService")
+	local config = module(Shared, "DailyLoginConfig")
+	local boostConfig = module(Shared, "BoostConfig")
+	local boosts = module(Server, "BoostService")
+	local data = module(Server, "PlayerData")
+	local gacha = module(Server, "GachaService")
+	local api = service
+		and config
+		and boostConfig
+		and boosts
+		and data
+		and gacha
+		and type(service.Claim) == "function"
+		and type(config.Rewards) == "table"
+		and type(boostConfig.Get) == "function"
+		and type(boosts.Count) == "function"
+		and type(gacha.UniqueCount) == "function"
+	flag("daily_login_api_exists", api == true)
+	if not api then
+		return r
+	end
+	local DAYS = 7
+	flag("daily_rewards_seven_days", #config.Rewards == DAYS, #config.Rewards, DAYS)
+	for day = 1, DAYS do
+		local reward = config.Rewards[day]
+		local isTable = type(reward) == "table"
+		flag("daily_reward_" .. day .. "_has_no_money", isTable and reward.Money == nil)
+		local potion = isTable and type(reward.Boost) == "string" and boostConfig.Get(reward.Boost) ~= nil
+		flag("daily_reward_" .. day .. "_grants_potion_or_rare", isTable and (potion or reward.GuaranteedRare == true))
+	end
+	local players = {}
+	local oldCooldown = service.REMOTE_COOLDOWN
+	local ok, err = pcall(function()
+		service.REMOTE_COOLDOWN = 0
+		for day = 1, DAYS do
+			local reward = config.Rewards[day]
+			local p = fake("Daily" .. day, data, gacha)
+			table.insert(players, p)
+			p:SetAttribute("DataLoaded", true)
+			p.leaderstats.Money.Value = 1234
+			-- yesterday's claim was day - 1, so this claim is `day` (UTC day number, as the service counts it)
+			p:SetAttribute("DailyLast", math.floor(os.time() / 86400) - 1)
+			p:SetAttribute("DailyStreak", day - 1)
+			local potionsBefore = type(reward) == "table" and reward.Boost and boosts.Count(p, reward.Boost) or 0
+			local carsBefore = gacha.UniqueCount(p)
+			local claimed, info = service.Claim(p)
+			flag(
+				"daily_claim_" .. day .. "_succeeds",
+				claimed == true and type(info) == "table" and info.Day == day,
+				type(info) == "table" and tonumber(info.Day) or -1,
+				day
+			)
+			flag(
+				"daily_claim_" .. day .. "_money_unchanged",
+				p.leaderstats.Money.Value == 1234,
+				p.leaderstats.Money.Value,
+				1234
+			)
+			local resultMoney = type(info) == "table" and info.Money or nil
+			flag(
+				"daily_claim_" .. day .. "_result_has_no_money",
+				type(info) == "table" and not (type(resultMoney) == "number" and resultMoney > 0)
+			)
+			flag("daily_claim_" .. day .. "_no_money_earned", (p:GetAttribute("MoneyEarned") or 0) == 0)
+			local gotPotion = type(reward) == "table"
+				and reward.Boost ~= nil
+				and boosts.Count(p, reward.Boost) == potionsBefore + (reward.BoostCount or 1)
+			local gotCar = type(reward) == "table"
+				and reward.GuaranteedRare == true
+				and gacha.UniqueCount(p) == carsBefore + 1
+			flag("daily_claim_" .. day .. "_grants_potion_or_rare", gotPotion or gotCar)
+			-- a second claim the same day is refused and still pays nothing
+			local twice = service.Claim(p)
+			flag("daily_claim_" .. day .. "_once_per_day", twice == false and p.leaderstats.Money.Value == 1234)
+		end
+	end)
+	service.REMOTE_COOLDOWN = oldCooldown
+	for _, p in players do
+		p:Destroy()
+	end
+	flag("daily_login_no_runtime_error", ok, nil, ok and 1 or tostring(err))
 	return r
 end
 

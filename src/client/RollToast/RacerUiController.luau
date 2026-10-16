@@ -32,6 +32,7 @@ end
 playerGui.ChildAdded:Connect(removeLegacy)
 local Ui = script.Parent:WaitForChild("Ui")
 local Components = require(Ui.RacerComponents)
+local HudButtonStyle = require(Ui.HudButtonStyle)
 require(Ui.RacerMotion).Attach(playerGui)
 local client = script.Parent:IsA("LocalScript") and script.Parent.Parent or script.Parent
 local PanelSwitch = require(client.PanelSwitch)
@@ -124,7 +125,7 @@ local function refreshRebirth()
 	local playerLevel = player:GetAttribute("Level") or 1
 	local eligible = playerLevel >= required.Level
 	rebirthStatus.Text = string.format(
-		"REBIRTH LEVEL %d  •  +%d%% Speed gain  •  +%d%% Luck\nSpeed is preserved; Money resets.\nReach PLAYER LEVEL %d",
+		"REBIRTH LEVEL %d  •  +%d%% Speed gain  •  +%d%% Luck\nMoney and Speed reset.\nReach PLAYER LEVEL %d",
 		level,
 		level * rebirthConfig.GAIN_PER_LEVEL * 100 + rebirthConfig.GAIN_PER_LEVEL * 100,
 		level * rebirthConfig.LUCK_GAIN_PER_LEVEL * 100 + rebirthConfig.LUCK_GAIN_PER_LEVEL * 100,
@@ -159,15 +160,7 @@ end)
 refreshRebirth()
 
 local function label(button, value)
-	if button:IsA("TextLabel") or button:IsA("TextButton") then
-		button.Text = value
-		return
-	end
-	for _, child in ipairs(button:GetChildren()) do
-		if child:IsA("TextLabel") then
-			child.Text = value
-		end
-	end
+	HudButtonStyle.SetCaption(button, value)
 end
 
 -- The former Settings auto-roll row is now the local top-down camera toggle.
@@ -209,7 +202,7 @@ local function autoRaceCar()
 	return nil
 end
 
-RunService.RenderStepped:Connect(function()
+RunService.RenderStepped:Connect(function(dt)
 	local camera = workspace.CurrentCamera
 	local car = player:GetAttribute("TopDownView") == true and autoRaceCar() or nil
 	if car and camera then
@@ -223,7 +216,7 @@ RunService.RenderStepped:Connect(function()
 		local desired = CFrame.lookAt(target + Vector3.new(0, topDownHeight, 0), target)
 		camera.CameraType = Enum.CameraType.Scriptable
 		camera.FieldOfView = 55
-		camera.CFrame = camera.CFrame:Lerp(desired, 0.16)
+		camera.CFrame = camera.CFrame:Lerp(desired, 1 - 0.84 ^ (dt * 60)) -- same feel as 0.16 per frame at 60 fps, at any fps
 	elseif topDownWasActive and camera then
 		topDownWasActive = false
 		camera.CameraType = savedCameraType or Enum.CameraType.Custom
@@ -294,6 +287,7 @@ data.ChildAdded:Connect(refreshIndex)
 data.ChildRemoved:Connect(refreshIndex)
 player:GetAttributeChangedSignal("EquippedCar"):Connect(refreshIndex)
 refreshIndex()
+require(Ui.InventoryTabs).Attach(index, player, refreshIndex)
 
 local function refreshStats()
 	local free = player:GetAttribute("StatPoints") or 0
@@ -336,7 +330,7 @@ refreshStats()
 local pendingRace = false
 local function refreshRace()
 	local racing = player:GetAttribute("AutoRacing") == true
-	label(hud.Race, format.AutoButtonText(racing))
+	label(hud.Race, string.upper(format.AutoButtonText(racing)))
 	Components.Tint(hud.Race, pendingRace and GRAY or (racing and RED or GREEN))
 	hud.Race.Active = not pendingRace
 end
@@ -359,13 +353,17 @@ task.spawn(function()
 	playerGui:WaitForChild("RollToast")
 	local showcase = playerGui:WaitForChild("RollShowcase")
 	local function refreshShowcase()
-		hud.Gui.Enabled = not showcase.Enabled
+		local upgrades = playerGui:FindFirstChild("RacerUpgrades")
+		local treeOpen = upgrades and upgrades:FindFirstChild("Panel") and upgrades.Panel.Visible
+		hud.Gui.Enabled = not showcase.Enabled and not treeOpen
 	end
 	showcase:GetPropertyChangedSignal("Enabled"):Connect(refreshShowcase)
+	PanelSwitch.OnChange(refreshShowcase)
 	refreshShowcase()
 end)
 
 local turboTween
+local turboPopUntil = 0
 -- Rolls done towards the next turbo roll and how many it takes: the server's TurboCount / TurboEvery (upgrade tree),
 -- or the every-10th-roll rule from Rolls before those attributes arrive.
 local function turboState()
@@ -377,7 +375,9 @@ local function turboState()
 end
 local function refreshTurbo()
 	local progress, every = turboState()
-	hud.TurboLabel.Text = string.format("TURBO LUCK %d/%d", progress, every)
+	if os.clock() >= turboPopUntil then
+		hud.TurboLabel.Text = string.format("TURBO LUCK %d/%d", progress, every)
+	end
 	if turboTween then
 		turboTween:Cancel()
 	end
@@ -399,8 +399,14 @@ player:GetAttributeChangedSignal("TurboEvery"):Connect(refreshTurbo)
 refreshTurbo()
 remotes.RollResult.OnClientEvent:Connect(function(_, _, turbo)
 	if type(turbo) == "number" and turbo > 1 then
+		turboPopUntil = os.clock() + 1.2
 		hud.TurboLabel.Text = "TURBO x" .. tostring(turbo) .. "!"
-		task.delay(1.2, refreshTurbo)
+		task.delay(1.2, function()
+			if os.clock() >= turboPopUntil then
+				turboPopUntil = 0
+				refreshTurbo()
+			end
+		end)
 	end
 end)
 
@@ -434,12 +440,6 @@ local speed = leaderstats:WaitForChild("Speed")
 local money = leaderstats:WaitForChild("Money")
 local shownSpeed, shownMoney, shownBank = speed.Value, money.Value, player:GetAttribute("Unbanked") or 0
 local function readable(value, isMoney)
-	local units = { { 1e12, "T" }, { 1e9, "B" }, { 1e6, "M" }, { 1e3, "K" } }
-	for _, unit in ipairs(units) do
-		if value >= unit[1] then
-			return (isMoney and "$" or "") .. string.format("%.1f%s", value / unit[1], unit[2])
-		end
-	end
 	return isMoney and format.MoneyText(value) or format.SpeedText(value)
 end
 -- The Racer panels open in the band between the Race button and the TURBO LUCK bar, centred, clear of the
