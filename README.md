@@ -144,7 +144,7 @@ updates automatically whenever the board changes; do not edit this block by hand
 - **Live-check the NPC client view and LoserScreen**: ui-tester / multiplayer-tester have not checked them live.
 - **Automatic bus delivery for Codex**: Claude receives bus messages via a hook; Codex only when it follows AGENTS.md and runs agent_bus.py context. If the Codex CLI's hook support covers session start / prompt submit, wire `agent_bus.py hook --agent codex` there. Also: edits made via shell commands (sed, heredoc, python rewrites) are not attributed; consider attributing via git diff snapshots per tool call. 2026-10-11: wired in .codex/hooks.json (SessionStart, UserPromptSubmit) and shell-edit attribution added (agent_bus.py shell, Pre/PostToolUse in both agents). Codex does not run the project hook until the developer trusts it (Needs you: codex-trust-bus-hook), so delivery is not verified yet.
 
-### Up next (6)
+### Up next (7)
 
 - **Daily Quest System**: Add a daily quest system with rotating objectives and rewards; define the design/spec before implementation.
 - **Redeem Codes section**: Add a Redeem Codes section projected for the Shop area where the gamepasses are located.
@@ -152,6 +152,7 @@ updates automatically whenever the board changes; do not edit this block by hand
 - **roll_odds_* UI fixtures must close open panels first**: The offline RacerWelcome/Panel opens on join and hides the compact roll (correct behaviour), so roll_odds_compact_odds fails although the text is right. ui-test-writer: have the fixture or ui_roll_odds close every PanelSwitch panel before the planted roll.
 - **DailyBoosts Status overlaps Daily Rewards / Bag on phones**: Bug 3a6d9cb3, found by ui-tester 2026-10-13 at 844x390 and 667x375. Older than the weather change.
 - **Run the UI suite for the removed world upgrade pad**: upgrade_no_world_pad and upgrade_no_spawn_area_pad (ui_upgrades) were written 2026-10-13 and never run. Run [UITEST] alone in Studio.
+- **Reconcile UI tests with Isaac's inventory/upgrade-tree UI (ccea607)**: ui-test-writer updates UiSpec/UiScenarios for INVENTORY tabs, removed Bag, full-screen hex upgrade tree; then ui-tester and /compat-check. Blocks the green stamp for main.
 
 ### Backlog (future work) (6)
 
@@ -162,8 +163,9 @@ updates automatically whenever the board changes; do not edit this block by hand
 - **Wing flap and fire on the Ember Wyvern while racing**: Pedestal animation exists (Client/BestRollView). The race skin is welded with WeldConstraints in CarAppearance, so the wings are static in races. Needs its own test round (VEHICLE_SKINS_SPEC).
 - **Final meshes for Ember Wyvern and Singularity**: Current models are Part-built stand-ins from Shared/DraftCarModels. A real model with the same name in CarModels replaces them. Concepts in drafts/cars/.
 
-### Recently done (45)
+### Recently done (46)
 
+- ~~Smooth auto-race motion (soft rail)~~ (2026-10-15)
 - ~~Rotating weather / biome events that boost luck~~ (2026-10-13)
 - ~~Duels: challenge another player to a race (request, accept/decline, track pick)~~ (2026-10-13)
 - ~~Global leaderboards in the spawn area~~ (2026-10-13)
@@ -173,7 +175,6 @@ updates automatically whenever the board changes; do not edit this block by hand
 - ~~Best Roll Ever pedestal in the spawn area~~ (2026-10-13)
 - ~~Gamepass car pedestals beside the Best Roll pedestal~~ (2026-10-13)
 - ~~Rebirth must reset Speed (design doc)~~ (2026-10-12)
-- ~~Money only from race cash-outs and duplicate sales~~ (2026-10-12)
 
 <!-- TODO:END -->
 
