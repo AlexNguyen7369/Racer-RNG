@@ -3,7 +3,46 @@
 PROJECT CONTEXT - Idle Vehicle Simulator (read me first)
 Shown in Studio at: ServerScriptService > ProjectContext   (source file: context/ProjectContext.luau)
 Do NOT edit this in Studio: edit the file on disk, Rojo syncs it. Claude updates it at the end of every loop.
-Last updated: 2026-10-13 (Claude: weather schedule, five weathers, weather icon)
+Last updated: 2026-10-13 (Claude: gamepass car pedestals)
+
+GAMEPASS CAR PEDESTALS - 2026-10-13 (Claude, branch feature/alex/global-leaderboards, uncommitted)
+- Rule (owner 2026-10-13, design doc Monetization "Gamepass cars", docs/GAMEPASS_CARS_SPEC.md): Ember Wyvern and
+  Singularity are gamepass cars (GamepassId, 0 = not on sale). Never rolled, not in the Index, no stat points, not on
+  the Rarest board, never saved in Cars. Ownership = Roblox (Pass_<carId> attribute from Server/PassCarService).
+- Showcase row in the hub: Best Roll pedestal (RADIUS 12, CAR_SCALE 3.5) at (150, -70) between Pass_singularity
+  (129, -84) and Pass_ember_wyvern (162, -48), Shared/PassCarConfig. Prompt "Buy": equip if owned, else
+  PromptGamePassPurchase; "Coming soon" at id 0. Stand-in models from Shared/DraftCarModels.
+- TEST RESULT 2026-10-13 (live Studio, Rojo): [CARTEST] END pass=42 fail=4; pass_cars 159 checks and leaderboard
+  green; the 4 failures are Codex's unbuilt track tests. Dragon floats 0.9 to 2.1 studs above its platform, no drift.
+- UNVERIFIED: [UITEST] ui_billboards pedestal checks, real Robux purchase, /compat-check. Pass ids not created yet.
+
+BEST ROLL EVER PEDESTAL - 2026-10-13 (Claude, branch feature/alex/global-leaderboards, uncommitted)
+- Rule (owner 2026-10-13, design doc "Global leaderboards", docs/LEADERBOARD_SPEC.md 3a): Workspace.SpawnArea.BestRoll
+  shows row 1 of the RarestCar board: Pedestal (round, local (150, -70), LeaderboardConfig.BEST_ROLL), Pedestal.Stats
+  (Title / Odds / Car / Player), attribute CarId, and a Car model (CarModels clone, CAR_SCALE 2, anchored, no
+  collision). LeaderboardService fills it after every board read; Client/BestRollView only turns the car.
+- The spawn-area UpgradePad and its UPGRADES sign are REMOVED (owner 2026-10-13). The upgrade tree opens only from the
+  UPGRADES button. Workshop plot UpgradePads are unchanged.
+- TEST RESULT 2026-10-13 (live Studio, Rojo): [CARTEST] END pass=35 fail=0, leaderboard 178 checks (69 bestroll).
+  Live with the real store: car, "1 in N", name and "by <player>" shown, spin 41 to 45 deg/s.
+- UNVERIFIED: [UITEST] suite (upgrade_no_world_pad, upgrade_no_spawn_area_pad), /compat-check. No red run.
+- KNOWN: RarestCar is written with SetAsync, so a wiped save lowers the pedestal. Ties: the store picks row 1.
+- INCIDENT: the Studio test save was wiped while Codex and Claude shared one Play session; an older DataStore version
+  (Speed 311,220) exists. Owner decides on a restore. See handoff.md.
+
+SPEED GAIN MATHS - 2026-10-13 (Claude, branch feature/alex/global-leaderboards, uncommitted)
+- Rule (owner 2026-10-13, design doc "Core stat model"): the Speed number climbs at an increasing rate; its effect on
+  cruise speed has diminishing returns that never flatten, no cap.
+- RaceConfig.GainPerSecond(stat, speed) = GAIN_PER_STUD * speed. Workshop.Rate = BASE_RATE * SpeedMulti * LevelMulti
+  * Workshop points. Workshop.OfflineGain = Rate * OFFLINE_FRACTION * capped time. RaceConfig.GAIN_SOFT and every
+  "/ (1 + stat / GAIN_SOFT)" term are removed. RaceConfig.SpeedFor is unchanged (logarithmic).
+- Tests (test-writer): economy, race, workshop, workshop_offline, workshop_phase2 moved to the new rule.
+- VERIFIED LIVE 2026-10-13 (Rojo connected, Studio Racer RNG): full harness [CARTEST] END pass=35 fail=0 on this
+  code, incl. economy, race (high_stat_gain_per_stud_not_reduced_in_8s, faster_car_gains_more_in_8s), workshop,
+  workshop_offline, workshop_phase2, data and all five track tests. No red run was made (owner: implement without
+  it). No /compat-check (UI, multiplayer-tester, world, regression not run).
+- BALANCE: gain at a high stat is far faster than before (about 150x at stat 300,000). GAIN_PER_STUD and BASE_RATE
+  are the knobs; their values were not changed. NOT cleared for main.
 
 WEATHER SCHEDULE, FIVE WEATHERS, HUD ICON - 2026-10-13 (Claude, branch feature/alex/global-leaderboards, uncommitted)
 - Rules (owner 2026-10-13, design doc "Weather events", docs/WEATHER_EVENTS_SPEC.md "Schedule" and "Weather icon"):
@@ -30,12 +69,12 @@ WEATHER SCHEDULE, FIVE WEATHERS, HUD ICON - 2026-10-13 (Claude, branch feature/a
   ui_roll_anim 3/36 and ui_rolls (roll timing, older), ui_roll_emphasized 3/23 (fixture not applied, not judged).
 - UNVERIFIED: no /compat-check (multiplayer, world, regression not run); NOT cleared for main.
 
-WEATHER DISPLAYED ODDS - 2026-10-13 (Claude, branch feature/alex/global-leaderboards, uncommitted)
-- Rule (owner 2026-10-13, design doc "Weather events", docs/WEATHER_EVENTS_SPEC.md "Displayed odds"): the roll card
-  and the compact roll show the odds of that roll, 1 in max(1, round(Chance / luck)). luck = GachaService.Luck(player)
-  without the turbo multi. Catch-all cars keep "1 in ?". The Index and the roll announcement keep base odds.
+WEATHER DISPLAYED ODDS - 2026-10-15 (Codex)
+- Rule (owner 2026-10-15, docs/WEATHER_EVENTS_SPEC.md "Displayed odds"): the roll card and compact roll show catalog
+  rarity, `HudFormat.Odds(Chance)`. Server luck still changes actual roll probability, but never changes the displayed
+  rarity. Catch-all cars keep "1 in ?". The Index and the roll announcement keep base odds.
 - RollResult is now (id, isNew, turboMulti, emphasized, scrapMoney, luck); GachaService.Roll returns the same six.
-  HudFormat.Odds(chance, luck): a missing or invalid luck counts as 1. Client/RollToast passes roll.Luck.
+  HudFormat.Odds(chance, luck) remains available for compatibility, but Client/RollToast displays base Chance only.
 - Tests first: 9 new harness checks (weather_roll_luck_*, service_roll_returns_luck, service_roll_luck_excludes_turbo,
   odds_text_luck_divides_chance) seen red, then green; roll_anim's count check is service_roll_returns_six_values.
   New UI scenario ui_roll_odds with setups roll_odds_luck2/round/clamp/luck1/no_luck/catchall and weather_rain_roll.
@@ -200,6 +239,19 @@ DESIGN DOCS ARE HARD RULES - 2026-10-12 (Claude, docs only, no test run)
 - UNVERIFIED RISK: the load transform applies the save to the player inside UpdateAsync (must not yield in a
   real DataStore); only the fake store path is covered (it passes in the data scenario).
 - Plan for all of it: ~/.claude/plans/look-at-dashboard-todo-zazzy-knuth.md (phases 0-5).
+Last updated: 2026-10-14 (inventory, upgrade UI, potion icons; focused checks only)
+
+INVENTORY + UPGRADE UI - 2026-10-14 (Isaac Li / Codex)
+- INVENTORY replaces INDEX; CARS and CONSUMABLES tabs share the panel. Bag entry/panel removed.
+- Luck, Money and Speed potion icons: 128405731425889 / 86771144323676 / 79990997148018.
+- Styled STATS/AUTO RACE captions, wider HUD spacing and slight shadows; rolls use illustrated car art.
+- Full-screen hex upgrade tree supports dragging, wheel and +/- zoom. Walkspeed nodes hidden only;
+  existing purchased effects and saves remain unchanged. Server purchase/equip/use endpoints retained.
+- Focused live checks passed: tabs, stats, race toggle, tree open/close, wheel/buttons/drag, icon loading.
+  Consumable use effects and full compatibility suite NOT certified; StyLua gate unavailable.
+- Studio contains newer collaborator changes than origin/main 39350ed. Apply this review branch's UI
+  patches onto that newer source; do not sync this older-baseline checkout wholesale over Studio.
+- See docs/INVENTORY_UPGRADE_UI_HANDOFF.md for source/snapshot distinctions and validation limits.
 
 SMOOTH RAIL + TEST RECONCILIATION - 2026-10-11 (Claude)
 - RaceService rail: cubic Hermite curve through the path waypoints, applied in PostSimulation

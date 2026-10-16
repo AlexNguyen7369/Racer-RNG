@@ -36,7 +36,10 @@
 33. 2026-10-13 — Alex Nguyen — Committed (not pushed) the roll odds that follow the roll's luck (harness `pass=35 fail=0`, `ui_roll_odds` 6/6) and the 20 duel UI fixtures with the own-prompt and duel-car `AutoRace` fixes (15 of 20 fixtures run green), without a `/compat-check`.
 34. 2026-10-13 — Alex Nguyen — Changed weather to start every 15 minutes with an equal-chance pick of five (Clear, Rain, Night Race, Gold Rush, Aurora), replaced the banner with a bottom-right icon and hover card, and made the five skies distinguishable (harness `pass=35 fail=0`, weather 366/366, weather UI fixtures and card clicks green), without a `/compat-check`.
 
+27. 2026-10-14 — Isaac Li — Implemented Inventory tabs, potion bottle art, HUD captions/spacing/shadows and a full-screen zoomable upgrade tree on a review branch; focused live checks passed, full compatibility remains pending.
+
 ## What's next
 **Fix the DailyBoosts `Status` overlap on phones (bug `3a6d9cb3`) and the roll-timing UI failures (`ui_roll_anim`, `ui_rolls`), then run `/compat-check` alone in Studio.**
+**Run the full /compat-check (UI, multiplayer, world and regression suites) on the smooth-rail and daily-modal commits.**
 
 **Why this is next:** these are the UI scenarios still failing on commit `af99a1c`, so the UI suite cannot go green and the compatibility gate that the branch needs before `main` cannot pass until they are fixed.

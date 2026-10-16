@@ -20,12 +20,13 @@ local STARTER = {
 	Rollable = false,
 }
 
-local specs = {} -- Id -> spec (rollable cars only)
+local specs = {} -- Id -> spec (rollable cars and gamepass cars)
 for _, module in Cars:GetChildren() do
 	if module:IsA("ModuleScript") then
 		local spec = require(module)
 		spec.Id = spec.Id or module.Name
-		spec.Rollable = true
+		-- A gamepass car (docs/GAMEPASS_CARS_SPEC.md) is bought: never rolled, not in the index
+		spec.Rollable = spec.GamepassId == nil
 		assert(spec.Id ~= CarCatalog.STARTER_ID, "car id 'starter' is reserved")
 		assert(specs[spec.Id] == nil, "duplicate car id " .. spec.Id)
 		specs[spec.Id] = spec
@@ -34,13 +35,20 @@ end
 
 local byOrder = {}
 local rarestFirst = {}
+local passes = {}
 for _, spec in specs do
-	table.insert(byOrder, spec)
-	table.insert(rarestFirst, spec)
+	if spec.Rollable then
+		table.insert(byOrder, spec)
+		table.insert(rarestFirst, spec)
+	else
+		table.insert(passes, spec)
+	end
 end
-table.sort(byOrder, function(a, b)
+local function inOrder(a, b)
 	return a.Order < b.Order
-end)
+end
+table.sort(byOrder, inOrder)
+table.sort(passes, inOrder)
 -- Largest "1 in N" first; the catch-all (Chance = nil) last
 table.sort(rarestFirst, function(a, b)
 	return (a.Chance or 0) > (b.Chance or 0)
@@ -62,6 +70,11 @@ end
 -- Every rollable car, rarest first, the catch-all last. Do not modify the returned table.
 function CarCatalog.Rollable()
 	return rarestFirst
+end
+
+-- Every gamepass car, in Order. Do not modify the returned table.
+function CarCatalog.Passes()
+	return passes
 end
 
 return CarCatalog

@@ -6,6 +6,11 @@
 -- written for a failed or unloaded save, zero not written, the signs exist and overlap nothing in the list above,
 -- the rows match `Top(id)`, a throwing store raises no error."
 -- Written before Shared/LeaderboardConfig, Server/LeaderboardService and the signs exist: red by design.
+-- BRIEF (owner, 2026-10-13; design doc "Global leaderboards", spec section 3a + section 4 "Pedestal"): "a BEST ROLL
+-- EVER pedestal in the spawn area shows the rarest car any player has rolled across all servers (the top row of the
+-- rarest-car board). The car turns slowly on a round platform; its odds, its name and the player's name are shown
+-- above it." The `leaderboard_bestroll_*` checks were written before LeaderboardConfig.BEST_ROLL, the pedestal and
+-- the service code exist: red by design.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
@@ -219,6 +224,25 @@ local function labelsOf(board)
 	return labels
 end
 
+-- The pedestal's four labels (spec section 3a), or nil when `Pedestal.Stats` is not built as the spec says.
+local BEST_ROLL_LABELS = { "Title", "Odds", "Car", "Player" }
+local BEST_ROLL_TITLE = "BEST ROLL EVER"
+local function bestRollLabels(pedestal)
+	local gui = pedestal and pedestal:FindFirstChild("Stats")
+	if not (gui and gui:IsA("BillboardGui")) then
+		return nil
+	end
+	local labels = {}
+	for _, name in BEST_ROLL_LABELS do
+		local label = gui:FindFirstChild(name, true)
+		if not (label and label:IsA("TextLabel")) then
+			return nil
+		end
+		labels[name] = label
+	end
+	return labels
+end
+
 local function rowTexts(labels)
 	local texts = {}
 	for i = 1, TOP_N do
@@ -309,6 +333,7 @@ function Tests.leaderboard()
 	end
 	-- The signs overlap none of: plot, pad, Spawn, marketplace footprint, race platform, track part
 	local allSigns = #signPolys == #BOARDS
+	local obstacleSets = {} -- the same lists again for the Best Roll pedestal
 	local function clear(label, obstacles)
 		local overlaps, worst = 0, math.huge
 		for _, sign in signPolys do
@@ -320,6 +345,7 @@ function Tests.leaderboard()
 				end
 			end
 		end
+		table.insert(obstacleSets, { Label = label, Polys = obstacles })
 		r.metrics[label .. "_gap"] = worst == math.huge and -1 or math.round(worst * 1000) / 1000
 		flag("leaderboard_signs_clear_of_" .. label, allSigns and #obstacles > 0 and overlaps == 0, overlaps, 0)
 	end
@@ -359,6 +385,128 @@ function Tests.leaderboard()
 		end
 	end
 	clear("track_parts", polys(trackParts))
+
+	-- Best Roll Ever pedestal (spec section 3a): the model, the platform and its labels
+	local B = type(C.BEST_ROLL) == "table" and C.BEST_ROLL or {}
+	local numbersOk = true
+	for _, key in { "X", "Z", "RADIUS", "HEIGHT", "SPIN", "TEXT_DISTANCE" } do
+		local v = B[key]
+		local finite = type(v) == "number" and v == v and math.abs(v) ~= math.huge
+		-- a position may be anything; a size, a distance or a turn rate of 0 shows nothing
+		numbersOk = numbersOk and finite and (key == "X" or key == "Z" or (key == "SPIN" and v ~= 0) or v > 0)
+	end
+	flag("leaderboard_bestroll_config_numbers", numbersOk)
+	local bestRoll = area and area:FindFirstChild("BestRoll")
+	if bestRoll and not bestRoll:IsA("Model") then
+		bestRoll = nil
+	end
+	flag("leaderboard_bestroll_model_exists", bestRoll ~= nil)
+	local pedestal = bestRoll and bestRoll:FindFirstChild("Pedestal")
+	local pedestalOk = pedestal ~= nil and pedestal:IsA("BasePart")
+	flag("leaderboard_bestroll_pedestal_exists", pedestalOk)
+	flag("leaderboard_bestroll_pedestal_anchored", pedestalOk and pedestal.Anchored == true)
+	flag("leaderboard_bestroll_pedestal_can_collide", pedestalOk and pedestal.CanCollide == true)
+	do
+		-- Footprint: the circle of RADIUS around local (X, Z), tested as its bounding square. A round part's own
+		-- bounding box may be turned about the vertical, so a part's corners may reach RADIUS * sqrt(2).
+		local geomOk = pedestalOk and worldOk and numbersOk
+		local function reachOf(part)
+			local reach = 0
+			for _, p in partPoly(part).Points do
+				local l = startPart.CFrame:PointToObjectSpace(Vector3.new(p.X, 0, p.Y))
+				reach = math.max(reach, Vector2.new(l.X - B.X, l.Z - B.Z).Magnitude)
+			end
+			return reach
+		end
+		local off = -1
+		if geomOk then
+			local l = startPart.CFrame:PointToObjectSpace(pedestal.Position)
+			off = Vector2.new(l.X - B.X, l.Z - B.Z).Magnitude
+		end
+		flag("leaderboard_bestroll_pedestal_at_config_centre", geomOk and off <= GEOM_TOL, off, GEOM_TOL)
+		local cornerLimit = geomOk and B.RADIUS * math.sqrt(2) + GEOM_TOL or -1
+		local own = geomOk and reachOf(pedestal) or -1
+		flag(
+			"leaderboard_bestroll_pedestal_radius",
+			geomOk and own >= B.RADIUS - GEOM_TOL and own <= cornerLimit,
+			own,
+			cornerLimit
+		)
+		-- "Extra decorative parts of the platform stay inside the same footprint" (the shown car is not platform)
+		local shownCar = bestRoll and bestRoll:FindFirstChild("Car")
+		local worst = 0
+		for _, part in geomOk and partsOf(bestRoll) or {} do
+			if not (shownCar and part:IsDescendantOf(shownCar)) then
+				worst = math.max(worst, reachOf(part))
+			end
+		end
+		flag("leaderboard_bestroll_parts_inside_footprint", geomOk and worst <= cornerLimit, worst, cornerLimit)
+		local R = numbersOk and B.RADIUS or 0
+		flag(
+			"leaderboard_bestroll_inside_hub",
+			numbersOk
+				and B.X - R >= HUB_MIN.X - GEOM_TOL
+				and B.X + R <= HUB_MAX.X + GEOM_TOL
+				and B.Z - R >= HUB_MIN.Y - GEOM_TOL
+				and B.Z + R <= HUB_MAX.Y + GEOM_TOL
+		)
+		-- It overlaps none of: plot, pad, Spawn, marketplace footprint, race platform, track part, leaderboard sign
+		local square = geomOk
+			and rectPoly(startPart.CFrame, Vector2.new(B.X - R, B.Z - R), Vector2.new(B.X + R, B.Z + R))
+		local signSet = {}
+		for _, sign in allSigns and signPolys or {} do
+			table.insert(signSet, sign.Poly)
+		end
+		table.insert(obstacleSets, { Label = "signs", Polys = signSet })
+		for _, set in obstacleSets do
+			local overlaps, gap = 0, math.huge
+			for _, poly in square and set.Polys or {} do
+				local sep = separation(square, poly)
+				gap = math.min(gap, sep)
+				if sep < -GEOM_TOL then
+					overlaps += 1
+				end
+			end
+			r.metrics["bestroll_" .. set.Label .. "_gap"] = gap == math.huge and -1 or math.round(gap * 1000) / 1000
+			flag(
+				"leaderboard_bestroll_clear_of_" .. set.Label,
+				square ~= false and square ~= nil and #set.Polys > 0 and overlaps == 0,
+				overlaps,
+				0
+			)
+		end
+	end
+	local stats = pedestalOk and pedestal:FindFirstChild("Stats")
+	local statsOk = stats ~= nil and stats ~= false and stats:IsA("BillboardGui")
+	flag("leaderboard_bestroll_stats_billboard_exists", statsOk)
+	local textDistance = statsOk and stats.MaxDistance or -1
+	flag(
+		"leaderboard_bestroll_text_distance",
+		statsOk
+			and numbersOk
+			and textDistance > 0
+			and textDistance < math.huge
+			and math.abs(textDistance - B.TEXT_DISTANCE) < 1e-3,
+		textDistance,
+		tonumber(B.TEXT_DISTANCE) or -1
+	)
+	for _, name in BEST_ROLL_LABELS do
+		local label = statsOk and stats:FindFirstChild(name, true)
+		flag("leaderboard_bestroll_label_exists_" .. name, label ~= nil and label ~= false and label:IsA("TextLabel"))
+	end
+	local bestLabels = bestRollLabels(pedestalOk and pedestal or nil)
+	local bestTitle = bestLabels and bestLabels.Title.Text or "<missing>"
+	flag("leaderboard_bestroll_title", bestTitle == BEST_ROLL_TITLE, bestTitle, BEST_ROLL_TITLE)
+	-- What the pedestal shows right now
+	local function pedestalShows()
+		return {
+			Odds = bestLabels and bestLabels.Odds.Text or "<missing>",
+			Car = bestLabels and bestLabels.Car.Text or "<missing>",
+			Player = bestLabels and bestLabels.Player.Text or "<missing>",
+			CarId = bestRoll and bestRoll:GetAttribute("CarId"),
+			Model = bestRoll and bestRoll:FindFirstChild("Car") or nil,
+		}
+	end
 
 	-- Service API (spec section 2 + the agreed test seams SetStore / SetNameLookup)
 	local api = service ~= nil
@@ -675,6 +823,114 @@ function Tests.leaderboard()
 		end
 		flag("leaderboard_names_cached", repeated == 0, repeated, 0)
 
+		-- Best Roll Ever pedestal (spec section 3a): it shows row 1 of the RarestCar board after every board read
+		local carModels = ReplicatedStorage:FindFirstChild("CarModels")
+		local function templateFor(spec)
+			return spec and type(spec.Model) == "string" and carModels and carModels:FindFirstChild(spec.Model) or nil
+		end
+		local function expectRow(tag, userId, score, spec)
+			local s = pedestalShows()
+			flag("leaderboard_bestroll_odds_" .. tag, s.Odds == hud.Odds(score), s.Odds, hud.Odds(score))
+			local carName = spec and spec.Name or ""
+			flag("leaderboard_bestroll_car_name_" .. tag, s.Car == carName, s.Car, carName)
+			local by = "by " .. nameOf(userId)
+			flag("leaderboard_bestroll_player_" .. tag, s.Player == by, s.Player, by)
+			local wantId = spec and spec.Id or nil
+			flag(
+				"leaderboard_bestroll_car_id_" .. tag,
+				bestRoll ~= nil and s.CarId == wantId,
+				tostring(s.CarId),
+				tostring(wantId)
+			)
+			-- "No template: no Car model"; with one, a Model whose every part is anchored and out of the physics
+			local template = templateFor(spec)
+			local isModel = s.Model ~= nil and s.Model:IsA("Model")
+			flag(
+				"leaderboard_bestroll_car_model_" .. tag,
+				bestRoll ~= nil and (template ~= nil and isModel or (template == nil and s.Model == nil))
+			)
+			local parts, loose = partsOf(s.Model), 0
+			for _, part in parts do
+				if not part.Anchored or part.CanCollide or part.CanTouch or part.CanQuery then
+					loose += 1
+				end
+			end
+			flag(
+				"leaderboard_bestroll_car_parts_static_" .. tag,
+				bestRoll ~= nil and loose == 0 and (#parts > 0 or template == nil),
+				loose,
+				0
+			)
+			return s.Model
+		end
+		local function expectNoData(tag)
+			local s = pedestalShows()
+			flag("leaderboard_bestroll_no_data_odds_" .. tag, s.Odds == NO_DATA, s.Odds, NO_DATA)
+			flag("leaderboard_bestroll_no_data_car_blank_" .. tag, s.Car == "", s.Car, "")
+			flag("leaderboard_bestroll_no_data_player_blank_" .. tag, s.Player == "", s.Player, "")
+			flag("leaderboard_bestroll_no_data_no_car_id_" .. tag, bestRoll ~= nil and s.CarId == nil)
+			flag("leaderboard_bestroll_no_data_no_car_model_" .. tag, bestRoll ~= nil and s.Model == nil)
+		end
+		flag("leaderboard_bestroll_no_data_text_matches_config", C.NO_DATA == NO_DATA, tostring(C.NO_DATA), NO_DATA)
+		local rarestData = stores.Data.LB_RarestCar_v1
+		local function reseed(rows) -- { [userId] = score }, then a board read
+			table.clear(rarestData)
+			for userId, score in rows do
+				rarestData[tostring(userId)] = score
+			end
+			service.Refresh()
+		end
+		local seeded = {}
+		for i, score in seeds.RarestCar do
+			seeded[ID_BASE + i] = score
+		end
+		local best, nextBest = chances[1], chances[2]
+		local twoCars = best ~= nil and nextBest ~= nil and best.Chance > nextBest.Chance
+		flag("leaderboard_bestroll_catalog_has_two_rollable_cars", twoCars)
+		if twoCars then
+			-- Row 1 as seeded above: the rarest catalog car, held by user ID_BASE + 1
+			local firstCar = expectRow("row1", ID_BASE + 1, best.Chance, best)
+			local onPedestal = templateFor(best) == nil
+			if firstCar and firstCar:IsA("Model") and pedestalOk and numbersOk then
+				local offset = firstCar:GetBoundingBox().Position - pedestal.Position
+				onPedestal = Vector2.new(offset.X, offset.Z).Magnitude <= B.RADIUS and offset.Y > 0
+			end
+			flag("leaderboard_bestroll_car_on_pedestal", bestRoll ~= nil and onPedestal)
+
+			-- "The Car model is rebuilt only when CarId changes"
+			service.Refresh()
+			local again = pedestalShows().Model
+			flag(
+				"leaderboard_bestroll_same_row_keeps_car_instance",
+				bestRoll ~= nil and again == firstCar and (firstCar == nil or firstCar.Parent == bestRoll)
+			)
+			local less = table.clone(seeded)
+			less[ID_BASE + 1] = nil -- row 1 is now the next rarest car, held by user ID_BASE + 2
+			reseed(less)
+			local second = expectRow("changed", ID_BASE + 2, nextBest.Chance, nextBest)
+			flag(
+				"leaderboard_bestroll_new_row_replaces_car",
+				bestRoll ~= nil
+					and (firstCar == nil or (second ~= firstCar and firstCar.Parent ~= bestRoll))
+					and (firstCar ~= nil or templateFor(best) == nil)
+			)
+
+			-- A top score that is no catalog car's Chance: odds and player shown, no car
+			local stranger, strange = ID_BASE + 40, best.Chance + 7
+			local more = table.clone(seeded)
+			more[stranger] = strange
+			reseed(more)
+			expectRow("unmatched", stranger, strange, nil)
+
+			-- An empty board
+			flag("leaderboard_bestroll_empty_store_refresh_no_error", (pcall(reseed, {})))
+			expectNoData("empty_store")
+
+			-- Back to the seeded rows for the checks below
+			reseed(seeded)
+			expectRow("restored", ID_BASE + 1, best.Chance, best)
+		end
+
 		-- A throwing store raises no error and keeps the last good rows
 		local before, beforeTop = {}, #service.Top("Speed")
 		for _, b in BOARDS do
@@ -697,6 +953,9 @@ function Tests.leaderboard()
 		)
 		local writeOk, written = pcall(service.Write, p)
 		flag("leaderboard_throwing_store_write_no_error", writeOk and written == false)
+		if twoCars then -- the pedestal keeps the last good row 1 too
+			expectRow("throwing_store", ID_BASE + 1, best.Chance, best)
+		end
 		stores.Throw = false
 
 		-- The store lookup itself failing (GetOrderedDataStore throws in Studio without API access) raises nothing
@@ -719,6 +978,7 @@ function Tests.leaderboard()
 			end
 			flag("leaderboard_no_store_shows_no_data_yet_" .. b.Id, shown, rowTexts(l), NO_DATA)
 		end
+		expectNoData("no_store")
 	end)
 	-- Restore the real store and name lookup, and let the signs show the real boards again
 	pcall(service.SetStore, nil)

@@ -620,6 +620,23 @@ UiSpec.Billboards = {
 		OwnedText = "%s's Workshop", -- the owner's DisplayName
 		MaxDistance = "WorkshopConfig.SIGN_DISTANCE", -- 120
 	},
+	-- Best Roll Ever pedestal (docs/LEADERBOARD_SPEC.md section 3a): Workspace.SpawnArea.BestRoll.Pedestal.Stats.
+	-- Odds / Car / Player follow the RarestCar board (server); here only that they exist. Title is fixed.
+	BestRollStats = {
+		Path = "SpawnArea/BestRoll/Pedestal/Stats", -- under Workspace
+		Adornee = "CarMount", -- Pedestal.CarMount
+		Labels = { Title = "BEST ROLL EVER", Odds = true, Car = true, Player = true }, -- true = must exist, any text
+		MaxDistance = "LeaderboardConfig.BEST_ROLL.TEXT_DISTANCE", -- 150
+	},
+	-- Gamepass car pedestals (docs/GAMEPASS_CARS_SPEC.md section 5): one per PassCarConfig.Pedestals entry,
+	-- Workspace.SpawnArea.PassCars.Pass_<carId>.Pedestal.Stats; Title = the catalog car's Name, Tag = "GAMEPASS".
+	PassCarStats = {
+		Path = "SpawnArea/PassCars/Pass_<carId>/Pedestal/Stats",
+		Labels = { Title = "CarCatalog.Get(carId).Name", Tag = "GAMEPASS" },
+		MaxDistance = "PassCarConfig.TEXT_DISTANCE", -- 150
+		-- Pedestal.Buy ProximityPrompt: ObjectText = car Name; ActionText by the car's GamepassId
+		Prompt = { Name = "Buy", ActionTextNoPass = "Coming soon", ActionTextPass = "Unlock" },
+	},
 }
 
 -- Seconds to wait for live events the checks need.
@@ -720,7 +737,7 @@ UiSpec.ServerSetup = {
 			.. "snapshot (deliberately: a kept baseline would survive into a later session and make its 'snapshot' a "
 			.. "no-op, restoring stale money/cars). Any fixture after a restore needs a fresh 'snapshot' first, else "
 			.. "it errors 'snapshot required'. Restore can stop auto race, and CarService then holds the avatar at the "
-			.. "walk spawn for ~2 s: the world fixtures (workshop_*_prompt, upgrade_world_*) re-place the avatar until "
+			.. "walk spawn for ~2 s: the world fixtures (workshop_*_prompt) re-place the avatar until "
 			.. "it stays put and error if it does not.",
 	},
 }
@@ -1427,7 +1444,6 @@ UiSpec.Progression = {
 	UpgradeButtonTop = 0.22,
 	UpgradeButtonRight = 16,
 	WorkshopRateStep = 0.05,
-	WorldPadWait = 1.5, -- s: ProgressionUi polls the pad every 0.25 s and the fixture's teleport must replicate
 }
 for _, name in { "Upgrades", "Workshop", "Welcome" } do
 	local path = "Racer" .. name .. "/Panel"
@@ -1539,14 +1555,6 @@ for _, item in
 			What = "Requires second player's owned plot; moves test avatar to that UpgradePad. E must open no panel.",
 		},
 		{
-			Id = "upgrade_world_enter",
-			What = "Moves avatar onto spawn UpgradePad; ui_progression_world must observe only Upgrades open.",
-		},
-		{
-			Id = "upgrade_world_leave",
-			What = "Moves avatar off spawn UpgradePad; ui_progression_world must observe Upgrades closed.",
-		},
-		{
 			Id = "offline_zero",
 			What = "OfflineSpeed=0, OfflineSeconds=0; ui_offline_zero must observe welcome hidden.",
 		},
@@ -1564,9 +1572,12 @@ for _, item in
 		},
 		-- Displayed odds (UiSpec.RollOdds): each plants two RollResults at the test client only (nothing is rolled,
 		-- granted or paid) and turns AutoRoll off until 'restore'
-		{ Id = "roll_odds_luck2", What = "Plants a car with a Chance at luck 2; run ui_roll_odds." },
-		{ Id = "roll_odds_round", What = "Same car at luck 3 (Chance / 3 is rounded); run ui_roll_odds." },
-		{ Id = "roll_odds_clamp", What = "Same car at luck 4 x Chance (never below '1 in 1'); run ui_roll_odds." },
+		{
+			Id = "roll_odds_luck2",
+			What = "Plants a car with a Chance at luck 2; display remains base rarity; run ui_roll_odds.",
+		},
+		{ Id = "roll_odds_round", What = "Same car at luck 3; display remains base rarity; run ui_roll_odds." },
+		{ Id = "roll_odds_clamp", What = "Same car at extreme luck; display remains base rarity; run ui_roll_odds." },
 		{ Id = "roll_odds_luck1", What = "Same car at luck 1 (base odds); run ui_roll_odds." },
 		{ Id = "roll_odds_no_luck", What = "Same car with NO 6th argument (base odds); run ui_roll_odds." },
 		{ Id = "roll_odds_catchall", What = "The catch-all car (Chance nil) at luck 2 ('1 in ?'); run ui_roll_odds." },
@@ -1610,8 +1621,6 @@ Fixture run protocol (ui-tester), per FixtureChecks entry, in order:
   5. Restore the setup (snapshot restore) after the scenario's result arrived.
 ]]
 UiSpec.Progression.FixtureChecks = {
-	{ Setup = "upgrade_world_enter", Scenario = "ui_progression_world" },
-	{ Setup = "upgrade_world_leave", Scenario = "ui_progression_world" },
 	{ Setup = "offline_welcome", Scenario = "ui_offline_welcome" },
 	{ Setup = "offline_zero", Scenario = "ui_offline_zero" },
 	{ Setup = "weather_rain", Scenario = "ui_weather" },
@@ -1630,11 +1639,10 @@ UiSpec.Progression.FixtureChecks = {
 }
 
 --[[
-Displayed odds (design doc "Weather events": "the displayed odds must still update while it is active";
-docs/WEATHER_EVENTS_SPEC.md "Displayed odds"; docs/ROLL_ANIMATION_CONTRACT.md). RollResult's 6th argument is the
-roll's luck (GachaService.Luck, without the turbo multi). Both Odds labels (RollToast/Toast `Odds`; RollShowcase/Card
-`ResultOdds` and its alias `Odds`) show "1 in max(1, round(Chance / luck))"; a missing or invalid luck counts as 1;
-a catch-all car (Chance nil) keeps "1 in ?". The Index and the roll announcement keep the base odds.
+Displayed odds (docs/WEATHER_EVENTS_SPEC.md "Displayed odds"; docs/ROLL_ANIMATION_CONTRACT.md). RollResult's 6th
+argument is the roll's server luck for compatibility, but both Odds labels (RollToast/Toast `Odds`; RollShowcase/Card
+`ResultOdds` and its alias `Odds`) show the catalog rarity with `HudFormat.Odds(Chance)`. A catch-all car (Chance nil)
+keeps "1 in ?". The Index and the roll announcement keep the base odds.
 
 Each fixture sets the player attribute Attr = JSON { fixture, id, luck (absent when not sent), nonce }, waits for a
 roll that may still be playing, then fires RollResult(id, false, 1, false, 0, luck) (compact) and, one animation

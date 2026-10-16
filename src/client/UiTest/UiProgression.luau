@@ -125,13 +125,19 @@ function Progression.Build(h)
 			canvas.CanvasPosition = original
 			restore()
 		end
-		local worldPad = false
+		-- Owner 2026-10-13: the spawn-area upgrade pad is removed; the tree opens only from the HUD Upgrade button
+		-- (clicks open_upgrades / toggle_upgrades_closed). Only the workshop plots keep an UpgradePad.
+		local plots = workspace:FindFirstChild("Workshops")
+		local worldPads = 0
 		for _, pad in CollectionService:GetTagged("UpgradePad") do
-			if pad:IsDescendantOf(workspace) and not pad:FindFirstAncestor("Workshops") then
-				worldPad = pad:IsA("BasePart")
+			if pad:IsDescendantOf(workspace) and not (plots and pad:IsDescendantOf(plots)) then
+				worldPads += 1
 			end
 		end
-		expect(res, "upgrade_world_pad_present", worldPad, true)
+		expect(res, "upgrade_no_world_pad", worldPads, 0)
+		local spawnArea = workspace:FindFirstChild("SpawnArea")
+		local spawnPad = spawnArea and spawnArea:FindFirstChild("UpgradePad", true)
+		expect(res, "upgrade_no_spawn_area_pad", spawnPad and spawnPad:GetFullName() or "none", "none")
 	end
 	function scenarios.ui_workshop_modal(res)
 		local level = h.player:GetAttribute("WorkshopLevel")
@@ -480,7 +486,7 @@ function Progression.Build(h)
 			end
 		end
 		restore()
-		-- WEATHER_EVENTS_SPEC "Displayed odds": a roll during Rain shows its odds divided by the roll's luck. Only
+		-- WEATHER_EVENTS_SPEC "Displayed odds": a roll during Rain keeps its catalog rarity. Only
 		-- with the weather_rain_roll fixture (it plants that roll; checks roll_odds_*, see UiSpec.RollOdds).
 		local fixture = h.rollOddsFixture()
 		if fixture and fixture.fixture == "weather_rain_roll" then
@@ -493,37 +499,6 @@ function Progression.Build(h)
 		expect(res, "offline_zero_fixture_seconds", h.player:GetAttribute("OfflineSeconds"), 0)
 		local panel = h.find("RacerWelcome/Panel")
 		expect(res, "offline_zero_hides_welcome", panel and panel.Visible, false)
-	end
-	function scenarios.ui_progression_world(res)
-		h.frames(2)
-		local setup = h.player:GetAttribute("UiTestProgressionFixture")
-		-- ProgressionUi polls the pad every 0.25 s and the server's teleport must replicate first: wait (up to
-		-- WorldPadWait s) for the panels to reach the expected state before judging them
-		local function settled()
-			for path in Spec.PanelSwitch.Names do
-				local obj = h.find(path)
-				if (obj and obj.Visible) ~= (setup == "upgrade_world_enter" and path == "RacerUpgrades/Panel") then
-					return false
-				end
-			end
-			return true
-		end
-		local deadline = os.clock() + Spec.Progression.WorldPadWait
-		while not settled() and os.clock() < deadline do
-			h.frames(1)
-		end
-		h.check(
-			res,
-			"world_fixture_present",
-			setup,
-			"upgrade_world_enter or upgrade_world_leave",
-			setup == "upgrade_world_enter" or setup == "upgrade_world_leave"
-		)
-		for path in Spec.PanelSwitch.Names do
-			local obj = h.find(path)
-			local want = setup == "upgrade_world_enter" and path == "RacerUpgrades/Panel"
-			expect(res, "world_pad_panel_" .. string.lower(path), obj and obj.Visible, want)
-		end
 	end
 	-- Click post-conditions (UiSpec.Clicks Expect.After), run by UiScenarios.RunClick.
 	local function cardVisible(res, name, want)

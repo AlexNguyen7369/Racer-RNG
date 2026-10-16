@@ -44,6 +44,8 @@ Studio command bar. Server-only; non-admins can never change anything.
 The last argument may name a target: `me` (default, the sender), `all` (every player in `Players`), or the
 start of a player's Name or DisplayName (case-insensitive; exactly one match required, otherwise `false`).
 A command with no target argument acts on the sender. The sender may be a test stand-in; `me` works for it.
+`/weather` is server-wide and has no target. `/luck` and `/giveluck` use a non-saved `AdminLuck`
+attribute for testing; it disappears when the player leaves and multiplies normal `GachaService.Luck`.
 
 ### Commands
 | Command | Effect on each target |
@@ -53,6 +55,13 @@ A command with no target argument acts on the sender. The sender may be a test s
 | `/addmoney <n> [target]` | Money += floor(n) (n may be negative; result clamped at 0). |
 | `/speed <n> [target]` | `leaderstats.Speed.Value` = n clamped to [0, `RaceConfig.MAX_STAT`], 3 decimals. |
 | `/addspeed <n> [target]` | Speed += n, same clamp. |
+| `/resetspeed [target]` | Sets Speed to 0. |
+| `/givespeed <n> [target]` | Adds positive n to Speed, same clamp. |
+| `/givemoney <n> [target]` | Adds positive floor(n) to Money, clamped to 1e15. |
+| `/luck <n> [target]` | Sets a session-only direct Luck multiplier to n (n >= 1). |
+| `/giveluck <n> [target]` | Alias for `/luck`. |
+| `/resetluck [target]` | Removes the session-only direct Luck multiplier. |
+| `/weather <id>` | Sets server weather to `clear`, `rain`, `night`, `gold`, `aurora`, or `off`. |
 | `/give <carId\|all> [target]` | `GachaService.Grant` the car (or every rollable car). Unknown / starter id -> `false`. StatPoints update as usual. |
 | `/equip <carId> [target]` | `GachaService.Equip`; not owned / unknown -> `false`. |
 | `/roll [count] [target]` | `GachaService.Roll` count times (default 1, 1..`MAX_ROLLS`). |

@@ -118,7 +118,7 @@ longer spans the road centre or touches Track 1's Start: walking onto it starts 
     - `Card` (Frame on top of the backdrop, centred, Active so clicks on it do NOT close): the CURRENT roll, updated
       live on every RollResult while open (it opens on the latest roll): `Viewport` (ViewportFrame; the car's model
       from `ReplicatedStorage.CarModels[spec.Model]` when it has one, else `Placeholder` "?"), `Odds` (big, rarity
-      colour: `HudFormat.Odds(Chance, luck)` style "1 in 250", divided by the roll's luck since 2026-10-13; catch-all cars use "1 in ?"), `CarName`, `Rarity`
+      colour: `HudFormat.Odds(Chance)` style "1 in 250"; temporary luck does not alter the catalog rarity; catch-all cars use "1 in ?"), `CarName`, `Rarity`
       (rarity colour; Secret readable), `SpeedMulti` ("Speed x6"), `NewBadge` (first discovery), `TurboBadge`
       ("TURBO x5" on a turbo roll).
     - Opening it closes any open panel (Index / Stats). While it is open the toast does not show.

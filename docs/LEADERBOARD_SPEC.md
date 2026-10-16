@@ -44,7 +44,39 @@ lowers it. Admin `/money` and `/addmoney` do not count.
   `1 in <Chance>`. Empty rows are blank.
 - The server sets the text; the signs replicate like any other part.
 
+## 3a. Best Roll Ever pedestal (owner, 2026-10-13)
+
+Status: rule written 2026-10-13, before tests and code.
+
+- What it shows: row 1 of the `RarestCar` board, `LeaderboardService.Top("RarestCar")[1]`. No new store, no remote.
+  Owned cars survive a rebirth, so this score never drops. Players who own the same rarest car tie; which of them
+  is row 1 is the store's choice.
+- `Workspace.SpawnArea.BestRoll` (Model, built by `Shared/SpawnArea`, numbers in `LeaderboardConfig.BEST_ROLL`):
+  - `Pedestal`: a round platform (anchored, `CanCollide` true), centre local (`X`, `Z`) = (150, -70), where the spawn-area
+    upgrade pad stood until 2026-10-13 (owner), `RADIUS` studs, inside `HUB_MIN..HUB_MAX`. It overlaps none of: plot, pad, `Spawn`, marketplace footprint, race platform, track part,
+    leaderboard sign. Extra decorative parts of the platform stay inside the same footprint.
+  - `Pedestal.Stats` (BillboardGui above the car, finite `MaxDistance` = `TEXT_DISTANCE`) with TextLabels `Title`
+    ("BEST ROLL EVER"), `Odds`, `Car`, `Player`.
+- The server (`LeaderboardService`, after every board read) sets:
+  - with a row 1: `Odds` = `HudFormat.Odds(score)` ("1 in 100,000"), `Car` = the catalog car with that `Chance`
+    (its `Name`; blank when no car matches), `Player` = "by <Name>", attribute `BestRoll.CarId` = that car's id, and
+    a `Car` Model under `BestRoll`: a clone of `ReplicatedStorage.CarModels[spec.Model]` standing on the platform at
+    scale `CAR_SCALE`, every part anchored with `CanCollide`, `CanTouch` and `CanQuery` off. No template: no `Car` model.
+  - with no row: `Odds` = "No data yet", `Car` and `Player` blank, no `CarId`, no `Car` model.
+  - The `Car` model is rebuilt only when `CarId` changes.
+- The client (`Client/BestRollView`) only turns `BestRoll.Car` about the vertical axis (`SPIN` degrees per second),
+  locally. It decides nothing.
+
+- Owner, 2026-10-13: the pedestal is much larger (`RADIUS` 12, `CAR_SCALE` 3.5) and is the centre of a row of three:
+  the two gamepass car pedestals of `docs/GAMEPASS_CARS_SPEC.md` stand left and right of it. Shared numbers
+  (`HEIGHT`, `SPIN`) stay in `LeaderboardConfig.BEST_ROLL`.
+
 ## 4. Tests
+
+- Pedestal (in the `leaderboard` scenario): the model, `Pedestal` and the four labels exist; the footprint is inside
+  the hub and overlaps nothing in the list above; after `Refresh()` with a fake store the labels, `CarId` and the
+  `Car` model match row 1; an empty or throwing store shows "No data yet", no `Car`, no error; the `Car` parts are
+  anchored and non-colliding.
 
 - `leaderboard` harness scenario with a fake store: descending order and the `TOP_N` cap, integer scores, the Speed
   max rule (a lower Speed never overwrites), nothing written for a failed or unloaded save, zero not written, the

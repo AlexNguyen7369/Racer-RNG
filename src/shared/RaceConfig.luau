@@ -1,6 +1,6 @@
 --!nonstrict
 -- Economy knobs for the auto race. The Speed stat (a continuous number that grows while the car drives)
--- sets the cruise speed, with diminishing returns. Studs per second. The optional
+-- sets the cruise speed, with diminishing returns that never flatten. Studs per second. The optional
 -- car multiplier changes the player's base/cruise speed, while speed gain is
 -- handled separately by RebirthConfig.
 
@@ -9,8 +9,7 @@ local RaceConfig = {}
 RaceConfig.BASE_SPEED = 30 -- cruise speed at Speed stat 0
 RaceConfig.MAX_SPEED = 75 -- reference cruise speed at HALF_STAT; higher stats continue increasing beyond it
 RaceConfig.HALF_STAT = 1000 -- stat at which the cruise speed is halfway between BASE_SPEED and MAX_SPEED
-RaceConfig.GAIN_PER_STUD = 0.05 -- stat gained per stud travelled when the stat is 0
-RaceConfig.GAIN_SOFT = 2000 -- gain is divided by (1 + stat / GAIN_SOFT): the higher the stat, the slower it grows
+RaceConfig.GAIN_PER_STUD = 0.05 -- stat gained per stud travelled, at every stat
 RaceConfig.MAX_STAT = 1e9
 
 local function cleanStat(stat)
@@ -30,18 +29,20 @@ function RaceConfig.SpeedFor(stat, carSpeedMulti)
 	end
 	local cruise = RaceConfig.BASE_SPEED
 		+ (RaceConfig.MAX_SPEED - RaceConfig.BASE_SPEED)
-			* math.log(1 + stat / RaceConfig.HALF_STAT) / (2 * math.log(2))
+			* math.log(1 + stat / RaceConfig.HALF_STAT)
+			/ (2 * math.log(2))
 	return cruise * carSpeedMulti
 end
 
--- Stat gained per second while driving at an ACTUAL speed (studs/s): proportional to the speed, shrinking as
--- the stat grows. Bad inputs gain nothing.
+-- Stat gained per second while driving at an ACTUAL speed (studs/s): proportional to the speed only. The stat
+-- never reduces it, so a higher stat (a faster car) gains faster (design doc "Core stat model", owner 2026-10-13).
+-- Bad inputs gain nothing.
 function RaceConfig.GainPerSecond(stat, speed)
 	stat = cleanStat(stat)
 	if not stat or type(speed) ~= "number" or speed ~= speed or speed < 0 or speed == math.huge then
 		return 0
 	end
-	return RaceConfig.GAIN_PER_STUD * speed / (1 + stat / RaceConfig.GAIN_SOFT)
+	return RaceConfig.GAIN_PER_STUD * speed
 end
 
 return RaceConfig

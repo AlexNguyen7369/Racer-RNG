@@ -87,9 +87,9 @@ The bar becomes "TURBO LUCK n/N" with the tier's N and pops "TURBO xM!". Progres
 ## 5. Where it is
 - **UPGRADES button** next to INDEX / STATS on the right column, red badge = number of tiles the player can buy right
   now (like the Stats badge).
-- **World spot in the spawn area:** an "UPGRADES" sign with a pad in front of it in the free part of the area, away
-  from the walk spawn and the StartPad (around local (150, -70) of Track 1's Start). Stepping on the pad opens the tree
-  (client-side, the local avatar only); stepping off closes it. Must not overlap the spawn, the StartPad or the edges.
+- **No world spot (owner, 2026-10-13):** the "UPGRADES" sign and pad in the spawn area (local (150, -70)) are removed;
+  the Best Roll Ever pedestal (`docs/LEADERBOARD_SPEC.md` 3a) stands there. The tree opens only from the UPGRADES
+  button. The upgrade pad of each workshop plot (`docs/WORKSHOP_SPEC.md`) is a different thing and stays.
 - The tree panel is a PanelSwitch panel (mutually exclusive with Index / Stats), starts below the Auto Race button and
   ends above the turbo bar, Close button at the bottom, fits phone landscape.
 - Tiles: owned = blue, buyable = its price (green if affordable, red if not), gated = "Reach Track N", beyond = "?".
@@ -102,4 +102,4 @@ The bar becomes "TURBO LUCK n/N" with the tier's N and pops "TURBO xM!". Progres
 - Effects are read through `GachaService` multis (Luck, Speed, Money), the roll interval, the turbo tier, and the
   on-foot WalkSpeed in `CarService` (respawn and Stop keep it).
 - Tests: tree rules (order, gate, price, money taken once), every effect at each tier, save/load, UI (button, badge,
-  panel layout at every viewport, world pad opens/closes), and the existing stability tests unchanged.
+  panel layout at every viewport, no world pad in the spawn area), and the existing stability tests unchanged.

@@ -349,6 +349,38 @@
       "status": "done",
       "added": "2026-10-13T13:05:06-07:00",
       "by": "Claude"
+    },
+    {
+      "id": "gamepass-car-ids",
+      "title": "Create the two gamepass car passes and send their ids",
+      "priority": "medium",
+      "why": "The Ember Wyvern and Singularity pedestals offer a gamepass purchase, but the game has no pass ids yet (GamepassId = 0), so both prompts say \"Coming soon\". Only the owner can create passes and set prices.",
+      "blocks": "Selling the two gamepass cars (docs/GAMEPASS_CARS_SPEC.md).",
+      "when": "Whenever you want the cars on sale.",
+      "steps": [
+        "Open the Creator Dashboard for the game, Monetization > Passes.",
+        "Create a pass \"Ember Wyvern\" and a pass \"Singularity\", give each an icon and a price, and put both on sale.",
+        "Copy each pass id and give them to Claude (or paste them into GamepassId in src/shared/Cars/ember_wyvern.luau and singularity.luau)."
+      ],
+      "status": "open",
+      "added": "2026-10-13T20:30:00-07:00",
+      "by": "Claude"
+    },
+    {
+      "id": "rojo-connect-smooth-rail",
+      "title": "Connect Studio's Rojo plugin to the running rojo serve",
+      "priority": "high",
+      "why": "Studio holds stale scripts (rojo serve was not running). The smooth-auto-race fix (soft rail) cannot be tested until the latest files sync.",
+      "blocks": "The car-loop red/green runs for the choppy auto-race fix, then /compat-check.",
+      "when": "Now.",
+      "steps": [
+        "Claude started rojo serve on localhost:34872.",
+        "In Roblox Studio (Racer RNG, Edit mode) open the Rojo plugin and click Connect.",
+        "Tell Claude it is connected."
+      ],
+      "status": "open",
+      "added": "2026-10-15T15:45:00-07:00",
+      "by": "Claude"
     }
   ]
 }

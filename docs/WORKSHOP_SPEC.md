@@ -78,7 +78,9 @@ Every `WorkshopConfig.TICK` (0.5 s) for each player with a plot:
 - In the zone = alive character, NOT auto-racing (`CarService.IsAutoRacing` false), HumanoidRootPart inside the zone
   rect (x, z) and between the floor and `ZONE_SIZE.Y` above it. Sets player attribute `InWorkshop`.
 - While in the zone: `PlayerData.AddSpeed(player, rate * dt)`, with
-  `rate = BASE_RATE x GachaService.SpeedMulti(player) x LevelMulti(level) x WorkshopPointsMulti / (1 + stat / RaceConfig.GAIN_SOFT)`
+  `rate = BASE_RATE x GachaService.SpeedMulti(player) x LevelMulti(level) x WorkshopPointsMulti`
+  (owner, 2026-10-13, design doc "Core stat model": the Speed stat never reduces the rate; the old
+  `/ (1 + stat / RaceConfig.GAIN_SOFT)` term and `GAIN_SOFT` are removed)
   - `BASE_RATE` = 1 Speed/s (*placeholder*, design doc "B")
   - `SpeedMulti` = Speed points + upgrade tree Speed % + rebirth Speed gain; the equipped car is **not** included
     because car models affect cruise/base speed only
@@ -127,7 +129,7 @@ Studio: Game Settings > Places > Server Size (Max Players) = **7** (Rojo can not
 
 Ten levels are configured, with level 2 costing $500 and subsequent prices growing ×5. Every level doubles W. These are configurable defaults pending owner feedback, rather than a record of approved balancing. The E prompt on an owned plot opens the upgrade modal; the server checks load state, ownership, life, racing state, distance and Money before buying the next level. No client price or requested level is accepted.
 
-The HUD shows the server's current workshop rate, and Workshop stat allocation is enabled. Offline earnings integrate the diminishing gain formula at 25%, capped at eight hours; Money is credited at 10% of that Speed result. **Owner decision 2026-10-12 (design doc, "Economy"): offline earnings are Speed only. The 10% Money credit was removed on 2026-10-12 (`docs/SAVE_SPEC.md` section 3); any Money wording in this section is history.** Saves include `OfflineAt`; an atomic DataStore claim persists the credited Speed, Money, and new timestamp before exposing rewards. Missing or invalid legacy timestamps grant no offline reward. Repeated loads do not replay rewards or reset live progress. The welcome panel reports both credited rewards and the capped duration. Workshop harness scenarios passed on the synced sources; UI diagnostics, full compatibility and real-store verification remain pending.
+The HUD shows the server's current workshop rate, and Workshop stat allocation is enabled. Offline earnings are `rate x OFFLINE_FRACTION (25%) x min(seconds, OFFLINE_CAP (eight hours))`, never above `MAX_STAT - stat` (owner, 2026-10-13: no diminishing term); Money is credited at 10% of that Speed result. **Owner decision 2026-10-12 (design doc, "Economy"): offline earnings are Speed only. The 10% Money credit was removed on 2026-10-12 (`docs/SAVE_SPEC.md` section 3); any Money wording in this section is history.** Saves include `OfflineAt`; an atomic DataStore claim persists the credited Speed, Money, and new timestamp before exposing rewards. Missing or invalid legacy timestamps grant no offline reward. Repeated loads do not replay rewards or reset live progress. The welcome panel reports both credited rewards and the capped duration. Workshop harness scenarios passed on the synced sources; UI diagnostics, full compatibility and real-store verification remain pending.
 
 ## Open questions for the owner
 - `BASE_RATE` (1 Speed/s now; driving at base speed gains ~1.5/s): should idling beat racing for Speed?

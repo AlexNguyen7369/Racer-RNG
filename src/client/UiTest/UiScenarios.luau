@@ -32,6 +32,8 @@ local GachaConfig = require(Shared:WaitForChild("GachaConfig"))
 local NpcConfig = require(Shared:WaitForChild("NpcConfig"))
 local WeatherConfig = require(Shared:WaitForChild("WeatherConfig"))
 local TrackBuilder = require(Shared:WaitForChild("TrackBuilder"))
+local LeaderboardConfig = require(Shared:WaitForChild("LeaderboardConfig"))
+local PassCarConfig = require(Shared:WaitForChild("PassCarConfig"))
 local UpgradeTree = require(Shared:WaitForChild("UpgradeTree"))
 
 local player = Players.LocalPlayer
@@ -112,7 +114,7 @@ UiScenarios.Names = {
 	-- UiSpec.Duel.FixtureChecks (UiTestScenario) and judges that message.
 	"ui_duel",
 	-- ui_offline_welcome needs its offline_welcome server fixture, so it runs only through
-	-- UiSpec.Progression.FixtureChecks (UiTestScenario), like ui_offline_zero and ui_progression_world.
+	-- UiSpec.Progression.FixtureChecks (UiTestScenario), like ui_offline_zero.
 	"ui_weather",
 	-- Last: its server setup (emphasized_next) takes the cars away until the emphasized roll happened
 	"ui_roll_emphasized",
@@ -1190,20 +1192,10 @@ local function owned(id)
 	return data ~= nil and data:FindFirstChild(id) ~= nil
 end
 
--- The odds a roll must show (docs/ROLL_ANIMATION_CONTRACT.md, WEATHER_EVENTS_SPEC "Displayed odds"):
--- "1 in max(1, round(Chance / luck))", luck = RollResult's 6th argument, a missing or invalid one counts as 1; a car
--- without a real Chance keeps "1 in ?". Written out here, never through a two-argument HudFormat.Odds, so the
--- expectation does not follow the implementation.
-local function oddsText(chance, luck)
-	local base = HudFormat.Odds(chance)
-	if type(chance) ~= "number" or base == HudFormat.Odds(nil) then
-		return base
-	end
-	-- Below 1 counts as invalid, as in GachaConfig.Roll (the server's luck sources are all >= 1)
-	if type(luck) ~= "number" or luck ~= luck or luck <= 1 or luck == math.huge then
-		return base
-	end
-	return HudFormat.Odds(math.max(1, math.round(chance / luck)))
+-- The roll animation shows catalog rarity. The server's luck remains gameplay-only and is still recorded in the
+-- RollResult payload for diagnostics and compatibility.
+local function oddsText(chance, _luck)
+	return HudFormat.Odds(chance)
 end
 
 local function digits(text)
@@ -4452,6 +4444,105 @@ function S.ui_billboards(res)
 		end
 	end
 	checkList(res, "win_text_matches_pad", wrong)
+
+	-- Pedestal billboards (UiSpec.Billboards.BestRollStats / PassCarStats). Run before the NPC part, which returns
+	-- early when no NPC is on track.
+	local spawnArea = Workspace:WaitForChild("SpawnArea", UiSpec.Waits.GuiAppear)
+	-- A GuiObject's rectangle lies inside its parent's, judged from UDim2 alone (a billboard's pixel size depends on
+	-- the camera): scale edges within 0..1 and offsets that only pull inward. Each ancestor up to the billboard too.
+	local function insideBillboard(label, bb)
+		local o = label
+		while o and o ~= bb do
+			if not o:IsA("GuiObject") then
+				return false
+			end
+			for _, axis in { "X", "Y" } do
+				local p, s, a = o.Position[axis], o.Size[axis], o.AnchorPoint[axis]
+				local lo = p.Scale - a * s.Scale
+				local loOff = p.Offset - a * s.Offset
+				if lo < -1e-3 or lo + s.Scale > 1 + 1e-3 or loOff < 0 or loOff + s.Offset > 0 then
+					return false
+				end
+			end
+			o = o.Parent
+		end
+		return o == bb
+	end
+	-- Checks one Stats billboard: BillboardGui, MaxDistance, each label present (text when a string is given) and
+	-- inside, nothing clickable. `labels` maps label name -> expected text or true (any text).
+	local function pedestalStats(prefix, bb, maxDistance, labels)
+		local isBb = bb ~= nil and bb:IsA("BillboardGui")
+		check(res, prefix .. "_present", bb and bb:GetFullName(), "BillboardGui", isBb)
+		if not isBb then
+			return
+		end
+		check(res, prefix .. "_max_distance", bb.MaxDistance, maxDistance, bb.MaxDistance == maxDistance)
+		local bad = {}
+		local names = {}
+		for name in labels do
+			table.insert(names, name)
+		end
+		table.sort(names)
+		for _, name in names do
+			local want = labels[name]
+			local label = bb:FindFirstChild(name, true)
+			if not (label and label:IsA("TextLabel")) then
+				table.insert(bad, name .. ": no TextLabel")
+			else
+				if type(want) == "string" and label.Text ~= want then
+					table.insert(bad, ("%s: text %q want %q"):format(name, label.Text, want))
+				end
+				if not insideBillboard(label, bb) then
+					table.insert(bad, name .. ": outside the billboard")
+				end
+			end
+		end
+		checkList(res, prefix .. "_labels", bad)
+		check(res, prefix .. "_not_clickable", bb.Active, false, not bb.Active and #buttonsIn(bb) == 0)
+	end
+
+	local best = spawnArea and spawnArea:FindFirstChild("BestRoll")
+	local bestPedestal = best and best:FindFirstChild("Pedestal")
+	local bestStats = bestPedestal and bestPedestal:FindFirstChild("Stats")
+	pedestalStats(
+		"best_roll_stats",
+		bestStats,
+		LeaderboardConfig.BEST_ROLL.TEXT_DISTANCE,
+		{ Title = "BEST ROLL EVER", Odds = true, Car = true, Player = true }
+	)
+	local mount = bestPedestal and bestPedestal:FindFirstChild("CarMount")
+	check(
+		res,
+		"best_roll_stats_adornee",
+		bestStats and bestStats:IsA("BillboardGui") and bestStats.Adornee and bestStats.Adornee:GetFullName(),
+		"Pedestal.CarMount",
+		mount ~= nil and bestStats ~= nil and bestStats:IsA("BillboardGui") and bestStats.Adornee == mount
+	)
+
+	local passCars = spawnArea and spawnArea:FindFirstChild("PassCars")
+	for _, entry in PassCarConfig.Pedestals do
+		local spec = CarCatalog.Get(entry.CarId)
+		local carName = spec and spec.Name or entry.CarId
+		local model = passCars and passCars:FindFirstChild("Pass_" .. entry.CarId)
+		local pedestal = model and model:FindFirstChild("Pedestal")
+		local prefix = "pass_" .. entry.CarId
+		pedestalStats(
+			prefix .. "_stats",
+			pedestal and pedestal:FindFirstChild("Stats"),
+			PassCarConfig.TEXT_DISTANCE,
+			{ Title = carName, Tag = "GAMEPASS" }
+		)
+		local prompt = pedestal and pedestal:FindFirstChild("Buy")
+		local isPrompt = prompt ~= nil and prompt:IsA("ProximityPrompt")
+		local wantAction = (spec and (spec.GamepassId or 0) > 0) and "Unlock" or "Coming soon"
+		check(
+			res,
+			prefix .. "_prompt_text",
+			isPrompt and (prompt.ObjectText .. " / " .. prompt.ActionText) or "no Buy ProximityPrompt",
+			carName .. " / " .. wantAction,
+			isPrompt and prompt.ObjectText == carName and prompt.ActionText == wantAction
+		)
+	end
 
 	local function npcs()
 		local list = {}

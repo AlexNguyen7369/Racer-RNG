@@ -39,6 +39,9 @@ RaceService.COMMIT_INTERVAL = 0.25 -- seconds between writes of the gained Speed
 RaceService.FLIP_UP_Y = 0.5 -- body up-vector Y below this counts as flipped...
 RaceService.FLIP_SECONDS = 0.4 -- ...after this long, and the car is put back upright on the path
 RaceService.START_AHEAD = 5 -- studs along the path from the road's first edge: all four wheels start on the road
+RaceService.RAIL_POS_GAIN = 20 -- 1/s: the rail steers the car back onto the path with velocity, not a teleport
+RaceService.RAIL_ROT_GAIN = 20 -- 1/s: same for heading (a teleport replicates as a jump and the client sees a stutter)
+RaceService.RAIL_SNAP_DISTANCE = 3 -- studs off the rail before it falls back to a teleport (counted in run.RailSnaps)
 local DEVIATION_GRACE = 3 -- seconds after the start before path deviation is measured (the car starts on the centre line)
 
 local CAR_GROUP = "Cars"
@@ -127,6 +130,7 @@ function RaceService.NewRun(car, raceRoute, player, options)
 		MinUpY = 1,
 		MaxPathDeviation = 0,
 		FlipRecoveries = 0,
+		RailSnaps = 0, -- frames the rail had to teleport the car (each one is a visible jump on the client)
 		OffTrackSeconds = 0,
 		Laps = 0,
 		Driver = driver,
@@ -335,9 +339,19 @@ function RaceService.NewRun(car, raceRoute, player, options)
 				run.FlipRecoveries += 1 -- the rail rights a flipped car at once: still a recovery
 			end
 		end
-		car:PivotTo(CFrame.lookAt(position, position + bestDir))
-		chassis.AssemblyLinearVelocity = bestDir * forwardSpeed
-		chassis.AssemblyAngularVelocity = Vector3.zero
+		local target = CFrame.lookAt(position, position + bestDir)
+		local offset = position - chassis.Position
+		if offset.Magnitude > RaceService.RAIL_SNAP_DISTANCE or up < RaceService.FLIP_UP_Y then
+			car:PivotTo(target)
+			chassis.AssemblyLinearVelocity = bestDir * forwardSpeed
+			chassis.AssemblyAngularVelocity = Vector3.zero
+			run.RailSnaps += 1
+			return
+		end
+		-- Steer onto the rail with velocity: physics moves the car, so the client interpolates it smoothly
+		local axis, angle = (target.Rotation * chassis.CFrame.Rotation:Inverse()):ToAxisAngle()
+		chassis.AssemblyLinearVelocity = bestDir * forwardSpeed + offset * RaceService.RAIL_POS_GAIN
+		chassis.AssemblyAngularVelocity = axis * angle * RaceService.RAIL_ROT_GAIN
 	end
 
 	-- A flipped car is put back upright on the path, facing along it

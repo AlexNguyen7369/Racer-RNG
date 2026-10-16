@@ -49,9 +49,9 @@
     "files": "Server/MoneyService"
   },
   "race": {
-    "checks": "The real chain is auto-raced by RaceService at the Speed stat's cruise speed: stays on its path, never flips or tilts, pads pay once, the stat grows, also at MAX_STAT speed.",
-    "why": "This is the core loop of the game.",
-    "limits": "race: MaxPathDeviation 5, MinUpY 0.9, MaxFlips 0; lap.MinUpYStrict 0.9",
+    "checks": "The real chain is auto-raced by RaceService at the Speed stat's cruise speed: stays on its path, never flips or tilts, pads pay once, the stat grows, also at MAX_STAT speed. race_rail_never_snaps / max_speed_rail_never_snaps: from start to the last checkpoint the rail never teleports the car (run.RailSnaps, frames where the rail fell back to PivotTo; missing counts as a fail).",
+    "why": "This is the core loop of the game. A server PivotTo every frame replicates to the client as a stutter (the car moves 3.7, 0, 3.7, 0 studs on alternate frames at speed 111, measured 2026-10-15); steering by velocity moves it smoothly every frame.",
+    "limits": "race: MaxPathDeviation 5, MinUpY 0.9, MaxFlips 0; lap.MinUpYStrict 0.9; race.MaxRailSnaps 0",
     "files": "RaceService, PathDriver, RaceConfig, CarPhysics, Tracks"
   },
   "flip_recovery": {
@@ -61,7 +61,7 @@
     "files": "RaceService (FLIP_UP_Y, FLIP_SECONDS)"
   },
   "economy": {
-    "checks": "RaceConfig maths: SpeedFor rises from BASE_SPEED towards MAX_SPEED with diminishing returns; GainPerSecond is proportional to actual speed and shrinks as the stat grows.",
+    "checks": "RaceConfig maths: SpeedFor rises from BASE_SPEED towards MAX_SPEED with diminishing returns; GainPerSecond is GAIN_PER_STUD x actual speed at every stat (owner 2026-10-13: the stat never reduces it, GAIN_SOFT removed), so the gain at cruise speed rises with the stat; every doubling of a high stat adds (MAX_SPEED - BASE_SPEED) / 2 studs/s of cruise speed.",
     "why": "Balancing numbers in one place, tested as pure functions.",
     "limits": "RaceConfig constants",
     "files": "Shared/RaceConfig"
@@ -229,10 +229,10 @@
     "files": "Client/LoserScreen"
   },
   "ui_billboards": {
-    "checks": "Pad $ text and NPC labels show only within their MaxDistance.",
-    "why": "Track rule 6 and NPC label distance.",
-    "limits": "TrackBuilder.WIN_TEXT_DISTANCE 60, NpcConfig.LABEL_DISTANCE",
-    "files": "TrackBuilder, NpcRacerView"
+    "checks": "Pad $ text and NPC labels show only within their MaxDistance. The Best Roll Ever pedestal and the two gamepass car pedestals have their Stats billboard (finite MaxDistance from config, label texts, labels inside the billboard, not clickable) and the gamepass Buy prompt text.",
+    "why": "Track rule 6, NPC label distance, LEADERBOARD_SPEC 3a and GAMEPASS_CARS_SPEC 5.",
+    "limits": "TrackBuilder.WIN_TEXT_DISTANCE 60, NpcConfig.LABEL_DISTANCE, LeaderboardConfig.BEST_ROLL.TEXT_DISTANCE, PassCarConfig.TEXT_DISTANCE",
+    "files": "TrackBuilder, NpcRacerView, SpawnArea"
   },
   "ui_panels": {
     "checks": "Index and Stats panels are mutually exclusive through PanelSwitch.",
@@ -247,8 +247,8 @@
     "files": "Client/RollToast, Client/RollAnnounce"
   },
   "workshop_offline": {
-    "checks": "Independent integral oracle checks 25% offline gain, diminishing returns, eight-hour cap, every configured level, invalid inputs and MAX_STAT.",
-    "why": "A frozen rate times hours overpays offline progression.",
+    "checks": "Independent oracle checks offline gain = workshop rate x 25% x time capped at eight hours, the same at every stat (owner 2026-10-13: no diminishing term), every configured level, invalid inputs and MAX_STAT.",
+    "why": "Offline Speed must be exactly the workshop rate share for the capped time, never more than MAX_STAT allows.",
     "limits": "WorkshopConfig.OFFLINE_FRACTION and OFFLINE_CAP, RaceConfig.MAX_STAT",
     "files": "Shared/Workshop, CarTest/Phase2Tests"
   },
@@ -277,10 +277,10 @@
     "files": "Server/WeatherService, Shared/WeatherConfig, Server/GachaService, Server/RaceService, Shared/GachaConfig"
   },
   "leaderboard": {
-    "checks": "With a fake OrderedDataStore: the four boards (Speed, Money earned, rolls, rarest car) are read highest first and capped at 10, scores are whole numbers, a lower Speed never overwrites the best one, nothing is written for a failed or unloaded save or for a score of 0. The four signs exist in the hub, are anchored and solid, overlap no plot, pad, spawn, marketplace, race platform or track part, and their rows match the board; a broken store raises no error and keeps the last rows, no store shows \"No data yet\", and there is no remote.",
+    "checks": "With a fake OrderedDataStore: the four boards (Speed, Money earned, rolls, rarest car) are read highest first and capped at 10, scores are whole numbers, a lower Speed never overwrites the best one, nothing is written for a failed or unloaded save or for a score of 0. The four signs exist in the hub, are anchored and solid, overlap no plot, pad, spawn, marketplace, race platform or track part, and their rows match the board; a broken store raises no error and keeps the last rows, no store shows \"No data yet\", and there is no remote. The BEST ROLL EVER pedestal: the BestRoll model, its anchored solid Pedestal inside the hub at LeaderboardConfig.BEST_ROLL, clear of every plot, pad, spawn, marketplace, race platform, track part and leaderboard sign, with a Stats billboard (finite distance, labels Title, Odds, Car, Player). After a board read it shows row 1 of the rarest-car board (odds, car name, \"by <player>\", CarId, an anchored non-colliding Car model on the platform), keeps the same Car model while row 1 is the same car, replaces it when the car changes, shows no car for a score that matches no catalog car, keeps the last row when the store breaks, and shows \"No data yet\" with no car for an empty or missing store.",
     "why": "Players compare themselves on these signs; a wrong write could erase a best Speed after a rebirth, and a DataStore outage must never break the server.",
     "limits": "docs/LEADERBOARD_SPEC.md, docs/GAME_DESIGN_REQUIREMENTS.md Global leaderboards, Shared/LeaderboardConfig",
-    "files": "Server/LeaderboardService, Shared/LeaderboardConfig, Shared/SpawnArea"
+    "files": "Server/LeaderboardService, Shared/LeaderboardConfig, Shared/SpawnArea, Client/BestRollView"
   },
   "duel": {
     "checks": "Player vs player duels with two fake players on the live route and an injected clock: every refused request (self, save not loaded or failed, not on foot, dead, busy, cooldown), the track list both players unlocked and a rejected out-of-list pick, the pick and invite timeouts, decline, the re-check on accept, leaving before the race, then real duels: both cars held at the picked track's start, released together after the countdown, the first car at the finish wins, a same-step finish goes to the lower time or is a draw, nobody finishing in 180 s is a draw, Stop / leaving / death is a forfeit. After every duel both players are on foot at the walk spawn, the cars are gone, Money, MoneyEarned and Unbanked are unchanged, and only the winner's DuelWins went up; DuelWins is saved and loaded. Both cars stay upright and on the path. The options.Duel run is also driven alone at maximum stat: starts on its track, pays no pad, calls OnFinish once at the finish.",
@@ -289,7 +289,7 @@
     "files": "Server/DuelService, Shared/DuelConfig, Server/RaceService, Server/CarService, Server/PlayerData"
   },
   "ui_upgrades": {
-    "checks": "Hex tiles, scroll canvas, buyable badge, ownership, gates, prices and hub world pad match server state; real clicks invoke the purchase remote.",
+    "checks": "Hex tiles, scroll canvas, buyable badge, ownership, gates and prices match server state, and no UpgradePad exists outside the workshop plots (the tree opens only from the HUD Upgrade button); real clicks invoke the purchase remote.",
     "why": "Players need a readable tree with truthful purchase feedback.",
     "limits": "UiSpec.Progression, UpgradeTree",
     "files": "Client/ProgressionUi, UiTest/UiProgression"
@@ -323,5 +323,11 @@
     "why": "The odds a player reads must be the odds of that roll, not the car's base odds.",
     "limits": "UiSpec.RollOdds, car Chance values, HudFormat.Odds",
     "files": "Client/RollToast, UiTest/UiScenarios, CarTest/UiTestSetup"
+  },
+  "pass_cars": {
+    "checks": "Gamepass cars (Ember Wyvern, Singularity): CarCatalog.Passes() returns both, sorted by Order, each with a whole-number GamepassId, Rollable false and no Chance, and neither is in All() (the Index) or Rollable(); 16,000 seeded rolls at luck 1 to 1e12, with and without weather, never give one. With a fake market: GamepassId 0 is never asked, never owned and never prompts; equip is refused without the pass and accepted with it; a fake purchase sets Pass_<carId> and equips the car; the pedestal prompt equips an owned car and otherwise asks to buy; Apply keeps a saved gamepass car and the ownership check puts the starter back when it is not owned; a failing market raises no error and counts as not owned. A pass car is never in GachaData, never saved in Cars, adds no stat points and does not change the Rarest Car score. The two pedestals (PassCars.Pass_<carId>): smaller than the Best Roll pedestal, either side of it, anchored and solid at PassCarConfig's centres inside the hub, with a Stats billboard (car name, GAMEPASS, finite distance), a Buy prompt (E, instant, car name, Coming soon / Unlock) and a static Car model at CAR_SCALE on top; no footprint overlaps a plot, pad, spawn, marketplace, race platform, track part, leaderboard sign, the Best Roll pedestal or the other pass pedestal.",
+    "why": "Paid cars must only come from a real purchase: never from a roll, a save edit or a pass id of 0, and a market outage must never break the server or hand out a car.",
+    "limits": "docs/GAMEPASS_CARS_SPEC.md, docs/GAME_DESIGN_REQUIREMENTS.md Monetization (Gamepass cars), docs/LEADERBOARD_SPEC.md 3a, Shared/PassCarConfig",
+    "files": "Server/PassCarService, Shared/PassCarConfig, Shared/CarCatalog, Server/GachaService, Shared/SpawnArea, Shared/DraftCarModels"
   }
 }

@@ -140,6 +140,25 @@ Idle Vehicle Simulator — Game Design Requirements
      G                Gamepass              2x Speed pass chain            1x            Kept
 
 
+  Owner decision, 2026-10-13 (Speed growth and its effect):
+       The Speed number grows at an INCREASING rate over a player's progression: the further
+       along the player is, the faster the number climbs. Speed gain must not shrink because
+       the Speed stat is already high.
+       The effect of the number on base/cruise speed has DIMINISHING returns: each extra
+       point of Speed adds less cruise speed than the one before. The effect never flattens
+       out and never reaches zero; a higher Speed must always give a cruise speed the player
+       can tell apart. There is no hard cap on cruise speed.
+       Maths (same date; the constants are placeholders, the shapes are fixed):
+       Race Speed gain per second = GAIN_PER_STUD x actual car speed x the gain multipliers.
+       Nothing divides it by the Speed stat. A higher Speed gives a faster car, a faster car
+       gives more gain, so the number climbs faster and faster.
+       Workshop Speed gain per second = BASE_RATE x Speed multi x workshop level x Workshop
+       points. Nothing divides it by the Speed stat; it rises with the workshop level and the
+       multipliers. Offline earnings are that rate x the offline share x the capped time.
+       Cruise speed = BASE_SPEED + (MAX_SPEED - BASE_SPEED) x log2(1 + Speed / HALF_STAT) / 2,
+       x the car's speed multi. Every doubling of Speed (well above HALF_STAT) adds the same
+       (MAX_SPEED - BASE_SPEED) / 2 studs per second: diminishing per point, never flat, no cap.
+
   In races, Speed gain uses the same formula without W (proposed). Confirm whether
   races should get every other multiplier or only a flat base rate.
 
@@ -501,7 +520,8 @@ Idle Vehicle Simulator — Game Design Requirements
 
          Show each car's odds as a percentage, summing to 100%.
          Explain a luck purchase's effect in numbers before purchase.
-         Update the displayed odds live while boosts are active.
+         Keep the catalog rarity visible while boosts are active; boosts change the server's actual roll probability,
+         not the advertised "1 in N" rarity.
          Check ArePaidRandomItemsRestricted per player and block or hide paid luck for
          restricted players.
 
@@ -561,6 +581,12 @@ Idle Vehicle Simulator — Game Design Requirements
      Void
 
 
+     Gamepass cars (owner, 2026-10-13. Contract: docs/GAMEPASS_CARS_SPEC.md):
+       Two cars are sold as gamepasses, one pass per car: Ember Wyvern (a dragon) and
+       Singularity (a black-hole hypercar). They are never rolled and are not in the Index.
+       Each stands on a small pedestal beside the Best Roll Ever pedestal; walking up to it
+       offers the purchase. Their speed multis are proposed values.
+
   Implementation notes
 
        Rising prices need one item per tier. Each gamepass or product has one fixed price.
@@ -597,6 +623,10 @@ Idle Vehicle Simulator — Game Design Requirements
        Server-only: the server writes and reads the boards; clients only see the signs.
        A rebirth never lowers a player's place on the Speed board (it shows the best Speed
        reached).
+       Owner decision, 2026-10-13: a BEST ROLL EVER pedestal in the spawn area shows the rarest
+       car any player has rolled across all servers (the top row of the rarest-car board). The
+       car turns slowly on a round platform; its odds, its name and the player's name are shown
+       above it.
 
   Weather events
   Contract: docs/WEATHER_EVENTS_SPEC.md.
@@ -610,7 +640,8 @@ Idle Vehicle Simulator — Game Design Requirements
        A small weather icon sits at the bottom right of the HUD. Hovering it (tapping on touch)
        shows the weather's name and what it changes.
        The 15 minutes, the weather list and each weather's numbers are placeholders.
-       Luck from an event is free, but the displayed odds must still update while it is active.
+       Luck from an event is free and changes actual server roll probability. The roll animation continues to show
+       each car's base catalog rarity so a temporary boost never makes a car's advertised rarity misleading.
 
   Technical and data requirements
   The server decides every number (Speed, Money, rolls, race results) and the client only

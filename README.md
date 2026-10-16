@@ -39,13 +39,18 @@ Design-doc fixes (2026-10-12, NOT yet run in Studio): the design docs are hard r
 and Speed; Money comes only from race cash-outs and duplicate car sales (no offline or daily-login Money); saves
 are session-locked (VERSION 8, with lifetime MoneyEarned and DuelWins); turbo luck is x10 every 10 rolls, and the
 Turbo tiers are 50 / x50, 200 / x200, 500 / x500, 1000 / x1000.
+Inventory/upgrade UI (2026-10-14, review branch): CARS and CONSUMABLES tabs,
+generated potion bottle icons, spaced/shadowed HUD buttons, illustrated rolls,
+and a full-screen draggable/zoomable hex tree. Walkspeed nodes are hidden without
+changing saved effects. Focused live checks passed; full compatibility remains
+pending. See [delivery notes](docs/INVENTORY_UPGRADE_UI_HANDOFF.md) before syncing.
 
 Auto-race rail (2026-10-11): the server rail follows a smooth Hermite curve through the path, so corners turn
 continuously at any Speed stat; harness 31/31, full compatibility gate not run for this change.
 
 Current worktree additions (2026-10-07) still require live compatibility verification: five-track chain,
 workshop E upgrades and exact offline earnings, Workshop stat allocation, the hex money-upgrade panel and
-hub pad, plus server weather every 15 minutes (five weathers picked with equal chance: Clear, Rain, Night Race, Gold Rush, Aurora; sky, lighting, a bottom-right weather icon with a hover card, and roll odds shown divided by the roll's luck) and three event-only car variants. Local formatting, lint, compilation
+hub pad, plus server weather every 15 minutes (five weathers picked with equal chance: Clear, Rain, Night Race, Gold Rush, Aurora; sky, lighting, a bottom-right weather icon with a hover card, and roll odds shown at catalog rarity) and three event-only car variants. Local formatting, lint, compilation
 and builds pass; these additions are not a current ALL GREEN stamp. See
 [workshop defaults](docs/WORKSHOP_SPEC.md) and [event rules](docs/WEATHER_EVENTS_SPEC.md).
 
@@ -92,9 +97,13 @@ The redesigned Racer UI, original car icon atlas, seven rounded Blender car mode
 
 ### World and UI
 - **Spawn area:** purple floor beside Track 1's start; walk onto the green RACE pad (or press Auto Race) to start.
+- **Best Roll Ever pedestal:** the rarest car rolled across all servers turns on a platform in the hub, with its
+  odds, name and the player's name above it (`docs/LEADERBOARD_SPEC.md` 3a).
+- **Gamepass cars:** Ember Wyvern and Singularity on two pedestals beside the Best Roll pedestal; walk up to buy
+  or equip (`docs/GAMEPASS_CARS_SPEC.md`). Passes not created yet.
 - **HUD and panels:** Speed HUD, Auto Race button, Index and Stats panels, turbo bar, roll toast and showcase,
   loser screen.
-- **Admin chat commands:** `/help /money /addmoney /speed /addspeed /give /equip /roll /wipe /tp` for admins only.
+- **Admin chat commands:** `/help /money /addmoney /givemoney /speed /addspeed /givespeed /resetspeed /luck /giveluck /resetluck /weather /give /equip /roll /wipe /tp` for admins only.
 
 ### Tooling
 - **Test harness** (24 scenarios: physics, tracks, money, race, NPC, bank, gacha, data, admin, multiplayer...)
@@ -135,33 +144,36 @@ updates automatically whenever the board changes; do not edit this block by hand
 - **Live-check the NPC client view and LoserScreen**: ui-tester / multiplayer-tester have not checked them live.
 - **Automatic bus delivery for Codex**: Claude receives bus messages via a hook; Codex only when it follows AGENTS.md and runs agent_bus.py context. If the Codex CLI's hook support covers session start / prompt submit, wire `agent_bus.py hook --agent codex` there. Also: edits made via shell commands (sed, heredoc, python rewrites) are not attributed; consider attributing via git diff snapshots per tool call. 2026-10-11: wired in .codex/hooks.json (SessionStart, UserPromptSubmit) and shell-edit attribution added (agent_bus.py shell, Pre/PostToolUse in both agents). Codex does not run the project hook until the developer trusts it (Needs you: codex-trust-bus-hook), so delivery is not verified yet.
 
-### Up next (5)
+### Up next (6)
 
 - **Daily Quest System**: Add a daily quest system with rotating objectives and rewards; define the design/spec before implementation.
 - **Redeem Codes section**: Add a Redeem Codes section projected for the Shop area where the gamepasses are located.
 - **Friends-in-server boost**: +10% luck and Money per friend in the same server, up to +40%. Fits this game: Encourages inviting friends; one multiplier in GachaService and MoneyService. Inspired by: Common in 2025-2026 simulators
 - **roll_odds_* UI fixtures must close open panels first**: The offline RacerWelcome/Panel opens on join and hides the compact roll (correct behaviour), so roll_odds_compact_odds fails although the text is right. ui-test-writer: have the fixture or ui_roll_odds close every PanelSwitch panel before the planted roll.
 - **DailyBoosts Status overlaps Daily Rewards / Bag on phones**: Bug 3a6d9cb3, found by ui-tester 2026-10-13 at 844x390 and 667x375. Older than the weather change.
+- **Run the UI suite for the removed world upgrade pad**: upgrade_no_world_pad and upgrade_no_spawn_area_pad (ui_upgrades) were written 2026-10-13 and never run. Run [UITEST] alone in Studio.
 
-### Backlog (future work) (4)
+### Backlog (future work) (6)
 
 - **static_settle cold-start flake**: Failed 4 of ~8 cold starts (0.58-0.78 vs 0.5). DampingRatio raised to 1.0, not yet re-verified.
 - **Slack bot setup for test results**: Revoke the exposed token, install the app with bot scopes, re-add the MCP, post results after each green run.
 - **Weighted weather chances (bigger benefit, lower chance)**: Design doc "Weather events", planned by the owner 2026-10-13. The pick is uniform (1 in 5) until the owner sets the weights.
 - **Image icons for the weather icon**: The icon uses text glyphs (WeatherConfig.Events[id].Icon). Replace with uploaded image icons when art exists.
+- **Wing flap and fire on the Ember Wyvern while racing**: Pedestal animation exists (Client/BestRollView). The race skin is welded with WeldConstraints in CarAppearance, so the wings are static in races. Needs its own test round (VEHICLE_SKINS_SPEC).
+- **Final meshes for Ember Wyvern and Singularity**: Current models are Part-built stand-ins from Shared/DraftCarModels. A real model with the same name in CarModels replaces them. Concepts in drafts/cars/.
 
-### Recently done (42)
+### Recently done (45)
 
 - ~~Rotating weather / biome events that boost luck~~ (2026-10-13)
 - ~~Duels: challenge another player to a race (request, accept/decline, track pick)~~ (2026-10-13)
 - ~~Global leaderboards in the spawn area~~ (2026-10-13)
 - ~~Roll odds shown divided by the roll's luck (weather, boosts)~~ (2026-10-13)
 - ~~Weather every 15 min, five weathers, bottom-right icon~~ (2026-10-13)
+- ~~Speed gain grows at an increasing rate~~ (2026-10-13)
+- ~~Best Roll Ever pedestal in the spawn area~~ (2026-10-13)
+- ~~Gamepass car pedestals beside the Best Roll pedestal~~ (2026-10-13)
 - ~~Rebirth must reset Speed (design doc)~~ (2026-10-12)
 - ~~Money only from race cash-outs and duplicate sales~~ (2026-10-12)
-- ~~Session-locked saves (PlayerData VERSION 8)~~ (2026-10-12)
-- ~~Turbo luck: 10/x10, then 50/x50, 200/x200, 500/x500, 1000/x1000~~ (2026-10-12)
-- ~~Update spawn spec and CLAUDE.md for the moved StartPad~~ (2026-10-12)
 
 <!-- TODO:END -->
 

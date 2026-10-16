@@ -58,8 +58,9 @@ Functions:
   rare). Rarity names are never used.
 - `GachaService.Roll(player, roller)` returns `id, isNew, turboMulti, emphasized, scrapMoney` and fires
   `Remotes.RollResult:FireClient(player, id, isNew, turboMulti, emphasized, scrapMoney, luck)`.
-  `luck` is `GachaService.Luck(player)` for this roll, without the turbo multi (2026-10-13). Both `Odds` labels show
-  `HudFormat.Odds(Chance, luck)` = `1 in max(1, round(Chance / luck))`; a missing or invalid `luck` counts as 1.
+  `luck` is `GachaService.Luck(player)` for this roll, without the turbo multi. It remains in the payload for
+  compatibility and diagnostics, but both `Odds` labels show the catalog rarity with `HudFormat.Odds(Chance)`;
+  temporary luck never changes the displayed rarity.
   `scrapMoney` is the server-calculated direct Money payout for a duplicate car (zero for a new car); the client may
   display it but never calculates or awards it.
 - **Global announcement:** an emphasized roll fires `Remotes.RollAnnounce:FireAllClients(userId, displayName, id,
@@ -100,7 +101,7 @@ ScreenGui and button names stay as they are, so the existing UI tests keep their
   (AnchorPoint (0.5, 1), bottom edge 76 px above the screen bottom, 180 x 44 px) above the Hint and the TURBO LUCK bar: tap-sized on a phone): text `AUTO: ON` / `AUTO: OFF` from the
   `AutoRoll` attribute; clicking it fires `SetAutoRoll(not AutoRoll)` and does NOT close the view. Opening closes
   any panel and enables `Lighting.RollShowcaseBlur`; closing disables it.
-- **Compact = no card (owner decision 4, 2026-10-02).** The compact roll is ONLY the car model with its "1 in N"
+- **Compact = no card (owner decision 4, 2026-10-02).** The compact roll is ONLY the car model with its catalog "1 in N"
   under it. `RollToast/Toast` keeps its rect, but its background is invisible and it holds a transparent `Body` that
   fills it with exactly these parts: `Reel` + `Streaks` + `Smoke` (the spin/land play on the bare model), `Viewport`
   (+ `Placeholder` "?") filling the top 70% of the rect, and `Odds` filling the bottom 30% ("1 in 250" / "1 in ?",

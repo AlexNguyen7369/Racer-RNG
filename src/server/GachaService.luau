@@ -128,6 +128,10 @@ local function owns(player, id)
 	if id == STARTER then
 		return true
 	end
+	local spec = CarCatalog.Get(id)
+	if spec and spec.GamepassId then
+		return player:GetAttribute("Pass_" .. id) == true -- set by PassCarService from Roblox, never saved
+	end
 	local data = player:FindFirstChild("GachaData")
 	return data ~= nil and data:FindFirstChild(id) ~= nil
 end
@@ -269,6 +273,10 @@ function GachaService.Luck(player)
 		local WorkshopConfig = require(Shared.WorkshopConfig)
 		luck *= WorkshopConfig.LuckMulti(player:GetAttribute("WorkshopLevel"))
 	end
+	local adminLuck = player:GetAttribute("AdminLuck")
+	if type(adminLuck) == "number" and adminLuck >= 1 and adminLuck == adminLuck then
+		luck *= adminLuck
+	end
 	return luck
 end
 
@@ -313,6 +321,10 @@ function GachaService.Apply(player, saved)
 			elseif value == true or (type(value) == "number" and value == value and value > 0) then
 				id = key
 			end
+			local spec = type(id) == "string" and CarCatalog.Get(id)
+			if spec and spec.GamepassId then
+				id = nil -- a gamepass car is owned through Roblox, never through the save
+			end
 			if type(id) == "string" and id ~= "" and id ~= STARTER and #id <= 64 and not data:FindFirstChild(id) then
 				addEntry(data, id)
 			end
@@ -339,7 +351,9 @@ function GachaService.Apply(player, saved)
 	end
 
 	local equipped = saved.Equipped
-	if type(equipped) ~= "string" or not CarCatalog.Get(equipped) or not owns(player, equipped) then
+	local spec = type(equipped) == "string" and CarCatalog.Get(equipped)
+	-- A saved gamepass car stays until PassCarService has asked Roblox; it resets the car when the pass is not owned
+	if not spec or not (spec.GamepassId or owns(player, equipped)) then
 		equipped = STARTER
 	end
 	player:SetAttribute("EquippedCar", equipped)

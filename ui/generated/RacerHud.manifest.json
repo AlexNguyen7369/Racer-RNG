@@ -1,0 +1,15 @@
+{
+  "name": "RacerHud",
+  "spec": "ui/specs/RacerHud.ui.json",
+  "specHash": "37da31f77505",
+  "files": {
+    "src/client/RollToast/Ui/RacerHud.luau": "137b090813c5",
+    "ui/generated/RacerHud.studio.luau": "da36c8cd5711",
+    "ui/preview/RacerHud.svg": "1dc7aa00b47f",
+    "ui/preview/RacerHud_desktop.svg": "1c9ccbeb2d59",
+    "ui/preview/RacerHud_laptop.svg": "497a87738f02",
+    "ui/preview/RacerHud_tablet.svg": "d80a9edee3f0",
+    "ui/preview/RacerHud_phone.svg": "06f45ec22117"
+  },
+  "missingIcons": []
+}

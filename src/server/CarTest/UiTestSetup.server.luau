@@ -418,20 +418,6 @@ for _, own in { true, false } do
 	end
 end
 
-for _, outside in { false, true } do
-	local id = outside and "upgrade_world_leave" or "upgrade_world_enter"
-	setups[id] = function(player)
-		local pad = nil
-		for _, candidate in game:GetService("CollectionService"):GetTagged("UpgradePad") do
-			if candidate:IsDescendantOf(workspace) and not candidate:FindFirstAncestor("Workshops") then
-				pad = candidate
-				break
-			end
-		end
-		moveTo(player, assert(pad, "spawn UpgradePad required"), id, outside)
-	end
-end
-
 -- weather_clear = no weather (""); weather_clear_event = the weather id "clear", running like any other
 for _, event in { "rain", "night", "gold", "aurora", "clear", "clear_event" } do
 	local id = event == "clear" and "" or event == "clear_event" and "clear" or event

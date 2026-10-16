@@ -39,5 +39,6 @@ return {
 		"daily_login",
 		"leaderboard",
 		"duel",
+		"pass_cars",
 	},
 }

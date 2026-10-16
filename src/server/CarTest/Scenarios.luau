@@ -1370,6 +1370,16 @@ local function checkStability(checks, prefix, st)
 	check(checks, pre .. "body_never_tilted", st.minUpOwn, minUp, R.MinUpY ~= nil and st.minUpOwn >= minUp)
 	local rec = type(st.recoveries) == "number" and st.recoveries or -1
 	check(checks, pre .. "no_flip_recoveries", rec, 0, rec == 0)
+	-- smooth motion (user 2026-10-15): a PivotTo every frame replicates as a stutter (3.7, 0, 3.7, 0 studs/frame),
+	-- so the rail must steer with velocity and teleport only as a fallback; run.RailSnaps counts those frames
+	local snaps = type(st.railSnaps) == "number" and st.railSnaps or math.huge
+	check(
+		checks,
+		pre .. "rail_never_snaps",
+		snaps == math.huge and -1 or snaps,
+		R.MaxRailSnaps or 0,
+		R.MaxRailSnaps ~= nil and snaps <= R.MaxRailSnaps
+	)
 	check(checks, pre .. "flips_limit", st.flips, R.MaxFlips or 0, R.MaxFlips ~= nil and st.flips <= R.MaxFlips)
 	check(checks, pre .. "sticks_to_path", st.dev, maxDev, R.MaxPathDeviation ~= nil and st.dev <= maxDev)
 	check(checks, pre .. "sticks_to_path_track1", st.dev1, maxDev, R.MaxPathDeviation ~= nil and st.dev1 <= maxDev)
@@ -1427,7 +1437,7 @@ function Scenarios.race()
 		and type(RaceConfig.SpeedFor) == "function"
 		and type(RaceConfig.GainPerSecond) == "function"
 		and type(RaceConfig.HALF_STAT) == "number"
-		and type(RaceConfig.GAIN_SOFT) == "number"
+		and type(RaceConfig.GAIN_PER_STUD) == "number"
 		and type(PlayerData.Setup) == "function"
 		and type(PlayerData.SpeedStat) == "function"
 		and type(PlayerData.AddSpeed) == "function"
@@ -1441,7 +1451,7 @@ function Scenarios.race()
 	end
 
 	local HALF = RaceConfig.HALF_STAT
-	local BIG = 10 * RaceConfig.GAIN_SOFT
+	local BIG = 20 * HALF -- 20000 with HALF_STAT 1000: the same high-stat run as before (was 10 * GAIN_SOFT)
 	local targetHalf = RaceConfig.SpeedFor(HALF)
 	if type(targetHalf) ~= "number" then
 		check(checks, "race_speed_for_number", 0, 1, false)
@@ -1560,6 +1570,7 @@ function Scenarios.race()
 			speedAt8 = nil,
 			startStat = startStat,
 			integral = 0,
+			dist = 0,
 			minPadDist = math.huge,
 			distinct = {},
 			distinctCount = 0,
@@ -1623,9 +1634,11 @@ function Scenarios.race()
 			st.maxTarget = math.max(st.maxTarget, target)
 			st.targetSum += target
 			st.targetN += 1
+			st.dist += speed * dt
 			if t >= 8 and st.speedAt8 == nil then
 				st.speedAt8 = speed
 				st.gainAt8 = speedValue.Value - startStat
+				st.distAt8 = st.dist
 			end
 			-- our own integral of the gain formula using the committed stat and the ACTUAL speed
 			local g = RaceConfig.GainPerSecond(speedValue.Value, speed)
@@ -1735,6 +1748,7 @@ function Scenarios.race()
 		st.runMinUpY = run.MinUpY
 		st.runMaxDev = run.MaxPathDeviation
 		st.recoveries = run.FlipRecoveries
+		st.railSnaps = run.RailSnaps
 		st.payouts = run.Payouts
 		st.paidTotal = run.PaidTotal
 		st.offTrack = run.OffTrackSeconds
@@ -1900,12 +1914,30 @@ function Scenarios.race()
 		local g0 = slow.gainAt8 or -1
 		check(checks, "fresh_player_gains", g0, 0, g0 > 0)
 
-		-- Diminishing returns end to end: a player with a 10x larger stat drives faster yet gains LESS.
+		-- Owner, 2026-10-13 (design doc "Core stat model"): the stat never reduces the gain. End to end: a player
+		-- with a far larger stat gains the same GAIN_PER_STUD per stud driven (band as gain_matches_speed_integral),
+		-- so the car that covers more ground in 8 s gains MORE. (Was diminishing_gain_in_8s: it gained less.)
 		local big = drive(BIG, 8, false)
 		check(checks, "big_run_started", big.ok and 1 or 0, 1, big.ok)
 		if big.ok then
-			local gb = big.gainAt8 or math.huge
-			check(checks, "diminishing_gain_in_8s", gb, g0, slow.gainAt8 ~= nil and big.gainAt8 ~= nil and gb < g0)
+			local gb = big.gainAt8 or -1
+			local dB, d0 = big.distAt8 or 0, slow.distAt8 or 0
+			local per = RaceConfig.GAIN_PER_STUD
+			local perStud = dB > 0 and gb / dB or -1
+			check(
+				checks,
+				"high_stat_gain_per_stud_not_reduced_in_8s",
+				perStud,
+				per,
+				big.gainAt8 ~= nil and dB > 0 and perStud >= 0.8 * per and perStud <= 1.2 * per
+			)
+			check(
+				checks,
+				"faster_car_gains_more_in_8s",
+				gb,
+				g0,
+				slow.gainAt8 ~= nil and big.gainAt8 ~= nil and d0 > 0 and (dB <= d0 or gb > g0)
+			)
 		end
 	end
 
@@ -3284,12 +3316,14 @@ function Scenarios.economy()
 		MAX_SPEED = 75,
 		HALF_STAT = 1000,
 		GAIN_PER_STUD = 0.05,
-		GAIN_SOFT = 2000,
 		MAX_STAT = 1e9,
 	}
 	for name, want in consts do
 		check(checks, "const_" .. string.lower(name), RaceConfig[name] or -1, want, RaceConfig[name] == want)
 	end
+	-- Owner, 2026-10-13: nothing divides the gain by the stat, so the soft constant is gone.
+	local softGone = RaceConfig.GAIN_SOFT == nil
+	check(checks, "const_gain_soft_removed", softGone and 1 or 0, 1, softGone)
 	local removed = RaceConfig.MAX_LEVEL == nil and RaceConfig.SPEED_PER_LEVEL == nil
 	check(checks, "level_model_removed", removed and 1 or 0, 1, removed)
 	local base, top, half, maxStat =
@@ -3347,13 +3381,45 @@ function Scenarios.economy()
 	check(checks, "speed_for_max_stat_above_reference", atMax or -1, top, num(atMax) and atMax > top)
 	local d1, d2 = (sf(2000) or 0) - (sf(1000) or 0), (sf(1000) or 0) - (sf(0) or 0)
 	check(checks, "speed_for_diminishing", d1, d2, d1 > 0 and d1 < d2)
+	-- Owner, 2026-10-13 (design doc "Core stat model"): diminishing per point, never flat, no cap.
+	-- +1000 at a high stat still adds speed, but less than +1000 at a low stat.
+	local dHigh = (sf(1e6 + 1000) or 0) - (sf(1e6) or 0)
+	check(checks, "speed_for_diminishing_at_high_stat", dHigh, d2, dHigh > 0 and dHigh < d1 and d1 < d2)
+	-- Every doubling well above HALF_STAT (here >= 100 x HALF_STAT, where the exact step is within 0.17 of the
+	-- limit) adds (MAX_SPEED - BASE_SPEED) / 2 studs/s, and always more than 1 stud/s ("can tell it apart").
+	local step = (top - base) / 2
+	local doubleOk, tellOk, worst, least = true, true, 0, math.huge
+	for _, s in { 100 * half, 1e7, maxStat / 2 } do
+		local a, b = sf(s), sf(2 * s)
+		if not (num(a) and num(b)) then
+			doubleOk, tellOk = false, false
+			break
+		end
+		worst = math.max(worst, math.abs((b - a) - step))
+		least = math.min(least, b - a)
+		doubleOk = doubleOk and math.abs((b - a) - step) <= 0.25
+		tellOk = tellOk and b - a > 1
+	end
+	check(checks, "speed_for_doubling_adds_half_range", worst, 0.25, doubleOk)
+	check(checks, "speed_for_doubling_tellable", least == math.huge and -1 or least, 1, tellOk)
 
-	-- GainPerSecond(stat, speed) = GAIN_PER_STUD * speed / (1 + stat / GAIN_SOFT)
-	local soft, per = RaceConfig.GAIN_SOFT, RaceConfig.GAIN_PER_STUD
+	-- Owner, 2026-10-13: GainPerSecond(stat, speed) = GAIN_PER_STUD * speed for every valid stat (also above
+	-- MAX_STAT). Nothing divides it by the stat. (Was: / (1 + stat / GAIN_SOFT).)
+	local per = RaceConfig.GAIN_PER_STUD
 	local formulaOk = true
-	for _, pair in { { 0, 30 }, { 1000, 50 }, { 2000, 75 }, { 20000, 40 } } do
+	for _, pair in
+		{
+			{ 0, 30 },
+			{ half, 50 },
+			{ 2000, 75 },
+			{ 20000, 40 },
+			{ 1e6, 60 },
+			{ maxStat, 90 },
+			{ 2 * maxStat, 90 },
+		}
+	do
 		local g = gp(pair[1], pair[2])
-		local want = per * pair[2] / (1 + pair[1] / soft)
+		local want = per * pair[2]
 		if not num(g) or math.abs(g - want) > 1e-9 * math.max(1, want) then
 			formulaOk = false
 		end
@@ -3389,17 +3455,27 @@ function Scenarios.economy()
 		end
 	end
 	check(checks, "gain_proportional_to_speed", propOk and 1 or 0, 1, propOk)
-	local dec, p = true, math.huge
-	for _, s in { 0, 100, 1000, 10000, 1e5, 1e7 } do
+	-- The stat never reduces the gain: the same speed gains the same at every stat (was
+	-- gain_strictly_decreasing_in_stat).
+	local same, atZero = true, gp(0, 50)
+	for _, s in { 100, 1000, 10000, 1e5, 1e7, maxStat, 2 * maxStat } do
 		local g = gp(s, 50)
-		if not (num(g) and g > 0 and g < p) then
-			dec = false
+		if not (num(g) and num(atZero) and atZero > 0 and g == atZero) then
+			same = false
+		end
+	end
+	check(checks, "gain_same_at_every_stat", same and 1 or 0, 1, same)
+	-- Increasing rate (was gain_diminishes_strongly, the opposite): at its own cruise speed a larger stat gains
+	-- strictly more per second.
+	local inc, p = true, 0
+	for _, s in { 0, 1000, 1e5, 1e7 } do
+		local g = gp(s, sf(s))
+		if not (num(g) and g > p) then
+			inc = false
 		end
 		p = num(g) and g or p
 	end
-	check(checks, "gain_strictly_decreasing_in_stat", dec and 1 or 0, 1, dec)
-	local far, near = gp(10 * soft, 50), gp(0, 50)
-	check(checks, "gain_diminishes_strongly", far or -1, (near or 0) / 5, num(far) and num(near) and far < near / 5)
+	check(checks, "gain_at_cruise_increases_with_stat", inc and 1 or 0, 1, inc)
 	return result("economy", checks, {})
 end
 
@@ -11573,7 +11649,8 @@ end
 -- servers hold at most 7 players. A player's workshop loads when they join. With one player in the server: 1 plot with
 -- their workshop, 6 empty plots. For now everyone gets the starter workshop (level 1)."
 -- Design doc: Speed is earned ONLY while standing inside your own workshop zone, checked on the server on a timer from
--- the character's position: rate = BASE_RATE x SpeedMulti x LevelMulti x WorkshopPointsMulti / (1 + stat / GAIN_SOFT).
+-- the character's position: rate = BASE_RATE x SpeedMulti x LevelMulti x WorkshopPointsMulti. Owner, 2026-10-13
+-- (design doc "Core stat model", WORKSHOP_SPEC section 4): nothing divides it by the Speed stat.
 --
 -- What the checks read:
 --   * pure rules: Shared/Workshop (PlotCFrame, ZoneBounds, InZone, FreePlot, LevelMulti, Rate)
@@ -11696,7 +11773,6 @@ function Scenarios.workshop()
 		and PlayerData ~= nil
 		and Money ~= nil
 		and CarService ~= nil
-		and type(RaceConfig.GAIN_SOFT) == "number"
 	flag("workshop_module_api_exists", pureOk)
 	flag("workshop_service_api_exists", serviceOk)
 	flag("workshop_dependencies_exist", depsOk)
@@ -11922,10 +11998,11 @@ function Scenarios.workshop()
 		local okOne, one = try("LevelMulti", Workshop.LevelMulti, 1)
 		flag("workshop_level_multi_clamped", lmOk and okOne and one == 1)
 
-		-- Rate = BASE_RATE x speedMulti x LevelMulti(level) x workshopMulti / (1 + stat / GAIN_SOFT); bad inputs 0
-		local soft = RaceConfig.GAIN_SOFT
-		local function rateWant(stat, sm, level, wm)
-			return WSHOP.BASE_RATE * sm * levelMultiWant(level) * wm / (1 + stat / soft)
+		-- Rate = BASE_RATE x speedMulti x LevelMulti(level) x workshopMulti, the same at every stat (owner,
+		-- 2026-10-13; was / (1 + stat / GAIN_SOFT)); bad inputs 0
+		local soft = 2000 -- the old GAIN_SOFT: the rate there was half, now it is the full rate
+		local function rateWant(_stat, sm, level, wm)
+			return WSHOP.BASE_RATE * sm * levelMultiWant(level) * wm
 		end
 		local rateOk = true
 		for _, c in
@@ -11948,8 +12025,15 @@ function Scenarios.workshop()
 			"workshop_rate_formula",
 			okBase and vBase or -1,
 			WSHOP.BASE_RATE,
-			rateOk and okBase and vBase == 1 and okHalf and near(vHalf, 0.5, 1e-9)
+			rateOk and okBase and vBase == 1 and okHalf and vHalf == 1
 		)
+		local statFree = true
+		local wantFree = WSHOP.BASE_RATE * 2.4 * levelMultiWant(MAXL) * 1.2
+		for _, stat in { 0, 2000, 1e6, RaceConfig.MAX_STAT or 1e9 } do
+			local okf, v = try("Rate", Workshop.Rate, stat, 2.4, MAXL, 1.2)
+			statFree = statFree and okf and near(v, wantFree, 1e-9)
+		end
+		flag("workshop_rate_same_at_every_stat", statFree)
 		local badRate = table.pack(
 			{ -1, 1, 1, 1 },
 			{ 0 / 0, 1, 1, 1 },
@@ -12373,11 +12457,7 @@ function Scenarios.workshop()
 		-- SpeedMulti = stat points + tree Speed; the equipped car only changes cruise speed.
 		local wantSpeedMulti = 1 + GACHA_PER_POINT.Speed + 0.10
 		local wantWorkshopMulti = 1 + GACHA_PER_POINT.Workshop
-		local wantRate = WSHOP.BASE_RATE
-			* wantSpeedMulti
-			* levelMultiWant(1)
-			* wantWorkshopMulti
-			/ (1 + WSHOP.STAT / RaceConfig.GAIN_SOFT)
+		local wantRate = WSHOP.BASE_RATE * wantSpeedMulti * levelMultiWant(1) * wantWorkshopMulti
 		metrics.want_rate = wantRate
 		local _, rate2 = svc("Rate", p2)
 		local okSM, sm = try("SpeedMulti", GachaService.SpeedMulti, p2)
@@ -12453,15 +12533,9 @@ function Scenarios.workshop()
 		setSpeed(pNo, WSHOP.STAT)
 		local outNoPlot = noGain("no_plot", pNo, avatar)
 		flag("workshop_tick_without_plot_no_gain", outNoPlot)
-		-- back in the zone: the gain resumes (the stat is now higher, so the rate is a little lower)
-		local stat2 = speedOf(p2)
+		-- back in the zone: the gain resumes at the same rate (owner, 2026-10-13: the higher stat does not lower it)
 		local okBack, addedBack = svc("Tick", p2, WSHOP.TICK, avatar)
-		local wantBack = WSHOP.BASE_RATE
-			* wantSpeedMulti
-			* levelMultiWant(1)
-			* wantWorkshopMulti
-			/ (1 + (stat2 or 0) / RaceConfig.GAIN_SOFT)
-			* WSHOP.TICK
+		local wantBack = wantRate * WSHOP.TICK
 		flag(
 			"workshop_tick_resumes_in_zone",
 			okBack and near(addedBack, wantBack, 1e-6) and p2:GetAttribute("InWorkshop") == true
@@ -12627,5 +12701,6 @@ Scenarios.daily_login = Phase2Tests.daily_login
 -- docs/LEADERBOARD_SPEC.md section 4 (its own module: this file is near Luau's 200-local limit)
 Scenarios.leaderboard = require(script.Parent.LeaderboardTests).leaderboard
 Scenarios.duel = require(script.Parent.DuelTests).duel -- docs/DUEL_SPEC.md section 4
+Scenarios.pass_cars = require(script.Parent.PassCarTests).pass_cars -- docs/GAMEPASS_CARS_SPEC.md section 7
 
 return Scenarios

@@ -29,7 +29,9 @@
 
 Night Race locks the NPC's speed when a track starts, so an event ending mid-track never changes the opponent's deadline. Money is quoted when a pad is collected or a track is won; cashing out an already banked amount never multiplies it again. Cruise speed and car physics are unchanged.
 
-**Displayed odds (owner, 2026-10-13; design doc "Weather events").** While an event (or any other luck source) is active, the roll card and the compact roll show the odds of that roll, not the car's base odds: `1 in max(1, round(Chance / luck))`. `luck` is the server's `GachaService.Luck(player)` for that roll (stat points, upgrades, rebirth, boosts, weather, workshop), sent as the 6th `RollResult` argument. It excludes the turbo multi, which the TURBO badge shows. A 1 in 500 car shows "1 in 250" during Rain at luck 1. Catch-all cars keep "1 in ?". The Index and the server-wide roll announcement keep the base odds.
+**Displayed odds (owner, 2026-10-15).** The roll card and compact roll always show the car's catalog rarity: `HudFormat.Odds(Chance)`. Temporary luck sources still affect the server's actual roll probability, but do not rewrite the rarity label. Void Racer therefore remains "1 in 100,000" while Luck, boosts, weather or turbo effects are active. Catch-all cars keep "1 in ?". The Index and the server-wide roll announcement also keep the base odds.
+
+The sixth `RollResult` argument remains the server-calculated luck used by the roll for compatibility and diagnostics; it is not used by the roll animation's displayed odds.
 
 Three permanent catalog keys are available only during their matching event (Clear and Aurora have none). They reuse imported meshes and illustrated icons, with a colored racing skin. Discovery and equipment persist after the event ends.
 

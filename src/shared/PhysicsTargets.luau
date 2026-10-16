@@ -40,5 +40,6 @@ return {
 		MinUpY = 0.9,
 		MaxFlips = 0,
 		FlipRecoverySeconds = 3, -- a flipped car must be back on its wheels on the path within this
+		MaxRailSnaps = 0, -- user 2026-10-15: the rail steers by velocity, never teleports (PivotTo) a racing car
 	},
 }

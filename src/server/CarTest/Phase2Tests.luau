@@ -1,6 +1,9 @@
 --!nonstrict
--- BRIEF: Workshop phase 2: exact integrated 25% offline rate, eight-hour cap,
+-- BRIEF: Workshop phase 2: exact 25% offline rate, eight-hour cap,
 -- MAX_STAT, guarded next-level purchase, OfflineAt persistence and one-time credit.
+-- Owner, 2026-10-13 (design doc "Core stat model", WORKSHOP_SPEC section 4): no diminishing term. Offline Speed =
+-- Workshop.Rate x OFFLINE_FRACTION x min(seconds, OFFLINE_CAP), never above MAX_STAT - stat; the stat itself
+-- never reduces it. (Was: the integral of rate / (1 + stat / GAIN_SOFT).)
 -- Weather: rain luck 2, night NPC speed 1.25/money 2, gold money 3, expiry,
 -- actual rolls/payouts and Event-only catalog eligibility. No owner prices assumed.
 -- Weather, owner 2026-10-13 (design doc "Weather events", WEATHER_EVENTS_SPEC "Schedule"): a weather every
@@ -38,15 +41,12 @@ local function near(a, b, tolerance)
 	return type(a) == "number" and a == a and math.abs(a - b) <= (tolerance or 1e-6)
 end
 
--- Independent oracle: ds/dt = A/(1+s/H). Rationalized to avoid cancellation
--- close to MAX_STAT; this deliberately never calls Workshop.Rate/OfflineGain.
+-- Independent oracle (owner, 2026-10-13): 25% of the workshop rate x the time capped at eight hours, clamped to
+-- MAX_STAT - stat. The stat does not reduce it. This deliberately never calls Workshop.Rate/OfflineGain.
 local function integrated(stat, speedMulti, levelMulti, workshopMulti, seconds, config, race)
 	local a = 0.25 * config.BASE_RATE * speedMulti * levelMulti * workshopMulti
-	local h = race.GAIN_SOFT
 	local t = math.clamp(seconds, 0, 8 * 60 * 60)
-	local q = 2 * h * a * t
-	local gain = q / (math.sqrt((stat + h) ^ 2 + q) + stat + h)
-	return math.min(gain, math.max(0, race.MAX_STAT - stat))
+	return math.min(a * t, math.max(0, race.MAX_STAT - stat))
 end
 
 function Tests.workshop_offline()
@@ -66,7 +66,7 @@ function Tests.workshop_offline()
 		return got, want
 	end
 	exact("offline_exact_quarter_rate_from_zero", 0, 1, 1, 1, 3600)
-	exact("offline_exact_diminishing_existing_stat", race.GAIN_SOFT, 3, 1, 2, 7200)
+	exact("offline_exact_existing_stat_not_reduced", 2000, 3, 1, 2, 7200)
 	exact("offline_eight_hour_cap", 1234, 2, 1, 3, 8 * 3600)
 	exact("offline_beyond_eight_hours_same_gain", 1234, 2, 1, 3, 48 * 3600)
 	exact("offline_zero_seconds", 100, 2, 1, 3, 0)
@@ -75,14 +75,33 @@ function Tests.workshop_offline()
 	exact("offline_zero_workshop_multi", 100, 2, 1, 0, 3600)
 	exact("offline_max_stat_no_gain", race.MAX_STAT, 2, 1, 3, 8 * 3600)
 	exact("offline_crossing_max_stat_clamped", race.MAX_STAT - 0.25, 1e8, 1, 2, 8 * 3600)
-	-- A frozen rate * seconds approximation must fail this discriminating fixture.
-	local got, want = exact("offline_integrates_instead_of_frozen_rate", 0, 10, 1, 5, 8 * 3600)
-	local frozen = 0.25 * config.BASE_RATE * 10 * 5 * 8 * 3600
-	flag("offline_oracle_distinguishes_linear_shortcut", math.abs(want - frozen) > 1 and near(got, want))
+	-- Owner, 2026-10-13: the rate x the capped time IS the rule (was: an integral that paid less).
+	local got = exact("offline_is_rate_times_capped_time", 0, 10, 1, 5, 8 * 3600)
+	local linear = 0.25 * config.BASE_RATE * 10 * 5 * 8 * 3600
+	flag("offline_no_diminishing_from_zero", near(got, linear), type(got) == "number" and got or -1, linear)
+	-- The public contract: OfflineGain = Rate x OFFLINE_FRACTION x clamp(seconds, 0, OFFLINE_CAP).
+	local contract = type(workshop.Rate) == "function"
+		and type(config.OFFLINE_FRACTION) == "number"
+		and type(config.OFFLINE_CAP) == "number"
+	for _, case in { { 0, 3600 }, { 2000, 3600 }, { 1e6, 7200 }, { 1e6, 48 * 3600 }, { 5e8, 100 } } do
+		local stat, seconds = case[1], case[2]
+		local okWant, wantGain = pcall(function()
+			return workshop.Rate(stat, 2, 1, 3) * config.OFFLINE_FRACTION * math.clamp(seconds, 0, config.OFFLINE_CAP)
+		end)
+		local okGot, gotGain = pcall(workshop.OfflineGain, stat, 2, 1, 3, seconds)
+		contract = contract and okWant and okGot and near(gotGain, wantGain) and wantGain > 0
+	end
+	flag("offline_equals_rate_times_fraction_times_time", contract)
+	local same = true
+	local atZero = workshop.OfflineGain(0, 2, 1, 3, 3600)
+	for _, stat in { 2000, 1e6, 5e8 } do
+		same = same and atZero > 0 and workshop.OfflineGain(stat, 2, 1, 3, 3600) == atZero
+	end
+	flag("offline_same_gain_at_any_stat", same, type(atZero) == "number" and atZero or -1, 0.25 * 2 * 3 * 3600)
 	local first = workshop.OfflineGain(500, 2, 1, 3, 1800)
 	local second = workshop.OfflineGain(500 + first, 2, 1, 3, 1800)
 	local whole = workshop.OfflineGain(500, 2, 1, 3, 3600)
-	flag("offline_integral_composes", near(first + second, whole))
+	flag("offline_gain_composes", near(first + second, whole))
 	for level, entry in config.Levels do
 		exact("offline_configured_level_" .. level, 500, 2, level, 3, 3600)
 		flag("offline_level_multi_valid_" .. level, type(entry.Multi) == "number" and entry.Multi > 0)
@@ -277,7 +296,7 @@ function Tests.workshop_phase2()
 		local wantMoney = 41
 		flag("offline_load_succeeds", data.Load(p, 74002, at) == true)
 		flag(
-			"offline_load_credits_exact_integral",
+			"offline_load_credits_rate_times_time",
 			near(p.leaderstats.Speed.Value, want, 0.002),
 			p.leaderstats.Speed.Value,
 			want

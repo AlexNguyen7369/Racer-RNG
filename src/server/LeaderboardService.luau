@@ -10,6 +10,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
+local CarAppearance = require(Shared.CarAppearance)
 local CarCatalog = require(Shared.CarCatalog)
 local Config = require(Shared.LeaderboardConfig)
 local HudFormat = require(Shared.HudFormat)
@@ -136,15 +137,21 @@ local function nameOf(userId)
 	return "Player " .. tostring(userId)
 end
 
+-- The catalog car a RarestCar score stands for, or nil.
+local function carByChance(score)
+	for _, spec in CarCatalog.All() do
+		if spec.Chance == score then
+			return spec
+		end
+	end
+	return nil
+end
+
 local function rowText(board, rank, entry)
 	local head = string.format("%d. %s", rank, entry.Name)
 	if board.Id == "RarestCar" then
-		for _, spec in CarCatalog.All() do
-			if spec.Chance == entry.Score then
-				return head .. "  " .. spec.Name .. "  " .. HudFormat.Odds(entry.Score)
-			end
-		end
-		return head .. "  " .. HudFormat.Odds(entry.Score)
+		local spec = carByChance(entry.Score)
+		return head .. "  " .. (spec and spec.Name .. "  " or "") .. HudFormat.Odds(entry.Score)
 	elseif board.Id == "MoneyEarned" then
 		return head .. "  " .. HudFormat.MoneyText(entry.Score)
 	end
@@ -172,6 +179,36 @@ local function render(board)
 	end
 end
 
+-- Best Roll Ever pedestal (docs/LEADERBOARD_SPEC.md 3a): row 1 of the RarestCar board, with its car on the platform.
+local function renderBestRoll()
+	local area = Workspace:FindFirstChild("SpawnArea")
+	local best = area and area:FindFirstChild("BestRoll")
+	local pedestal = best and best:FindFirstChild("Pedestal")
+	local stats = pedestal and pedestal:FindFirstChild("Stats")
+	local mount = pedestal and pedestal:FindFirstChild("CarMount")
+	if not (stats and mount) then
+		return
+	end
+	local row = (tops.RarestCar or {})[1]
+	local spec = row and carByChance(row.Score)
+	stats.Odds.Text = row and HudFormat.Odds(row.Score) or Config.NO_DATA
+	stats.Car.Text = spec and spec.Name or ""
+	stats.Player.Text = row and "by " .. row.Name or ""
+	local id = spec and spec.Id or nil
+	if best:GetAttribute("CarId") == id then
+		return -- same car: keep the model the clients are turning
+	end
+	best:SetAttribute("CarId", id)
+	local old = best:FindFirstChild("Car")
+	if old then
+		old:Destroy()
+	end
+	local car = CarAppearance.Display(spec, mount.WorldCFrame, Config.BEST_ROLL.CAR_SCALE)
+	if car then
+		car.Parent = best
+	end
+end
+
 -- Reads every board and writes the signs. Yields (DataStore, name lookups).
 function LeaderboardService.Refresh()
 	for _, board in Config.Boards do
@@ -193,6 +230,7 @@ function LeaderboardService.Refresh()
 		end
 		render(board)
 	end
+	renderBestRoll()
 end
 
 -- The last successful read of a board: { { UserId, Name, Score }, ... }, highest first, at most TOP_N.

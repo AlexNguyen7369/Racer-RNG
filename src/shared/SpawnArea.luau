@@ -13,6 +13,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RaceStartMeshAssets = require(script.Parent.RaceStartMeshAssets)
 local MarketplaceBuilder = require(script.Parent.MarketplaceBuilder)
 local LeaderboardConfig = require(script.Parent.LeaderboardConfig)
+local PassCarConfig = require(script.Parent.PassCarConfig)
+local CarCatalog = require(script.Parent.CarCatalog)
 
 -- Match WorkshopBuilder's native-mesh safeguard before Main builds the area.
 local raceTemplate = ReplicatedStorage:WaitForChild("RaceStartPavilion"):Clone()
@@ -39,7 +41,7 @@ SpawnArea.COLOR = Color3.fromRGB(140, 70, 220) -- purple, so the area is easy to
 SpawnArea.PAD_COLOR = Color3.fromRGB(60, 220, 110)
 SpawnArea.AREA_MIN = Vector2.new(24, -188) -- local (x, z) corners of the floor: 228 x 232 studs (hub + plots)
 SpawnArea.AREA_MAX = Vector2.new(252, 44)
-SpawnArea.HUB_MIN = Vector2.new(24, -100) -- the part of the floor kept free of plots: spawn, StartPad side, upgrade pad
+SpawnArea.HUB_MIN = Vector2.new(24, -100) -- the part of the floor kept free of plots: spawn, StartPad side, Best Roll pedestal
 SpawnArea.HUB_MAX = Vector2.new(184, 44)
 SpawnArea.PAD_MIN = Vector2.new(-20, 2) -- authored pavilion coordinates; placement is controlled by PadBase
 SpawnArea.PAD_MAX = Vector2.new(24, 38)
@@ -274,16 +276,6 @@ function SpawnArea.Build(startCFrame)
 	end
 
 	model.PrimaryPart = floor
-	local upgrade =
-		slab(model, "UpgradePad", startCFrame, Vector2.new(144, -76), Vector2.new(156, -64), top + 0.15, 0.25)
-	upgrade.Color = Color3.fromRGB(75, 235, 140)
-	upgrade.Material = Enum.Material.Neon
-	CollectionService:AddTag(upgrade, "UpgradePad")
-	local upgradeGui = billboard:Clone()
-	upgradeGui.Name = "UpgradeSign"
-	upgradeGui.Text.Text = "UPGRADES"
-	upgradeGui.Parent = upgrade
-
 	local market = slab(model, "MarketPad", startCFrame, Vector2.new(42, -76), Vector2.new(58, -64), top + 0.15, 0.25)
 	market.Color = Color3.fromRGB(255, 190, 65)
 	market.Material = Enum.Material.Neon
@@ -363,6 +355,100 @@ function SpawnArea.Build(startCFrame)
 		end
 	end
 	boards.Parent = model
+
+	-- Showcase row: the Best Roll Ever pedestal (docs/LEADERBOARD_SPEC.md 3a) between the two gamepass car
+	-- pedestals (docs/GAMEPASS_CARS_SPEC.md 5). The servers fill the labels and put a car on each CarMount;
+	-- Client/BestRollView turns them.
+	local cfg = LeaderboardConfig.BEST_ROLL
+	local blue, cream = Color3.fromRGB(40, 70, 190), Color3.fromRGB(255, 240, 170)
+	-- A round platform: returns its Pedestal part (with CarMount on top) and a Stats billboard above it
+	local function pedestal(parent, x, z, radius, statsSize, statsHeight, textDistance)
+		-- name, bottom and top as fractions of HEIGHT, radius inset (the stripe sits in a groove)
+		for _, layer in
+			{ { "Pedestal", 0, 0.4, 0, blue }, { "Stripe", 0.4, 0.6, 0.2, cream }, { "Top", 0.6, 1, 0, blue } }
+		do
+			local disc = Instance.new("Part")
+			disc.Name = layer[1]
+			disc.Shape = Enum.PartType.Cylinder -- the axis is the part's X: turned upright below
+			disc.Anchored = true
+			local diameter = (radius - layer[4]) * 2
+			disc.Size = Vector3.new((layer[3] - layer[2]) * cfg.HEIGHT, diameter, diameter)
+			disc.CFrame = base(startCFrame)
+				* CFrame.new(x, top + (layer[2] + layer[3]) / 2 * cfg.HEIGHT, z)
+				* CFrame.Angles(0, 0, math.rad(90))
+			disc.Color = layer[5]
+			disc.Material = Enum.Material.SmoothPlastic
+			disc.TopSurface = Enum.SurfaceType.Smooth
+			disc.BottomSurface = Enum.SurfaceType.Smooth
+			disc.Parent = parent
+		end
+		local part = parent.Pedestal
+		local mount = Instance.new("Attachment")
+		mount.Name = "CarMount"
+		mount.Parent = part
+		mount.WorldCFrame = base(startCFrame) * CFrame.new(x, top + cfg.HEIGHT, z)
+		local stats = Instance.new("BillboardGui")
+		stats.Name = "Stats"
+		stats.Size = statsSize -- studs: the text keeps its size in the world
+		stats.Adornee = mount -- upright, unlike the turned cylinder: the offset below points straight up
+		stats.StudsOffsetWorldSpace = Vector3.new(0, statsHeight, 0)
+		stats.MaxDistance = textDistance
+		stats.LightInfluence = 0
+		stats.Parent = part
+		return part, stats
+	end
+	local function stat(stats, name, y, height, colour, value)
+		local label = Instance.new("TextLabel")
+		label.Name = name
+		label.BackgroundTransparency = 1
+		label.Position = UDim2.fromScale(0, y)
+		label.Size = UDim2.fromScale(1, height)
+		label.Font = Enum.Font.GothamBlack
+		label.TextScaled = true
+		label.TextColor3 = colour
+		label.TextStrokeTransparency = 0
+		label.Text = value
+		label.Parent = stats
+	end
+
+	local best = Instance.new("Model")
+	best.Name = "BestRoll"
+	local _, bestStats = pedestal(best, cfg.X, cfg.Z, cfg.RADIUS, UDim2.fromScale(36, 11), 15, cfg.TEXT_DISTANCE)
+	stat(bestStats, "Title", 0, 0.4, Color3.new(1, 1, 1), "BEST ROLL EVER")
+	stat(bestStats, "Odds", 0.4, 0.22, Color3.fromRGB(255, 214, 90), LeaderboardConfig.NO_DATA)
+	stat(bestStats, "Car", 0.62, 0.2, Color3.new(1, 1, 1), "")
+	stat(bestStats, "Player", 0.82, 0.18, Color3.fromRGB(200, 220, 255), "")
+	best.Parent = model
+
+	local passCars = Instance.new("Model")
+	passCars.Name = "PassCars"
+	for _, entry in PassCarConfig.Pedestals do
+		local spec = CarCatalog.Get(entry.CarId)
+		local stand = Instance.new("Model")
+		stand.Name = "Pass_" .. entry.CarId
+		local part, stats = pedestal(
+			stand,
+			entry.X,
+			entry.Z,
+			PassCarConfig.RADIUS,
+			UDim2.fromScale(14, 4),
+			8,
+			PassCarConfig.TEXT_DISTANCE
+		)
+		stat(stats, "Title", 0, 0.6, Color3.new(1, 1, 1), spec and spec.Name or entry.CarId)
+		stat(stats, "Tag", 0.6, 0.4, Color3.fromRGB(120, 255, 170), "GAMEPASS")
+		local buy = Instance.new("ProximityPrompt")
+		buy.Name = "Buy"
+		buy.ObjectText = spec and spec.Name or entry.CarId
+		buy.ActionText = (spec and (spec.GamepassId or 0) > 0) and "Unlock" or "Coming soon"
+		buy.KeyboardKeyCode = Enum.KeyCode.E
+		buy.HoldDuration = 0
+		buy.MaxActivationDistance = PassCarConfig.PROMPT_DISTANCE
+		buy.RequiresLineOfSight = false
+		buy.Parent = part
+		stand.Parent = passCars
+	end
+	passCars.Parent = model
 	return model
 end
 

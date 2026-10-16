@@ -658,6 +658,34 @@
       "foundBy": "ui-tester",
       "foundAt": "2026-10-13T09:38:30-07:00",
       "loggedBy": "Alex Nguyen"
+    },
+    {
+      "id": "66c6be6e",
+      "name": "Duel result time is not the winner's run time",
+      "kind": "failure",
+      "status": "open",
+      "file": "src/server/CarTest/DuelTests.luau",
+      "line": 1193,
+      "endLine": 1193,
+      "snippet": {
+        "from": 1189,
+        "lines": [
+          "\t\t\t\t\ttrack1.FinishIndex",
+          "\t\t\t\t)",
+          "\t\t\t\tlocal resA, resB = d1.ResultA[1] or {}, d1.ResultB[1] or {}",
+          "\t\t\t\tflag(",
+          "\t\t\t\t\t\"duel_race_result_time_is_winner_run_time\",",
+          "\t\t\t\t\ttype(resB.Time) == \"number\" and resB.Time > 0 and math.abs(resB.Time - elapsed) <= TIME_SLACK,",
+          "\t\t\t\t\ttype(resB.Time) == \"number\" and round(resB.Time) or -1,",
+          "\t\t\t\t\tround(elapsed)",
+          "\t\t\t\t)"
+        ]
+      },
+      "summary": "Harness duel scenario: the race result reports 20.617 s but the winner's run took 22.034 s, so a duel result can show the wrong time. Unrelated to the soft-rail change (seen on the red run before it).",
+      "error": "{\"value\":20.617,\"limit\":22.034,\"name\":\"duel_race_result_time_is_winner_run_time\"}",
+      "foundBy": "physics-tester",
+      "foundAt": "2026-10-15T15:58:29-07:00",
+      "loggedBy": "Alex Nguyen"
     }
   ]
 }

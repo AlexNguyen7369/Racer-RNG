@@ -2,7 +2,6 @@
 -- Progression display: all purchases and earnings are owned by the server.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local CollectionService = game:GetService("CollectionService")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
@@ -15,7 +14,9 @@ local Tracks = require(shared.TrackRegistry)
 local Workshop = require(shared.Workshop)
 local Format = require(shared.HudFormat)
 local Weather = require(shared.WeatherConfig)
+local Boosts = require(shared.BoostConfig)
 local Switch = require(script.Parent.PanelSwitch)
+local HudButtonStyle = require(script.Parent.RollToast.Ui.HudButtonStyle)
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
 local BLUE = Color3.fromRGB(61, 151, 219)
 local GREEN = Color3.fromRGB(89, 225, 138)
@@ -94,6 +95,7 @@ end
 local hud = screen("RacerProgression", 1)
 local upgrades = button("UpgradeButton", hud, UDim2.new(1, -16, 0.22, 0), UDim2.fromOffset(110, 40), "UPGRADES")
 upgrades.AnchorPoint = Vector2.new(1, 0)
+HudButtonStyle.Utility(upgrades, 1, HudButtonStyle.Colors.Upgrades)
 local badge = text("Badge", upgrades, UDim2.new(1, -26, 0, 0), UDim2.fromOffset(26, 22), "0")
 badge.BackgroundTransparency = 0
 badge.BackgroundColor3 = RED
@@ -134,25 +136,82 @@ weather.MouseLeave:Connect(function()
 	weatherHover = false
 	showWeatherCard()
 end)
-local treePanel = panel("Upgrades", "MONEY UPGRADE TREE")
-local canvas = make("ScrollingFrame", "Canvas", treePanel, {
-	Position = UDim2.fromOffset(8, 44),
-	Size = UDim2.new(1, -16, 1, -82),
-	CanvasSize = UDim2.fromOffset(1600, 1600),
-	CanvasPosition = Vector2.new(500, 480),
+
+-- Active consumables share the weather status strip. The server owns the expiry attributes; this row only
+-- displays the strongest active tier in each category and counts down against the server clock.
+local potionStatus = make("Frame", "PotionStatus", hud, {
+	AnchorPoint = Vector2.new(1, 1),
+	Position = UDim2.new(1, -60, 1, -8),
+	Size = UDim2.fromOffset(0, 44),
+	AutomaticSize = Enum.AutomaticSize.X,
 	BackgroundTransparency = 1,
-	ScrollBarThickness = 6,
-	ClipsDescendants = true,
-	ScrollingEnabled = true,
 })
-local feedback = text(
-	"Result",
-	treePanel,
-	UDim2.new(0, 8, 1, -34),
-	UDim2.new(1, -16, 0, 28),
-	"Drag to explore • select an available upgrade"
-)
-local tiles = {}
+local _potionLayout = make("UIListLayout", "Layout", potionStatus, {
+	FillDirection = Enum.FillDirection.Horizontal,
+	HorizontalAlignment = Enum.HorizontalAlignment.Right,
+	VerticalAlignment = Enum.VerticalAlignment.Center,
+	Padding = UDim.new(0, 8),
+})
+
+local potionButtons = {}
+local potionGlyphs = { Luck = "✦", Money = "$", Speed = "⚡" }
+local potionColors = {
+	Luck = Color3.fromRGB(183, 117, 255),
+	Money = Color3.fromRGB(89, 225, 138),
+	Speed = Color3.fromRGB(61, 151, 219),
+}
+for _, category in Boosts.Order do
+	local icon = button(category .. "Potion", potionStatus, UDim2.fromOffset(0, 0), UDim2.fromOffset(58, 44), "")
+	icon.BackgroundColor3 = potionColors[category] or DARK
+	icon.Text = potionGlyphs[category] or "✚"
+	icon.TextSize = 20
+	icon.Visible = false
+	local timer = text("Timer", icon, UDim2.new(0, 2, 1, -16), UDim2.new(1, -4, 0, 14), "")
+	timer.TextSize = 10
+	timer.TextXAlignment = Enum.TextXAlignment.Center
+	potionButtons[category] = { Button = icon, Timer = timer }
+end
+
+local function strongestPotion(category, now)
+	local best
+	for _, item in Boosts.ItemsFor(category) do
+		local untilAt = player:GetAttribute("BoostUntil_" .. item.Id)
+		if type(untilAt) == "number" and untilAt > now and (not best or item.Multiplier > best.Multiplier) then
+			best = { Item = item, Until = untilAt }
+		end
+	end
+	return best
+end
+
+local function refreshPotions(now)
+	local activeCount = 0
+	for _, category in Boosts.Order do
+		local slot = potionButtons[category]
+		local activePotion = strongestPotion(category, now)
+		if activePotion then
+			activeCount += 1
+			slot.Button.Visible = true
+			slot.Button.Text = potionGlyphs[category] or "✚"
+			slot.Button:SetAttribute("PotionId", activePotion.Item.Id)
+			slot.Button:SetAttribute("PotionUntil", activePotion.Until)
+			slot.Timer.Text = string.format("%ds", math.max(0, math.ceil(activePotion.Until - now)))
+		else
+			slot.Button.Visible = false
+			slot.Button:SetAttribute("PotionId", nil)
+			slot.Button:SetAttribute("PotionUntil", nil)
+		end
+	end
+	potionStatus.Visible = activeCount > 0 and hud.Enabled
+end
+local treeView = require(script.Parent.RollToast.Ui.UpgradeTreeView).Create(gui, Tree, Format)
+local treePanel, canvas, feedback, tiles = treeView.Panel, treeView.Canvas, treeView.Feedback, treeView.Tiles
+Switch.Register("Upgrades", treePanel)
+panels.Upgrades = treePanel
+for _, close in { treeView.Refs.Close, treeView.Refs.Exit } do
+	close.Activated:Connect(function()
+		Switch.Close("Upgrades")
+	end)
+end
 local pendingBuys = {}
 local function syncUpgradeEntry()
 	upgrades.Visible = not (Switch.AnyOpen() and not treePanel.Visible)
@@ -160,41 +219,12 @@ end
 Switch.OnChange(syncUpgradeEntry)
 local purchaseSound =
 	make("Sound", "PurchaseSound", hud, { SoundId = "rbxasset://sounds/electronicpingshort.wav", Volume = 0.3 })
-local start = text("Start", canvas, UDim2.fromOffset(750, 550), UDim2.fromOffset(100, 88), "START")
-start.BackgroundTransparency = 0
-start.BackgroundColor3 = BLUE
 for _, tile in Tree.Tiles() do
-	local position = Vector2.new(750 + 112 * (tile.Q + tile.R / 2), 550 + 108 * tile.R)
-	local b = button(tile.Id, canvas, UDim2.fromOffset(position.X, position.Y), UDim2.fromOffset(100, 88), "")
-	b.BackgroundTransparency = 1
-	for i, rotation in { 0, -60, 60 } do
-		make("Frame", "Hex" .. i, b, {
-			AnchorPoint = Vector2.new(0.5, 0.5),
-			Position = UDim2.fromScale(0.5, 0.5),
-			Size = UDim2.fromOffset(50, 86),
-			Rotation = rotation,
-			BackgroundColor3 = DARK,
-			BorderSizePixel = 0,
-			ZIndex = 2,
-		})
+	local entry = tiles[tile.Id]
+	if not entry then
+		continue
 	end
-	local label = text("Text", b, UDim2.fromOffset(4, 4), UDim2.new(1, -8, 1, -8), tile.Name)
-	label.ZIndex = 3
-	label.TextSize = 13
-	tiles[tile.Id] = { Button = b, Label = label, Tile = tile }
-	b.MouseEnter:Connect(function()
-		for _, branch in Tree.Config.Branches do
-			if branch.Id == tile.Branch then
-				local value = branch.Bonus
-						and ("+" .. math.floor(branch.Bonus[tile.Tier] * 100 + 0.5) .. "% " .. branch.Effect)
-					or branch.WalkSpeed and (tostring(branch.WalkSpeed[tile.Tier]) .. " WalkSpeed")
-					or branch.Tiers
-						and ("Turbo x" .. branch.Tiers[tile.Tier].Multi .. " every " .. branch.Tiers[tile.Tier].Every .. " rolls")
-				feedback.Text = tile.Name .. ": " .. tostring(value)
-				feedback.TextColor3 = Color3.new(1, 1, 1)
-			end
-		end
-	end)
+	local b, label = entry.Button, entry.Label
 	b.Activated:Connect(function()
 		if not b.Active or pendingBuys[tile.Id] then
 			return
@@ -259,23 +289,18 @@ local function refresh()
 		BestTrack = player:GetAttribute("BestTrack") or 0,
 		TrackCount = #Tracks.Chain(),
 	}
+	local visibleBuyable = 0
 	for id, refs in tiles do
 		local canBuy, reason = Tree.CanBuy(state, id)
+		if canBuy then
+			visibleBuyable += 1
+		end
 		setActive(refs.Button, canBuy and not pendingBuys[id])
 		refs.Button.Selectable = canBuy
-		local description = reason == "owned" and "OWNED"
-			or reason == "locked" and "?"
-			or reason == "gated" and ("Reach Track " .. Tree.RequiredTrack(id, state.TrackCount))
-			or Format.MoneyText(Tree.Price(id))
-		refs.Label.Text = reason == "locked" and "?" or (refs.Tile.Name .. "\n" .. description)
-		refs.Label.TextColor3 = reason == "owned" and BLUE or canBuy and GREEN or RED
-		for _, child in refs.Button:GetChildren() do
-			if child:IsA("Frame") then
-				child.BackgroundColor3 = owned[id] and Color3.fromRGB(28, 70, 109) or Color3.fromRGB(49, 55, 78)
-			end
-		end
+		treeView.Paint(refs, owned[id] == true, canBuy, reason, state.TrackCount)
 	end
-	local count = player:GetAttribute("UpgradesBuyable") or 0
+	treeView.Balance(balance)
+	local count = visibleBuyable
 	badge.Text, badge.Visible = tostring(count), count > 0
 	local level = Workshop.CleanLevel(player:GetAttribute("WorkshopLevel"))
 	local nextLevel = Workshop.Config.Levels[level + 1]
@@ -359,7 +384,6 @@ UserInputService.InputBegan:Connect(function(input, consumed)
 		end
 	end
 end)
-local onWorldPad = false
 local elapsed = 0
 RunService.Heartbeat:Connect(function(dt)
 	elapsed += dt
@@ -377,31 +401,9 @@ RunService.Heartbeat:Connect(function(dt)
 	weatherTitle.TextColor3 = spec.Color or Color3.new(1, 1, 1)
 	weatherStats.Text = Weather.Describe(weatherId)
 	weatherTime.Text = active and string.format("%ds left", remaining) or ""
-	local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-	local inside = false
-	for _, pad in CollectionService:GetTagged("UpgradePad") do
-		if
-			root
-			and pad:IsA("BasePart")
-			and pad:IsDescendantOf(workspace)
-			and not pad:FindFirstAncestor("Workshops")
-		then
-			local p = pad.CFrame:PointToObjectSpace(root.Position)
-			inside = math.abs(p.X) <= pad.Size.X / 2 and math.abs(p.Z) <= pad.Size.Z / 2 and math.abs(p.Y) <= 8
-			if inside then
-				break
-			end
-		end
-	end
-	if inside and not onWorldPad and not treePanel.Visible then
-		Switch.Toggle("Upgrades")
-	end
-	if not inside and onWorldPad then
-		Switch.Close("Upgrades")
-	end
-	onWorldPad = inside
 	local showcase = gui:FindFirstChild("RollShowcase")
-	hud.Enabled = not (showcase and showcase.Enabled)
+	hud.Enabled = not (showcase and showcase.Enabled) and not treePanel.Visible
+	refreshPotions(workspace:GetServerTimeNow())
 	-- An open panel owns the screen: the UPGRADES entry would sit over another panel's header and the
 	-- workshop line over the panel body.
 	local otherOpen = Switch.AnyOpen() and not treePanel.Visible
@@ -410,7 +412,9 @@ RunService.Heartbeat:Connect(function(dt)
 	if camera and camera.ViewportSize.X > 1 then
 		local viewport = camera.ViewportSize
 		-- Phones: the Bag / Daily / Market stack fills the corner, so the icon sits left of the Market button.
-		weather.Position = UDim2.new(1, viewport.Y <= 500 and -140 or -8, 1, -8)
+		local weatherRightOffset = viewport.Y <= 500 and -140 or -8
+		weather.Position = UDim2.new(1, weatherRightOffset, 1, -8)
+		potionStatus.Position = UDim2.new(1, weatherRightOffset - 52, 1, -8)
 		-- These ScreenGuis ignore the top-bar inset, so an AbsolutePosition + inset is an offset in them.
 		local inset = GuiService:GetGuiInset().Y
 		local racerHud = gui:FindFirstChild("RacerHud")
@@ -434,6 +438,9 @@ RunService.Heartbeat:Connect(function(dt)
 		local width = viewport.Y > 700 and math.min(700, viewport.X - 284) or math.min(700, viewport.X * 0.82)
 		width = math.max(100, math.min(width, viewport.X - 2 * (columnRight + 8)))
 		for _, p in panels do
+			if p == treePanel then
+				continue
+			end
 			if viewport.Y <= 500 then
 				-- Short landscape screens use the space to the right of the compact roll.
 				local right = toast and toast.AbsolutePosition.X + toast.AbsoluteSize.X + 12 or viewport.X / 2 + 127
