@@ -3,7 +3,21 @@
 PROJECT CONTEXT - Idle Vehicle Simulator (read me first)
 Shown in Studio at: ServerScriptService > ProjectContext   (source file: context/ProjectContext.luau)
 Do NOT edit this in Studio: edit the file on disk, Rojo syncs it. Claude updates it at the end of every loop.
-Last updated: 2026-10-13 (Claude: gamepass car pedestals)
+Last updated: 2026-10-15 (Claude: smooth auto-race rail, Isaac UI merged; harness 41/41)
+
+SMOOTH AUTO-RACE RAIL - 2026-10-15 (Claude, branch main)
+- Owner report: auto racing and TOP-DOWN VIEW looked choppy. Measured on the client: the car moved only every other
+  frame (3.7, 0, 3.7, 0 studs at 60 fps). Cause: RaceService.constrainToPath PivotTo'd the server-owned car every
+  frame (commit 08c6446), and a teleport replicates as a jump instead of interpolated physics.
+- Fix: the rail steers with velocity (sideways offset * RAIL_POS_GAIN 20, heading * RAIL_ROT_GAIN 20) and only
+  teleports when the car is more than RAIL_SNAP_DISTANCE (3) studs off or flipped; run.RailSnaps counts those.
+  The offset is sideways only: an along-track part fed back as speed (148 vs cap 62, races never finished).
+- Top-down camera smoothing is frame-rate independent (RacerUiController, 1 - 0.84^(dt*60)).
+- Tests: race_rail_never_snaps / max_speed_rail_never_snaps (PhysicsTargets.race.MaxRailSnaps = 0, test-writer).
+- Results 2026-10-15: red run 39/2 (the two new checks, -1); round 2 full harness [CARTEST] END pass=41 fail=0;
+  snaps 0, max_speed_cap 57.8/62.5, sticks_to_path 1.62/1.685, never_tilted 0.955. Client: 0 of 45 frames
+  stationary (Studio unfocused, ~15 fps). Not run: [UITEST], /compat-check. Isaac's ccea607 UI (inventory tabs,
+  upgrade tree, HUD captions) merged into main by Claude/Codex; UI tests need reconciling for it.
 
 GAMEPASS CAR PEDESTALS - 2026-10-13 (Claude, branch feature/alex/global-leaderboards, uncommitted)
 - Rule (owner 2026-10-13, design doc Monetization "Gamepass cars", docs/GAMEPASS_CARS_SPEC.md): Ember Wyvern and

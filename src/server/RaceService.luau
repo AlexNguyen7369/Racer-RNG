@@ -341,6 +341,8 @@ function RaceService.NewRun(car, raceRoute, player, options)
 		end
 		local target = CFrame.lookAt(position, position + bestDir)
 		local offset = position - chassis.Position
+		-- Sideways only: an along-track part would be fed back as forward speed every frame and run away
+		offset -= bestDir * offset:Dot(bestDir)
 		if offset.Magnitude > RaceService.RAIL_SNAP_DISTANCE or up < RaceService.FLIP_UP_Y then
 			car:PivotTo(target)
 			chassis.AssemblyLinearVelocity = bestDir * forwardSpeed

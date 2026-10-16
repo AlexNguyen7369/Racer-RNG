@@ -1,5 +1,20 @@
 # Agent handoff
 
+## Smooth auto-race rail + Isaac UI merge — 2026-10-15 (Claude)
+
+- Owner report: auto race / top-down view choppy. Measured: client saw the car move every other frame. Cause:
+  per-frame `PivotTo` in `RaceService.constrainToPath`. Fix: velocity steering, sideways-only offset, teleport
+  fallback counted in `run.RailSnaps` (>3 studs or flipped). Top-down camera lerp made frame-rate independent.
+- Tests (test-writer): `race_rail_never_snaps`, `max_speed_rail_never_snaps`, `PhysicsTargets.race.MaxRailSnaps = 0`.
+- Runs: red 39/2; round 1 regression (along-track feedback: speed 148, races never finished) fixed; round 2 full
+  harness `[CARTEST] END pass=41 fail=0`. Client sample 0/45 stationary frames.
+- Isaac's `ccea607` merged into the working tree (3-way, conflicts in ProgressionUi/BoostDailyUi resolved, RacerHud
+  regenerated from his spec, hash 37da31f77505); Codex then committed everything to main (47402a2).
+- Traps: a second `rojo serve --port 34873` from `/private/tmp/racer-rng-live-F4FGAq` made Studio sync a stale copy;
+  connect the plugin to 34872. A branch switch crashed `rojo serve` (folder vanished); restart it after switches.
+  A stale `.git/index.lock` (Oct 13) was removed.
+- Not run: `[UITEST]`, `/compat-check`. UI tests need reconciling for Isaac's UI (todo `isaac-ui-tests-reconcile`).
+
 ## Roll rarity and potion status HUD — 2026-10-15 (Codex)
 
 - Owner request: roll animation must show catalog rarity (`Void Racer` = `1 in 100,000`), and active potions need
