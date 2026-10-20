@@ -41,5 +41,6 @@ return {
 		"duel",
 		"pass_cars",
 		"shop_purchases",
+		"environment",
 	},
 }

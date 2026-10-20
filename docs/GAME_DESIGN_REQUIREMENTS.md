@@ -218,6 +218,16 @@ Idle Vehicle Simulator — Game Design Requirements
        The payout grows with the difficulty of the track beaten.
        The player keeps earning Speed during races (see Core stat model).
 
+  Track environments (owner, 2026-10-20; docs/BIOME_DRESSING_SPEC.md)
+
+       Every track has one visual theme (its Biome), dressed so the auto-driven car gives an
+       immersive drive-by: a repeating roadside rhythm, landmarks where the car turns or climbs,
+       horizon silhouettes, and a themed gate at the track start.
+       Themes are cosmetic only. They never change physics, payouts, NPC speed or race results,
+       and they do not decide how environments group tracks into ladders (still an open question).
+       Biomes never change global Lighting: weather events own the sky.
+       Downloaded art (kenney.nl, itch.io) is CC0 only; each pack's license and source are recorded.
+
 
 
 

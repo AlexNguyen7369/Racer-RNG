@@ -6,6 +6,7 @@ return {
 	Width = 40,
 	Closed = false,
 	Number = 2,
+	Biome = "Forest",
 	Palette = {
 		Road = Color3.fromRGB(36, 111, 122),
 		Support = Color3.fromRGB(24, 69, 82),

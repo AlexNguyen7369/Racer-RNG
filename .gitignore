@@ -14,3 +14,10 @@ __pycache__/
 .claude/scheduled_tasks.lock
 .claude/settings.local.json
 .agents/
+
+# Raw downloaded CC0 biome packs (keep only LICENSE files + SOURCES.md, docs/BIOME_DRESSING_SPEC.md)
+references/biome_packs/**
+!references/biome_packs/SOURCES.md
+!references/biome_packs/*/
+!references/biome_packs/*/License*.txt
+!references/biome_packs/*/LICENSE*

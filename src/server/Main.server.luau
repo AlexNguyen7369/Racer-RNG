@@ -3,6 +3,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
+local BiomeDressing = require(Shared.BiomeDressing)
 local TrackBuilder = require(Shared.TrackBuilder)
 local TrackRegistry = require(Shared.TrackRegistry)
 local SpawnArea = require(Shared.SpawnArea)
@@ -48,6 +49,11 @@ end
 local track1Start = entries[1].Model:FindFirstChild("Start", true).CFrame
 local spawnArea = SpawnArea.Build(track1Start)
 spawnArea.Parent = Workspace
+local trackModels = {}
+for _, entry in entries do
+	table.insert(trackModels, entry.Model)
+end
+BiomeDressing.Prune(trackModels, { spawnArea }) -- scenery keeps clear of every road and the spawn area
 
 -- The player's car auto-races the whole chain at the speed from their saved stats
 RaceService.Start(RaceService.BuildRoute(entries))

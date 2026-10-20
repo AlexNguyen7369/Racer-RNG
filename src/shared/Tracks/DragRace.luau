@@ -4,6 +4,7 @@ return {
 	Name = "DragRace",
 	Description = "Short straight drag race with a bold sunset palette, built as the next leg after Hill.",
 	Number = 3,
+	Biome = "Docks",
 	Width = 40,
 	Closed = false,
 	Palette = {

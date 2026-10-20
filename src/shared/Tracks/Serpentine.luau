@@ -4,6 +4,7 @@ return {
 	Name = "Serpentine",
 	Description = "Track 5 sprint with alternating left/right 90s.",
 	Number = 5,
+	Biome = "PirateCoast",
 	Width = 36,
 	Closed = false,
 	Segments = {

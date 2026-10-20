@@ -24,6 +24,9 @@ are at least 36 studs wide, and increase technical difficulty in number order.
 
 ## Environment rules
 
+Since 2026-10-20 the full environment rules for all ten tracks are in
+`docs/BIOME_DRESSING_SPEC.md`; the rules below still hold.
+
 - Every spec has a `Biome` string consumed by `BiomeDressing`.
 - Props are visual only: `Anchored = true`, `CanCollide = false`, `CanTouch = false`,
   and `CanQuery = false`.

@@ -1,5 +1,25 @@
 # Agent handoff
 
+## Biome drive-by scenery — 2026-10-20 (Claude, active)
+
+- Owner request: plan + build the most immersive drive-by per track using kenney.nl / itch.io assets.
+  Owner answers: new theme per track for 1-5, owner bulk-imports meshes in Studio, CC0 only.
+- Branch `feature/alex/biome-drive-by-scenery` in worktree `../RobloxGames-biomes` (main checkout left to Codex).
+  Plan: `~/.claude/plans/work-on-different-branch-quirky-pumpkin.md`.
+- Rules first: design doc "Racing" > "Track environments", new `docs/BIOME_DRESSING_SPEC.md`, TRACKS_6_10_SPEC links it.
+- Code: `Shared/BiomeThemes` (data, fallback parts), `Shared/BiomeMeshAssets` (empty), `Shared/BiomeDressing`
+  (generic builder + `Prune`), `Main` calls `Prune(trackModels, {spawnArea})`, `Client/BiomeAmbience`,
+  `Biome` field on Oval/Hill/DragRace/Circuit/Serpentine. Test: `CarTest/EnvironmentTests` (`environment`).
+- Static: stylua, selene (0 warnings in changed files), rojo build pass. NOT run in Studio yet (Studio was in
+  Codex's Play session); red/green unverified.
+
+### Resume steps
+
+1. Ask Codex for Studio; `rojo serve` from the worktree; run `environment` + full suite until `END fail=0`.
+2. Screenshot each track's gate / a corner landmark; tune `BiomeThemes` offsets if Prune strips too much.
+3. Asset wave 1 (tracks 1-5): download CC0 packs to `references/biome_packs/`, Blender export
+   `assets/meshes/biomes/<Biome>.fbx`, add manual.json import item, wire ids. Then wave 2 (6-10).
+
 ## Upgrades panel keeps the HUD drawn — 2026-10-16 (Claude)
 
 - Fixed Codex's intentional UI red: opening the Upgrades tree disabled `RacerHud` and `RacerProgression`, against

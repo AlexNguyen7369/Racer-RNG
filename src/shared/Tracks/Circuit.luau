@@ -5,6 +5,7 @@ return {
 	Name = "Circuit",
 	Description = "Eight gentle direction changes on a point-to-point route. Tests turn-in without folding back across the chain.",
 	Number = 4,
+	Biome = "Suburb",
 	Width = 36,
 	Closed = false,
 	Segments = {

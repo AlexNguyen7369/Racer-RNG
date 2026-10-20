@@ -798,6 +798,16 @@
       "detail": "References show gift buttons; not built.",
       "status": "backlog",
       "owner": "Claude"
+    },
+    {
+      "id": "biome-drive-by",
+      "title": "Biome drive-by scenery on all 10 tracks (Kenney / itch.io CC0)",
+      "detail": "docs/BIOME_DRESSING_SPEC.md. Done on branch feature/alex/biome-drive-by-scenery: themes for tracks 1-5 (Speedway, Forest, Docks, Suburb, PirateCoast), generic data-driven BiomeDressing (rhythm / landmarks at corners and crests / horizon / start gate), chain-wide clearance Prune, client BiomeAmbience, fallback parts until meshes are imported. Next: run the environment scenario + full suite in Studio, then download CC0 packs, export FBX per theme in Blender, owner imports, wire Shared/BiomeMeshAssets (wave 1: tracks 1-5, wave 2: 6-10).",
+      "status": "doing",
+      "owner": "Claude",
+      "branch": "feature/alex/biome-drive-by-scenery",
+      "by": "Alex Nguyen",
+      "added": "2026-10-20T02:30:00-07:00"
     }
   ]
 }
