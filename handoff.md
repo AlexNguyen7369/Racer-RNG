@@ -1,32 +1,45 @@
 # Agent handoff
 
-## Biome drive-by scenery — 2026-10-20 (Claude, active)
+## Biome drive-by scenery — 2026-10-20 (Claude, paused: implementation done, not merged)
 
-- Owner request: immersive drive-by per track with kenney.nl / itch.io assets; owner authorized taking Studio from
-  Codex and running the whole implementation. Answers: new themes for 1-5, CC0 only.
-- Branch `feature/alex/biome-drive-by-scenery`, worktree `../RobloxGames-biomes`. Rojo now serves the WORKTREE
-  (pid started from it); restart `rojo serve` in the main checkout before Codex resumes Studio work.
-- Done: docs (design doc "Track environments", `docs/BIOME_DRESSING_SPEC.md`), themes + generic dresser + Prune +
-  gates + ground step, 24 CC0 packs downloaded (SOURCES.md), headless Blender bake (`blender/biomes/`), 45 props as
-  runtime EditableMesh data (`Shared/BiomeMeshData`, `Client/BiomeMeshes`), textures uploaded (`Shared/BiomeMeshAssets`).
-- Failed attempts: no mesh upload is possible from the tooling (AssetService:CreateAssetAsync "not available yet";
-  no computer-use tools for the 3D Importer). Non-fixed EditableMeshes hit the client budget after 8; fixed-size copies
-  fit all nearby ones. Older Kenney kits are metallic=1 and baked black until Metallic was zeroed.
-- Tests: `environment` 197/197; full suite results in ProjectContext.
+### Goal state
+- Every track (1-10) has a cosmetic CC0 theme: rhythm props, corner/crest landmarks, horizon, start gate, client
+  ambience (spin/bob), themed ground. Rules: `docs/GAME_DESIGN_REQUIREMENTS.md` "Track environments",
+  `docs/BIOME_DRESSING_SPEC.md`. Owner answers: new themes for 1-5, CC0 only, owner authorized taking Studio.
+
+### Where things are
+- Branch `feature/alex/biome-drive-by-scenery`, worktree `/Users/alexnguyen7369/Documents/RobloxGames-biomes`.
+  8 commits (c807bd0..ee0e064); only c807bd0 is pushed. The main checkout stays on `main` with Codex's uncommitted work.
+- Rojo serves the WORKTREE. Restart `rojo serve` from the main checkout before Codex uses Studio again.
+- Code: `Shared/BiomeThemes` (data), `Shared/BiomeDressing` (builder + `Prune`, called from `Main` after
+  `SpawnArea.Build`), `Shared/BiomeMeshCodec`, `Shared/BiomeMeshData/<Biome>` (generated), `Shared/BiomeMeshAssets`
+  (45 texture ids), `Client/BiomeMeshes` (EditableMesh within 450 studs), `Client/BiomeAmbience`.
+- Art: `references/biome_packs/` (24 CC0 packs, raw files git-ignored, `SOURCES.md` committed),
+  `drafts/environments/biome-props/props.json`, `blender/biomes/export_biome_props.py` (headless bake, run:
+  `Blender -b --factory-startup --python blender/biomes/export_biome_props.py -- <root> [Biome]`),
+  `blender/biomes/write_texture_ids.py`, output `assets/meshes/biomes/`.
+
+### Failed attempts / blockers
+- Mesh upload is impossible from the tooling: `AssetService:CreateAssetAsync` says "not available yet", and no
+  computer-use tools existed for the 3D Importer. So geometry ships as data and each client builds it (EditableMesh).
+- Growable EditableMeshes hit the client budget after 8; fixed-size copies (`CreateEditableMeshAsync`, FixedSize) fit all.
+- Older Kenney kits have Metallic = 1 and baked black until the bake zeroes Metallic.
+- Baseplate (top y=0) hides the themed grounds (y=-1) near spawn, so tracks 1-5 show the Baseplate. Pre-existing;
+  owner decision; bug 4b68c6d9.
+
+### Verified (2026-10-20, Studio)
+- `environment` 197/197; full CarTest `END pass=43 fail=0` (twice); world-tester green (1547 visual-only server parts,
+  88 client meshes, car never touched scenery, 0 road overlaps, gate beams 26.5 studs above the road).
+- Not verified: UI suite, phone viewport, long-range z-fight of the 0.02-stud ground step, a published server.
 
 ### Resume steps
-
-1. Owner: enable Mesh / Image APIs (dashboard Needs you `biome-mesh-api`), then check a published server shows meshes.
-2. Merge the branch to main (conflicts expected in CarTest/Scenarios.luau, TestConfig, CLAUDE.md, todo.json).
-3. Tune Prune losses on tracks 1/4/5 and replace the props that are still plain parts (props.json + re-bake +
-   re-upload textures + `write_texture_ids.py`).
-
-## Resume steps
-
-1. Ask Codex for Studio; `rojo serve` from the worktree; run `environment` + full suite until `END fail=0`.
-2. Screenshot each track's gate / a corner landmark; tune `BiomeThemes` offsets if Prune strips too much.
-3. Asset wave 1 (tracks 1-5): download CC0 packs to `references/biome_packs/`, Blender export
-   `assets/meshes/biomes/<Biome>.fbx`, add manual.json import item, wire ids. Then wave 2 (6-10).
+1. Owner: enable Mesh / Image APIs (Game Settings > Security; dashboard Needs you `biome-mesh-api`), then check a
+   published server shows the meshes.
+2. Owner: decide the Baseplate vs themed ground (bug 4b68c6d9).
+3. Push the branch and merge to main (conflicts expected in CarTest/Scenarios.luau, TestConfig, CLAUDE.md, todo.json);
+   rerun the full suite after the merge.
+4. Optional: tune Prune losses on tracks 1/4/5; replace props that are still plain parts (TyreStack, LogCabin, gas
+   stations, IceCliff, lava, planets, hills) via props.json, re-bake, re-upload textures, `write_texture_ids.py`.
 
 ## Upgrades panel keeps the HUD drawn — 2026-10-16 (Claude)
 
