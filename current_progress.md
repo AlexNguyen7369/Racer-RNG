@@ -43,8 +43,9 @@
 40. 2026-10-20 — Alex Nguyen — Shipped the CC0 biome props in game as client-built fixed-size EditableMeshes with uploaded textures (no mesh upload available), added the ground step and mesh-data tests, and re-ran the full CarTest suite green (43/0).
 41. 2026-10-20 — Alex Nguyen — Recorded the biome world-tester check (green) and the Baseplate-hides-ground bug, and rewrote the biome handoff with goal state, verified results, blockers and resume steps.
 42. 2026-10-20 — Alex Nguyen — Lowered the Baseplate to top y=-2 so the themed track grounds show on tracks 1-5 (bug 4b68c6d9, Studio check pending).
+43. 2026-10-20 — Alex Nguyen — Merged the biome scenery into main, grounded the floating biome meshes, fixed the washed-out Kenney colours (20 textures re-uploaded), skipped props off their track's ground, and made the Baseplate and spawn floor sit flush (full CarTest 46/0).
 
 ## What's next
-**Enable Mesh / Image APIs for the published experience (dashboard Needs you: biome-mesh-api), check the lowered Baseplate in Studio, then merge feature/alex/biome-drive-by-scenery into main.**
+**Run the UI suite and a phone-landscape check on the merged main, then fix its open failures (last run: pass 14, fail 15).**
 
-**Why this is next:** live servers block EditableMesh until the toggle is on, the Baseplate change still needs a world check before bug 4b68c6d9 closes, and the merge must come before Codex's catalog and gifting work builds further on main.
+**Why this is next:** the harness is green after the merge, but the UI suite run in this session was red, and Codex's catalog, gifting and checkpoint UI work has to build on a passing UI baseline before it can be committed.
