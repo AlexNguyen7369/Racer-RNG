@@ -42,8 +42,9 @@
 39. 2026-10-20 — Alex Nguyen — Downloaded 24 CC0 packs (15 Kenney, 2 KayKit, 7 Quaternius), baked 46 biome props into 10 per-biome FBX files with a headless Blender script, fixed Prune and gate placement, and got the full CarTest suite green (43/0) on the biome branch.
 40. 2026-10-20 — Alex Nguyen — Shipped the CC0 biome props in game as client-built fixed-size EditableMeshes with uploaded textures (no mesh upload available), added the ground step and mesh-data tests, and re-ran the full CarTest suite green (43/0).
 41. 2026-10-20 — Alex Nguyen — Recorded the biome world-tester check (green) and the Baseplate-hides-ground bug, and rewrote the biome handoff with goal state, verified results, blockers and resume steps.
+42. 2026-10-20 — Alex Nguyen — Lowered the Baseplate to top y=-2 so the themed track grounds show on tracks 1-5 (bug 4b68c6d9, Studio check pending).
 
 ## What's next
-**Enable Mesh / Image APIs for the published experience (dashboard Needs you: biome-mesh-api), then merge feature/alex/biome-drive-by-scenery into main.**
+**Enable Mesh / Image APIs for the published experience (dashboard Needs you: biome-mesh-api), check the lowered Baseplate in Studio, then merge feature/alex/biome-drive-by-scenery into main.**
 
-**Why this is next:** live servers block EditableMesh until the toggle is on, so players would only see the fallback parts; the merge must come before Codex's catalog and gifting work builds further on main.
+**Why this is next:** live servers block EditableMesh until the toggle is on, the Baseplate change still needs a world check before bug 4b68c6d9 closes, and the merge must come before Codex's catalog and gifting work builds further on main.
