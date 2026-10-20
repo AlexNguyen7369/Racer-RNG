@@ -824,6 +824,34 @@
       "foundBy": "claude",
       "foundAt": "2026-10-15T23:34:08-07:00",
       "loggedBy": "Alex Nguyen"
+    },
+    {
+      "id": "4b68c6d9",
+      "name": "Baseplate hides track grounds near origin",
+      "kind": "fault",
+      "status": "open",
+      "file": "src/shared/TrackBuilder.luau",
+      "line": 44,
+      "endLine": 44,
+      "snippet": {
+        "from": 40,
+        "lines": [
+          "local ROAD_THICKNESS = 2",
+          "local WALL_HEIGHT = 5",
+          "local WALL_THICKNESS = 2",
+          "local WALL_GAP = 0.5 -- clear space between the last wall and the checkpoint apron",
+          "local GROUND_TOP = -1",
+          "local SUPPORT_CLEARANCE = 0.05 -- keep a horizontal support just below the lowest sloped road underside",
+          "",
+          "local COLORS = {",
+          "\tRoad = Color3.fromRGB(120, 130, 150),"
+        ]
+      },
+      "summary": "GROUND_TOP = -1 sits under the 2048-stud Baseplate (top y=0), so Oval, Hill, DragRace and parts of Circuit/Serpentine show the Baseplate instead of their themed biome ground; 4 props sit 1 stud into the Baseplate. Pre-existing since the initial import; fixing needs an owner decision (remove/shrink the Baseplate or raise grounds).",
+      "error": "",
+      "foundBy": "world-tester",
+      "foundAt": "2026-10-20T03:31:58-07:00",
+      "loggedBy": "Alex Nguyen"
     }
   ]
 }

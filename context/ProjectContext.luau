@@ -16,7 +16,9 @@ BIOME DRIVE-BY SCENERY - 2026-10-20 (Claude, branch feature/alex/biome-drive-by-
   No mesh upload exists for the tooling (CreateAssetAsync disabled), so Client/BiomeMeshes builds fixed-size
   EditableMesh within 450 studs of the camera; fallback parts elsewhere / when the budget is full.
 - Tests 2026-10-20 (Studio, worktree synced): environment 197/197; full CarTest suite END pass=43 fail=0.
-  Live: meshes render textured and face the road (Speedway grandstand, City towers); world-tester run pending.
+  Live: meshes render textured and face the road (Speedway grandstand, City towers). world-tester 2026-10-20: green
+  (1547 server parts visual-only, 88 client meshes, car never touched scenery, 0 road overlaps, gates 26.5 studs up).
+  Open: Baseplate (top y=0) hides the themed grounds of tracks 1-5 (GROUND_TOP -1, pre-existing; owner decision).
 - Needs you: enable Mesh / Image APIs for the published game (dashboard biome-mesh-api).
 - Known: Prune removes about half of the props on tracks 1, 4, 5 (tracks close together / spawn area); some props stay
   plain parts (TyreStack, LogCabin, gas stations, IceCliff, lava, planets, horizon hills).
