@@ -427,7 +427,9 @@
         "Save.",
         "Tell Claude \"mesh APIs on\"; Claude checks a live server shows meshes."
       ],
-      "status": "open"
+      "status": "done",
+      "done": "2026-10-20",
+      "note": "Owner confirmed 2026-10-20: Allow Mesh / Image APIs was already on. Live-server mesh check happens after the biome branch is merged and published."
     }
   ]
 }
