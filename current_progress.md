@@ -41,6 +41,7 @@
 38. 2026-10-20 — Alex Nguyen — Added data-driven biome drive-by scenery for all 10 tracks (new themes for tracks 1-5, landmarks, horizon, start gates, chain-wide clearance prune, client ambience) with the `environment` test, on branch feature/alex/biome-drive-by-scenery.
 39. 2026-10-20 — Alex Nguyen — Downloaded 24 CC0 packs (15 Kenney, 2 KayKit, 7 Quaternius), baked 46 biome props into 10 per-biome FBX files with a headless Blender script, fixed Prune and gate placement, and got the full CarTest suite green (43/0) on the biome branch.
 40. 2026-10-20 — Alex Nguyen — Shipped the CC0 biome props in game as client-built fixed-size EditableMeshes with uploaded textures (no mesh upload available), added the ground step and mesh-data tests, and re-ran the full CarTest suite green (43/0).
+41. 2026-10-20 — Alex Nguyen — Recorded the biome world-tester check (green) and the Baseplate-hides-ground bug, and rewrote the biome handoff with goal state, verified results, blockers and resume steps.
 
 ## What's next
 **Enable Mesh / Image APIs for the published experience (dashboard Needs you: biome-mesh-api), then merge feature/alex/biome-drive-by-scenery into main.**
