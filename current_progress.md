@@ -40,8 +40,9 @@
 37. 2026-10-16 — Alex Nguyen — Rebuilt the Shop from the reference images (featured Ember Wyvern 1999 R$ / Singularity 999 R$, gamepasses, potion packs + bundle, Server Luck, codes), added ShopService receipts and redeem codes (save VERSION 9, shop_purchases 76/76), restyled the Market like the Backpack, removed the compat push gate, and pushed `016c467` to main.
 38. 2026-10-20 — Alex Nguyen — Added data-driven biome drive-by scenery for all 10 tracks (new themes for tracks 1-5, landmarks, horizon, start gates, chain-wide clearance prune, client ambience) with the `environment` test, on branch feature/alex/biome-drive-by-scenery.
 39. 2026-10-20 — Alex Nguyen — Downloaded 24 CC0 packs (15 Kenney, 2 KayKit, 7 Quaternius), baked 46 biome props into 10 per-biome FBX files with a headless Blender script, fixed Prune and gate placement, and got the full CarTest suite green (43/0) on the biome branch.
+40. 2026-10-20 — Alex Nguyen — Shipped the CC0 biome props in game as client-built fixed-size EditableMeshes with uploaded textures (no mesh upload available), added the ground step and mesh-data tests, and re-ran the full CarTest suite green (43/0).
 
 ## What's next
-**Import the 10 biome FBX files in Studio (dashboard Needs you: biome-fbx-import), then wire their mesh and texture ids into `Shared/BiomeMeshAssets` and re-run `environment` plus a visual drive-by check.**
+**Enable Mesh / Image APIs for the published experience (dashboard Needs you: biome-mesh-api), then merge feature/alex/biome-drive-by-scenery into main.**
 
-**Why this is next:** the tracks still show plain-part fallbacks; the CC0 art only appears once Roblox has mesh ids, and the clearance prune must be re-checked with the real mesh sizes.
+**Why this is next:** live servers block EditableMesh until the toggle is on, so players would only see the fallback parts; the merge must come before Codex's catalog and gifting work builds further on main.
