@@ -43,6 +43,8 @@ Prop lists, sizes, colours and spacing are placeholders that can be tuned.
   stand outside the clearance, and its beam spans the road at `GATE_HEIGHT` (placeholder 28) studs, high
   above the road and walls.
 - **Budget (placeholder):** at most 400 BaseParts per track `Environment` folder.
+- **On the ground (owner 2026-10-20):** a prop is only placed when its whole footprint lies on its own track's
+  `Ground`; a prop that would hang past the ground's edge is skipped, so nothing floats over the void or the Baseplate.
 - **Deterministic:** no randomness. Variety comes from the waypoint index, so two builds are identical.
 - **No global lighting:** dressing never changes `Lighting`, `Atmosphere`, `Sky` or `Terrain.Clouds`
   (weather owns those, `WEATHER_EVENTS_SPEC.md`). Glow comes only from Neon parts and from local
@@ -69,7 +71,8 @@ Prop lists, sizes, colours and spacing are placeholders that can be tuned.
   the mesh's real size (scaled to the prop height, proportions kept), the attribute `Mesh = "<Biome>_<Prop>"` and
   the tag `BiomeMesh`. `Prune` and placement use that real size. `Client/BiomeMeshes` builds each mesh with
   `EditableMesh` (a fixed-size copy, to save memory) only while a prop using it is within `LOAD_DISTANCE`
-  (placeholder 450 studs) of the camera, nearest first. It shows the mesh in `MeshBounds`, hides the fallback
+  (placeholder 450 studs) of the camera, nearest first. It shows the mesh in `MeshBounds` (the decoded geometry is centred on its own box, because a MeshPart keeps the
+  mesh origin as its centre and the baked origin is the prop's base), hides the fallback
   locally, and destroys the mesh when no prop that uses it is in range. If the client's editable memory budget
   is full, the fallback stays visible.
 - Published games need **Mesh / Image APIs** enabled in the experience settings (Security). Without it, the

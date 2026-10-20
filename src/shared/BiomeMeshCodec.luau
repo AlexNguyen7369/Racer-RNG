@@ -41,12 +41,22 @@ function BiomeMeshCodec.Build(data)
 	end
 	local blob = BiomeMeshCodec.Decode(data)
 	local vertexCount, indexCount = buffer.readu16(blob, 0), buffer.readu16(blob, 2)
-	local verts, uvs = table.create(vertexCount), table.create(vertexCount)
+	local points = table.create(vertexCount)
+	local lo, hi = Vector3.one * math.huge, -Vector3.one * math.huge
 	for i = 0, vertexCount - 1 do
 		local at = 4 + i * 10
 		local p = Vector3.new(buffer.readi16(blob, at), buffer.readi16(blob, at + 2), buffer.readi16(blob, at + 4))
 			/ 256
-		verts[i + 1] = mesh:AddVertex(p)
+		points[i + 1] = p
+		lo, hi = lo:Min(p), hi:Max(p)
+	end
+	-- The baked origin is the prop's base, but a MeshPart made from this mesh keeps that origin as its centre,
+	-- so centre the geometry on its box: Client/BiomeMeshes puts the part's centre at MeshBounds' centre.
+	local centre = (lo + hi) / 2
+	local verts, uvs = table.create(vertexCount), table.create(vertexCount)
+	for i = 0, vertexCount - 1 do
+		local at = 4 + i * 10
+		verts[i + 1] = mesh:AddVertex(points[i + 1] - centre)
 		uvs[i + 1] = mesh:AddUV(Vector2.new(buffer.readu16(blob, at + 6), buffer.readu16(blob, at + 8)) / 65535)
 	end
 	local base = 4 + vertexCount * 10

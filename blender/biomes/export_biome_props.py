@@ -76,7 +76,11 @@ def decimate(obj):
         bpy.ops.object.modifier_apply(modifier=mod.name)
 
 
-def bake(obj, name):
+def srgb_to_linear(c):
+    return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
+
+
+def bake(obj, name, srgb_factors):
     mesh = obj.data
     original = mesh.uv_layers[0].name if mesh.uv_layers else None
     # Pin every texture lookup to the pack's own UVs by name, then bake through the new "Bake" layer.
@@ -100,6 +104,11 @@ def bake(obj, name):
         mat.use_nodes = True
         for bsdf in [n for n in mat.node_tree.nodes if n.type == "BSDF_PRINCIPLED"]:
             bsdf.inputs["Metallic"].default_value = 0.0  # older Kenney kits are fully metallic: diffuse would bake black
+            colour = bsdf.inputs["Base Color"]
+            if srgb_factors and not colour.links:
+                # Kenney glTF stores display (sRGB) colours as linear factors; read raw they bake washed out.
+                r, g, b, a = colour.default_value
+                colour.default_value = (srgb_to_linear(r), srgb_to_linear(g), srgb_to_linear(b), a)
         node = mat.node_tree.nodes.new("ShaderNodeTexImage")
         node.image = img
         mat.node_tree.nodes.active = node
@@ -169,7 +178,7 @@ for biome, props in MANIFEST.items():
         obj.select_set(True)
         bpy.context.view_layer.objects.active = obj
         decimate(obj)
-        bake(obj, name)
+        bake(obj, name, pack.startswith("kenney-"))
         obj.name = name
         obj.data.name = name
         data[prop] = mesh_data(obj)

@@ -227,10 +227,22 @@ function BiomeDressing.Build(model, layout, spec, origin)
 	local wps = layout.Waypoints
 	local edge = layout.Width / 2 + WALL
 	local count = gate(folder, layout, origin, theme)
+	-- A prop whose footprint leaves this track's ground would hang over the void (or the Baseplate below it).
+	local function onGround(base, size)
+		if not ground then
+			return true
+		end
+		local l = ground.CFrame:PointToObjectSpace(base.Position)
+		local reach = math.max(size.X, size.Z) / 2
+		return math.abs(l.X) + reach <= ground.Size.X / 2 and math.abs(l.Z) + reach <= ground.Size.Z / 2
+	end
 	local function add(layer, n, i, side, glow, name)
 		local def = layer.Props[n % #layer.Props + 1]
-		local base = beside(layout, origin, i, side, edge + layer.Offset + footprint(biome, def).Z / 2)
-		count += place(folder, biome, def, base, name, glow)
+		local size = footprint(biome, def)
+		local base = beside(layout, origin, i, side, edge + layer.Offset + size.Z / 2)
+		if onGround(base, size) then
+			count += place(folder, biome, def, base, name, glow)
+		end
 	end
 	local function alternate(n)
 		return n % 2 == 0 and 1 or -1

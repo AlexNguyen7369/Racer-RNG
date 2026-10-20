@@ -53,7 +53,7 @@ SpawnArea.WALK_ROOT_HEIGHT = 3 -- HumanoidRootPart height above the floor top wh
 SpawnArea.TAG = "StartPad"
 SpawnArea.MARKET_TAG = "MarketPad"
 
-local THICKNESS = 1
+local THICKNESS = 3 -- reaches the Baseplate top (y = -2) so the floor never shows a gap underneath
 local EDGE_HEIGHT = 2
 local EDGE_WIDTH = 1
 local PAD_RAISE = 0.2

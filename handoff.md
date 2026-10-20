@@ -1,6 +1,66 @@
 # Agent handoff
 
-## Biome drive-by scenery — 2026-10-20 (Claude, paused: implementation done, not merged)
+## Biome prop placement fixes — 2026-10-20 (Claude, main, uncommitted)
+
+- Owner: check the Baseplate in Studio; fix floating / misplaced assets. Rules: `docs/BIOME_DRESSING_SPEC.md`
+  (new "On the ground" rule, owner 2026-10-20; mesh centring noted under Runtime meshes).
+- Root causes and fixes: every baked mesh floated by half its height (MeshPart keeps the mesh origin, the prop base, as
+  its centre) -> `Shared/BiomeMeshCodec` centres geometry; Kenney colours baked washed out -> `export_biome_props.py`
+  converts kenney-* glTF factors sRGB->linear, 20 textures re-baked and re-uploaded (`Shared/BiomeMeshAssets`);
+  props hanging off their track's Ground are skipped (`BiomeDressing.Build`); Baseplate `Position` never synced
+  (Studio showed y=0, top 8) -> `CFrame` in `default.project.json` (top y=-2); spawn floor `THICKNESS` 3 (bottom -2).
+- Verified live: environment 197/197; screenshots City / Forest / spawn edge grounded. Full CarTest (merged main incl.
+  Codex's uncommitted work) `[CARTEST] END pass=46 fail=0`. Re-bake needs the raw packs, which live only in `../RobloxGames-biomes/references/biome_packs`:
+  run the script from main with that worktree as root, then copy textures + BiomeMeshData + FBX back and stylua.
+- Trap: running `Scenarios.Run` through MCP execute_luau uses a separate module cache (RaceService not started):
+  race/spawn checks fail falsely. Use the `CarTestRun` attribute.
+
+## Racer-RNG completion, Codex session recovered — 2026-10-20 (Claude, active)
+
+Codex ran out of credits at 20:06 UTC while writing this handoff, so the "Full completion continuation" entry
+below is incomplete. This entry is rebuilt from Codex's rollout log
+(`~/.codex/sessions/2026/10/20/rollout-...01a1587a...jsonl`) and the files on disk.
+
+### Plan Codex was carrying out
+1. Finish Doing: NPC/LoserScreen live check, Codex bus delivery, HUD redesign checks, Shop/Market baseline.
+2. Shared Backpack-style panel frame (`Client/PanelFrame`) for Daily, Quests, Shop, Market.
+3. Trail/Aura icon art (`Shared/MarketArtConfig`, `Client/MarketArt`, `ui/icons/market/`) and per-item
+   `VehicleEffects` profiles.
+4. Shop gifting: `Server/GiftService`, `Server/GiftMailbox`, `Client/GiftPicker`; PlayerData VERSION 10.
+5. 100 original cars (`CarExpansionManifest`, `src/shared/Cars/*`, 8 Secrets approved), Blender art
+   in 5 waves of 20 via `tools/build_expansion_cars.py`; exports in `assets/studio/ExpansionCarModels/`
+   (mapped in `default.project.json`).
+
+### State found
+- Code for 2-5 is written and wired (ShopUi, MarketUi, BackpackUi, BoostDailyUi, Scenarios, UiScenarios).
+- Tests written by Codex itself (test-writer subagents died on credits): `CarTest/ExpansionTests`,
+  `CarTest/GiftTests`, `CarTest/AcceptanceSupport`, `UiTest/UiContracts`. Not yet run in Studio.
+- Car art: waves 1-4 (80 cars) done. Wave 5 (20 fantasy_novelty cars) never ran; Claude started it.
+- Only live evidence: `shop_purchases` 76/76 passed in Studio (19:56 UTC). Nothing else run live.
+- Codex's last bug: `PanelSwitch` undefined in `UiScenarios.luau` was fixed (selene 0 errors now).
+
+### Claude changes
+- stylua run over files failing `--check` (100 car modules, DraftCarModels, UiTest files, SpawnArea). The
+  generated `src/client/RollToast/Ui/*` + `src/client/Ui/RacerUpgrades.luau` were reformatted by mistake and
+  then restored to HEAD (owner-approved `git checkout`); they are generator output and fail stylua upstream.
+
+### Done by Claude (2026-10-20, afternoon PDT)
+- Wave 5 art authored in Blender: 100/100 `ExpansionCarModels/*.rbxmx` + `drafts/cars/<id>/` (blend, glb,
+  preview, recipe, DRAFT.md); bounds asserts passed; Studio Edit shows 100 models.
+- Live scenarios (Scenarios.Run on Play server): `car_expansion` 2692/2692, `gifting` 30/30, `gift_mailbox`
+  25/25 (after fix), `shop_purchases` 76/76, `gacha` 630/630, `index` 40/40, `data` 127/127, `pass_cars`
+  161/161, `rebirth` 36/36, `daily_login` 59/59.
+- Fix: `GiftMailbox.Valid` accepted category aliases ("Money"), which `Merge` overwrites from tier I, so the
+  grant was lost. Now canonical tier ids only (bug 048915d3).
+- `roll_anim` was red (`reel_no_planted_rare_before_result` 932): stale test summing only the 7 seed cars.
+  test-writer changed the `pRare` loop to `GACHA_CATALOG` (no tolerance change). Not re-run live yet.
+- UI suite started but Play was stopped externally mid-run; no result.
+
+### Next
+1. Restart Play, re-run `roll_anim`, then the UI suite (UiTestRun false -> true) and phone landscape.
+2. Full harness, then `/compat-check`; then ProjectContext, todo.json (Doing items), README features.
+
+## Biome drive-by scenery — 2026-10-20 (Claude, merged into main)
 
 ### Goal state
 - Every track (1-10) has a cosmetic CC0 theme: rhythm props, corner/crest landmarks, horizon, start gate, client
