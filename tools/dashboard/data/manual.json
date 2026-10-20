@@ -414,6 +414,21 @@
       "status": "open",
       "added": "2026-10-16T18:00:00-07:00",
       "by": "Claude"
+    },
+    {
+      "id": "biome-fbx-import",
+      "title": "Import the 10 biome prop FBX files in Studio",
+      "why": "Roblox needs uploaded mesh ids before the CC0 Kenney / itch.io props can replace the plain-part fallbacks on the tracks.",
+      "blocks": "biome-drive-by (mesh art on all 10 tracks)",
+      "when": "2026-10-20, Studio in Edit mode",
+      "steps": [
+        "In Studio (Edit mode), File > Import 3D.",
+        "Pick one file from /Users/alexnguyen7369/Documents/RobloxGames-biomes/assets/meshes/biomes/ (Speedway, Forest, Docks, Suburb, PirateCoast, City, Desert, Snow, Volcano, Space .fbx).",
+        "Keep the default settings and click Import; the model lands in Workspace. Leave it there.",
+        "Repeat for all 10 files.",
+        "Tell Claude \"biomes imported\". Claude reads the mesh and texture ids, writes Shared/BiomeMeshAssets and deletes the imported models."
+      ],
+      "status": "open"
     }
   ]
 }

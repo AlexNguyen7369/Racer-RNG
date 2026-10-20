@@ -44,6 +44,12 @@ local function meshTemplate(key)
 	return templates[key] or nil
 end
 
+-- The prop's real size: an uploaded mesh keeps its proportions and is scaled to the prop's height.
+local function footprint(biome, def)
+	local template = meshTemplate(biome .. "_" .. def.Name)
+	return template and template.Size * (def.Size.Y / template.Size.Y) or def.Size
+end
+
 local function visual(part)
 	part.Anchored = true
 	part.CanCollide = false
@@ -59,8 +65,8 @@ local function place(folder, biome, def, base, name, glow)
 	if template then
 		local mesh = template:Clone()
 		mesh.Name = def.Name
-		mesh.Size = def.Size
-		mesh.CFrame = base * CFrame.new(0, def.Size.Y / 2, 0)
+		mesh.Size = footprint(biome, def)
+		mesh.CFrame = base * CFrame.new(0, mesh.Size.Y / 2, 0)
 		visual(mesh)
 		mesh.Parent = model
 	else
@@ -232,7 +238,7 @@ function BiomeDressing.Build(model, layout, spec, origin)
 	local count = gate(folder, layout, origin, theme)
 	local function add(layer, n, i, side, glow, name)
 		local def = layer.Props[n % #layer.Props + 1]
-		local base = beside(layout, origin, i, side, edge + layer.Offset + def.Size.Z / 2)
+		local base = beside(layout, origin, i, side, edge + layer.Offset + footprint(biome, def).Z / 2)
 		count += place(folder, biome, def, base, name, glow)
 	end
 	local function alternate(n)
@@ -347,23 +353,27 @@ function BiomeDressing.Prune(trackModels, extra)
 	for _, model in trackModels do
 		local folder = model:FindFirstChild("Environment")
 		for _, prop in folder and folder:GetChildren() or {} do
-			local cf, size = prop:GetBoundingBox()
-			local lo, hi = bounds(cf, size)
-			lo, hi = lo - grow, hi + grow
 			local hit = false
-			cells(lo, hi, function(key)
-				for _, box in grid[key] or {} do
-					hit = hit
-						or (
-							lo.X < box[2].X
-							and hi.X > box[1].X
-							and lo.Y < box[2].Y
-							and hi.Y > box[1].Y
-							and lo.Z < box[2].Z
-							and hi.Z > box[1].Z
-						)
+			-- Each part on its own: a gate's posts and beam are clear even though their joint box spans the road.
+			for _, part in prop:IsA("BasePart") and { prop } or prop:GetDescendants() do
+				if part:IsA("BasePart") and not hit then
+					local lo, hi = bounds(part.CFrame, part.Size)
+					lo, hi = lo - grow, hi + grow
+					cells(lo, hi, function(key)
+						for _, box in grid[key] or {} do
+							hit = hit
+								or (
+									lo.X < box[2].X
+									and hi.X > box[1].X
+									and lo.Y < box[2].Y
+									and hi.Y > box[1].Y
+									and lo.Z < box[2].Z
+									and hi.Z > box[1].Z
+								)
+						end
+					end)
 				end
-			end)
+			end
 			if hit then
 				prop:Destroy()
 				removed += 1

@@ -1,0 +1,68 @@
+{
+  "_doc": "Biome prop -> CC0 source model. [pack folder under references/biome_packs, model name, height in studs = BiomeThemes Size.Y]. Props not listed keep their fallback parts.",
+  "Speedway": {
+    "Flag": ["kenney-racing-kit", "flagCheckers", 12],
+    "Grandstand": ["kenney-racing-kit", "grandStandCovered", 18],
+    "PitGarage": ["kenney-racing-kit", "pitsGarage", 12],
+    "TimingTower": ["kenney-racing-kit", "bannerTowerRed", 34],
+    "StadiumLight": ["kenney-racing-kit", "lightPostLarge", 70]
+  },
+  "Forest": {
+    "Pine": ["kenney-nature-kit", "tree_pineTallA_detailed", 22],
+    "Rock": ["kenney-nature-kit", "rock_largeA", 4],
+    "Birch": ["kenney-nature-kit", "tree_thin", 18],
+    "GiantPine": ["quaternius-stylized-nature-megakit", "Pine_1", 48]
+  },
+  "Docks": {
+    "Lamp": ["kenney-city-kit-roads", "light-curved", 16],
+    "Cone": ["kenney-car-kit", "cone", 3],
+    "Container": ["kenney-city-kit-industrial", "shipping-container-a", 8],
+    "Warehouse": ["kenney-city-kit-industrial", "building-a", 20],
+    "ContainerStack": ["kenney-watercraft-kit", "cargo-pile-a", 16],
+    "Smokestack": ["kenney-city-kit-industrial", "chimney-large", 90]
+  },
+  "Suburb": {
+    "Hedge": ["kenney-nature-kit", "plant_bushLarge", 4],
+    "StreetLamp": ["kenney-city-kit-roads", "light-square", 14],
+    "Oak": ["kenney-nature-kit", "tree_oak", 18],
+    "House": ["kenney-city-kit-suburban", "building-type-a", 12],
+    "HouseBlue": ["kenney-city-kit-suburban", "building-type-c", 12]
+  },
+  "PirateCoast": {
+    "Palm": ["kenney-pirate-kit", "palm-detailed-straight", 22],
+    "Barrel": ["kenney-pirate-kit", "barrel", 5],
+    "Ship": ["kenney-pirate-kit", "ship-pirate-large", 34],
+    "Lighthouse": ["kenney-pirate-kit", "tower-complete-large", 40],
+    "Fort": ["kenney-pirate-kit", "castle-gate", 14]
+  },
+  "City": {
+    "Streetlight": ["kaylousberg-city-builder-bits", "streetlight", 16],
+    "Hydrant": ["kaylousberg-city-builder-bits", "firehydrant", 3],
+    "Sign": ["kaylousberg-city-builder-bits", "trafficlight_A", 10],
+    "Tower": ["kenney-city-kit-commercial", "building-skyscraper-a", 60],
+    "TowerPink": ["kenney-city-kit-commercial", "building-skyscraper-c", 80],
+    "Billboard": ["kenney-racing-kit", "billboard", 24]
+  },
+  "Desert": {
+    "Cactus": ["kenney-nature-kit", "cactus_tall", 12],
+    "Rock": ["kenney-nature-kit", "rock_tallA", 4],
+    "Mesa": ["kenney-nature-kit", "cliff_large_rock", 24],
+    "Windmill": ["kenney-city-kit-industrial", "windmill", 34]
+  },
+  "Snow": {
+    "SnowPine": ["kenney-holiday-kit", "tree-snow-a", 22],
+    "Snowman": ["kenney-holiday-kit", "snowman-hat", 9],
+    "Fence": ["kenney-holiday-kit", "cabin-fence", 3]
+  },
+  "Volcano": {
+    "BasaltSpike": ["kenney-nature-kit", "rock_tallB", 14],
+    "Crater": ["kenney-space-kit", "craterLarge", 5],
+    "ObsidianShard": ["kenney-space-kit", "rock_crystalsLargeA", 14]
+  },
+  "Space": {
+    "Pylon": ["kaylousberg-space-base-bits", "lights", 20],
+    "Dome": ["kenney-space-kit", "hangar_roundGlass", 16],
+    "Dish": ["kenney-space-kit", "satelliteDish_large", 30],
+    "Rover": ["kenney-space-kit", "rover", 6]
+  }
+}

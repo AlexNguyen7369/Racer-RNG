@@ -136,13 +136,13 @@ return {
 			Offset = 280,
 			Props = { peak("TreeHill", v(160, 70, 120), rgb(50, 96, 52), rgb(34, 80, 46), M.Grass) },
 		},
-		Gate = gate(rgb(110, 75, 45), M.Wood),
+		Gate = gate(rgb(110, 75, 45), M.Wood, nil, 9), -- past the race-start pavilion
 	},
 
 	Docks = {
 		Ground = { Color = rgb(96, 98, 104), Material = M.Concrete },
 		Rhythm = {
-			Every = 4,
+			Every = 2, -- one short straight: denser rhythm
 			Offset = 10,
 			Props = {
 				pole("Lamp", 16, rgb(60, 62, 70), rgb(255, 200, 90)),
