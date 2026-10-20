@@ -416,17 +416,16 @@
       "by": "Claude"
     },
     {
-      "id": "biome-fbx-import",
-      "title": "Import the 10 biome prop FBX files in Studio",
-      "why": "Roblox needs uploaded mesh ids before the CC0 Kenney / itch.io props can replace the plain-part fallbacks on the tracks.",
-      "blocks": "biome-drive-by (mesh art on all 10 tracks)",
-      "when": "2026-10-20, Studio in Edit mode",
+      "id": "biome-mesh-api",
+      "title": "Enable Mesh / Image APIs for the published game",
+      "why": "Biome props build their CC0 meshes on each client with EditableMesh, which fails by default in published games; without the toggle players only see the plain-part fallbacks.",
+      "blocks": "biome-drive-by mesh art in live servers (Studio already works)",
+      "when": "Before publishing the biome branch",
       "steps": [
-        "In Studio (Edit mode), File > Import 3D.",
-        "Pick one file from /Users/alexnguyen7369/Documents/RobloxGames-biomes/assets/meshes/biomes/ (Speedway, Forest, Docks, Suburb, PirateCoast, City, Desert, Snow, Volcano, Space .fbx).",
-        "Keep the default settings and click Import; the model lands in Workspace. Leave it there.",
-        "Repeat for all 10 files.",
-        "Tell Claude \"biomes imported\". Claude reads the mesh and texture ids, writes Shared/BiomeMeshAssets and deletes the imported models."
+        "Open the game in Studio: File > Game Settings (or Home > Game Settings).",
+        "Security: turn on \"Allow Mesh / Image APIs\" (review the linked Terms of Use first). The same toggle is in the Creator Dashboard: the experience > Configure > Settings.",
+        "Save.",
+        "Tell Claude \"mesh APIs on\"; Claude checks a live server shows meshes."
       ],
       "status": "open"
     }

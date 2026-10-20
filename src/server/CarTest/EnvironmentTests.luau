@@ -10,6 +10,7 @@
 -- Written before BiomeThemes, BiomeDressing.Prune/CLEARANCE/BUDGET and the Biome of tracks 1-5 exist: red by design.
 -- Everything is built unparented (never in Workspace) and destroyed at the end.
 
+local CollectionService = game:GetService("CollectionService")
 local Lighting = game:GetService("Lighting")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
@@ -26,6 +27,11 @@ local GEOM_TOL = 0.05 -- studs of overlap ignored (boxes that only touch)
 local CFRAME_TOL = 1e-3
 local CELL = 64 -- broad-phase grid cell, studs
 local LIGHT_TOL = 1e-3
+local SIZE_TOL = 1e-3
+local GROUND_TOP = -1 -- TrackBuilder GROUND_TOP (world Y of the grass top)
+local GROUND_STEP = 0.02 -- contract: track N's ground top sits 0.02 * N below GROUND_TOP (no z-fighting)
+local MAX_TRIANGLES = 20000
+local MAX_VERTICES = 60000
 
 local function module(parent, name)
 	local source = parent:FindFirstChild(name)
@@ -241,6 +247,68 @@ local function colorDiff(a, b)
 	return math.max(math.abs(a.R - b.R), math.abs(a.G - b.G), math.abs(a.B - b.B))
 end
 
+-- Every prop definition of a theme ({ Name, Size, Parts }), keyed by Name (first one wins)
+local function themeProps(theme)
+	local out, seen = {}, {}
+	local function walk(t)
+		if type(t) ~= "table" or seen[t] then
+			return
+		end
+		seen[t] = true
+		if type(t.Name) == "string" and typeof(t.Size) == "Vector3" and type(t.Parts) == "table" then
+			out[t.Name] = out[t.Name] or t
+		end
+		for _, v in t do
+			walk(v)
+		end
+	end
+	walk(theme)
+	return out
+end
+
+-- Baked mesh entry rules: { Size = Vector3, Data = base64 } decoding to u16 vc, u16 ic, vc*10 bytes, ic u16 indices
+local function meshEntryProblem(codec, entry)
+	if type(entry) ~= "table" or typeof(entry.Size) ~= "Vector3" or type(entry.Data) ~= "string" then
+		return "shape"
+	end
+	if entry.Size.X <= 0 or entry.Size.Y <= 0 or entry.Size.Z <= 0 then
+		return "size"
+	end
+	local ok, blob = pcall(codec.Decode, entry.Data)
+	if not ok or type(blob) ~= "buffer" or buffer.len(blob) < 4 then
+		return "decode"
+	end
+	local vc, ic = buffer.readu16(blob, 0), buffer.readu16(blob, 2)
+	if buffer.len(blob) ~= 4 + vc * 10 + ic * 2 then
+		return "length"
+	end
+	if ic % 3 ~= 0 or ic // 3 > MAX_TRIANGLES or vc > MAX_VERTICES then
+		return "counts"
+	end
+	local base = 4 + vc * 10
+	for k = 0, ic - 1 do
+		if buffer.readu16(blob, base + k * 2) >= vc then
+			return "index"
+		end
+	end
+	return nil
+end
+
+-- The theme prop a built prop Model comes from: its Mesh attribute, else its first fallback part's name
+-- without the trailing number (parts are named <Prop><i>)
+local function propNameOf(model, biome)
+	local mesh = model:GetAttribute("Mesh")
+	if type(mesh) == "string" and string.sub(mesh, 1, #biome + 1) == biome .. "_" then
+		return string.sub(mesh, #biome + 2)
+	end
+	for _, c in model:GetChildren() do
+		if c:IsA("BasePart") and c.Name ~= "MeshBounds" then
+			return (string.gsub(c.Name, "%d+$", ""))
+		end
+	end
+	return nil
+end
+
 function Tests.environment()
 	local r, flag = report("environment")
 	local Dressing = module(Shared, "BiomeDressing")
@@ -282,6 +350,106 @@ function Tests.environment()
 		)
 		flag(("deterministic_%d"):format(t.Spec.Number), same, worst, CFRAME_TOL)
 	end
+	-- Baked meshes (Shared/BiomeMeshData, BiomeMeshCodec, BiomeMeshAssets)
+	local meshFolder = Shared:FindFirstChild("BiomeMeshData")
+	local Codec = module(Shared, "BiomeMeshCodec")
+	local Assets = module(Shared, "BiomeMeshAssets")
+	local meshForOk = Dressing ~= nil and type(Dressing.MeshFor) == "function"
+	flag("mesh_data_folder", meshFolder ~= nil and meshFolder:IsA("Folder"))
+	flag("mesh_codec", Codec ~= nil and type(Codec.Decode) == "function")
+	flag("mesh_assets_module", Assets ~= nil)
+	flag("mesh_for_api", meshForOk)
+	local meshEntries, meshProblems = 0, {}
+	for _, biome in BIOMES do
+		local data = meshFolder and module(meshFolder, biome)
+		local bad, badIds, badLookup, first = 0, 0, 0, nil
+		for name, entry in data or {} do
+			meshEntries += 1
+			local problem = "codec" -- no codec: every entry fails
+			if Codec and type(Codec.Decode) == "function" then
+				problem = meshEntryProblem(Codec, entry) -- nil when the entry is valid
+			end
+			if problem then
+				bad += 1
+				first = first or (name .. ":" .. problem)
+			end
+			local id = Assets and Assets[biome .. "_" .. name]
+			if type(id) ~= "string" or not string.match(id, "^rbxassetid://%d+$") then
+				badIds += 1
+				first = first or (name .. ":asset_id")
+			end
+			if not meshForOk or Dressing.MeshFor(biome, name) ~= entry then
+				badLookup += 1
+				first = first or (name .. ":mesh_for")
+			end
+		end
+		flag(("mesh_data_valid_%s"):format(biome), bad == 0, bad, 0)
+		flag(("mesh_asset_ids_%s"):format(biome), badIds == 0, badIds, 0)
+		flag(("mesh_for_matches_%s"):format(biome), badLookup == 0, badLookup, 0)
+		if first then
+			meshProblems[biome] = first
+		end
+	end
+	r.metrics.mesh_entries = meshEntries
+	r.metrics.mesh_problems = meshProblems
+
+	-- Built props (fresh build, before Prune): a prop with baked data is a tagged BiomeMesh model with an
+	-- invisible MeshBounds at the prop height and the mesh's proportions; a prop without data has neither
+	local meshCounts = {}
+	for _, t in chainB do
+		local n, biome = t.Spec.Number, BIOMES[t.Spec.Number]
+		local env = t.Model:FindFirstChild("Environment")
+		local defs = themeProps(Themes and biome and Themes[biome])
+		local meshBad, plainBad, meshed, firstBad = 0, 0, 0, nil
+		for _, m in (env and env:GetDescendants() or {}) do
+			if m:IsA("Model") then
+				local propName = biome and propNameOf(m, biome)
+				local def = propName and defs[propName]
+				local data = def and meshForOk and Dressing.MeshFor(biome, propName)
+				local bounds = m:FindFirstChild("MeshBounds")
+				local tagged = CollectionService:HasTag(m, "BiomeMesh")
+				if data then
+					meshed += 1
+					local ok = tagged and m:GetAttribute("Mesh") == biome .. "_" .. propName
+					ok = ok and bounds ~= nil and bounds:IsA("Part") and bounds.Transparency == 1
+					ok = ok
+						and bounds.Anchored
+						and not bounds.CanCollide
+						and not bounds.CanTouch
+						and not bounds.CanQuery
+					if ok then
+						ok = math.abs(bounds.Size.Y - def.Size.Y) <= SIZE_TOL
+						local ratio = bounds.Size / data.Size
+						local lo = math.min(ratio.X, ratio.Y, ratio.Z)
+						local hi = math.max(ratio.X, ratio.Y, ratio.Z)
+						ok = ok and hi - lo <= SIZE_TOL
+					end
+					if not ok then
+						meshBad += 1
+						firstBad = firstBad or m.Name
+					end
+				elseif bounds ~= nil or tagged then
+					plainBad += 1
+					firstBad = firstBad or m.Name
+				end
+			end
+		end
+		flag(("mesh_props_%d"):format(n), env ~= nil and meshBad == 0, meshBad, 0)
+		flag(("meshless_props_plain_%d"):format(n), env ~= nil and plainBad == 0, plainBad, 0)
+		meshCounts[tostring(n)] = { meshed = meshed, first_bad = firstBad }
+
+		-- Ground top: TrackBuilder's GROUND_TOP lowered 0.02 per track number
+		local ground = t.Model:FindFirstChild("Ground")
+		local top = ground and ground:IsA("BasePart") and ground.Position.Y + ground.Size.Y / 2 or math.huge
+		local want = GROUND_TOP - GROUND_STEP * n
+		flag(
+			("ground_top_%d"):format(n),
+			math.abs(top - want) <= SIZE_TOL,
+			top == math.huge and -1 or math.round(top * 1000) / 1000,
+			want
+		)
+	end
+	r.metrics.mesh_props = meshCounts
 	for _, t in chainB do
 		t.Model:Destroy()
 	end

@@ -349,9 +349,9 @@
     "files": "Client/MarketUi, Client/UiTest/UiShopMarket"
   },
   "environment": {
-    "checks": "Builds the full chain (and the spawn area) away from the play area, runs BiomeDressing.Prune, and checks per track: Biome spec/attribute and theme, Environment folder non-empty with a Gate at the start, every prop anchored and non-colliding/touching/querying, no prop within CLEARANCE of any road, wall, checkpoint, pad or spawn-area part, at most BUDGET parts, two builds identical, lights without shadows, and Lighting / Sky / Atmosphere / Clouds unchanged. Probe parts confirm Prune removes a prop on the road and keeps a far one.",
+    "checks": "Builds the full chain (and the spawn area) away from the play area, runs BiomeDressing.Prune, and checks per track: Biome spec/attribute and theme, Environment folder non-empty with a Gate at the start, every prop anchored and non-colliding/touching/querying, no prop within CLEARANCE of any road, wall, checkpoint, pad or spawn-area part, at most BUDGET parts, two builds identical, lights without shadows, and Lighting / Sky / Atmosphere / Clouds unchanged. Probe parts confirm Prune removes a prop on the road and keeps a far one. Baked meshes: every Shared/BiomeMeshData entry decodes (BiomeMeshCodec) to a valid buffer (length 4 + vc*10 + ic*2, whole triangles, at most 20000 triangles and 60000 vertices, indices < vc, positive Size), has an rbxassetid in BiomeMeshAssets and is returned by BiomeDressing.MeshFor; every built prop with data is a BiomeMesh-tagged model with Mesh attribute and an invisible visual-only MeshBounds at the theme height and mesh proportions, props without data have neither; each track's Ground top is -1 - 0.02 x Number (no z-fighting).",
     "why": "docs/BIOME_DRESSING_SPEC.md Acceptance: scenery is visual only and never blocks or clips the road.",
-    "limits": "CLEARANCE 8, BUDGET 400 (placeholders in BiomeDressing), gate within 60 studs of Start, 0.05 stud overlap tolerance, CFrame 1e-3",
-    "files": "Shared/BiomeDressing, Shared/BiomeThemes, Tracks/*, TrackBuilder, SpawnArea"
+    "limits": "CLEARANCE 8, BUDGET 400 (placeholders in BiomeDressing), gate within 60 studs of Start, 0.05 stud overlap tolerance, CFrame 1e-3, mesh sizes 1e-3, ground top 1e-3",
+    "files": "Shared/BiomeDressing, Shared/BiomeThemes, Tracks/*, TrackBuilder, SpawnArea, Shared/BiomeMeshData, BiomeMeshCodec, BiomeMeshAssets"
   }
 }

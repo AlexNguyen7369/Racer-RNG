@@ -2,18 +2,26 @@
 
 ## Biome drive-by scenery — 2026-10-20 (Claude, active)
 
-- Owner request: plan + build the most immersive drive-by per track using kenney.nl / itch.io assets.
-  Owner answers: new theme per track for 1-5, owner bulk-imports meshes in Studio, CC0 only.
-- Branch `feature/alex/biome-drive-by-scenery` in worktree `../RobloxGames-biomes` (main checkout left to Codex).
-  Plan: `~/.claude/plans/work-on-different-branch-quirky-pumpkin.md`.
-- Rules first: design doc "Racing" > "Track environments", new `docs/BIOME_DRESSING_SPEC.md`, TRACKS_6_10_SPEC links it.
-- Code: `Shared/BiomeThemes` (data, fallback parts), `Shared/BiomeMeshAssets` (empty), `Shared/BiomeDressing`
-  (generic builder + `Prune`), `Main` calls `Prune(trackModels, {spawnArea})`, `Client/BiomeAmbience`,
-  `Biome` field on Oval/Hill/DragRace/Circuit/Serpentine. Test: `CarTest/EnvironmentTests` (`environment`).
-- Static: stylua, selene (0 warnings in changed files), rojo build pass. NOT run in Studio yet (Studio was in
-  Codex's Play session); red/green unverified.
+- Owner request: immersive drive-by per track with kenney.nl / itch.io assets; owner authorized taking Studio from
+  Codex and running the whole implementation. Answers: new themes for 1-5, CC0 only.
+- Branch `feature/alex/biome-drive-by-scenery`, worktree `../RobloxGames-biomes`. Rojo now serves the WORKTREE
+  (pid started from it); restart `rojo serve` in the main checkout before Codex resumes Studio work.
+- Done: docs (design doc "Track environments", `docs/BIOME_DRESSING_SPEC.md`), themes + generic dresser + Prune +
+  gates + ground step, 24 CC0 packs downloaded (SOURCES.md), headless Blender bake (`blender/biomes/`), 45 props as
+  runtime EditableMesh data (`Shared/BiomeMeshData`, `Client/BiomeMeshes`), textures uploaded (`Shared/BiomeMeshAssets`).
+- Failed attempts: no mesh upload is possible from the tooling (AssetService:CreateAssetAsync "not available yet";
+  no computer-use tools for the 3D Importer). Non-fixed EditableMeshes hit the client budget after 8; fixed-size copies
+  fit all nearby ones. Older Kenney kits are metallic=1 and baked black until Metallic was zeroed.
+- Tests: `environment` 197/197; full suite results in ProjectContext.
 
 ### Resume steps
+
+1. Owner: enable Mesh / Image APIs (dashboard Needs you `biome-mesh-api`), then check a published server shows meshes.
+2. Merge the branch to main (conflicts expected in CarTest/Scenarios.luau, TestConfig, CLAUDE.md, todo.json).
+3. Tune Prune losses on tracks 1/4/5 and replace the props that are still plain parts (props.json + re-bake +
+   re-upload textures + `write_texture_ids.py`).
+
+## Resume steps
 
 1. Ask Codex for Studio; `rojo serve` from the worktree; run `environment` + full suite until `END fail=0`.
 2. Screenshot each track's gate / a corner landmark; tune `BiomeThemes` offsets if Prune strips too much.

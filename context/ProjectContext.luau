@@ -3,7 +3,23 @@
 PROJECT CONTEXT - Idle Vehicle Simulator (read me first)
 Shown in Studio at: ServerScriptService > ProjectContext   (source file: context/ProjectContext.luau)
 Do NOT edit this in Studio: edit the file on disk, Rojo syncs it. Claude updates it at the end of every loop.
-Last updated: 2026-10-16 (Claude: Shop redesign, Robux potions + codes, Market restyle; harness scenarios green, UI suite not run)
+Last updated: 2026-10-20 (Claude: biome drive-by scenery on all 10 tracks, branch feature/alex/biome-drive-by-scenery)
+
+BIOME DRIVE-BY SCENERY - 2026-10-20 (Claude, branch feature/alex/biome-drive-by-scenery, worktree ../RobloxGames-biomes)
+- Rules: design doc "Racing" > "Track environments"; docs/BIOME_DRESSING_SPEC.md (new; TRACKS_6_10_SPEC links it).
+- Themes: 1 Speedway, 2 Forest, 3 Docks, 4 Suburb, 5 PirateCoast, 6 City, 7 Desert, 8 Snow, 9 Volcano, 10 Space
+  (spec.Biome). Shared/BiomeThemes (data), Shared/BiomeDressing (rhythm / corner + crest landmarks / horizon / start
+  Gate, Prune after the chain is built, Ground step 0.02 x Number), Client/BiomeAmbience (spin / bob).
+- Art: 24 CC0 packs (Kenney x15, KayKit x2, Quaternius x7; references/biome_packs/SOURCES.md, raw files git-ignored).
+  blender/biomes/export_biome_props.py bakes 45 props -> Shared/BiomeMeshData (geometry data), assets/meshes/biomes
+  (FBX + textures). Textures uploaded via Studio MCP; ids in Shared/BiomeMeshAssets (write_texture_ids.py).
+  No mesh upload exists for the tooling (CreateAssetAsync disabled), so Client/BiomeMeshes builds fixed-size
+  EditableMesh within 450 studs of the camera; fallback parts elsewhere / when the budget is full.
+- Tests 2026-10-20 (Studio, worktree synced): environment 197/197; full CarTest suite END pass=43 fail=0.
+  Live: meshes render textured and face the road (Speedway grandstand, City towers); world-tester run pending.
+- Needs you: enable Mesh / Image APIs for the published game (dashboard biome-mesh-api).
+- Known: Prune removes about half of the props on tracks 1, 4, 5 (tracks close together / spawn area); some props stay
+  plain parts (TyreStack, LogCabin, gas stations, IceCliff, lava, planets, horizon hills).
 
 SHOP REDESIGN + PURCHASES + MARKET - 2026-10-16 (Claude, branch main, uncommitted)
 - Owner request with images/UI_ShopReference1-4.png and UI_ItemsReference.png. Rules: design doc "Monetization" (Shop,

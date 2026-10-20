@@ -35,6 +35,11 @@ Auto race / workshop ──Speed/sec──▶ SPEED ──▶ Race the NPC ladde
 
 ## Features implemented
 
+Biome drive-by scenery (2026-10-20, `docs/BIOME_DRESSING_SPEC.md`): every track has a theme (Speedway, Forest, Docks,
+Suburb, Pirate Coast, City, Desert, Snow, Volcano, Space) dressed with CC0 Kenney / KayKit / Quaternius props:
+roadside rhythm, landmarks on corners and crests, horizon silhouettes and a start gate. The art is baked in Blender and
+built on each client as EditableMesh near the camera; plain-part fallbacks show everywhere else.
+
 Shop redesign (2026-10-16, `docs/GAMEPASS_SHOP_SPEC.md`): one scrolling Shop in the style of the references:
 FEATURED gamepass cars (Ember Wyvern 1999 R$, Singularity 999 R$), a Gamepasses grid, Potions with a Potion Bundle,
 a DOUBLE Server Luck banner and a Codes box. Potion packs are Robux developer products granted once per purchase by
@@ -161,7 +166,7 @@ updates automatically whenever the board changes; do not edit this block by hand
 - **Automatic bus delivery for Codex**: Claude receives bus messages via a hook; Codex only when it follows AGENTS.md and runs agent_bus.py context. If the Codex CLI's hook support covers session start / prompt submit, wire `agent_bus.py hook --agent codex` there. Also: edits made via shell commands (sed, heredoc, python rewrites) are not attributed; consider attributing via git diff snapshots per tool call. 2026-10-11: wired in .codex/hooks.json (SessionStart, UserPromptSubmit) and shell-edit attribution added (agent_bus.py shell, Pre/PostToolUse in both agents). Codex does not run the project hook until the developer trusts it (Needs you: codex-trust-bus-hook), so delivery is not verified yet.
 - **HUD redesign: icon tiles, top-right pills, Backpack, Settings pills, potion timers**: docs/HUD_LAYOUT_SPEC.md. Code done and checked live on desktop; waiting on the UI test update (ui-test-writer), a phone-viewport check and /compat-check.
 - **Shop redesign + Robux potions + codes + Market restyle**: Shop sections per images/UI_ShopReference1-4 (Featured cars 1999/999, Gamepasses, Potions + bundle, Server Luck, Codes); Server/ShopService receipts + codes (save VERSION 9); Market in the Backpack look. Harness shop_purchases 76/76. Pending: UI suite, phone viewport, /compat-check.
-- **Biome drive-by scenery on all 10 tracks (Kenney / itch.io CC0)**: docs/BIOME_DRESSING_SPEC.md. Done on branch feature/alex/biome-drive-by-scenery: themes for tracks 1-5 (Speedway, Forest, Docks, Suburb, PirateCoast), generic data-driven BiomeDressing (rhythm / landmarks at corners and crests / horizon / start gate), chain-wide clearance Prune, client BiomeAmbience, fallback parts until meshes are imported. Next: run the environment scenario + full suite in Studio, then download CC0 packs, export FBX per theme in Blender, owner imports, wire Shared/BiomeMeshAssets (wave 1: tracks 1-5, wave 2: 6-10).
+- **Biome drive-by scenery on all 10 tracks (Kenney / itch.io CC0)**: docs/BIOME_DRESSING_SPEC.md, branch feature/alex/biome-drive-by-scenery. Built: 10 themes, generic BiomeDressing + Prune, 24 CC0 packs baked to runtime EditableMesh props (Client/BiomeMeshes), environment test green. Left: owner enables Mesh / Image APIs (Needs you), merge to main, visual tuning of Prune losses on tracks 1/4/5, art for the props that are still plain parts.
 
 ### Up next (7)
 

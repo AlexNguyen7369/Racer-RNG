@@ -57,13 +57,25 @@ Prop lists, sizes, colours and spacing are placeholders that can be tuned.
   City Kit (Roads / Commercial / Suburban / Industrial), Factory Kit, Pirate Kit, Holiday Kit, Modular
   Cave Kit, Space Kit, Modular Space Kit; on itch.io KayKit City Builder Bits / Space Base Bits and
   Quaternius nature / space packs.
-- In Blender (1 unit = 1 stud): origin at the base centre, forward -Z, about 8-15 props per theme, at most 2k triangles per prop.
-  Export one FBX per theme to `assets/meshes/biomes/<Biome>.fbx`, with each prop named `<Biome>_<Prop>`.
-  Keep a draft per theme in `drafts/environments/<biome>/DRAFT.md`.
-- The owner uploads the FBX files with Studio's 3D Importer. The mesh ids go into `Shared/BiomeMeshAssets`
-  (`{ [<Biome>_<Prop>] = "rbxassetid://..." }`). `BiomeDressing` loads them with
-  `AssetService:CreateMeshPartAsync`, the same way as `MarketplaceBuilder`, and scales each one to the
-  prop's size. If a mesh has no id or fails to load, the prop is a plain part built from its `Fallback`, so the track always builds.
+- `blender/biomes/export_biome_props.py` runs Blender headless with `drafts/environments/biome-props/props.json`
+  (prop -> pack model and height). For each prop it: scales to the height (1 unit = 1 stud, origin at the base
+  centre), decimates to at most 600 faces, bakes one 256 px colour texture, and writes:
+  `assets/meshes/biomes/<Biome>.fbx` (reference / manual import), `textures/<Biome>_<Prop>.png`, and the
+  geometry as data in `Shared/BiomeMeshData/<Biome>` (generated, do not edit).
+- Textures are uploaded with the Studio MCP image upload. `blender/biomes/write_texture_ids.py` writes the ids to
+  `Shared/BiomeMeshAssets`.
+- **Runtime meshes (2026-10-20; the tooling has no mesh upload):** the server builds every prop
+  from its fallback parts. When the prop has mesh data, the server also adds an invisible `MeshBounds` part at
+  the mesh's real size (scaled to the prop height, proportions kept), the attribute `Mesh = "<Biome>_<Prop>"` and
+  the tag `BiomeMesh`. `Prune` and placement use that real size. `Client/BiomeMeshes` builds each mesh with
+  `EditableMesh` (a fixed-size copy, to save memory) only while a prop using it is within `LOAD_DISTANCE`
+  (placeholder 450 studs) of the camera, nearest first. It shows the mesh in `MeshBounds`, hides the fallback
+  locally, and destroys the mesh when no prop that uses it is in range. If the client's editable memory budget
+  is full, the fallback stays visible.
+- Published games need **Mesh / Image APIs** enabled in the experience settings (Security). Without it, the
+  fallback parts show.
+- **Ground step:** overlapping track grounds sit `GROUND_STEP` (0.02 studs) x track number lower, so that
+  their themed colours never z-fight.
 
 ## Acceptance (harness scenario `environment`)
 

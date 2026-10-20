@@ -3,10 +3,8 @@
 -- Build(model, layout, spec, origin) dresses one track from Shared/BiomeThemes[spec.Biome].
 -- Prune(trackModels, extra) runs after the whole chain is built and removes props too close to any road.
 
-local AssetService = game:GetService("AssetService")
 local CollectionService = game:GetService("CollectionService")
 local Themes = require(script.Parent.BiomeThemes)
-local MeshAssets = require(script.Parent.BiomeMeshAssets)
 
 local BiomeDressing = {}
 BiomeDressing.CLEARANCE = 8 -- studs every prop keeps from any road, wall, checkpoint, pad or spawn-area part
@@ -14,40 +12,27 @@ BiomeDressing.BUDGET = 400 -- BaseParts per track Environment
 BiomeDressing.GATE_HEIGHT = 28 -- studs from the road to the gate beam
 
 local GROUND_Y = -1 -- TrackBuilder GROUND_TOP: props stand on the grass
+local GROUND_STEP = 0.02 -- studs each later track's ground sits below the previous one
 local WALL = 2 -- studs of wall outside the road edge
 local GATE_INDEX = 4 -- waypoint of the start gate (past the previous track's checkpoint)
 local HORIZON_EVERY = 30 -- waypoints between horizon pieces on long runs without corners
 local GRID = 64 -- studs per broad-phase cell in Prune
 
-local templates = {}
-local function meshTemplate(key)
-	if templates[key] == nil then
-		templates[key] = false
-		local asset = MeshAssets[key]
-		if asset then
-			local id = type(asset) == "table" and asset.Mesh or asset
-			local ok, loaded = pcall(function()
-				return AssetService:CreateMeshPartAsync(Content.fromUri(id), {
-					CollisionFidelity = Enum.CollisionFidelity.Box,
-				})
-			end)
-			if ok then
-				if type(asset) == "table" and asset.Texture then
-					loaded.TextureID = asset.Texture
-				end
-				templates[key] = loaded
-			else
-				warn("BiomeDressing: mesh failed to load, using fallback: " .. key)
-			end
-		end
+local MeshData = script.Parent:WaitForChild("BiomeMeshData")
+local dataCache = {}
+-- Baked CC0 mesh of a prop (Shared/BiomeMeshData/<Biome>), or nil when the prop only has fallback parts.
+function BiomeDressing.MeshFor(biome, name)
+	if dataCache[biome] == nil then
+		local module = MeshData:FindFirstChild(biome)
+		dataCache[biome] = module and require(module) or false
 	end
-	return templates[key] or nil
+	return dataCache[biome] and dataCache[biome][name] or nil
 end
 
--- The prop's real size: an uploaded mesh keeps its proportions and is scaled to the prop's height.
+-- The prop's real size: a baked mesh keeps its proportions and is scaled to the prop's height.
 local function footprint(biome, def)
-	local template = meshTemplate(biome .. "_" .. def.Name)
-	return template and template.Size * (def.Size.Y / template.Size.Y) or def.Size
+	local mesh = BiomeDressing.MeshFor(biome, def.Name)
+	return mesh and mesh.Size * (def.Size.Y / mesh.Size.Y) or def.Size
 end
 
 local function visual(part)
@@ -61,30 +46,34 @@ end
 local function place(folder, biome, def, base, name, glow)
 	local model = Instance.new("Model")
 	model.Name = name
-	local template = meshTemplate(biome .. "_" .. def.Name)
-	if template then
-		local mesh = template:Clone()
-		mesh.Name = def.Name
-		mesh.Size = footprint(biome, def)
-		mesh.CFrame = base * CFrame.new(0, mesh.Size.Y / 2, 0)
-		visual(mesh)
-		mesh.Parent = model
-	else
-		for i, p in def.Parts do
-			local part = Instance.new("Part")
-			part.Name = def.Name .. i
-			part.Size = p.Size
-			part.CFrame = base * CFrame.new(p.Pos)
-			part.Color = p.Color
-			part.Material = p.Material or Enum.Material.SmoothPlastic
-			if p.Shape then
-				part.Shape = p.Shape
-			end
-			part.TopSurface = Enum.SurfaceType.Smooth
-			part.BottomSurface = Enum.SurfaceType.Smooth
-			visual(part)
-			part.Parent = model
+	for i, p in def.Parts do
+		local part = Instance.new("Part")
+		part.Name = def.Name .. i
+		part.Size = p.Size
+		part.CFrame = base * CFrame.new(p.Pos)
+		part.Color = p.Color
+		part.Material = p.Material or Enum.Material.SmoothPlastic
+		if p.Shape then
+			part.Shape = p.Shape
 		end
+		part.TopSurface = Enum.SurfaceType.Smooth
+		part.BottomSurface = Enum.SurfaceType.Smooth
+		visual(part)
+		part.Parent = model
+	end
+	if BiomeDressing.MeshFor(biome, def.Name) then
+		-- Invisible box at the mesh's real size: Prune checks it, and Client/BiomeMeshes puts the mesh there
+		-- and hides the fallback parts (EditableMesh content does not replicate, so each client builds it).
+		local size = footprint(biome, def)
+		local bounds = Instance.new("Part")
+		bounds.Name = "MeshBounds"
+		bounds.Size = size
+		bounds.CFrame = base * CFrame.new(0, size.Y / 2, 0)
+		bounds.Transparency = 1
+		visual(bounds)
+		bounds.Parent = model
+		model:SetAttribute("Mesh", biome .. "_" .. def.Name)
+		CollectionService:AddTag(model, "BiomeMesh")
 	end
 	for _, part in model:GetChildren() do
 		part.CastShadow = def.Size.Magnitude > 30 -- small props cast no shadow
@@ -231,6 +220,8 @@ function BiomeDressing.Build(model, layout, spec, origin)
 	if ground then
 		ground.Color = theme.Ground.Color
 		ground.Material = theme.Ground.Material
+		-- Neighbouring tracks' grounds overlap; a per-track step keeps their different colours from z-fighting.
+		ground.Position -= Vector3.new(0, GROUND_STEP * (spec.Number or 0), 0)
 	end
 
 	local wps = layout.Waypoints
