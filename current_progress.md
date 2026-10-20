@@ -39,8 +39,9 @@
 36. 2026-10-15 — Alex Nguyen — Fixed the choppy auto-race motion by replacing the per-frame rail teleport with sideways velocity steering (teleports counted in `run.RailSnaps`), made the top-down camera smoothing frame-rate independent and merged Isaac's UI commit onto main (harness `pass=41 fail=0`, client saw the car move every frame), committed but not pushed because `/compat-check` has not run.
 37. 2026-10-16 — Alex Nguyen — Rebuilt the Shop from the reference images (featured Ember Wyvern 1999 R$ / Singularity 999 R$, gamepasses, potion packs + bundle, Server Luck, codes), added ShopService receipts and redeem codes (save VERSION 9, shop_purchases 76/76), restyled the Market like the Backpack, removed the compat push gate, and pushed `016c467` to main.
 38. 2026-10-20 — Alex Nguyen — Added data-driven biome drive-by scenery for all 10 tracks (new themes for tracks 1-5, landmarks, horizon, start gates, chain-wide clearance prune, client ambience) with the `environment` test, on branch feature/alex/biome-drive-by-scenery.
+39. 2026-10-20 — Alex Nguyen — Downloaded 24 CC0 packs (15 Kenney, 2 KayKit, 7 Quaternius), baked 46 biome props into 10 per-biome FBX files with a headless Blender script, fixed Prune and gate placement, and got the full CarTest suite green (43/0) on the biome branch.
 
 ## What's next
-**Run the `environment` scenario and the full CarTest suite in Studio from the biome worktree until `END fail=0`, then start asset wave 1 (CC0 Kenney/itch.io packs for tracks 1-5, exported per theme from Blender for the owner to import).**
+**Import the 10 biome FBX files in Studio (dashboard Needs you: biome-fbx-import), then wire their mesh and texture ids into `Shared/BiomeMeshAssets` and re-run `environment` plus a visual drive-by check.**
 
-**Why this is next:** the scenery code and its test have only passed static checks; mesh import and the wave-2 tracks build on a verified fallback layout and a clean prune.
+**Why this is next:** the tracks still show plain-part fallbacks; the CC0 art only appears once Roblox has mesh ids, and the clearance prune must be re-checked with the real mesh sizes.
