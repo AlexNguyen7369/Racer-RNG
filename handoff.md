@@ -9,8 +9,8 @@
 
 ### Where things are
 - Branch `feature/alex/biome-drive-by-scenery`, worktree `/Users/alexnguyen7369/Documents/RobloxGames-biomes`.
-  8 commits (c807bd0..ee0e064); only c807bd0 is pushed. The main checkout stays on `main` with Codex's uncommitted work.
-- Rojo serves the WORKTREE. Restart `rojo serve` from the main checkout before Codex uses Studio again.
+  All commits pushed to origin (b1b9660, 2026-10-20). The main checkout stays on `main` with Codex's uncommitted work.
+- Rojo serves the MAIN checkout again (restored 2026-10-20 12:56); Studio was handed back to Codex.
 - Code: `Shared/BiomeThemes` (data), `Shared/BiomeDressing` (builder + `Prune`, called from `Main` after
   `SpawnArea.Build`), `Shared/BiomeMeshCodec`, `Shared/BiomeMeshData/<Biome>` (generated), `Shared/BiomeMeshAssets`
   (45 texture ids), `Client/BiomeMeshes` (EditableMesh within 450 studs), `Client/BiomeAmbience`.
