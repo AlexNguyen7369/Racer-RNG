@@ -975,6 +975,22 @@
       "updated": "2026-10-20T23:59:00-07:00",
       "updatedBy": "Claude",
       "detail": "docs/CAR_REDESIGN_SPEC.md. All 111 cars built, uploaded and synced (assets/studio/RedesignCarModels). Review page: https://claude.ai/artifact/X5NTsqk2FWamprTYyRwpHQ. Left: owner review of the 100 expansion cars, run car_redesign + gacha + weather + car_size in Studio, commit."
+    },
+    {
+      "id": "b55e4e68",
+      "title": "Race progress map completion",
+      "detail": "",
+      "status": "done",
+      "source": "feature branch",
+      "by": "Alex Nguyen",
+      "added": "2026-10-21T01:05:52-07:00",
+      "branch": "feature/alex/race-progress-map-completion",
+      "featureId": "5530cb80",
+      "owner": "Alex Nguyen",
+      "ownerGithub": "AlexNguyen7369",
+      "updated": "2026-10-21T01:34:09-07:00",
+      "updatedBy": "Alex Nguyen",
+      "done": "2026-10-21T01:34:09-07:00"
     }
   ]
 }

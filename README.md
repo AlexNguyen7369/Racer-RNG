@@ -212,8 +212,9 @@ updates automatically whenever the board changes; do not edit this block by hand
 - **Build Server Luck (2x/4x/8x developer products)**: Design doc lists it; the Shop shows it as Coming soon (no Grants, receipt never granted).
 - **Gift buttons in the Shop**: References show gift buttons; not built.
 
-### Recently done (51)
+### Recently done (52)
 
+- ~~Race progress map completion~~ (2026-10-21)
 - ~~Gate signs: biome + recommended Speed~~ (2026-10-21)
 - ~~Shown Speed = base x car multi; cruise from shown Speed~~ (2026-10-21)
 - ~~Rebalance NPC speeds vs cruise curve~~ (2026-10-21)
@@ -223,7 +224,6 @@ updates automatically whenever the board changes; do not edit this block by hand
 - ~~Rotating weather / biome events that boost luck~~ (2026-10-13)
 - ~~Duels: challenge another player to a race (request, accept/decline, track pick)~~ (2026-10-13)
 - ~~Global leaderboards in the spawn area~~ (2026-10-13)
-- ~~Roll odds shown divided by the roll's luck (weather, boosts)~~ (2026-10-13)
 
 <!-- TODO:END -->
 

@@ -85,23 +85,22 @@
     },
     {
       "id": "RaceMap",
-      "kind": "panel",
-      "color": "dark",
+      "kind": "spacer",
       "anchor": [1, 0],
-      "pos": [[1, -20], [0, 118]],
-      "size": [[0, 252], [0, 174]],
+      "pos": [[1, -20], [0, 68]],
+      "size": [[0, 360], [0, 260]],
       "visible": false,
       "purpose": "Non-interactive current NPC track route and personal best",
       "phone": {
-        "pos": [[1, -10], [0, 96]],
-        "size": [[0, 190], [0, 128]]
+        "pos": [[1, -10], [0, 64]],
+        "size": [[0, 250], [0, 184]]
       },
       "children": [
-        {"id": "RaceMapTitle", "kind": "text", "text": "TRACK 1", "pos": [[0, 8], [0, 4]], "size": [[0, 236], [0, 22]], "textSize": 16, "phone": {"size": [[0, 174], [0, 18]], "textSize": 12}},
-        {"id": "RaceMapStatus", "kind": "text", "text": "EVEN", "pos": [[0, 8], [0, 28]], "size": [[0, 236], [0, 20]], "textSize": 14, "phone": {"size": [[0, 174], [0, 16]], "textSize": 11}},
-        {"id": "RaceMapCanvas", "kind": "panel", "pos": [[0, 8], [0, 52]], "size": [[0, 236], [0, 84]], "phone": {"pos": [[0, 8], [0, 45]], "size": [[0, 174], [0, 58]]}},
-        {"id": "RaceMapTime", "kind": "text", "text": "TIME 00:00.00", "pos": [[0, 8], [0, 140]], "size": [[0, 116], [0, 22]], "textSize": 13, "phone": {"pos": [[0, 8], [0, 106]], "size": [[0, 86], [0, 16]], "textSize": 10}},
-        {"id": "RaceMapPB", "kind": "text", "text": "PB --", "pos": [[0, 132], [0, 140]], "size": [[0, 112], [0, 22]], "textSize": 13, "phone": {"pos": [[0, 100], [0, 106]], "size": [[0, 82], [0, 16]], "textSize": 10}}
+        {"id": "RaceMapTitle", "kind": "text", "text": "TRACK 1", "pos": [[0, 8], [0, 2]], "size": [[0, 344], [0, 22]], "textSize": 16, "phone": {"size": [[0, 234], [0, 18]], "textSize": 12}},
+        {"id": "RaceMapStatus", "kind": "text", "text": "EVEN", "pos": [[0, 8], [0, 25]], "size": [[0, 344], [0, 18]], "textSize": 14, "phone": {"size": [[0, 234], [0, 16]], "textSize": 11}},
+        {"id": "RaceMapCanvas", "kind": "spacer", "pos": [[0, 10], [0, 44]], "size": [[0, 340], [0, 196]], "phone": {"pos": [[0, 8], [0, 38]], "size": [[0, 234], [0, 132]]}},
+        {"id": "RaceMapTime", "kind": "text", "text": "TIME 00:00.00", "pos": [[0, 8], [0, 236]], "size": [[0, 170], [0, 22]], "textSize": 13, "phone": {"pos": [[0, 8], [0, 166]], "size": [[0, 112], [0, 16]], "textSize": 10}},
+        {"id": "RaceMapPB", "kind": "text", "text": "PB --", "pos": [[0, 180], [0, 236]], "size": [[0, 164], [0, 22]], "textSize": 13, "phone": {"pos": [[0, 124], [0, 166]], "size": [[0, 118], [0, 16]], "textSize": 10}}
       ]
     },
     {

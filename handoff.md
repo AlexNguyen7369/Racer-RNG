@@ -1,29 +1,30 @@
 # Agent handoff
 
-## NPC race progress map + personal best — 2026-10-21 (Codex, uncommitted)
+## NPC race progress map + personal best — 2026-10-21 (Codex, committed e9a91d9 and pushed)
 
-- Owner: Codex. Added `docs/RACE_PROGRESS_MAP_SPEC.md` and the HUD/design/save
-  contract for a private current-track NPC race map with per-track PBs.
-- Code: `src/shared/RaceProgressMap.luau` (ordered 3D projection and X/Z map
-  normalization), `src/server/RaceTimeService.luau` (sanitized private PB state),
-  `src/client/RaceProgressMap.client.luau` (render-frame dots/timer/headshot map).
-- Integrated `RaceService` Start/Result payloads and authoritative win-only PB
-  recording; `PlayerData` now persists `RaceBestTimes` and VERSION 11.
-- Added the responsive `RaceMap` shell to `ui/specs/RacerHud.ui.json` and regenerated
-  the HUD module/generated Studio script/previews. Runtime rebuilds the stale baked
-  StarterGui from the new spec hash.
-- Verification: UI verifier passed; StyLua and Selene passed for changed Luau;
-  `rojo build default.project.json` passed; `git diff --check` passed.
-- Studio Edit bake completed: `ui/generated/RacerHud.studio.luau` rebuilt StarterGui
-  with 158 instances and spec hash `ab2dce081f07`. The local export helper could not
-  run through the Studio bridge because its `@lune/fs` dependency is unavailable;
-  the existing baked asset remains stale, but runtime hash rebuild is verified.
-- Live Play verification passed: starting AutoRace showed the map, `TRACK01_NPC`,
-  `TIME 00:02.82`, `PB --`, `EVEN`, 95 route/dot children including `YOU` and `NPC`;
-  stopping AutoRace hid it. Server-side RaceTimeService sanitization, PB creation,
-  and slower-time rejection also passed with a focused harness call.
-- Full CarTest and binary StarterGui export remain unrun/unavailable through the
-  current bridge. Studio is stopped and free.
+- Owner: Codex. The map is now a transparent, enlarged route icon rather than a
+  dark card: approximately 360x260 desktop and 250x184 phone, with title/status/
+  timer/PB as transparent overlays; the baked `StarterGui.rbxm` preserves all other
+  ScreenGuis.
+- Runtime: `src/shared/RaceProgressMap.luau` provides ordered 3D progress, aspect-
+  preserving normalization, heading-up `ViewPoint`, and edge `ClampViewPoint`;
+  `src/client/RaceProgressMap.luau` keeps YOU centred, rotates/zooms the route around
+  the local car, clips off-screen segments, and edge-clamps an off-screen NPC.
+  `src/server/RaceTimeService.luau` and `RaceService` retain private win-only PBs;
+  PlayerData persists VERSION 11 `RaceBestTimes`.
+- Tests: offline route/PB/controller assertions pass 197/197; Studio server
+  `race_progress_map` passes; Studio client `UiRaceProgressMap` passes all checks,
+  including centered YOU, rotation, NPC edge clamping, server-clock timer, lifecycle,
+  and PB formatting. UI verifier, StyLua, Selene, diff check, Rojo build, and the
+  portable HUD bake all pass.
+- Live visual check: the active race shows a transparent route icon below the top-
+  right pills, with the map rotating as the car turns and no card background; an open
+  panel remains separate from it. Full `/compat-check` is intentionally not run per
+  owner waiver of the physics suite.
+- The feature branch is pushed and has no remaining Codex-owned implementation
+  work. Claude's separate uncommitted speed/balance edits remain preserved and were
+  not included in Codex's feature staging. The full compatibility gate is still
+  stale by owner waiver; refresh it before merging this branch.
 
 ## Gate signs + multiplied Speed rule — 2026-10-21 (Claude, main, uncommitted)
 
@@ -41,6 +42,10 @@
   suffixes, gate signs (EnvironmentTests), rebirth, leaderboard; save VERSION 11 expectations (Codex's RaceBestTimes)
   in Scenarios, ShopPurchaseTests, ExpansionTests, Phase2Tests, GiftTests, plus RaceBestTimes round-trip checks.
   UiTest only reads leaderstats.Speed (now shown): unchanged. tests_explained.json updated.
+- Later (owner): NPC x1.75 per track; MAX_SPEED 109 (+48.5 studs/s per Speed doubling); race gain flat
+  `RaceConfig.GAIN_PER_SECOND` 1 x gain multis (GAIN_PER_STUD removed; stat and car speed no longer matter).
+  Rec. Speed T1 219, T2 1.13K, T3 3.1K, T4 8.3K, T5 26.5K, T6 137K, T7 1.98M, T8 201M, T9 652B, T10 904Qd (computed,
+  not seen live: Codex was using Studio). Risk: cruise at MAX_STAT is now ~866 studs/s; stability not re-tested.
 - Studio: stopped, free. Codex cleared to continue.
 - Next: full CarTest when the owner wants it (expect first-run fixes: signal timing on shown-Speed checks), then
   commit + progress-tracker.

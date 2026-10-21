@@ -37,6 +37,7 @@ local client = script.Parent:IsA("LocalScript") and script.Parent.Parent or scri
 local PanelSwitch = require(client.PanelSwitch)
 local PanelBand = require(client.PanelBand)
 local hud = require(Ui.RacerHud).Bind(playerGui)
+require(client.RaceProgressMap).Attach(hud)
 -- The saved HUD asset predates the session-local free-points badge. Bake the
 -- small badge at runtime so the live HUD and UiSpec share the same contract.
 Components.BakeHud(hud)
@@ -744,7 +745,7 @@ local function fitPanels()
 		if scale and base.X.Offset > 0 and base.Y.Offset > 0 then
 			scale.Scale = math.max(0.3, math.min(k, width / base.X.Offset, height / base.Y.Offset))
 			frame.AnchorPoint = Vector2.new(0.5, 0.5)
-			frame.Position = UDim2.new(0.5, 0, 0, top + height / 2)
+			frame.Position = UDim2.fromOffset((side + right) / 2, top + height / 2)
 		end
 	end
 end

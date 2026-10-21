@@ -45,8 +45,9 @@
 42. 2026-10-20 — Alex Nguyen — Lowered the Baseplate to top y=-2 so the themed track grounds show on tracks 1-5 (bug 4b68c6d9, Studio check pending).
 43. 2026-10-20 — Alex Nguyen — Merged the biome scenery into main, grounded the floating biome meshes, fixed the washed-out Kenney colours (20 textures re-uploaded), skipped props off their track's ground, and made the Baseplate and spawn floor sit flush (full CarTest 46/0).
 44. 2026-10-21 — Alex Nguyen — Redesigned all 111 referenced cars as bevelled Blender MeshPart skins (sport kit, bright neon, Singularity black hole, hand-built Zero G Zipper, lower novelty cars) synced via RedesignCarModels, and committed and pushed `3675a6d` to main with all pending expansion, Singularity, UI, NPC and VFX work.
+45. 2026-10-21 — Alex Nguyen — Implemented and verified the transparent enlarged dynamic NPC race map with heading-up player-centred zoom, edge-clamped NPC marker, private VERSION 11 personal bests, focused tests (197/197 offline plus Studio server/client passes), and the refreshed StarterGui bake.
 
 ## What's next
-**Run the CarTest suite in Studio (car_redesign, gacha, weather, car_size, index, race, npc first, then the full suite) on the pushed main and fix any failures.**
+**Review and merge `feature/alex/race-progress-map-completion` into the target branch after the stale compatibility gate is refreshed.**
 
-**Why this is next:** `3675a6d` put the car redesign, the 100-car expansion and Codex's NPC tuning on main without a harness run, so every later feature and the UI suite fixes need a verified green baseline first.
+**Why this is next:** the feature branch now contains the verified map/PB implementation, while `/compat-check` remains stale and the full physics suite was explicitly waived for this delivery.

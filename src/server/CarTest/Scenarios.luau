@@ -13436,6 +13436,7 @@ Scenarios.car_expansion = require(script.Parent.ExpansionTests).car_expansion
 Scenarios.car_redesign = require(script.Parent.RedesignTests).car_redesign -- docs/CAR_REDESIGN_SPEC.md section 7
 Scenarios.gifting = require(script.Parent.GiftTests).gifting
 Scenarios.gift_mailbox = require(script.Parent.GiftTests).gift_mailbox
+Scenarios.race_progress_map = require(script.Parent.RaceProgressTests).race_progress_map
 -- docs/PANEL_ART_GIFTING_SPEC.md: cosmetic effects on the chassis, no mass/controls change, equip preserved
 Scenarios.vehicle_effects = require(script.Parent.VehicleEffectTests).make({
 	newFakeCharacter = newFakeCharacter,

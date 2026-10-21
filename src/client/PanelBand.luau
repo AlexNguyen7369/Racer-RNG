@@ -33,6 +33,11 @@ function Band.Rect()
 	end
 	-- Both edges use the wider margin so the panel stays centred.
 	local margin = math.max(gridRight, viewport.X - shop.AbsolutePosition.X) + GAP
+	local right = viewport.X - margin
+	local raceMap = hud:FindFirstChild("RaceMap")
+	if raceMap and raceMap.Visible and hud.Enabled then
+		right = math.min(right, raceMap.AbsolutePosition.X - GAP)
+	end
 	-- The bottom stops above the TURBO LUCK bar and above the Money readout in the bottom-left corner.
 	local bottom = turbo.AbsolutePosition.Y
 	local money = hud:FindFirstChild("Money")
@@ -44,10 +49,7 @@ function Band.Rect()
 	then
 		bottom = math.min(bottom, money.AbsolutePosition.Y)
 	end
-	return margin,
-		race.AbsolutePosition.Y + race.AbsoluteSize.Y + inset + GAP,
-		viewport.X - margin,
-		bottom + inset - GAP
+	return margin, race.AbsolutePosition.Y + race.AbsoluteSize.Y + inset + GAP, right, bottom + inset - GAP
 end
 
 local function shown(object)

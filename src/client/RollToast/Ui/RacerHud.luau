@@ -1,6 +1,6 @@
 --!nonstrict
 -- GENERATED from ui/specs/RacerHud.ui.json. DO NOT EDIT: change the spec and run ui/tooling/gen_atlas.py.
--- spec-hash: ab2dce081f07
+-- spec-hash: 8087703805de
 -- Build(playerGui) creates the ScreenGui and returns refs: refs[<node id>] for every node (buttons: the Face
 -- TextButton, connect .Activated to it), refs.Gui for the ScreenGui.
 
@@ -19,14 +19,14 @@ end
 
 local Ui = {}
 
-Ui.SpecHash = "ab2dce081f07"
+Ui.SpecHash = "8087703805de"
 
 function Ui.Build(playerGui)
 	local refs = {}
 	local scales = {} -- { UIScale, desktop zoom, phone zoom }
 	local layouts = {} -- { instance, desktop props, phone props }
 	local gui = new("ScreenGui", { Name = "RacerHud", ResetOnSpawn = false, IgnoreGuiInset = true, ZIndexBehavior = Enum.ZIndexBehavior.Sibling }, playerGui)
-	gui:SetAttribute("SpecHash", "ab2dce081f07")
+	gui:SetAttribute("SpecHash", "8087703805de")
 	refs.Gui = gui
 	local v1 = new("Frame", { Name = "Race", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 72), Size = UDim2.new(0, 180, 0, 48), Visible = true, BackgroundTransparency = 1 }, gui)
 	local v1s = new("Frame", { Name = "Shadow", Position = UDim2.new(0, 0, 0, 4), Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.fromRGB(27, 82, 74), BackgroundTransparency = 0.4, BorderSizePixel = 0, ZIndex = 1 }, v1)
@@ -45,47 +45,29 @@ function Ui.Build(playerGui)
 	new("UIStroke", { Thickness = 3, Color = Color3.fromRGB(18, 22, 43), ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual }, v2)
 	refs["RaceLabel"] = v2
 	table.insert(layouts, { v2, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 0, 0, 0), Size = UDim2.new(1, 0, 1, 0), TextSize = 24, Visible = true }, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 0, 0, 0), Size = UDim2.new(1, 0, 1, 0), TextSize = 20, Visible = true } })
-	local v3 = new("Frame", { Name = "RaceMap", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -20, 0, 118), Size = UDim2.new(0, 252, 0, 174), Visible = false, BackgroundTransparency = 1 }, gui)
-	local v3s = new("Frame", { Name = "Shadow", Position = UDim2.new(0, 0, 0, 4), Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.fromRGB(18, 26, 65), BackgroundTransparency = 0.4, BorderSizePixel = 0, ZIndex = 1 }, v3)
-	corner(v3s, 10)
-	new("UIStroke", { Thickness = 3, Color = Color3.fromRGB(18, 26, 65), Transparency = 0.4, ApplyStrokeMode = Enum.ApplyStrokeMode.Border }, v3s)
-	local v3f = new("Frame", { Name = "Face", Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.new(1, 1, 1), BorderSizePixel = 0, ZIndex = 2 }, v3)
-	corner(v3f, 10)
-	new("UIGradient", { Rotation = 90, Color = ColorSequence.new(Color3.fromRGB(59, 68, 93), Color3.fromRGB(28, 38, 62)) }, v3f)
-	new("UIStroke", { Thickness = 3, Color = Color3.fromRGB(18, 22, 43), ApplyStrokeMode = Enum.ApplyStrokeMode.Border }, v3f)
-	local v3l = new("Frame", { Name = "Lift", Position = UDim2.new(0, 4, 0, 2), Size = UDim2.new(1, -8, 0, 6), BackgroundColor3 = Color3.new(1, 1, 1), BackgroundTransparency = 0.7, BorderSizePixel = 0 }, v3f)
-	corner(v3l, 3)
-	refs["RaceMap"] = v3f
+	local v3 = new("Frame", { Name = "RaceMap", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -20, 0, 68), Size = UDim2.new(0, 360, 0, 260), Visible = false, BackgroundTransparency = 1 }, gui)
+	refs["RaceMap"] = v3
 	table.insert(scales, { new("UIScale", {}, v3), 1, 1 })
-	table.insert(layouts, { v3, { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -20, 0, 118), Size = UDim2.new(0, 252, 0, 174), Visible = false }, { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -10, 0, 96), Size = UDim2.new(0, 190, 0, 128), Visible = false } })
-	local v4 = new("TextLabel", { Name = "RaceMapTitle", AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 8, 0, 4), Size = UDim2.new(0, 236, 0, 22), Visible = true, BackgroundTransparency = 1, Text = "TRACK 1", TextSize = 16, Font = Enum.Font.FredokaOne, TextColor3 = Color3.fromRGB(255, 255, 255), TextWrapped = false, TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 3 }, v3f)
+	table.insert(layouts, { v3, { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -20, 0, 68), Size = UDim2.new(0, 360, 0, 260), Visible = false }, { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -10, 0, 64), Size = UDim2.new(0, 250, 0, 184), Visible = false } })
+	local v4 = new("TextLabel", { Name = "RaceMapTitle", AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 8, 0, 2), Size = UDim2.new(0, 344, 0, 22), Visible = true, BackgroundTransparency = 1, Text = "TRACK 1", TextSize = 16, Font = Enum.Font.FredokaOne, TextColor3 = Color3.fromRGB(255, 255, 255), TextWrapped = false, TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 3 }, v3)
 	new("UIStroke", { Thickness = 3, Color = Color3.fromRGB(18, 22, 43), ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual }, v4)
 	refs["RaceMapTitle"] = v4
-	table.insert(layouts, { v4, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 8, 0, 4), Size = UDim2.new(0, 236, 0, 22), TextSize = 16, Visible = true }, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 8, 0, 4), Size = UDim2.new(0, 174, 0, 18), TextSize = 12, Visible = true } })
-	local v5 = new("TextLabel", { Name = "RaceMapStatus", AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 8, 0, 28), Size = UDim2.new(0, 236, 0, 20), Visible = true, BackgroundTransparency = 1, Text = "EVEN", TextSize = 14, Font = Enum.Font.FredokaOne, TextColor3 = Color3.fromRGB(255, 255, 255), TextWrapped = false, TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 3 }, v3f)
+	table.insert(layouts, { v4, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 8, 0, 2), Size = UDim2.new(0, 344, 0, 22), TextSize = 16, Visible = true }, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 8, 0, 2), Size = UDim2.new(0, 234, 0, 18), TextSize = 12, Visible = true } })
+	local v5 = new("TextLabel", { Name = "RaceMapStatus", AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 8, 0, 25), Size = UDim2.new(0, 344, 0, 18), Visible = true, BackgroundTransparency = 1, Text = "EVEN", TextSize = 14, Font = Enum.Font.FredokaOne, TextColor3 = Color3.fromRGB(255, 255, 255), TextWrapped = false, TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 3 }, v3)
 	new("UIStroke", { Thickness = 3, Color = Color3.fromRGB(18, 22, 43), ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual }, v5)
 	refs["RaceMapStatus"] = v5
-	table.insert(layouts, { v5, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 8, 0, 28), Size = UDim2.new(0, 236, 0, 20), TextSize = 14, Visible = true }, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 8, 0, 28), Size = UDim2.new(0, 174, 0, 16), TextSize = 11, Visible = true } })
-	local v6 = new("Frame", { Name = "RaceMapCanvas", AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 8, 0, 52), Size = UDim2.new(0, 236, 0, 84), Visible = true, BackgroundTransparency = 1 }, v3f)
-	local v6s = new("Frame", { Name = "Shadow", Position = UDim2.new(0, 0, 0, 4), Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.fromRGB(18, 81, 123), BackgroundTransparency = 0.4, BorderSizePixel = 0, ZIndex = 1 }, v6)
-	corner(v6s, 10)
-	new("UIStroke", { Thickness = 3, Color = Color3.fromRGB(18, 81, 123), Transparency = 0.4, ApplyStrokeMode = Enum.ApplyStrokeMode.Border }, v6s)
-	local v6f = new("Frame", { Name = "Face", Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.new(1, 1, 1), BorderSizePixel = 0, ZIndex = 2 }, v6)
-	corner(v6f, 10)
-	new("UIGradient", { Rotation = 90, Color = ColorSequence.new(Color3.fromRGB(57, 221, 255), Color3.fromRGB(26, 190, 224)) }, v6f)
-	new("UIStroke", { Thickness = 3, Color = Color3.fromRGB(18, 22, 43), ApplyStrokeMode = Enum.ApplyStrokeMode.Border }, v6f)
-	local v6l = new("Frame", { Name = "Lift", Position = UDim2.new(0, 4, 0, 2), Size = UDim2.new(1, -8, 0, 6), BackgroundColor3 = Color3.new(1, 1, 1), BackgroundTransparency = 0.7, BorderSizePixel = 0 }, v6f)
-	corner(v6l, 3)
-	refs["RaceMapCanvas"] = v6f
-	table.insert(layouts, { v6, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 8, 0, 52), Size = UDim2.new(0, 236, 0, 84), Visible = true }, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 8, 0, 45), Size = UDim2.new(0, 174, 0, 58), Visible = true } })
-	local v7 = new("TextLabel", { Name = "RaceMapTime", AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 8, 0, 140), Size = UDim2.new(0, 116, 0, 22), Visible = true, BackgroundTransparency = 1, Text = "TIME 00:00.00", TextSize = 13, Font = Enum.Font.FredokaOne, TextColor3 = Color3.fromRGB(255, 255, 255), TextWrapped = false, TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 3 }, v3f)
+	table.insert(layouts, { v5, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 8, 0, 25), Size = UDim2.new(0, 344, 0, 18), TextSize = 14, Visible = true }, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 8, 0, 25), Size = UDim2.new(0, 234, 0, 16), TextSize = 11, Visible = true } })
+	local v6 = new("Frame", { Name = "RaceMapCanvas", AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 10, 0, 44), Size = UDim2.new(0, 340, 0, 196), Visible = true, BackgroundTransparency = 1 }, v3)
+	refs["RaceMapCanvas"] = v6
+	table.insert(layouts, { v6, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 10, 0, 44), Size = UDim2.new(0, 340, 0, 196), Visible = true }, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 8, 0, 38), Size = UDim2.new(0, 234, 0, 132), Visible = true } })
+	local v7 = new("TextLabel", { Name = "RaceMapTime", AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 8, 0, 236), Size = UDim2.new(0, 170, 0, 22), Visible = true, BackgroundTransparency = 1, Text = "TIME 00:00.00", TextSize = 13, Font = Enum.Font.FredokaOne, TextColor3 = Color3.fromRGB(255, 255, 255), TextWrapped = false, TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 3 }, v3)
 	new("UIStroke", { Thickness = 3, Color = Color3.fromRGB(18, 22, 43), ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual }, v7)
 	refs["RaceMapTime"] = v7
-	table.insert(layouts, { v7, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 8, 0, 140), Size = UDim2.new(0, 116, 0, 22), TextSize = 13, Visible = true }, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 8, 0, 106), Size = UDim2.new(0, 86, 0, 16), TextSize = 10, Visible = true } })
-	local v8 = new("TextLabel", { Name = "RaceMapPB", AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 132, 0, 140), Size = UDim2.new(0, 112, 0, 22), Visible = true, BackgroundTransparency = 1, Text = "PB --", TextSize = 13, Font = Enum.Font.FredokaOne, TextColor3 = Color3.fromRGB(255, 255, 255), TextWrapped = false, TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 3 }, v3f)
+	table.insert(layouts, { v7, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 8, 0, 236), Size = UDim2.new(0, 170, 0, 22), TextSize = 13, Visible = true }, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 8, 0, 166), Size = UDim2.new(0, 112, 0, 16), TextSize = 10, Visible = true } })
+	local v8 = new("TextLabel", { Name = "RaceMapPB", AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 180, 0, 236), Size = UDim2.new(0, 164, 0, 22), Visible = true, BackgroundTransparency = 1, Text = "PB --", TextSize = 13, Font = Enum.Font.FredokaOne, TextColor3 = Color3.fromRGB(255, 255, 255), TextWrapped = false, TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 3 }, v3)
 	new("UIStroke", { Thickness = 3, Color = Color3.fromRGB(18, 22, 43), ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual }, v8)
 	refs["RaceMapPB"] = v8
-	table.insert(layouts, { v8, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 132, 0, 140), Size = UDim2.new(0, 112, 0, 22), TextSize = 13, Visible = true }, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 100, 0, 106), Size = UDim2.new(0, 82, 0, 16), TextSize = 10, Visible = true } })
+	table.insert(layouts, { v8, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 180, 0, 236), Size = UDim2.new(0, 164, 0, 22), TextSize = 13, Visible = true }, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 124, 0, 166), Size = UDim2.new(0, 118, 0, 16), TextSize = 10, Visible = true } })
 	local v9 = new("Frame", { Name = "Navigation", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 22, 0.45, 0), Size = UDim2.new(0, 160, 0, 226), Visible = true, BackgroundTransparency = 1 }, gui)
 	refs["Navigation"] = v9
 	table.insert(scales, { new("UIScale", {}, v9), 1, 1 })
@@ -311,7 +293,7 @@ function Ui.Bind(playerGui)
 	local scales = {} -- { UIScale, desktop zoom, phone zoom }
 	local layouts = {} -- { instance, desktop props, phone props }
 	local gui = new("ScreenGui", { Name = "RacerHud", ResetOnSpawn = false, IgnoreGuiInset = true, ZIndexBehavior = Enum.ZIndexBehavior.Sibling }, playerGui)
-	gui:SetAttribute("SpecHash", "ab2dce081f07")
+	gui:SetAttribute("SpecHash", "8087703805de")
 	refs.Gui = gui
 	local v1 = new("Frame", { Name = "Race", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 72), Size = UDim2.new(0, 180, 0, 48), Visible = true, BackgroundTransparency = 1 }, gui)
 	local v1s = new("Frame", { Name = "Shadow", Position = UDim2.new(0, 0, 0, 4), Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.fromRGB(27, 82, 74), BackgroundTransparency = 0.4, BorderSizePixel = 0, ZIndex = 1 }, v1)
@@ -330,47 +312,29 @@ function Ui.Bind(playerGui)
 	new("UIStroke", { Thickness = 3, Color = Color3.fromRGB(18, 22, 43), ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual }, v2)
 	refs["RaceLabel"] = v2
 	table.insert(layouts, { v2, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 0, 0, 0), Size = UDim2.new(1, 0, 1, 0), TextSize = 24, Visible = true }, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 0, 0, 0), Size = UDim2.new(1, 0, 1, 0), TextSize = 20, Visible = true } })
-	local v3 = new("Frame", { Name = "RaceMap", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -20, 0, 118), Size = UDim2.new(0, 252, 0, 174), Visible = false, BackgroundTransparency = 1 }, gui)
-	local v3s = new("Frame", { Name = "Shadow", Position = UDim2.new(0, 0, 0, 4), Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.fromRGB(18, 26, 65), BackgroundTransparency = 0.4, BorderSizePixel = 0, ZIndex = 1 }, v3)
-	corner(v3s, 10)
-	new("UIStroke", { Thickness = 3, Color = Color3.fromRGB(18, 26, 65), Transparency = 0.4, ApplyStrokeMode = Enum.ApplyStrokeMode.Border }, v3s)
-	local v3f = new("Frame", { Name = "Face", Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.new(1, 1, 1), BorderSizePixel = 0, ZIndex = 2 }, v3)
-	corner(v3f, 10)
-	new("UIGradient", { Rotation = 90, Color = ColorSequence.new(Color3.fromRGB(59, 68, 93), Color3.fromRGB(28, 38, 62)) }, v3f)
-	new("UIStroke", { Thickness = 3, Color = Color3.fromRGB(18, 22, 43), ApplyStrokeMode = Enum.ApplyStrokeMode.Border }, v3f)
-	local v3l = new("Frame", { Name = "Lift", Position = UDim2.new(0, 4, 0, 2), Size = UDim2.new(1, -8, 0, 6), BackgroundColor3 = Color3.new(1, 1, 1), BackgroundTransparency = 0.7, BorderSizePixel = 0 }, v3f)
-	corner(v3l, 3)
-	refs["RaceMap"] = v3f
+	local v3 = new("Frame", { Name = "RaceMap", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -20, 0, 68), Size = UDim2.new(0, 360, 0, 260), Visible = false, BackgroundTransparency = 1 }, gui)
+	refs["RaceMap"] = v3
 	table.insert(scales, { new("UIScale", {}, v3), 1, 1 })
-	table.insert(layouts, { v3, { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -20, 0, 118), Size = UDim2.new(0, 252, 0, 174), Visible = false }, { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -10, 0, 96), Size = UDim2.new(0, 190, 0, 128), Visible = false } })
-	local v4 = new("TextLabel", { Name = "RaceMapTitle", AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 8, 0, 4), Size = UDim2.new(0, 236, 0, 22), Visible = true, BackgroundTransparency = 1, Text = "TRACK 1", TextSize = 16, Font = Enum.Font.FredokaOne, TextColor3 = Color3.fromRGB(255, 255, 255), TextWrapped = false, TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 3 }, v3f)
+	table.insert(layouts, { v3, { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -20, 0, 68), Size = UDim2.new(0, 360, 0, 260), Visible = false }, { AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -10, 0, 64), Size = UDim2.new(0, 250, 0, 184), Visible = false } })
+	local v4 = new("TextLabel", { Name = "RaceMapTitle", AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 8, 0, 2), Size = UDim2.new(0, 344, 0, 22), Visible = true, BackgroundTransparency = 1, Text = "TRACK 1", TextSize = 16, Font = Enum.Font.FredokaOne, TextColor3 = Color3.fromRGB(255, 255, 255), TextWrapped = false, TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 3 }, v3)
 	new("UIStroke", { Thickness = 3, Color = Color3.fromRGB(18, 22, 43), ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual }, v4)
 	refs["RaceMapTitle"] = v4
-	table.insert(layouts, { v4, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 8, 0, 4), Size = UDim2.new(0, 236, 0, 22), TextSize = 16, Visible = true }, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 8, 0, 4), Size = UDim2.new(0, 174, 0, 18), TextSize = 12, Visible = true } })
-	local v5 = new("TextLabel", { Name = "RaceMapStatus", AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 8, 0, 28), Size = UDim2.new(0, 236, 0, 20), Visible = true, BackgroundTransparency = 1, Text = "EVEN", TextSize = 14, Font = Enum.Font.FredokaOne, TextColor3 = Color3.fromRGB(255, 255, 255), TextWrapped = false, TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 3 }, v3f)
+	table.insert(layouts, { v4, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 8, 0, 2), Size = UDim2.new(0, 344, 0, 22), TextSize = 16, Visible = true }, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 8, 0, 2), Size = UDim2.new(0, 234, 0, 18), TextSize = 12, Visible = true } })
+	local v5 = new("TextLabel", { Name = "RaceMapStatus", AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 8, 0, 25), Size = UDim2.new(0, 344, 0, 18), Visible = true, BackgroundTransparency = 1, Text = "EVEN", TextSize = 14, Font = Enum.Font.FredokaOne, TextColor3 = Color3.fromRGB(255, 255, 255), TextWrapped = false, TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 3 }, v3)
 	new("UIStroke", { Thickness = 3, Color = Color3.fromRGB(18, 22, 43), ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual }, v5)
 	refs["RaceMapStatus"] = v5
-	table.insert(layouts, { v5, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 8, 0, 28), Size = UDim2.new(0, 236, 0, 20), TextSize = 14, Visible = true }, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 8, 0, 28), Size = UDim2.new(0, 174, 0, 16), TextSize = 11, Visible = true } })
-	local v6 = new("Frame", { Name = "RaceMapCanvas", AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 8, 0, 52), Size = UDim2.new(0, 236, 0, 84), Visible = true, BackgroundTransparency = 1 }, v3f)
-	local v6s = new("Frame", { Name = "Shadow", Position = UDim2.new(0, 0, 0, 4), Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.fromRGB(18, 81, 123), BackgroundTransparency = 0.4, BorderSizePixel = 0, ZIndex = 1 }, v6)
-	corner(v6s, 10)
-	new("UIStroke", { Thickness = 3, Color = Color3.fromRGB(18, 81, 123), Transparency = 0.4, ApplyStrokeMode = Enum.ApplyStrokeMode.Border }, v6s)
-	local v6f = new("Frame", { Name = "Face", Size = UDim2.fromScale(1, 1), BackgroundColor3 = Color3.new(1, 1, 1), BorderSizePixel = 0, ZIndex = 2 }, v6)
-	corner(v6f, 10)
-	new("UIGradient", { Rotation = 90, Color = ColorSequence.new(Color3.fromRGB(57, 221, 255), Color3.fromRGB(26, 190, 224)) }, v6f)
-	new("UIStroke", { Thickness = 3, Color = Color3.fromRGB(18, 22, 43), ApplyStrokeMode = Enum.ApplyStrokeMode.Border }, v6f)
-	local v6l = new("Frame", { Name = "Lift", Position = UDim2.new(0, 4, 0, 2), Size = UDim2.new(1, -8, 0, 6), BackgroundColor3 = Color3.new(1, 1, 1), BackgroundTransparency = 0.7, BorderSizePixel = 0 }, v6f)
-	corner(v6l, 3)
-	refs["RaceMapCanvas"] = v6f
-	table.insert(layouts, { v6, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 8, 0, 52), Size = UDim2.new(0, 236, 0, 84), Visible = true }, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 8, 0, 45), Size = UDim2.new(0, 174, 0, 58), Visible = true } })
-	local v7 = new("TextLabel", { Name = "RaceMapTime", AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 8, 0, 140), Size = UDim2.new(0, 116, 0, 22), Visible = true, BackgroundTransparency = 1, Text = "TIME 00:00.00", TextSize = 13, Font = Enum.Font.FredokaOne, TextColor3 = Color3.fromRGB(255, 255, 255), TextWrapped = false, TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 3 }, v3f)
+	table.insert(layouts, { v5, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 8, 0, 25), Size = UDim2.new(0, 344, 0, 18), TextSize = 14, Visible = true }, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 8, 0, 25), Size = UDim2.new(0, 234, 0, 16), TextSize = 11, Visible = true } })
+	local v6 = new("Frame", { Name = "RaceMapCanvas", AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 10, 0, 44), Size = UDim2.new(0, 340, 0, 196), Visible = true, BackgroundTransparency = 1 }, v3)
+	refs["RaceMapCanvas"] = v6
+	table.insert(layouts, { v6, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 10, 0, 44), Size = UDim2.new(0, 340, 0, 196), Visible = true }, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 8, 0, 38), Size = UDim2.new(0, 234, 0, 132), Visible = true } })
+	local v7 = new("TextLabel", { Name = "RaceMapTime", AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 8, 0, 236), Size = UDim2.new(0, 170, 0, 22), Visible = true, BackgroundTransparency = 1, Text = "TIME 00:00.00", TextSize = 13, Font = Enum.Font.FredokaOne, TextColor3 = Color3.fromRGB(255, 255, 255), TextWrapped = false, TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 3 }, v3)
 	new("UIStroke", { Thickness = 3, Color = Color3.fromRGB(18, 22, 43), ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual }, v7)
 	refs["RaceMapTime"] = v7
-	table.insert(layouts, { v7, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 8, 0, 140), Size = UDim2.new(0, 116, 0, 22), TextSize = 13, Visible = true }, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 8, 0, 106), Size = UDim2.new(0, 86, 0, 16), TextSize = 10, Visible = true } })
-	local v8 = new("TextLabel", { Name = "RaceMapPB", AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 132, 0, 140), Size = UDim2.new(0, 112, 0, 22), Visible = true, BackgroundTransparency = 1, Text = "PB --", TextSize = 13, Font = Enum.Font.FredokaOne, TextColor3 = Color3.fromRGB(255, 255, 255), TextWrapped = false, TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 3 }, v3f)
+	table.insert(layouts, { v7, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 8, 0, 236), Size = UDim2.new(0, 170, 0, 22), TextSize = 13, Visible = true }, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 8, 0, 166), Size = UDim2.new(0, 112, 0, 16), TextSize = 10, Visible = true } })
+	local v8 = new("TextLabel", { Name = "RaceMapPB", AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 180, 0, 236), Size = UDim2.new(0, 164, 0, 22), Visible = true, BackgroundTransparency = 1, Text = "PB --", TextSize = 13, Font = Enum.Font.FredokaOne, TextColor3 = Color3.fromRGB(255, 255, 255), TextWrapped = false, TextXAlignment = Enum.TextXAlignment.Center, ZIndex = 3 }, v3)
 	new("UIStroke", { Thickness = 3, Color = Color3.fromRGB(18, 22, 43), ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual }, v8)
 	refs["RaceMapPB"] = v8
-	table.insert(layouts, { v8, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 132, 0, 140), Size = UDim2.new(0, 112, 0, 22), TextSize = 13, Visible = true }, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 100, 0, 106), Size = UDim2.new(0, 82, 0, 16), TextSize = 10, Visible = true } })
+	table.insert(layouts, { v8, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 180, 0, 236), Size = UDim2.new(0, 164, 0, 22), TextSize = 13, Visible = true }, { AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 124, 0, 166), Size = UDim2.new(0, 118, 0, 16), TextSize = 10, Visible = true } })
 	local v9 = new("Frame", { Name = "Navigation", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 22, 0.45, 0), Size = UDim2.new(0, 160, 0, 226), Visible = true, BackgroundTransparency = 1 }, gui)
 	refs["Navigation"] = v9
 	table.insert(scales, { new("UIScale", {}, v9), 1, 1 })
