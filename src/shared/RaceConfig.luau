@@ -7,7 +7,7 @@
 local RaceConfig = {}
 
 RaceConfig.BASE_SPEED = 12 -- cruise speed at Speed stat 0 (owner 2026-10-20: much slower, was 30)
-RaceConfig.MAX_SPEED = 22 -- (owner 2026-10-20: harsher, was 28, before that 75) reference cruise speed at HALF_STAT; higher stats continue increasing beyond it
+RaceConfig.MAX_SPEED = 22 -- owner 2026-10-21: buffed from 18 (+5 studs/s per Speed doubling); reference speed at HALF_STAT, higher stats continue increasing beyond it
 RaceConfig.HALF_STAT = 5000 -- (owner 2026-10-20: was 1000) stat at which the cruise speed is halfway between BASE_SPEED and MAX_SPEED
 RaceConfig.GAIN_PER_STUD = 0.01 -- (owner 2026-10-20: 5x slower, was 0.05) stat gained per stud travelled, at every stat
 RaceConfig.MAX_STAT = 1e9 -- stability-test reference stat only, NOT a cap: the Speed stat has no cap (owner 2026-10-20)
@@ -29,25 +29,28 @@ function RaceConfig.CleanStat(stat)
 	return math.floor(stat * 1000 + 0.5) / 1000
 end
 
--- Cruise speed (studs/s) for a Speed stat and optional car multiplier. MAX_SPEED
--- is the midpoint reference, not a hard cap: higher stats keep adding speed with
--- diminishing returns so progression cannot get stuck at the car's old ceiling.
--- A multiplier above 1 is intentionally dampened with a power curve. The exponent is anchored so every
--- 1.1x multiplier produces exactly 1.01x cruise speed; large catalog values therefore stay useful without
--- turning into hundreds of times more speed. The displayed multiplier remains unchanged.
-local MULTI_SPEED_EXPONENT = math.log(1.01) / math.log(1.1)
-function RaceConfig.SpeedFor(stat, carSpeedMulti)
+-- Cruise speed (studs/s) for a Speed stat and optional Speed multi. The curve runs on the shown Speed
+-- (stat x multi, the full multi with no damping; owner 2026-10-21), so the same shown Speed always gives the same
+-- cruise speed. MAX_SPEED is the midpoint reference, not a hard cap: diminishing returns, never flat.
+function RaceConfig.SpeedFor(stat, speedMulti)
 	stat = cleanStat(stat) or 0
-	if type(carSpeedMulti) ~= "number" or carSpeedMulti ~= carSpeedMulti or carSpeedMulti <= 0 then
-		carSpeedMulti = 1
-	elseif carSpeedMulti > 1 then
-		carSpeedMulti = carSpeedMulti ^ MULTI_SPEED_EXPONENT
+	if type(speedMulti) ~= "number" or speedMulti ~= speedMulti or speedMulti <= 0 or speedMulti == math.huge then
+		speedMulti = 1
 	end
-	local cruise = RaceConfig.BASE_SPEED
+	return RaceConfig.BASE_SPEED
 		+ (RaceConfig.MAX_SPEED - RaceConfig.BASE_SPEED)
-			* math.log(1 + stat / RaceConfig.HALF_STAT)
+			* math.log(1 + math.min(stat * speedMulti, 1e308) / RaceConfig.HALF_STAT)
 			/ (2 * math.log(2))
-	return cruise * carSpeedMulti
+end
+
+-- Inverse of SpeedFor: the shown Speed at which the cruise speed reaches `speed` (studs/s). 0 at or
+-- below BASE_SPEED; math.huge when the answer is past what a double can hold. Gate signs show it (owner 2026-10-21).
+function RaceConfig.StatFor(speed)
+	if type(speed) ~= "number" or speed ~= speed or speed <= RaceConfig.BASE_SPEED then
+		return 0
+	end
+	local doublings = 2 * (speed - RaceConfig.BASE_SPEED) / (RaceConfig.MAX_SPEED - RaceConfig.BASE_SPEED)
+	return RaceConfig.HALF_STAT * (2 ^ doublings - 1)
 end
 
 -- Stat gained per second while driving at an ACTUAL speed (studs/s): proportional to the speed only. The stat

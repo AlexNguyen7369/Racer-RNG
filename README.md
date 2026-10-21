@@ -212,8 +212,11 @@ updates automatically whenever the board changes; do not edit this block by hand
 - **Build Server Luck (2x/4x/8x developer products)**: Design doc lists it; the Shop shows it as Coming soon (no Grants, receipt never granted).
 - **Gift buttons in the Shop**: References show gift buttons; not built.
 
-### Recently done (48)
+### Recently done (51)
 
+- ~~Gate signs: biome + recommended Speed~~ (2026-10-21)
+- ~~Shown Speed = base x car multi; cruise from shown Speed~~ (2026-10-21)
+- ~~Rebalance NPC speeds vs cruise curve~~ (2026-10-21)
 - ~~Decide: Shop/Market/Daily backdrops cover the HUD tiles~~ (2026-10-20)
 - ~~Smooth auto-race motion (soft rail)~~ (2026-10-15)
 - ~~Rebirth panel rebuild + 1 Rebirth Point per rebirth~~ (2026-10-15)
@@ -221,9 +224,6 @@ updates automatically whenever the board changes; do not edit this block by hand
 - ~~Duels: challenge another player to a race (request, accept/decline, track pick)~~ (2026-10-13)
 - ~~Global leaderboards in the spawn area~~ (2026-10-13)
 - ~~Roll odds shown divided by the roll's luck (weather, boosts)~~ (2026-10-13)
-- ~~Weather every 15 min, five weathers, bottom-right icon~~ (2026-10-13)
-- ~~Speed gain grows at an increasing rate~~ (2026-10-13)
-- ~~Best Roll Ever pedestal in the spawn area~~ (2026-10-13)
 
 <!-- TODO:END -->
 

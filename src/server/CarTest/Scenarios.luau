@@ -1589,13 +1589,11 @@ function Scenarios.race()
 		local okSetup = pcall(function()
 			Money.Setup(player)
 			PlayerData.Setup(player)
-			player.leaderstats.Speed.Value = startStat
+			player.BaseSpeed.Value = startStat -- base Speed (owner 2026-10-21); leaderstats.Speed is display only
 		end)
-		local speedValue = okSetup
-			and player:FindFirstChild("leaderstats")
-			and player.leaderstats:FindFirstChild("Speed")
+		local speedValue = okSetup and player:FindFirstChild("BaseSpeed")
 		if not speedValue then
-			st.err = "no leaderstats.Speed after PlayerData.Setup"
+			st.err = "no BaseSpeed after PlayerData.Setup"
 			car:Destroy()
 			player:Destroy()
 			return st
@@ -2020,7 +2018,7 @@ function Scenarios.flip_recovery()
 		local okSetup = pcall(function()
 			Money.Setup(player)
 			PlayerData.Setup(player)
-			player.leaderstats.Speed.Value = RaceConfig.HALF_STAT
+			player.BaseSpeed.Value = RaceConfig.HALF_STAT
 		end)
 		local okRun, run = false, nil
 		if okSetup then
@@ -2139,7 +2137,7 @@ function Scenarios.flip_recovery()
 		local okSetup = pcall(function()
 			Money.Setup(player)
 			PlayerData.Setup(player)
-			player.leaderstats.Speed.Value = RaceConfig.HALF_STAT
+			player.BaseSpeed.Value = RaceConfig.HALF_STAT
 		end)
 		local okRun, run = false, nil
 		if okSetup then
@@ -2204,9 +2202,10 @@ function Scenarios.flip_recovery()
 	fallTest("fall_below", -30)
 	fallTest("launched_above", 40)
 
-	-- High car multi: the fastest catalog car (SpeedMulti 2800, damped to about a 2.29x cruise factor) at a high
-	-- stat drives the whole track on its path, upright, never below the map. The stat is 200 x HALF_STAT (1e6 at
-	-- HALF_STAT 5000: cruise ~50 x 2.29 = ~115 studs/s).
+	-- High car multi: the fastest catalog car (SpeedMulti 2800) at a high stat drives the whole track on its path,
+	-- upright, never below the map. The stat is 200 x HALF_STAT (1e6 at HALF_STAT 5000). Owner 2026-10-21 (design
+	-- doc Core stat model, "multiplied Speed"): the full multi multiplies the stat (shown Speed = 2.8e9) and the
+	-- cruise formula runs on that, with no separate car multiplier after it (was 1 + log2(m) on the cruise speed).
 	local GachaService = serverModule("GachaService")
 	local CarCatalog = sharedModule("CarCatalog")
 	local fastApiOk = GachaService ~= nil
@@ -2240,7 +2239,7 @@ function Scenarios.flip_recovery()
 				GachaService.Setup(player)
 				GachaService.Grant(player, best.Id)
 				GachaService.Equip(player, best.Id)
-				player.leaderstats.Speed.Value = BIG_STAT
+				player.BaseSpeed.Value = BIG_STAT
 			end)
 		local okRun, run = false, nil
 		if okSetup then
@@ -2252,16 +2251,26 @@ function Scenarios.flip_recovery()
 			local chassis = car.PrimaryPart
 			local want = RaceConfig.SpeedFor(BIG_STAT, multi)
 			local ts = type(run.TargetSpeed) == "number" and run.TargetSpeed or -1
+			local okShown, shown = pcall(GachaService.ShownSpeedMulti, player)
+			shown = okShown and shown or nil
 			check(
 				checks,
-				"high_multi_target_is_damped_multi",
+				"high_multi_shown_multi_is_car_multi",
+				type(shown) == "number" and shown or -1,
+				multi,
+				type(shown) == "number" and math.abs(shown - multi) <= 1e-9 * multi
+			)
+			check(
+				checks,
+				"high_multi_target_is_shown_speed_cruise",
 				ts,
 				want,
 				math.abs(ts - want) <= 1e-6 * want
-					and math.abs(want - RaceConfig.SpeedFor(BIG_STAT) * multi ^ (math.log(1.01) / math.log(1.1)))
-						<= 1e-6 * want
+					and math.abs(want - RaceConfig.SpeedFor(BIG_STAT * multi)) <= 1e-6 * want
 			)
-			check(checks, "high_multi_target_at_least_written_speed", want, 100, want >= 100)
+			-- 2.8e9 shown Speed is past MAX_STAT, so this run is faster than the max-stat stability race
+			local maxStatSpeed = RaceConfig.SpeedFor(RaceConfig.MAX_STAT)
+			check(checks, "high_multi_target_above_max_stat_speed", want, maxStatSpeed, want > maxStatSpeed)
 			local len = 0
 			for i = 2, #wps do
 				len += (wps[i] - wps[i - 1]).Magnitude
@@ -2632,11 +2641,10 @@ function Scenarios.auto_toggle()
 	local okSetup = pcall(function()
 		Money.Setup(player)
 		PlayerData.Setup(player)
-		player.leaderstats.Speed.Value = 0
+		player.BaseSpeed.Value = 0
 	end)
 	local function speedRaw()
-		local stats = player:FindFirstChild("leaderstats")
-		local v = stats and stats:FindFirstChild("Speed")
+		local v = player:FindFirstChild("BaseSpeed") -- base Speed (owner 2026-10-21); leaderstats.Speed is display only
 		return v and v.Value or -1
 	end
 
@@ -2931,7 +2939,7 @@ function Scenarios.auto_toggle()
 		-- 6. Resume: a fresh car at Track 1's start, the stat exactly as it was, then 5 s of clean driving
 		local stoppedStat = speedRaw()
 		local minSeen = stoppedStat
-		local speedObj = player.leaderstats.Speed
+		local speedObj = player.BaseSpeed
 		local watch = speedObj:GetPropertyChangedSignal("Value"):Connect(function()
 			minSeen = math.min(minSeen, speedObj.Value)
 		end)
@@ -3527,7 +3535,7 @@ function Scenarios.economy()
 	end
 	local consts = {
 		BASE_SPEED = 12, -- owner 2026-10-20 (slower, harder balancing): was 30
-		MAX_SPEED = 22, -- owner 2026-10-20 (much harsher progression): was 28, before that 75
+		MAX_SPEED = 22, -- owner 2026-10-21 ("lower track requirements"): back to 22, +5 studs/s per doubling
 		HALF_STAT = 5000, -- owner 2026-10-20 (much harsher progression): was 1000
 		GAIN_PER_STUD = 0.01, -- owner 2026-10-20 (much harsher progression): was 0.05
 		MAX_STAT = 1e9,
@@ -3691,8 +3699,9 @@ function Scenarios.economy()
 	end
 	check(checks, "gain_at_cruise_increases_with_stat", inc and 1 or 0, 1, inc)
 
-	-- Car speed multi on the cruise speed uses a damped power curve anchored at 1.1x -> 1.01x;
-	-- m <= 1 and bad values are unchanged.
+	-- Owner 2026-10-21 (design doc Core stat model, "multiplied Speed"; replaces the 1 + log2(m) cruise multi):
+	-- shown Speed = base Speed x the full Speed multi (no damping), and the cruise formula runs on the shown Speed
+	-- with no separate multiplier after it. Bad, <= 0 or infinite multis count as 1.
 	local function sfm(x, m)
 		local ok, v = pcall(RaceConfig.SpeedFor, x, m)
 		return ok and v or nil
@@ -3700,35 +3709,52 @@ function Scenarios.economy()
 	local function rel(a, b)
 		return num(a) and num(b) and math.abs(a - b) <= 1e-9 * math.max(1, math.abs(b))
 	end
-	local dampedOk, dampedWorst = true, 0
-	local exponent = math.log(1.01) / math.log(1.1)
-	for _, s in { 0, half, 1e6, maxStat } do
-		for _, m in { 1.01, 1.5, 3, 10, 100, 2400, 2800, 1e6 } do
-			local v, want = sfm(s, m), (sf(s) or 0) * m ^ exponent
-			if not rel(v, want) then
-				dampedOk = false
+	local function formula(shown)
+		return base + (top - base) * math.log(1 + shown / half) / (2 * math.log(2))
+	end
+	local shownOk, shownWorst = true, 0
+	local multiFormulaOk = true
+	for _, x in { 0, 1, half, 1e6, maxStat } do
+		for _, m in { 0.25, 0.5, 0.9, 1, 1.01, 1.5, 2, 3, 10, 100, 2400, 2800, 1e6 } do
+			local v = sfm(x, m)
+			if not rel(v, sf(x * m)) then
+				shownOk = false
 			end
-			dampedWorst = math.max(dampedWorst, num(v) and math.abs(v - want) or math.huge)
+			if not rel(v, formula(x * m)) then
+				multiFormulaOk = false
+			end
+			shownWorst = math.max(shownWorst, num(v) and num(sf(x * m)) and math.abs(v - sf(x * m)) or math.huge)
 		end
 	end
-	check(checks, "speed_for_multi_is_damped", dampedWorst, 1e-9, dampedOk)
-	local doubleMultiOk = true
-	for _, s in { 0, 1, half, 1e5, maxStat } do
-		if not rel(sfm(s, 2), 2 ^ exponent * (sf(s) or -1)) then
-			doubleMultiOk = false
+	check(checks, "speed_for_multi_is_shown_speed", shownWorst, 1e-9, shownOk)
+	check(checks, "speed_for_multi_formula", multiFormulaOk and 1 or 0, 1, multiFormulaOk)
+	-- Same shown Speed -> same cruise speed, whatever (stat, multi) produced it (all products are 2e6)
+	local samePairs = { { 2e6, 1 }, { 1e6, 2 }, { 5e5, 4 }, { 1000, 2000 }, { 4e6, 0.5 } }
+	local sameShown = true
+	local ref = sfm(samePairs[1][1], samePairs[1][2])
+	for _, pair in samePairs do
+		if not rel(sfm(pair[1], pair[2]), ref) then
+			sameShown = false
 		end
 	end
-	check(checks, "speed_for_multi_two_is_damped", doubleMultiOk and 1 or 0, 1, doubleMultiOk)
-	check(checks, "speed_for_multi_two_at_zero", sfm(0, 2) or -1, 12 * 2 ^ exponent, rel(sfm(0, 2), 12 * 2 ^ exponent))
-	local want2800 = 12 * 2800 ^ exponent
-	check(checks, "speed_for_multi_2800_at_zero", sfm(0, 2800) or -1, want2800, rel(sfm(0, 2800), want2800))
-	check(checks, "speed_for_multi_2800_is_bounded", sfm(0, 2800) or -1, 36, sfm(0, 2800) < 36)
+	check(checks, "speed_for_same_shown_speed_same_cruise", sameShown and 1 or 0, 1, sameShown)
+	-- The multi multiplies the stat, so at stat 0 no multi adds speed (was: x2 at stat 0 gave 24)
+	local zeroStatOk = true
+	for _, m in { 2, 2800, 1e6 } do
+		if sfm(0, m) ~= base then
+			zeroStatOk = false
+		end
+	end
+	check(checks, "speed_for_multi_at_zero_stat_is_base", sfm(0, 2800) or -1, base, zeroStatOk)
+	-- No damping: SpeedMulti 2800 at HALF_STAT is shown Speed 2800 x HALF_STAT
+	local want2800 = formula(2800 * half)
+	check(checks, "speed_for_multi_2800_at_half_stat", sfm(half, 2800) or -1, want2800, rel(sfm(half, 2800), want2800))
 	local multis = { 1, 1.0001, 1.01, 1.5, 2, 3, 10, 100, 1000, 2600, 2800, 1e6, 1e12 }
 	local multiInc = true
-	for _, s in { 0, half, maxStat } do
+	for _, x in { 1, half, maxStat } do
 		local prevM = -1
 		for _, m in multis do
-			local v = sfm(s, m)
+			local v = sfm(x, m)
 			if not num(v) or v <= prevM then
 				multiInc = false
 			end
@@ -3736,18 +3762,23 @@ function Scenarios.economy()
 		end
 	end
 	check(checks, "speed_for_multi_strictly_increasing", multiInc and 1 or 0, 1, multiInc)
-	-- At or below 1 the multi is still linear (an aura or car below 1 slows the car by exactly that factor)
+	-- A multi below 1 lowers the shown Speed, so it slows the car, but never below BASE_SPEED
 	local lowOk = true
-	for _, s in { 0, half, 1e6 } do
-		for _, m in { 0.25, 0.5, 0.9, 1 } do
-			if not rel(sfm(s, m), (sf(s) or -1) * m) then
+	for _, x in { half, 1e6 } do
+		for _, m in { 0.25, 0.5, 0.9 } do
+			local v = sfm(x, m)
+			if not (num(v) and v < (sf(x) or -1) and v > base) then
 				lowOk = false
 			end
 		end
 	end
-	check(checks, "speed_for_multi_at_most_one_linear", lowOk and 1 or 0, 1, lowOk)
+	check(checks, "speed_for_multi_below_one_slower", lowOk and 1 or 0, 1, lowOk)
+	-- stat x multi past a double is clamped: still a finite, real speed
+	local over = sfm(maxStat, 1e300)
+	local overOk = num(over) and over < math.huge and over >= (sfm(maxStat, 1e290) or math.huge)
+	check(checks, "speed_for_multi_overflow_finite", overOk and over or -1, 1, overOk)
 	local badMultiOk = true
-	for _, m in { "nan", 0, -2, "2", true, {} } do
+	for _, m in { "nan", 0, -2, "2", true, {}, math.huge, -math.huge } do
 		local v = sfm(half, m == "nan" and 0 / 0 or m)
 		if not rel(v, sf(half)) then
 			badMultiOk = false
@@ -3755,6 +3786,49 @@ function Scenarios.economy()
 	end
 	badMultiOk = badMultiOk and rel(sfm(half, nil), sf(half))
 	check(checks, "speed_for_bad_multi_is_one", badMultiOk and 1 or 0, 1, badMultiOk)
+
+	-- StatFor(speed): the shown Speed whose cruise speed is `speed` (gate signs, owner 2026-10-21)
+	local statForOk = type(RaceConfig.StatFor) == "function"
+	check(checks, "stat_for_api_exists", statForOk and 1 or 0, 1, statForOk)
+	if statForOk then
+		local function stf(v)
+			local ok, r = pcall(RaceConfig.StatFor, v)
+			return ok and r or nil
+		end
+		local function close(a, b)
+			return num(a) and num(b) and math.abs(a - b) <= 1e-6 * math.max(1, math.abs(b))
+		end
+		local tripOk = true
+		for _, x in { 0, 1, 100, half, 1e6, maxStat, 1e12, 1e15 } do
+			if not close(stf(sf(x)), x) then
+				tripOk = false
+			end
+		end
+		check(checks, "stat_for_inverts_speed_for", tripOk and 1 or 0, 1, tripOk)
+		local backOk = true
+		for _, v in { base + 0.5, (base + top) / 2, top, 45, 112.5, 281.25 } do
+			if not close(sf(stf(v)), v) then
+				backOk = false
+			end
+		end
+		check(checks, "speed_for_inverts_stat_for", backOk and 1 or 0, 1, backOk)
+		check(
+			checks,
+			"stat_for_half_point_is_half_stat",
+			stf((base + top) / 2) or -1,
+			half,
+			close(stf((base + top) / 2), half)
+		)
+		local lowStatOk = stf(base) == 0 and stf(base - 5) == 0 and stf(0) == 0
+		for _, b in { "x", 0 / 0, true, {} } do
+			if stf(b) ~= 0 then
+				lowStatOk = false
+			end
+		end
+		lowStatOk = lowStatOk and stf(nil) == 0
+		check(checks, "stat_for_at_or_below_base_is_zero", lowStatOk and 1 or 0, 1, lowStatOk)
+		check(checks, "stat_for_past_double_is_huge", stf(1e6) == math.huge and 1 or 0, 1, stf(1e6) == math.huge)
+	end
 	return result("economy", checks, {})
 end
 
@@ -3796,10 +3870,10 @@ local function anyCountAttribute(player)
 end
 
 -- Data: PlayerData saves/loads Money and the float Speed stat through an injected store (no real DataStore is touched).
--- The current save version is 10 (docs/SAVE_SPEC.md, owner 2026-10-20: GiftMailbox/GiftReceipts; 9 was Receipts/Codes; 8 was session lock,
+-- The current save version is 11 (docs/SAVE_SPEC.md: RaceBestTimes; 10 was GiftMailbox/GiftReceipts; 9 was Receipts/Codes; 8 was session lock,
 -- MoneyEarned, DuelWins; 7 was market, rebirth/boosts/daily login, and level/XP); older versions still load.
 function Scenarios.data()
-	local DATA_VERSION = 10
+	local DATA_VERSION = 11 -- docs/SAVE_SPEC.md: VERSION 11 adds RaceBestTimes (NPC race personal bests)
 	local checks = {}
 	local PlayerData = serverModule("PlayerData")
 	local RaceConfig = sharedModule("RaceConfig")
@@ -3830,10 +3904,19 @@ function Scenarios.data()
 		table.insert(cleanup, p)
 		return p
 	end
+	-- "Speed" is the base Speed, player.BaseSpeed (owner 2026-10-21): it is what is earned, saved and loaded.
+	-- leaderstats.Speed is display only (base x ShownSpeedMulti) and is read through shownSpeed.
 	local function stat(p, name)
+		if name == "Speed" then
+			return p:FindFirstChild("BaseSpeed")
+		end
 		local stats = p:FindFirstChild("leaderstats")
 		local v = stats and stats:FindFirstChild(name)
 		return v
+	end
+	local function shownSpeed(p)
+		local stats = p:FindFirstChild("leaderstats")
+		return stats and stats:FindFirstChild("Speed")
 	end
 	local function val(p, name)
 		local v = stat(p, name)
@@ -3922,10 +4005,18 @@ function Scenarios.data()
 	)
 	check(
 		checks,
-		"setup_speed_numbervalue",
+		"setup_base_speed_numbervalue",
 		speed and speed.ClassName == "NumberValue" and 1 or 0,
 		1,
-		speed ~= nil and speed.ClassName == "NumberValue" and speed.Value == 0
+		speed ~= nil and speed.ClassName == "NumberValue" and speed.Value == 0 and speed.Parent == ps
+	)
+	local shownSetup = shownSpeed(ps)
+	check(
+		checks,
+		"setup_speed_numbervalue",
+		shownSetup and shownSetup.ClassName == "NumberValue" and 1 or 0,
+		1,
+		shownSetup ~= nil and shownSetup.ClassName == "NumberValue" and shownSetup.Value == 0
 	)
 
 	-- defaults
@@ -3978,6 +4069,78 @@ function Scenarios.data()
 	local p3 = newPlayer("CarTestDataP3")
 	PlayerData.Load(p3, 9002) -- a different user does not see it
 	check(checks, "other_user_isolated", val(p3, "Money") or -1, 0, val(p3, "Money") == 0 and val(p3, "Speed") == 0)
+
+	-- Owner 2026-10-21 (design doc Core stat model, "multiplied Speed"): leaderstats.Speed shows base Speed x
+	-- ShownSpeedMulti and follows AddSpeed and Equip; writing it never changes the stat; the save keeps the base.
+	local GachaForData = serverModule("GachaService")
+	local CatalogForData = sharedModule("CarCatalog")
+	local kartSpec = CatalogForData and CatalogForData.Get("go_kart")
+	local kartM = kartSpec and kartSpec.SpeedMulti or -1
+	local shownApiOk = GachaForData ~= nil and kartM > 1
+	check(checks, "shown_speed_api_exists", shownApiOk and 1 or 0, 1, shownApiOk)
+	if shownApiOk then
+		local shownStore = makeStore()
+		PlayerData.SetStore(shownStore)
+		local pm = newPlayer("CarTestDataShown")
+		PlayerData.Load(pm, 9050)
+		GachaForData.Setup(pm)
+		local added = PlayerData.AddSpeed(pm, 100)
+		task.wait() -- the display follows on the Changed / attribute signals (may be deferred)
+		local sv = shownSpeed(pm)
+		local function shownIs(want)
+			return sv ~= nil and math.abs(sv.Value - want) <= 1e-6 * math.max(1, want)
+		end
+		check(
+			checks,
+			"shown_speed_after_add_speed",
+			sv and sv.Value or -1,
+			100,
+			near(added, 100) and near(val(pm, "Speed"), 100) and shownIs(100)
+		)
+		GachaForData.Grant(pm, "go_kart")
+		GachaForData.Equip(pm, "go_kart")
+		task.wait()
+		check(
+			checks,
+			"shown_speed_after_equip",
+			sv and sv.Value or -1,
+			100 * kartM,
+			shownIs(100 * kartM) and near(val(pm, "Speed"), 100) and near(PlayerData.SpeedStat(pm), 100)
+		)
+		PlayerData.AddSpeed(pm, 50)
+		task.wait()
+		check(
+			checks,
+			"shown_speed_follows_base",
+			sv and sv.Value or -1,
+			150 * kartM,
+			shownIs(150 * kartM) and near(val(pm, "Speed"), 150)
+		)
+		if sv then
+			sv.Value = 999999 -- a display write: never the stat
+		end
+		task.wait()
+		check(
+			checks,
+			"shown_speed_write_not_stat",
+			PlayerData.SpeedStat(pm) or -1,
+			150,
+			near(PlayerData.SpeedStat(pm), 150) and near(val(pm, "Speed"), 150)
+		)
+		PlayerData.AddSpeed(pm, 10)
+		task.wait()
+		check(checks, "shown_speed_rewritten_on_change", sv and sv.Value or -1, 160 * kartM, shownIs(160 * kartM))
+		PlayerData.Save(pm, 9050)
+		local mrec = shownStore.data["Player_9050"]
+		check(
+			checks,
+			"saved_speed_is_base",
+			type(mrec) == "table" and mrec.Speed or -1,
+			160,
+			type(mrec) == "table" and near(mrec.Speed, 160)
+		)
+		PlayerData.SetStore(store)
+	end
 
 	-- sanitised save; Speed is rounded to 3 decimals
 	local cases = {
@@ -4055,6 +4218,49 @@ function Scenarios.data()
 			oksv and type(legacyRec) == "table" and legacyRec.Version == DATA_VERSION and legacyRec.Money == c.wantMoney
 		)
 	end
+
+	-- docs/SAVE_SPEC.md 2b (VERSION 11): RaceBestTimes, keyed by string track number, each a positive finite time in
+	-- seconds; invalid entries are discarded and older saves load (and save) an empty table
+	local bestStore = makeStore({
+		Player_9450 = {
+			Version = 11,
+			Money = 5,
+			Speed = 1,
+			RaceBestTimes = {
+				["1"] = 42.5,
+				["2"] = -3,
+				["3"] = "x",
+				["4"] = 0,
+				["5"] = math.huge,
+				abc = 5,
+				["6"] = 7.25,
+			},
+		},
+		Player_9451 = { Version = 10, Money = 5, Speed = 1 },
+	})
+	PlayerData.SetStore(bestStore)
+	for _, case in { { 9450, { ["1"] = 42.5, ["6"] = 7.25 }, "kept_valid" }, { 9451, {}, "older_save_empty" } } do
+		local pb = newPlayer("CarTestDataBest" .. case[1])
+		PlayerData.Load(pb, case[1])
+		local okb = PlayerData.Save(pb, case[1])
+		local times = type(bestStore.data["Player_" .. case[1]]) == "table"
+			and bestStore.data["Player_" .. case[1]].RaceBestTimes
+		local same = okb == true and type(times) == "table"
+		if same then
+			for k, v in times do
+				if case[2][k] ~= v then
+					same = false
+				end
+			end
+			for k, v in case[2] do
+				if times[k] ~= v then
+					same = false
+				end
+			end
+		end
+		check(checks, "race_best_times_" .. case[3], same and 1 or 0, 1, same)
+	end
+	PlayerData.SetStore(store)
 
 	-- failing store: get throws
 	local failStore = { sets = 0 }
@@ -5294,25 +5500,82 @@ function Scenarios.hud()
 		end
 	end
 	check(checks, "speed_text_bad_input_is_zero", badOk and 1 or 0, 1, badOk)
-	-- owner 2026-10-20: the Speed stat has no cap, so big stats show in full; infinity is not a stat and shows 0
+	-- owner 2026-10-20: the Speed stat has no cap; infinity is not a stat and shows 0. Owner 2026-10-21 (design doc
+	-- Core stat model): below HudFormat.SUFFIX_FROM (placeholder, 1e15 = 1 Qd) the number shows in full digits, from it
+	-- on with suffixes (HudFormat.Short) instead of endless digits.
+	local from = HudFormat.SUFFIX_FROM
+	local fromOk = type(from) == "number" and from == from and from >= 1000 and from < math.huge
+	check(checks, "speed_text_suffix_from_set", fromOk and from or -1, 1e15, fromOk)
 	local hugeOk = call(HudFormat.SpeedText, 5e9) == "5,000,000,000"
 		and call(HudFormat.SpeedText, 1e12) == "1,000,000,000,000"
-		and call(HudFormat.SpeedText, 1e15) == "1,000,000,000,000,000"
+		and call(HudFormat.SpeedText, 999999999999999) == "999,999,999,999,999"
 		and call(HudFormat.SpeedText, math.huge) == "0"
-	local big = call(HudFormat.SpeedText, 1e30)
-	hugeOk = hugeOk
-		and type(big) == "string"
-		and #string.gsub(big, ",", "") == 31
-		and string.match(big, "^[%d,]+$") ~= nil
 	check(checks, "speed_text_huge_not_clamped", hugeOk and 1 or 0, 1, hugeOk)
 	local sciOk = true
-	for _, v in { 1e6, 1e9, 1e15, 1e30, math.huge, 123456.789 } do
+	for _, v in { 1e6, 1e9, 1e12, 999999999999999, 123456.789 } do
 		local s = call(HudFormat.SpeedText, v)
 		if type(s) ~= "string" or string.find(s, "[eE%.]") or string.find(s, "inf") then
 			sciOk = false
 		end
 	end
 	check(checks, "speed_text_no_scientific", sciOk and 1 or 0, 1, sciOk)
+	local shortApi = type(HudFormat.Short) == "function"
+	check(checks, "short_api_exists", shortApi and 1 or 0, 1, shortApi)
+	if shortApi then
+		local shortCases = {
+			{ 0, "0" },
+			{ 999, "999" },
+			{ 12.7, "12" },
+			{ 1000, "1K" },
+			{ 1500, "1.5K" },
+			{ 123456, "123K" },
+			{ 999960, "1M" }, -- 999.96K rounds up to the next suffix, never "1000K"
+			{ 10.2e6, "10.2M" },
+			{ 1e9, "1B" },
+			{ 1e12, "1T" },
+			{ 1e15, "1Qd" },
+			{ 4.5e15, "4.5Qd" },
+			{ 2.5e18, "2.5Qt" },
+			{ 1e21, "1Sx" },
+			{ 1e24, "1Sp" },
+			{ 1e27, "1Oc" },
+			{ 1e30, "1No" },
+			{ 1.5e33, "1.5Dc" },
+			{ 1.2e45, "1.2e45" }, -- past Dc: scientific
+			{ math.huge, "inf" },
+		}
+		local shortOk, firstBad = true, nil
+		for _, c in shortCases do
+			if call(HudFormat.Short, c[1]) ~= c[2] then
+				shortOk = false
+				firstBad = firstBad or c[2]
+			end
+		end
+		check(checks, "short_suffix_format", shortOk and 1 or 0, 1, shortOk)
+		local shortBad = true
+		for _, b in { 0 / 0, -1, -math.huge, "5", true, {} } do
+			if call(HudFormat.Short, b) ~= "0" then
+				shortBad = false
+			end
+		end
+		shortBad = shortBad and call(HudFormat.Short, nil) == "0"
+		check(checks, "short_bad_input_is_zero", shortBad and 1 or 0, 1, shortBad)
+		-- SpeedText switches to Short at SUFFIX_FROM: full digits just below it, Short at and above it
+		local switchOk = fromOk
+		if fromOk then
+			for _, v in { from, from * 1.5, 1e18, 1e30, 1.2e45 } do
+				if v >= from and call(HudFormat.SpeedText, v) ~= call(HudFormat.Short, v) then
+					switchOk = false
+				end
+			end
+			local below = call(HudFormat.SpeedText, from - 1)
+			switchOk = switchOk and type(below) == "string" and string.match(below, "^[%d,]+$") ~= nil
+		end
+		switchOk = switchOk
+			and call(HudFormat.SpeedText, 1e15) == "1Qd"
+			and call(HudFormat.SpeedText, 2.5e18) == "2.5Qt"
+		check(checks, "speed_text_suffix_from_switch", switchOk and 1 or 0, 1, switchOk)
+	end
 
 	local rateOk = true
 	for _, s in { 0, 250, 1000, 5000, 1e5, 1e9 } do
@@ -6423,6 +6686,52 @@ function Scenarios.index()
 			1,
 			nearly(GachaService.SpeedMulti(eq), 1)
 		)
+		-- Owner 2026-10-21 (design doc Core stat model, "multiplied Speed"): shown Speed multi = equipped car's full
+		-- SpeedMulti x the aura's, published as the ShownSpeedMulti attribute (the HUD Speed = base Speed x it)
+		local kart = CarCatalog.Get("go_kart")
+		local kartMulti = kart and kart.SpeedMulti or -1
+		local MarketConfig = sharedModule("MarketConfig")
+		local aura = MarketConfig and MarketConfig.Get("Aura", "azure_aura")
+		local auraMulti = aura and aura.SpeedMulti or -1
+		local shownFnOk = type(GachaService.ShownSpeedMulti) == "function"
+		check(checks, "shown_speed_multi_api_exists", shownFnOk and 1 or 0, 1, shownFnOk)
+		task.wait() -- attribute listeners may run deferred
+		local shownCar = eq:GetAttribute("ShownSpeedMulti")
+		check(
+			checks,
+			"shown_speed_multi_is_equipped_car",
+			type(shownCar) == "number" and shownCar or -1,
+			kartMulti,
+			type(shownCar) == "number"
+				and kartMulti > 0
+				and nearly(shownCar, kartMulti)
+				and shownFnOk
+				and nearly(call(GachaService.ShownSpeedMulti, eq), kartMulti)
+		)
+		eq:SetAttribute("EquippedAura", "azure_aura")
+		task.wait()
+		local shownAura = eq:GetAttribute("ShownSpeedMulti")
+		check(
+			checks,
+			"shown_speed_multi_times_aura",
+			type(shownAura) == "number" and shownAura or -1,
+			kartMulti * auraMulti,
+			type(shownAura) == "number" and auraMulti > 1 and nearly(shownAura, kartMulti * auraMulti)
+		)
+		eq:SetAttribute("EquippedAura", nil)
+		GachaService.Equip(eq, "starter")
+		task.wait()
+		local starter = CarCatalog.Get("starter")
+		local starterMulti = starter and starter.SpeedMulti or 1
+		local shownBack = eq:GetAttribute("ShownSpeedMulti")
+		check(
+			checks,
+			"shown_speed_multi_follows_reequip",
+			type(shownBack) == "number" and shownBack or -1,
+			starterMulti,
+			type(shownBack) == "number" and nearly(shownBack, starterMulti)
+		)
+		GachaService.Equip(eq, "go_kart")
 		-- Car model affects cruise speed, not the Speed gain multiplier.
 		GachaService.Equip(p, "go_kart")
 		check(
@@ -6521,7 +6830,7 @@ function Scenarios.index()
 			results[k] = {
 				player = player,
 				chassis = car.PrimaryPart,
-				speedValue = player.leaderstats.Speed,
+				speedValue = player.BaseSpeed, -- base Speed (owner 2026-10-21)
 				integral = 0,
 				target = run.TargetSpeed,
 			}
@@ -6727,7 +7036,7 @@ local function newNpcRacer(api, route, startCF, tag, stat, speeds, carGroup)
 	local okSetup = pcall(function()
 		api.Money.Setup(player)
 		api.PlayerData.Setup(player)
-		player.leaderstats.Speed.Value = stat
+		player.BaseSpeed.Value = stat
 	end)
 	if not okSetup then
 		r.err = "PlayerData.Setup failed"
@@ -6968,15 +7277,22 @@ function Scenarios.npc()
 			local s1 = isFiniteNumber(infos[1].Speed) and infos[1].Speed or math.huge
 			local s1Beats = isFiniteNumber(infos[1].Speed) and s1 > RaceConfig.BASE_SPEED
 			check(checks, "npc_track1_beats_beginner", s1, RaceConfig.BASE_SPEED, s1Beats)
+			-- Owner 2026-10-21 ("lower track requirements", replaces "substantially harder" >= 3x BASE_SPEED and the
+			-- fixed x2.5 growth): Track 1 = NpcConfig.BASE_SPEED, x SPEED_GROWTH per track (placeholders, read live),
+			-- and Track 1 must not need ~10M Speed: its recommended shown Speed is below 10,000.
+			local cfgBase, cfgGrowth = NpcConfig.BASE_SPEED, NpcConfig.SPEED_GROWTH
 			check(
 				checks,
-				"npc_track1_is_substantially_harder",
+				"npc_track1_is_config_base",
 				s1,
-				RaceConfig.BASE_SPEED * 3,
-				s1 >= RaceConfig.BASE_SPEED * 3
+				isFiniteNumber(cfgBase) and cfgBase or -1,
+				isFiniteNumber(cfgBase) and math.abs(s1 - cfgBase) <= 1e-6
 			)
 			local growth = infos[2].Speed / infos[1].Speed
-			check(checks, "npc_speed_growth_is_hard", growth, 2.5, math.abs(growth - 2.5) <= 1e-6)
+			local growthOk = isFiniteNumber(cfgGrowth) and cfgGrowth > 1 and math.abs(growth - cfgGrowth) <= 1e-6
+			check(checks, "npc_speed_growth_is_config", growth, isFiniteNumber(cfgGrowth) and cfgGrowth or -1, growthOk)
+			local rec1 = type(RaceConfig.StatFor) == "function" and RaceConfig.StatFor(s1) or math.huge
+			check(checks, "npc_track1_rec_speed_below_10k", rec1, 10000, rec1 > 0 and rec1 < 10000)
 			check(
 				checks,
 				"npc_label_track1",
@@ -8499,7 +8815,7 @@ function Scenarios.spawn_area()
 	local okSetup = pcall(function()
 		Money.Setup(player)
 		PlayerData.Setup(player)
-		player.leaderstats.Speed.Value = 0
+		player.BaseSpeed.Value = 0
 	end)
 	check(checks, "spawn_fake_player_setup", okSetup and 1 or 0, 1, okSetup)
 
@@ -9068,7 +9384,7 @@ local function adminSnap(p)
 	local s = {}
 	local ls = p:FindFirstChild("leaderstats")
 	local money = ls and ls:FindFirstChild("Money")
-	local speed = ls and ls:FindFirstChild("Speed")
+	local speed = p:FindFirstChild("BaseSpeed") -- the base Speed (owner 2026-10-21)
 	s.Money = money and money.Value or "none"
 	s.Speed = speed and speed.Value or "none"
 	local names = {}
@@ -9357,7 +9673,7 @@ function Scenarios.admin()
 		local idA, idB = ids[1], ids[2]
 		GachaService.Grant(stranger, idA)
 		stranger.leaderstats.Money.Value = 777
-		stranger.leaderstats.Speed.Value = 12.5
+		stranger.BaseSpeed.Value = 12.5
 		local nonAdminCmds = {
 			"/help",
 			"/money 5",
@@ -9397,6 +9713,7 @@ function Scenarios.admin()
 		-- Admin: every command
 		local p = listed
 		local ls = p.leaderstats
+		local base = p.BaseSpeed -- /speed and /addspeed set the base Speed (owner 2026-10-21)
 		local function rejected(name, text)
 			local b = adminSnap(p)
 			local ok = admin(p, text)
@@ -9533,11 +9850,11 @@ function Scenarios.admin()
 			"admin_speed_set_3_decimals",
 			"/speed 12.3454",
 			function()
-				return ls.Speed.Value
+				return base.Value
 			end,
 			12.345,
 			function()
-				return math.abs(ls.Speed.Value - 12.345) <= 1e-6
+				return math.abs(base.Value - 12.345) <= 1e-6
 			end
 		)
 		-- owner 2026-10-20: the Speed stat has no cap; MAX_STAT (1e9) is only a test reference, never a clamp
@@ -9545,66 +9862,66 @@ function Scenarios.admin()
 			"admin_speed_above_max_stat_kept",
 			"/speed 1e12",
 			function()
-				return ls.Speed.Value
+				return base.Value
 			end,
 			1e12,
 			function()
-				return ls.Speed.Value == 1e12 and ls.Speed.Value > MAX_STAT
+				return base.Value == 1e12 and base.Value > MAX_STAT
 			end
 		)
 		accepted(
 			"admin_speed_1e15_kept",
 			"/speed 1e15",
 			function()
-				return ls.Speed.Value
+				return base.Value
 			end,
 			1e15,
 			function()
-				return ls.Speed.Value == 1e15
+				return base.Value == 1e15
 			end
 		)
 		accepted(
 			"admin_speed_clamp_zero",
 			"/speed -3",
 			function()
-				return ls.Speed.Value
+				return base.Value
 			end,
 			0,
 			function()
-				return ls.Speed.Value == 0
+				return base.Value == 0
 			end
 		)
 		accepted(
 			"admin_speed_set",
 			"/speed 10 me",
 			function()
-				return ls.Speed.Value
+				return base.Value
 			end,
 			10,
 			function()
-				return ls.Speed.Value == 10
+				return base.Value == 10
 			end
 		)
 		accepted(
 			"admin_addspeed",
 			"/addspeed 2.5",
 			function()
-				return ls.Speed.Value
+				return base.Value
 			end,
 			12.5,
 			function()
-				return math.abs(ls.Speed.Value - 12.5) <= 1e-6
+				return math.abs(base.Value - 12.5) <= 1e-6
 			end
 		)
 		accepted(
 			"admin_addspeed_3_decimals",
 			"/addspeed 0.0014",
 			function()
-				return ls.Speed.Value
+				return base.Value
 			end,
 			12.501,
 			function()
-				local v = ls.Speed.Value
+				local v = base.Value
 				return math.abs(v * 1000 - math.round(v * 1000)) <= 1e-6 and math.abs(v - 12.501) <= 1e-6
 			end
 		)
@@ -9612,25 +9929,25 @@ function Scenarios.admin()
 			"admin_addspeed_past_max_stat_not_clamped",
 			"/addspeed 2e9",
 			function()
-				return ls.Speed.Value
+				return base.Value
 			end,
 			2e9 + 12.501,
 			function()
-				return math.abs(ls.Speed.Value - (2e9 + 12.501)) <= 1e-3 and ls.Speed.Value > MAX_STAT
+				return math.abs(base.Value - (2e9 + 12.501)) <= 1e-3 and base.Value > MAX_STAT
 			end
 		)
 		accepted(
 			"admin_addspeed_clamp_zero",
 			"/addspeed -5e9",
 			function()
-				return ls.Speed.Value
+				return base.Value
 			end,
 			0,
 			function()
-				return ls.Speed.Value == 0
+				return base.Value == 0
 			end
 		)
-		ls.Speed.Value = 7
+		base.Value = 7
 		rejected("admin_speed_junk_false", "/speed fast")
 		rejected("admin_speed_inf_false", "/speed inf")
 		rejected("admin_speed_nan_false", "/speed nan")
@@ -9719,17 +10036,17 @@ function Scenarios.admin()
 
 		-- wipe
 		ls.Money.Value = 999
-		ls.Speed.Value = 50
+		base.Value = 50
 		accepted(
 			"admin_wipe",
 			"/wipe",
 			function()
-				return ls.Money.Value + ls.Speed.Value + ownedCount() + allocSum() + math.max(rolls(), 0)
+				return ls.Money.Value + base.Value + ownedCount() + allocSum() + math.max(rolls(), 0)
 			end,
 			0,
 			function()
 				return ls.Money.Value == 0
-					and ls.Speed.Value == 0
+					and base.Value == 0
 					and ownedCount() == 0
 					and allocSum() == 0
 					and rolls() == 0
@@ -12700,14 +13017,13 @@ function Scenarios.workshop()
 		end
 		return n
 	end
+	-- The base Speed, player.BaseSpeed (owner 2026-10-21): the workshop adds to it; leaderstats.Speed is display only
 	local function speedOf(p)
-		local ls = p:FindFirstChild("leaderstats")
-		local s = ls and ls:FindFirstChild("Speed")
+		local s = p:FindFirstChild("BaseSpeed")
 		return s and s.Value or nil
 	end
 	local function setSpeed(p, v)
-		local ls = p:FindFirstChild("leaderstats")
-		local s = ls and ls:FindFirstChild("Speed")
+		local s = p:FindFirstChild("BaseSpeed")
 		if s then
 			s.Value = v
 		end

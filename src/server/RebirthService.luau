@@ -15,7 +15,7 @@ RebirthService.REMOTE_COOLDOWN = 0.5
 
 local function stats(player)
 	local folder = player:FindFirstChild("leaderstats")
-	return folder, folder and folder:FindFirstChild("Money"), folder and folder:FindFirstChild("Speed")
+	return folder, folder and folder:FindFirstChild("Money"), player:FindFirstChild("BaseSpeed") -- base, not the shown leaderstats.Speed
 end
 
 -- GachaService owns StatPoints; required lazily because it is loaded after this module in some start orders

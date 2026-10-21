@@ -1,17 +1,63 @@
 # Agent handoff
 
+## NPC race progress map + personal best — 2026-10-21 (Codex, uncommitted)
+
+- Owner: Codex. Added `docs/RACE_PROGRESS_MAP_SPEC.md` and the HUD/design/save
+  contract for a private current-track NPC race map with per-track PBs.
+- Code: `src/shared/RaceProgressMap.luau` (ordered 3D projection and X/Z map
+  normalization), `src/server/RaceTimeService.luau` (sanitized private PB state),
+  `src/client/RaceProgressMap.client.luau` (render-frame dots/timer/headshot map).
+- Integrated `RaceService` Start/Result payloads and authoritative win-only PB
+  recording; `PlayerData` now persists `RaceBestTimes` and VERSION 11.
+- Added the responsive `RaceMap` shell to `ui/specs/RacerHud.ui.json` and regenerated
+  the HUD module/generated Studio script/previews. Runtime rebuilds the stale baked
+  StarterGui from the new spec hash.
+- Verification: UI verifier passed; StyLua and Selene passed for changed Luau;
+  `rojo build default.project.json` passed; `git diff --check` passed.
+- Studio Edit bake completed: `ui/generated/RacerHud.studio.luau` rebuilt StarterGui
+  with 158 instances and spec hash `ab2dce081f07`. The local export helper could not
+  run through the Studio bridge because its `@lune/fs` dependency is unavailable;
+  the existing baked asset remains stale, but runtime hash rebuild is verified.
+- Live Play verification passed: starting AutoRace showed the map, `TRACK01_NPC`,
+  `TIME 00:02.82`, `PB --`, `EVEN`, 95 route/dot children including `YOU` and `NPC`;
+  stopping AutoRace hid it. Server-side RaceTimeService sanitization, PB creation,
+  and slower-time rejection also passed with a focused harness call.
+- Full CarTest and binary StarterGui export remain unrun/unavailable through the
+  current bridge. Studio is stopped and free.
+
+## Gate signs + multiplied Speed rule — 2026-10-21 (Claude, main, uncommitted)
+
+- Owner: gate signs show biome + recommended Speed; new design-doc rule (Core stat model + Track environments,
+  BIOME_DRESSING_SPEC Gate): shown Speed = base x full car multi, cruise = SpeedFor(shown), suffixes Qd/Qt.
+- Done: `BiomeDressing` sign (SurfaceGui `GateSignGui`), `RaceConfig.StatFor`, `HudFormat.Short`. Verified live.
+- Shown Speed done: `GachaService.ShownSpeedMulti` -> attribute `ShownSpeedMulti`; HUD + profile Speed = base x it;
+  `RaceConfig.SpeedFor` = curve(stat x multi), no log2 damping; `HudFormat.SpeedText` suffixes from 1e15. Live OK.
+- Then (owner): all Speed visuals shown. Base Speed is now `player.BaseSpeed`; `leaderstats.Speed` = base x multi
+  (display only; writing it changes nothing). Live check OK (starter 723, Singularity 361,541 from base 578).
+- Balance (owner): MAX_SPEED 22, NPC 15 studs/s x1.37 per track; gate rec. Speed T1 2,578 ... T10 2.14Qt (live).
+- Leaderboard (owner): the Speed board stays each player's best shown Speed ever.
+- Tests (test-writer, NOT run; owner said skip the physics run for now): old log2 / SpeedText(1e15) / NPC 45 x2.5
+  checks rewritten; every CarTest stat read/write moved to `player.BaseSpeed`; new checks for shown Speed, StatFor,
+  suffixes, gate signs (EnvironmentTests), rebirth, leaderboard; save VERSION 11 expectations (Codex's RaceBestTimes)
+  in Scenarios, ShopPurchaseTests, ExpansionTests, Phase2Tests, GiftTests, plus RaceBestTimes round-trip checks.
+  UiTest only reads leaderstats.Speed (now shown): unchanged. tests_explained.json updated.
+- Studio: stopped, free. Codex cleared to continue.
+- Next: full CarTest when the owner wants it (expect first-run fixes: signal timing on shown-Speed checks), then
+  commit + progress-tracker.
+
 ## Codex — NPC difficulty and damped car speed multipliers — 2026-10-20
 
-- Owner request: make track NPCs harder to beat and make car speed multipliers non-linear. The first linear
-  interpretation (`1 + (SpeedMulti - 1) * 0.1`) made Singularity's 2800x multiplier catastrophically fast.
-- Codex changed `src/shared/RaceConfig.luau` to a power curve with exponent `log(1.01)/log(1.1)`: 1.1x is
-  exactly 1.01x speed, while 2800x is about 2.29x. Updated the matching economy/high-multiplier assertions in
-  `src/server/CarTest/Scenarios.luau` and the rule text in `docs/GAME_DESIGN_REQUIREMENTS.md`.
+- Owner follow-up: the power curve was too slow. Restored the prior logarithmic multiplier behavior
+  (`m > 1` becomes `1 + log2(m)`), and reduced stat-based cruise scaling by changing `RaceConfig.MAX_SPEED`
+  from 22 to 18. Singularity is documented and implemented as `SpeedMulti = 500`; the 2800x catalog entry is
+  Dream Drummer, not Singularity.
+- Updated `src/shared/RaceConfig.luau`, the economy/high-multiplier assertions in `src/server/CarTest/Scenarios.luau`,
+  and the matching rule text in `docs/GAME_DESIGN_REQUIREMENTS.md`.
 - After Studio became free, Codex tuned the owned NPC files: `NpcConfig.BASE_SPEED` is now 45 (from 30) and
   `SPEED_GROWTH` is now 2.5 (from 2), with matching updates to `NPC_RACER_SPEC`, `GAME_DESIGN_REQUIREMENTS`,
   and the NPC scenario assertions. Track 1 is now 3.75x the stat-0 starter cruise speed; Track 2 is 112.5 studs/s.
 - Static checks: `git diff --check`, StyLua, Selene, and `rojo build` passed. Selene has only existing shadowing
-  warnings at Scenarios lines 4214 and 5349. Studio economy/NPC scenarios still need a targeted run after this change.
+  warnings at Scenarios lines 4210 and 5345. Studio economy/NPC scenarios still need a targeted run after this change.
 
 ## Harder NPCs + imported NPC models — 2026-10-20 (Claude, main, uncommitted)
 

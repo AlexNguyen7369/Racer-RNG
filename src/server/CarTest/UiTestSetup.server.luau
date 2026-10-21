@@ -33,6 +33,9 @@ local progressionSnapshots = {}
 local weatherSnapshot = nil
 
 local function stat(player, name)
+	if name == "Speed" then
+		return player:FindFirstChild("BaseSpeed") -- the base Speed; leaderstats.Speed is display only (owner 2026-10-21)
+	end
 	local stats = player:FindFirstChild("leaderstats")
 	return stats and stats:FindFirstChild(name)
 end

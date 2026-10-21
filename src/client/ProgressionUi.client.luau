@@ -6,6 +6,11 @@ local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local player = Players.LocalPlayer
+-- Speed amounts show in shown units: base x equipped multis (design doc Core stat model, owner 2026-10-21).
+local function shownMulti()
+	local multi = player:GetAttribute("ShownSpeedMulti")
+	return type(multi) == "number" and multi > 0 and multi < math.huge and multi or 1
+end
 local gui = player:WaitForChild("PlayerGui")
 local shared = ReplicatedStorage:WaitForChild("Shared")
 local Tree = require(shared.UpgradeTree)
@@ -345,9 +350,10 @@ local function refresh()
 	buyWorkshop.Selectable = buyWorkshop.Active
 	buyWorkshop.BackgroundColor3 = buyWorkshop.Active and GREEN or DARK
 	local inWorkshop = player:GetAttribute("InWorkshop") == true
+	local rate = (player:GetAttribute("WorkshopRate") or 0) * shownMulti()
 	workshopRate.Text = string.format(
-		"Current gain  +%.1f Speed/s%s",
-		player:GetAttribute("WorkshopRate") or 0,
+		"Current gain  +%s Speed/s%s",
+		rate >= 1000 and Format.SpeedText(rate) or string.format("%.1f", rate),
 		inWorkshop and "  •  ACTIVE" or ""
 	)
 	workshopRate.TextColor3 = inWorkshop and GREEN or Color3.fromRGB(160, 174, 195)
@@ -378,7 +384,7 @@ local function refreshWelcome()
 		Switch.Close("Welcome")
 		lastCredit = nil
 	end
-	earnings.Text = string.format("+%s Speed earned while away", Format.SpeedText(credit))
+	earnings.Text = string.format("+%s Speed earned while away", Format.SpeedText(credit * shownMulti()))
 	away.Text = string.format(
 		"Away %dh %dm %ds • 25%% gain • 8h maximum",
 		math.floor(seconds / 3600),
@@ -393,10 +399,10 @@ local function refreshWelcome()
 		end
 	end
 end
-for _, attr in { "BestTrack", "UpgradesBuyable", "WorkshopLevel", "InWorkshop", "WorkshopRate" } do
+for _, attr in { "BestTrack", "UpgradesBuyable", "WorkshopLevel", "InWorkshop", "WorkshopRate", "ShownSpeedMulti" } do
 	player:GetAttributeChangedSignal(attr):Connect(refresh)
 end
-for _, attr in { "OfflineSpeed", "OfflineSeconds" } do
+for _, attr in { "OfflineSpeed", "OfflineSeconds", "ShownSpeedMulti" } do
 	player:GetAttributeChangedSignal(attr):Connect(refreshWelcome)
 end
 task.spawn(function()

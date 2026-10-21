@@ -25,11 +25,12 @@ local LevelService = require(script.Parent.LevelService)
 local QuestService = require(script.Parent.QuestService)
 local ShopService = require(script.Parent.ShopService)
 local GiftMailbox = require(script.Parent.GiftMailbox)
+local RaceTimeService = require(script.Parent.RaceTimeService)
 
 local PlayerData = {}
 
 local STORE_NAME = "PlayerStats_v1"
-local VERSION = 10 -- 10: durable gift mailbox and delivered receipt ids
+local VERSION = 11 -- 11: per-track NPC race personal bests
 -- 8: session lock, MoneyEarned, DuelWins; 9: Receipts, Codes (docs/SAVE_SPEC.md)
 local MAX_MONEY = 1e12
 local MAX_ADD = 1e6 -- most a single AddSpeed call may add
@@ -114,25 +115,47 @@ local function cleanStat(value)
 	return RaceConfig.CleanStat(value) or 0
 end
 
+local shownWired = setmetatable({}, { __mode = "k" }) -- players whose leaderstats.Speed follows BaseSpeed
+
+-- The base Speed (earned, saved, reset by rebirth) is player.BaseSpeed. leaderstats.Speed is display only: base x
+-- the ShownSpeedMulti attribute (equipped car x aura), so the HUD and player list show Speed after what the player
+-- equips (design doc Core stat model, owner 2026-10-21).
 local function speedValue(player)
+	local base = player:FindFirstChild("BaseSpeed")
+	if not base then
+		base = Instance.new("NumberValue")
+		base.Name = "BaseSpeed"
+		base.Value = 0
+		base.Parent = player
+	end
 	local stats = player:FindFirstChild("leaderstats")
 	if not stats then
 		stats = Instance.new("Folder")
 		stats.Name = "leaderstats"
 		stats.Parent = player
 	end
-	local speed = stats:FindFirstChild("Speed")
-	if not speed then
-		speed = Instance.new("NumberValue")
-		speed.Name = "Speed"
-		speed.Value = 0
-		speed.Parent = stats
+	local shown = stats:FindFirstChild("Speed")
+	if not shown then
+		shown = Instance.new("NumberValue")
+		shown.Name = "Speed"
+		shown.Parent = stats
 	end
-	return speed
+	if not shownWired[player] then
+		shownWired[player] = true
+		local function refresh()
+			local multi = player:GetAttribute("ShownSpeedMulti")
+			shown.Value = base.Value * (type(multi) == "number" and multi > 0 and multi < math.huge and multi or 1)
+		end
+		base.Changed:Connect(refresh)
+		player:GetAttributeChangedSignal("ShownSpeedMulti"):Connect(refresh)
+		refresh()
+	end
+	return base
 end
 
--- Creates leaderstats with Money and Speed (idempotent). Works on any Instance.
+-- Creates leaderstats with Money and Speed plus BaseSpeed (idempotent); returns BaseSpeed. Works on any Instance.
 function PlayerData.Setup(player)
+	RaceTimeService.Setup(player)
 	LevelService.Setup(player)
 	MoneyService.Setup(player)
 	RebirthService.Setup(player)
@@ -170,6 +193,7 @@ function PlayerData.Load(player, userId)
 		BoostService.Apply(player, data)
 		DailyLoginService.Apply(player, data)
 		QuestService.Apply(player, data)
+		RaceTimeService.Apply(player, data)
 		LevelService.Apply(player, data)
 		ShopService.Apply(player, data) -- version 8 and older: no receipts, no codes
 		giftReceipts[player] = type(data.GiftReceipts) == "table" and table.clone(data.GiftReceipts) or {}
@@ -331,6 +355,7 @@ local function save(player, userId, release)
 		Receipts = shop.Receipts,
 		Codes = shop.Codes,
 		Checkpoint = cleanInt(player:GetAttribute("Checkpoint"), 1, MAX_DUEL_WINS, 1),
+		RaceBestTimes = RaceTimeService.Snapshot(player),
 		OfflineAt = clock(),
 		Version = VERSION,
 	}
@@ -379,8 +404,7 @@ end
 
 -- The player's Speed stat, a finite number >= 0 (0 if they have none).
 function PlayerData.SpeedStat(player)
-	local stats = player:FindFirstChild("leaderstats")
-	local speed = stats and stats:FindFirstChild("Speed")
+	local speed = player:FindFirstChild("BaseSpeed")
 	return cleanStat(speed and speed.Value)
 end
 

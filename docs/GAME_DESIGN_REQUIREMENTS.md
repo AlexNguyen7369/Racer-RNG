@@ -166,10 +166,9 @@ Idle Vehicle Simulator — Game Design Requirements
        races at its own speed everywhere on the chain. This must stay stable (no flips, no tilt,
        on the path) up to the test reference stat MAX_STAT. The NPC opponents are unchanged.
        Owner decision, 2026-10-20 (slower, harder balancing): cruise speed is much slower
-       (placeholders BASE_SPEED 12, MAX_SPEED 28: +8 studs/s per doubling of Speed, still no
-       cap). The car's speed multi is dampened with a power curve anchored at 1.1x = 1.01x cruise
-       speed; large catalog values remain useful without becoming hundreds of times faster. The multi shown
-       on the car is unchanged. Each
+       (placeholders BASE_SPEED 12, MAX_SPEED 18: +3 studs/s per doubling of Speed, still no
+       cap). The car's speed multi has diminishing returns: a multi m above 1 counts as 1 + log2(m)
+       in the cruise formula (2x stays 2x); the multi shown on the car is unchanged. Each
        next track's NPC is twice as fast as the
        one before (placeholders: Track 1 = 9 studs/s, x2 per track). A car that leaves the road
        (more than 2 studs under it or 8 studs over it) is put back on it, so no speed drops a
@@ -182,6 +181,30 @@ Idle Vehicle Simulator — Game Design Requirements
        Beginners are expected to lose Track 1 until they build Speed or roll a faster car.
        Placeholders: Track 1 NPC = 45 studs/s (was 30, formerly 9), x2.5 per track. NPCs on tracks 1-10
        drive imported car models, and their label shows from 200 studs.
+       Owner decision, 2026-10-21 (multiplied Speed; replaces the 1 + log2(m) car multi rule above):
+       The player has a base Speed (the number they earn and save) and a shown Speed:
+       shown Speed = base Speed x Speed multi, where the Speed multi is the full multi of the
+       equipped car (and any shop boost that changes cruise speed), with no diminishing returns.
+       Every place a player sees Speed shows the shown Speed (owner 2026-10-21, later the same
+       day): the HUD, the Stats panel, the Roblox player list, the global Speed leaderboard,
+       and Speed amounts such as the workshop gain per second and offline earnings (base
+       amount x Speed multi). Equipping a different car changes them at once, often
+       dramatically. The car's own multi is still shown on the car unchanged.
+       Cruise speed comes only from the shown Speed: cruise speed = the cruise formula above
+       applied to the shown Speed, with no separate car multiplier after it. The same shown Speed
+       always gives the same cruise speed, whatever car produced it.
+       Saving, rebirth resets and Speed gain still use the base Speed. The gain rules above are
+       unchanged.
+       Large Speed numbers are abbreviated with suffixes (K, M, B, T, Qd = quadrillion,
+       Qt = quintillion, and onward) instead of growing endless digits. The exact point where
+       the HUD switches from full digits to suffixes is a placeholder.
+       Owner decision, 2026-10-21 (lower track requirements): Track 1 must not need ~10M Speed.
+       Placeholders: MAX_SPEED 22 (was 18; +5 studs/s per Speed doubling), Track 1 NPC 15 studs/s
+       (was 45), x1.37 per track (was x2.5). Recommended Speed: Track 1 ~2.6K, Track 5 ~1.4M,
+       Track 10 ~2.1Qt. A stat-0 starter car (12 studs/s) still loses Track 1.
+       Track gates show a recommended Speed: the shown Speed at which the car's cruise speed
+       matches that track's NPC. Players compare their own shown Speed with it, whatever car
+       they drive (see Track environments).
 
   In races, Speed gain uses the same formula without W (proposed). Confirm whether
   races should get every other multiplier or only a flat base rate.
@@ -251,6 +274,11 @@ Idle Vehicle Simulator — Game Design Requirements
        and they do not decide how environments group tracks into ladders (still an open question).
        Biomes never change global Lighting: weather events own the sky.
        Downloaded art (kenney.nl, itch.io) is CC0 only; each pack's license and source are recorded.
+       Owner decision, 2026-10-21 (gate signs): every track's gate carries a sign, readable as
+       the car drives in, showing the biome the player is entering and the recommended Speed
+       for that track (the shown Speed whose cruise speed matches the track's NPC; see Core
+       stat model). The number is computed from the live speed and NPC settings, so it stays
+       correct when they are tuned, and it uses the same suffixes as the HUD.
 
 
 
@@ -755,6 +783,12 @@ Idle Vehicle Simulator — Game Design Requirements
 
   HUD layout
   Contract: docs/HUD_LAYOUT_SPEC.md.
+
+  Race progress map
+       During NPC auto-races, the HUD shows the current track's non-interactive
+       route map and personal-best timer described by docs/RACE_PROGRESS_MAP_SPEC.md.
+       It is presentation-only, private to the player, and never changes race
+       authority or applies to Duel mode.
 
        Owner decision, 2026-10-15 (replaces the left INDEX / STATS / REBIRTH text column and the
        right-side button stack): cartoon icon tiles with the label under each icon. Index,

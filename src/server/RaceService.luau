@@ -31,10 +31,10 @@ local MoneyService = require(script.Parent.MoneyService)
 local PlayerData = require(script.Parent.PlayerData)
 local GachaService = require(script.Parent.GachaService)
 local UpgradeService = require(script.Parent.UpgradeService)
-local MarketConfig = require(Shared.MarketConfig)
 local BoostConfig = require(Shared.BoostConfig)
 local BoostService = require(script.Parent.BoostService)
 local LevelService = require(script.Parent.LevelService)
+local RaceTimeService = require(script.Parent.RaceTimeService)
 
 local RaceService = {}
 
@@ -121,7 +121,7 @@ function RaceService.NewRun(car, raceRoute, player, options)
 	local stat = PlayerData.SpeedStat(player)
 	local physics = CarPhysics.new(car, CarConfig)
 	local driver = PathDriver.new(raceRoute.Path, CarConfig, {
-		TargetSpeed = RaceConfig.SpeedFor(stat, GachaService.CarSpeedMulti(player) * MarketConfig.SpeedMulti(player)),
+		TargetSpeed = RaceConfig.SpeedFor(stat, GachaService.ShownSpeedMulti(player)),
 		NoFinalSlow = options.Loop,
 	})
 	local run = {
@@ -218,6 +218,7 @@ function RaceService.NewRun(car, raceRoute, player, options)
 			Color = cfg.Color,
 			Label = cfg.Label,
 			Model = cfg.Model,
+			BestTime = RaceTimeService.Best(player, track.Number),
 		})
 	end
 
@@ -242,7 +243,9 @@ function RaceService.NewRun(car, raceRoute, player, options)
 		local playerTime = runTime - race.Started
 		local win = playerTime < race.NpcTime
 		local amount = 0
+		local bestTime, newBest = RaceTimeService.Best(player, track.Number), false
 		if win then
+			bestTime, newBest = RaceTimeService.Record(player, track.Number, playerTime)
 			QuestService.Progress(player, "Races")
 			amount = track.Pad and MoneyService.Quote(player, track.Pad) or 0
 			run.BankedTotal += amount
@@ -260,6 +263,8 @@ function RaceService.NewRun(car, raceRoute, player, options)
 			NpcTime = race.NpcTime,
 			Banked = amount,
 			Unbanked = run.Unbanked,
+			BestTime = bestTime,
+			NewBest = newBest,
 		}
 		table.insert(run.Results, event)
 		emit(event)
@@ -418,8 +423,7 @@ function RaceService.NewRun(car, raceRoute, player, options)
 			end
 		end
 		stat = PlayerData.SpeedStat(player) -- the source of truth (also picks up a load finishing)
-		run.TargetSpeed =
-			RaceConfig.SpeedFor(stat, GachaService.CarSpeedMulti(player) * MarketConfig.SpeedMulti(player))
+		run.TargetSpeed = RaceConfig.SpeedFor(stat, GachaService.ShownSpeedMulti(player))
 		driver.TargetSpeed = run.TargetSpeed
 	end
 

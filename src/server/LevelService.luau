@@ -9,7 +9,7 @@ local LevelService = {}
 
 local function stats(player)
 	local folder = player:FindFirstChild("leaderstats")
-	return folder, folder and folder:FindFirstChild("Speed")
+	return folder, player:FindFirstChild("BaseSpeed") -- XP follows the base Speed, not the shown leaderstats.Speed
 end
 
 function LevelService.Setup(player)

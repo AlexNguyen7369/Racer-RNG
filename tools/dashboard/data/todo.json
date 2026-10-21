@@ -1,6 +1,27 @@
 {
   "items": [
     {
+      "id": "gate-signs",
+      "title": "Gate signs: biome + recommended Speed",
+      "detail": "Owner 2026-10-21. BiomeDressing GateSign SurfaceGui, RaceConfig.StatFor, HudFormat.Short. Verified live on all 10 gates. Needs a test from test-writer.",
+      "status": "done",
+      "done": "2026-10-21"
+    },
+    {
+      "id": "shown-speed-multi",
+      "title": "Shown Speed = base x car multi; cruise from shown Speed",
+      "detail": "Owner 2026-10-21 design-doc rule (Core stat model). HUD + player list show base x full multi with Qd/Qt suffixes; RaceConfig.SpeedFor drops the 1+log2(m) multi; saves stay base. Touches RaceService, leaderstats, RacerUiController, HudFormat, tests. Implemented; verified live. Tests updated by test-writer; full CarTest not run yet.",
+      "status": "done",
+      "done": "2026-10-21"
+    },
+    {
+      "id": "npc-speed-balance",
+      "title": "Rebalance NPC speeds vs cruise curve",
+      "detail": "MAX_SPEED 22, NPC BASE 15, growth 1.37. Rec. Speed T1 2,578 to T10 2.14Qt.",
+      "status": "done",
+      "done": "2026-10-21"
+    },
+    {
       "id": "npc-harder-models",
       "title": "Harder NPCs, imported NPC car models, wider label",
       "detail": "Owner 2026-10-20: Track 1 NPC 30 studs/s (x2 per track), label 200 studs with NPC RIVAL title, tracks 1-10 skinned with imported catalog cars (NpcConfig.Tracks). Code + docs done; needs full CarTest (npc, bank, multiplayer, weather) and a live look in Studio.",

@@ -305,12 +305,7 @@ function Tests.workshop_phase2()
 		-- the saved Money exactly (was: + 10% of the Speed credit).
 		local wantMoney = 41
 		flag("offline_load_succeeds", data.Load(p, 74002, at) == true)
-		flag(
-			"offline_load_credits_rate_times_time",
-			near(p.leaderstats.Speed.Value, want, 0.002),
-			p.leaderstats.Speed.Value,
-			want
-		)
+		flag("offline_load_credits_rate_times_time", near(p.BaseSpeed.Value, want, 0.002), p.BaseSpeed.Value, want)
 		flag(
 			"offline_claim_persisted_before_any_save",
 			store.claims == 1
@@ -343,7 +338,7 @@ function Tests.workshop_phase2()
 		data.Load(reconnect, 74002)
 		flag(
 			"offline_no_replay_on_reconnect_without_save",
-			near(reconnect.leaderstats.Speed.Value, want, 0.002) and reconnect:GetAttribute("OfflineSpeed") == 0
+			near(reconnect.BaseSpeed.Value, want, 0.002) and reconnect:GetAttribute("OfflineSpeed") == 0
 		)
 		-- GetAsync can race another session's claim: the callback must use the
 		-- latest persisted record, not a gain computed from the stale read.
@@ -367,33 +362,33 @@ function Tests.workshop_phase2()
 		flag(
 			"offline_stale_read_cannot_replay_claim",
 			raceLoaded == true
-					and near(raced.leaderstats.Speed.Value, want, 0.002)
+					and near(raced.BaseSpeed.Value, want, 0.002)
 					and raced:GetAttribute("OfflineSpeed") == 0
 					and raced.leaderstats.Money.Value == wantMoney
 				or raceLoaded == false
 					and raced:GetAttribute("DataFailed") == true
 					and raced:GetAttribute("DataLoaded") ~= true
-					and raced.leaderstats.Speed.Value <= 2500
+					and raced.BaseSpeed.Value <= 2500
 		)
 		data.SetStore(store)
 		-- Include a subsequent live gain: reloading must neither replay offline credit nor reset live progress.
 		data.AddSpeed(p, 7)
-		local once = p.leaderstats.Speed.Value
+		local once = p.BaseSpeed.Value
 		clock = at + 60
 		local claimsBefore = store.claims
 		data.Load(p, 74002)
-		flag("offline_repeated_load_preserves_once_credit_and_live_gain", near(p.leaderstats.Speed.Value, once, 0.002))
+		flag("offline_repeated_load_preserves_once_credit_and_live_gain", near(p.BaseSpeed.Value, once, 0.002))
 		flag("offline_repeated_load_no_store_claim", store.claims == claimsBefore)
 		flag("offline_save_succeeds", data.Save(p, 74002) == true)
 		flag(
 			"offline_at_saved_unix_timestamp",
-			saved ~= nil and type(saved.OfflineAt) == "number" and saved.OfflineAt == clock and saved.Version == 10
+			saved ~= nil and type(saved.OfflineAt) == "number" and saved.OfflineAt == clock and saved.Version == 11
 		)
 		local afterSave = player("ReconnectAfterSave")
 		data.Load(afterSave, 74002)
 		flag(
 			"offline_save_does_not_replay_previous_absence",
-			near(afterSave.leaderstats.Speed.Value, once, 0.002)
+			near(afterSave.BaseSpeed.Value, once, 0.002)
 				and afterSave:GetAttribute("OfflineSpeed") == 0
 				and afterSave.leaderstats.Money.Value == wantMoney
 		)
@@ -402,7 +397,7 @@ function Tests.workshop_phase2()
 			initial = { Speed = 99, WorkshopLevel = 1, OfflineAt = case[2] }
 			local legacy = player(case[1])
 			data.Load(legacy, 74003, at)
-			flag("offline_no_credit_" .. string.lower(case[1]), legacy.leaderstats.Speed.Value == 99)
+			flag("offline_no_credit_" .. string.lower(case[1]), legacy.BaseSpeed.Value == 99)
 		end
 		for _, mode in { "missing_atomic_api", "failed_atomic_claim" } do
 			initial = { Speed = 99, Money = 41, WorkshopLevel = 1, OfflineAt = at - 3600 }
@@ -426,7 +421,7 @@ function Tests.workshop_phase2()
 				loaded == false
 					and failedClaim:GetAttribute("DataFailed") == true
 					and failedClaim:GetAttribute("DataLoaded") ~= true
-					and failedClaim.leaderstats.Speed.Value <= 99
+					and failedClaim.BaseSpeed.Value <= 99
 					and data.Save(failedClaim, 74005) == false
 					and initial.OfflineAt == at - 3600
 			)
@@ -441,9 +436,7 @@ function Tests.workshop_phase2()
 		local failed = player("Failed")
 		flag(
 			"offline_failed_load_no_credit_or_save",
-			data.Load(failed, 74004, at) == false
-				and failed.leaderstats.Speed.Value == 0
-				and data.Save(failed, 74004) == false
+			data.Load(failed, 74004, at) == false and failed.BaseSpeed.Value == 0 and data.Save(failed, 74004) == false
 		)
 	end)
 	config.Levels, config.MAX_LEVEL = oldLevels, oldMax
@@ -1299,7 +1292,7 @@ function Tests.rebirth()
 			p:SetAttribute("MoneyEarned", 9000)
 			p:SetAttribute("DuelWins", 3)
 			p.leaderstats.Money.Value = 5000
-			p.leaderstats.Speed.Value = 321.5
+			p.BaseSpeed.Value = 321.5
 			gacha.Grant(p, "wooden_car")
 			gacha.Grant(p, "go_kart")
 			gacha.Equip(p, "go_kart")
@@ -1308,7 +1301,7 @@ function Tests.rebirth()
 		end
 		local function untouched(p, money, speed, level)
 			return p.leaderstats.Money.Value == money
-				and near(p.leaderstats.Speed.Value, speed)
+				and near(p.BaseSpeed.Value, speed)
 				and p:GetAttribute("RebirthLevel") == level
 		end
 		-- every refusal leaves Money, Speed and the rebirth level alone
@@ -1319,7 +1312,7 @@ function Tests.rebirth()
 			flag(
 				"rebirth_refused_" .. label .. "_keeps_money_and_speed",
 				untouched(p, 5000, 321.5, 0),
-				p.leaderstats.Speed.Value,
+				p.BaseSpeed.Value,
 				321.5
 			)
 			restore()
@@ -1357,7 +1350,10 @@ function Tests.rebirth()
 		flag("rebirth_accepted_at_required_level", accepted == true and newLevel == 1)
 		flag("rebirth_level_raised", p:GetAttribute("RebirthLevel") == 1, p:GetAttribute("RebirthLevel"), 1)
 		flag("rebirth_resets_money", p.leaderstats.Money.Value == 0, p.leaderstats.Money.Value, 0)
-		flag("rebirth_resets_speed", p.leaderstats.Speed.Value == 0, p.leaderstats.Speed.Value, 0)
+		flag("rebirth_resets_speed", p.BaseSpeed.Value == 0, p.BaseSpeed.Value, 0)
+		task.wait() -- the shown Speed follows BaseSpeed on its Changed signal (may be deferred)
+		-- Owner 2026-10-21: leaderstats.Speed shows base x ShownSpeedMulti, so it is 0 too (go_kart stays equipped)
+		flag("rebirth_resets_shown_speed", p.leaderstats.Speed.Value == 0, p.leaderstats.Speed.Value, 0)
 		flag("rebirth_speed_stat_is_0", data.SpeedStat(p) == 0, data.SpeedStat(p), 0)
 		local carsAfter = gacha.Snapshot(p)
 		flag(
@@ -1425,12 +1421,12 @@ function Tests.rebirth()
 
 		-- the next rebirth needs the next milestone: refused, and the stats earned since are not wiped
 		p.leaderstats.Money.Value = 60
-		p.leaderstats.Speed.Value = 50
+		p.BaseSpeed.Value = 50
 		local again = service.Rebirth(p)
 		flag(
 			"rebirth_refused_next_milestone_keeps_money_and_speed",
 			again == false and untouched(p, 60, 50, 1),
-			p.leaderstats.Speed.Value,
+			p.BaseSpeed.Value,
 			50
 		)
 		-- rate limit: a second request inside REMOTE_COOLDOWN is refused and changes nothing

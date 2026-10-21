@@ -29,7 +29,7 @@ Prop lists, sizes, colours and spacing are placeholders that can be tuned.
 1. **Rhythm:** small props repeat along both sides of the road at a steady waypoint spacing, so the player feels the car's speed.
 2. **Landmarks:** one hero prop at the middle of each corner, on the outside of the turn, and one at the top of each climb. These are where the car slows down or the view opens up.
 3. **Horizon:** large silhouettes far out on the outside of each corner, so a new view opens as the car comes round.
-4. **Gate:** a themed arch over the road on the track's first straight. It stands at waypoint `GATE_INDEX` (4), or at the theme's `Gate.Index` when that spot is not clear (Track 1 uses 18, past the spawn-area floor; Track 2 uses 9, past the race-start pavilion). It marks the biome change along the chain.
+4. **Gate:** a themed arch over the road on the track's first straight. It stands at waypoint `GATE_INDEX` (4), or at the theme's `Gate.Index` when that spot is not clear (Track 1 uses 18, past the spawn-area floor; Track 2 uses 9, past the race-start pavilion). It marks the biome change along the chain. **Sign (owner 2026-10-21):** a `SurfaceGui` on the `GateSign` faces the oncoming car and shows the biome name (big) and `REC. SPEED <n>` (the shown Speed whose cruise speed equals `NpcConfig.For(Number).Speed`, inverted from `RaceConfig.SpeedFor`, formatted like the HUD Speed). Visual only, like the rest of the gate.
 5. **Ambient motion (client only):** `Client/BiomeAmbience` spins parts tagged `BiomeSpin` and bobs parts tagged `BiomeBob`. It only animates props within `AMBIENCE_DISTANCE` (300 studs) of the camera. Server parts never move.
 6. **Ground:** the theme sets the track's `Ground` material and colour.
 

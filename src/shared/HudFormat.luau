@@ -18,12 +18,37 @@ local function commas(n)
 	return text
 end
 
--- "1,234" (whole number, thousands separators, never scientific). Anything that is not a real stat shows 0.
+HudFormat.SUFFIX_FROM = 1e15 -- placeholder: from 1 Qd the Speed number switches to suffixes (owner 2026-10-21)
+
+-- "1,234" (whole number, thousands separators); from SUFFIX_FROM on "1Qd", "2.5Qt" (HudFormat.Short).
+-- Anything that is not a real stat shows 0.
 function HudFormat.SpeedText(stat)
 	if type(stat) ~= "number" or stat ~= stat or stat < 0 or stat == math.huge then
 		return "0"
 	end
-	return commas(stat)
+	return stat >= HudFormat.SUFFIX_FROM and HudFormat.Short(stat) or commas(stat)
+end
+
+local SUFFIXES = { "K", "M", "B", "T", "Qd", "Qt", "Sx", "Sp", "Oc", "No", "Dc" }
+
+-- Short number with suffixes, "10.2M", "4.5Qd" (owner 2026-10-21); past the last suffix "1.2e45", "inf" when infinite.
+function HudFormat.Short(n)
+	if type(n) ~= "number" or n ~= n or n < 0 then
+		return "0"
+	elseif n == math.huge then
+		return "inf"
+	elseif n < 1000 then
+		return tostring(math.floor(n))
+	end
+	local tier = math.floor(math.log10(n) / 3)
+	if tier > #SUFFIXES then
+		return string.format("%.1fe%d", n / 10 ^ math.floor(math.log10(n)), math.floor(math.log10(n)))
+	end
+	local text = string.format("%.3g", n / 10 ^ (tier * 3))
+	if tonumber(text) >= 1000 then -- 999.96K rounds to 1000K
+		return tier < #SUFFIXES and "1" .. SUFFIXES[tier + 1] or string.format("1.0e%d", tier * 3 + 3)
+	end
+	return text .. SUFFIXES[tier]
 end
 
 -- "$1,234" for the Money row. Anything that is not a real, finite, non-negative amount shows $0.

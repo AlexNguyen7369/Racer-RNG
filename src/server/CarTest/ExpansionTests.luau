@@ -256,7 +256,7 @@ function Tests.car_expansion()
 		flag("expansion_discovery_points", gacha.EarnedPoints(player) == 33, gacha.EarnedPoints(player), 33)
 		flag("expansion_save", data.Save(player, uid, true) == true)
 		local record = store.data[data.KeyFor(uid)]
-		flag("expansion_saved_v10", record.Version == 10, record.Version, 10)
+		flag("expansion_saved_v11", record.Version == 11, record.Version, 11)
 		local restored = H.player(cleanup, uid)
 		flag("expansion_reload", data.Load(restored, uid) == true)
 		for _, spec in manifest.Cars do

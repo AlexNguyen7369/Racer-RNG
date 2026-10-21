@@ -5,6 +5,9 @@
 
 local CollectionService = game:GetService("CollectionService")
 local Themes = require(script.Parent.BiomeThemes)
+local HudFormat = require(script.Parent.HudFormat)
+local NpcConfig = require(script.Parent.NpcConfig)
+local RaceConfig = require(script.Parent.RaceConfig)
 
 local BiomeDressing = {}
 BiomeDressing.CLEARANCE = 8 -- studs every prop keeps from any road, wall, checkpoint, pad or spawn-area part
@@ -147,7 +150,43 @@ local function near(list, index, gap)
 end
 
 -- Arch over the road at the track start: posts outside the clearance, beam GATE_HEIGHT above the road.
-local function gate(folder, layout, origin, theme)
+local SIGN_HEIGHT = 8 -- studs the gate sign hangs below the beam
+
+-- "PirateCoast" -> "PIRATE COAST"
+local function biomeTitle(biome)
+	return string.upper((string.gsub(biome, "(%l)(%u)", "%1 %2")))
+end
+
+-- Text on the sign's face toward the oncoming car: the biome and the recommended Speed (owner 2026-10-21).
+local function signText(sign, spec)
+	local gui = Instance.new("SurfaceGui")
+	gui.Name = "GateSignGui"
+	gui.Face = Enum.NormalId.Back -- +Z: the car drives toward -Z (look direction)
+	gui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	gui.PixelsPerStud = 20
+	gui.LightInfluence = 0
+	gui.Parent = sign
+	local function line(name, text, y, height, color)
+		local label = Instance.new("TextLabel")
+		label.Name = name
+		label.BackgroundTransparency = 1
+		label.Position = UDim2.fromScale(0.05, y)
+		label.Size = UDim2.fromScale(0.9, height)
+		label.Font = Enum.Font.FredokaOne
+		label.TextScaled = true
+		label.Text = text
+		label.TextColor3 = color
+		label.TextStrokeTransparency = 0
+		label.Parent = gui
+	end
+	local rec = RaceConfig.StatFor(NpcConfig.For(spec.Number or 1).Speed)
+	-- SpeedText shows a non-finite number as 0; Short shows "inf"
+	local recText = rec == math.huge and HudFormat.Short(rec) or HudFormat.SpeedText(rec)
+	line("Biome", biomeTitle(spec.Biome), 0.06, 0.52, Color3.new(1, 1, 1))
+	line("RecSpeed", "REC. SPEED " .. recText, 0.6, 0.34, Color3.fromRGB(255, 220, 60))
+end
+
+local function gate(folder, layout, origin, theme, spec)
 	local wps = layout.Waypoints
 	local at = theme.Gate.Index or GATE_INDEX
 	if #wps <= at + 1 then
@@ -188,13 +227,14 @@ local function gate(folder, layout, origin, theme)
 		theme.Gate.Color,
 		theme.Gate.Material
 	)
-	piece(
+	local sign = piece(
 		"GateSign",
-		Vector3.new(lateral * 2 - 8, 1.5, 0.5),
-		look * CFrame.new(0, BiomeDressing.GATE_HEIGHT, -2.3),
-		theme.Gate.Glow or theme.Gate.Color,
-		Enum.Material.Neon
+		Vector3.new(math.min(lateral * 2 - 8, 48), SIGN_HEIGHT, 0.5),
+		look * CFrame.new(0, BiomeDressing.GATE_HEIGHT - 1.5 - SIGN_HEIGHT / 2, 2.3),
+		Color3.fromRGB(20, 22, 30),
+		Enum.Material.SmoothPlastic
 	)
+	signText(sign, spec)
 	if theme.Gate.Glow then
 		local light = Instance.new("PointLight")
 		light.Color = theme.Gate.Glow
@@ -226,7 +266,7 @@ function BiomeDressing.Build(model, layout, spec, origin)
 
 	local wps = layout.Waypoints
 	local edge = layout.Width / 2 + WALL
-	local count = gate(folder, layout, origin, theme)
+	local count = gate(folder, layout, origin, theme, spec)
 	-- A prop whose footprint leaves this track's ground would hang over the void (or the Baseplate below it).
 	local function onGround(base, size)
 		if not ground then

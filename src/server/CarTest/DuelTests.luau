@@ -281,7 +281,7 @@ local function duelRunAlone(r, flag, M)
 		player.Parent = Workspace
 		M.Money.Setup(player)
 		M.PlayerData.Setup(player)
-		player.leaderstats.Speed.Value = M.RaceConfig.MAX_STAT
+		player.BaseSpeed.Value = M.RaceConfig.MAX_STAT -- base Speed (owner 2026-10-21)
 		player.leaderstats.Money.Value = 500
 		player:SetAttribute("Unbanked", 0) -- as CarService.OnCharacter leaves it
 		local earned0 = player:GetAttribute("MoneyEarned") or 0
@@ -544,7 +544,7 @@ function Tests.duel()
 		-- A loaded fake on foot at the walk spawn
 		local function newFake(tag, stat, bestTrack)
 			local p = newPlayer(tag)
-			p.leaderstats.Speed.Value = stat
+			p.BaseSpeed.Value = stat
 			p:SetAttribute("BestTrack", bestTrack)
 			p:SetAttribute("DataLoaded", true)
 			return attach(p)
@@ -658,7 +658,7 @@ function Tests.duel()
 		playerB:SetAttribute("DuelWins", 4) -- the later counts do not depend on the check above
 		playerB:SetAttribute("DataLoaded", true)
 		playerB:SetAttribute("BestTrack", 4)
-		playerB.leaderstats.Speed.Value = HALF
+		playerB.BaseSpeed.Value = HALF
 		playerB.leaderstats.Money.Value = 77
 		local B = attach(playerB)
 		local C = newFake("C", 0, 0)

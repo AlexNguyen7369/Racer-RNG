@@ -1,15 +1,15 @@
 {
   "name": "RacerHud",
   "spec": "ui/specs/RacerHud.ui.json",
-  "specHash": "37da31f77505",
+  "specHash": "ab2dce081f07",
   "files": {
-    "src/client/RollToast/Ui/RacerHud.luau": "137b090813c5",
-    "ui/generated/RacerHud.studio.luau": "da36c8cd5711",
-    "ui/preview/RacerHud.svg": "1dc7aa00b47f",
-    "ui/preview/RacerHud_desktop.svg": "1c9ccbeb2d59",
-    "ui/preview/RacerHud_laptop.svg": "497a87738f02",
-    "ui/preview/RacerHud_tablet.svg": "d80a9edee3f0",
-    "ui/preview/RacerHud_phone.svg": "06f45ec22117"
+    "src/client/RollToast/Ui/RacerHud.luau": "78a19c24e68f",
+    "ui/generated/RacerHud.studio.luau": "9c2df2201ed4",
+    "ui/preview/RacerHud.svg": "24b90753f48e",
+    "ui/preview/RacerHud_desktop.svg": "f5c760ebc004",
+    "ui/preview/RacerHud_laptop.svg": "0b85c6832ccc",
+    "ui/preview/RacerHud_tablet.svg": "cc7ade0d036f",
+    "ui/preview/RacerHud_phone.svg": "8754b6dfaafc"
   },
   "missingIcons": []
 }

@@ -1,4 +1,4 @@
-# Saves: session lock and VERSION 10 (contract for tests and implementation)
+# Saves: session lock and VERSION 11 (contract for tests and implementation)
 
 Design rule (`docs/GAME_DESIGN_REQUIREMENTS.md`, "Technical and data requirements"): DataStores with session locking
 so data can not duplicate across servers; save on leave, on an interval and on server shutdown. Owner decision
@@ -58,6 +58,12 @@ VERSION 10 (owner 2026-10-20): additive `GiftMailbox` and `GiftReceipts` tables 
 to empty for all older saves. Mailbox entries and delivered receipt ids persist across
 rebirth. Pending sender routes live in the dedicated server-only gifting store.
 `PANEL_ART_GIFTING_SPEC.md` defines atomic claiming, serialized saves and deduplication.
+
+## 2b. VERSION 11 fields (race progress map)
+
+VERSION 11 adds additive `RaceBestTimes`, keyed by string track number. Each value is
+a positive finite NPC-race completion time in seconds. Missing or invalid entries
+are discarded and older saves load with an empty table.
 
 - Offline earnings are Speed only: no Money is credited on load, `Workshop.OfflineMoney` and
   `WorkshopConfig.OFFLINE_MONEY_FRACTION` do not exist, and the player attribute `OfflineMoney` is not set.

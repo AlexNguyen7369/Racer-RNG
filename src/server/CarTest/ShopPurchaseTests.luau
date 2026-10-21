@@ -30,7 +30,7 @@ local SECTIONS = { Potions = true, Bundle = true, ServerLuck = true }
 local MAX_RECEIPTS = 100
 local CODE_COOLDOWN = 2
 local MAX_CODE_LENGTH = 32
-local DATA_VERSION = 10 -- docs/SAVE_SPEC.md: additive gift fields; ordinary receipts still keep the last 100.
+local DATA_VERSION = 11 -- docs/SAVE_SPEC.md: 11 adds RaceBestTimes; 10 additive gift fields; ordinary receipts still keep the last 100.
 local MSG_INVALID = "Invalid code"
 local MSG_NOT_LOADED = "Data not loaded"
 local MSG_WAIT = "Please wait"
@@ -511,7 +511,7 @@ function Tests.shop_purchases()
 		local pc = newPlayer("CarTestShop_Main", true)
 		local stats = pc:FindFirstChild("leaderstats")
 		local moneyValue = stats and stats:FindFirstChild("Money")
-		local speedValue = stats and stats:FindFirstChild("Speed")
+		local speedValue = pc:FindFirstChild("BaseSpeed") -- the base Speed (owner 2026-10-21)
 		if moneyValue then
 			moneyValue.Value = 500
 		end

@@ -25,10 +25,10 @@ User brief (2026-10-01):
 ## Modules and API
 
 ### `src/shared/NpcConfig.luau` (editable knobs)
-- `BASE_SPEED` (studs/s, Track 1, above `RaceConfig.BASE_SPEED` so a stat-0 starter car loses): 45 (owner
-  2026-10-21: made substantially harder than the previous 30)
-- `SPEED_GROWTH` (each track's NPC is this many times faster than the previous one): 2.5 (owner 2026-10-21:
-  made each later track a much larger hurdle; was 2)
+- `BASE_SPEED` (studs/s, Track 1, above `RaceConfig.BASE_SPEED` so a stat-0 starter car loses): 15 (owner
+  2026-10-21, later the same day: 45 needed ~10M recommended Speed on Track 1; now ~2.6K)
+- `SPEED_GROWTH` (each track's NPC is this many times faster than the previous one): 1.37 (owner 2026-10-21,
+  later the same day: x2.5 made Track 6+ need more Speed than a number can hold; Track 10 now ~2.1Qt)
 - `LABEL_DISTANCE` (studs, BillboardGui `MaxDistance`): 200 (owner 2026-10-20: wider, was 60)
 - `LOSE_SCREEN_SECONDS`: 3
 - `LABEL_FORMAT`: `"track%02d_NPC"`

@@ -12,6 +12,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local CarCatalog = require(Shared.CarCatalog)
 local GachaConfig = require(Shared.GachaConfig)
+local MarketConfig = require(Shared.MarketConfig)
 local RebirthConfig = require(Shared.RebirthConfig)
 local RollAnimConfig = require(Shared.RollAnimConfig)
 local UpgradeService = require(script.Parent.UpgradeService)
@@ -25,6 +26,7 @@ local MAX_COUNT = 1e9
 local STARTER = CarCatalog.STARTER_ID
 
 local rng = Random.new()
+local watched = setmetatable({}, { __mode = "k" }) -- players whose ShownSpeedMulti is kept current
 local lastRequest = setmetatable({}, { __mode = "k" }) -- player -> os.clock()
 local autoRolls = setmetatable({}, { __mode = "k" }) -- player -> handle
 local rollRemote = nil -- Remotes.RollResult, made by Start(): tells the player what they rolled
@@ -73,6 +75,20 @@ function GachaService.Setup(player)
 	end
 	if player:GetAttribute("StatPoints") == nil then
 		player:SetAttribute("StatPoints", 0)
+	end
+	if not watched[player] then
+		watched[player] = true
+		local function refresh()
+			player:SetAttribute("ShownSpeedMulti", GachaService.ShownSpeedMulti(player))
+		end
+		player.AttributeChanged:Connect(function(name)
+			if name == "EquippedCar" or name == "EquippedAura" or string.sub(name, 1, 5) == "Pass_" then
+				refresh()
+			end
+		end)
+		data.ChildAdded:Connect(refresh)
+		data.ChildRemoved:Connect(refresh)
+		refresh()
 	end
 	return data
 end
@@ -252,6 +268,12 @@ function GachaService.CarSpeedMulti(player)
 	local spec = CarCatalog.Get(player:GetAttribute("EquippedCar"))
 	local carMulti = spec and owns(player, spec.Id) and spec.SpeedMulti or 1
 	return carMulti
+end
+
+-- Multiplies the base Speed into the Speed players see and race at: equipped car x aura (design doc Core stat
+-- model, owner 2026-10-21). Published as the player attribute ShownSpeedMulti.
+function GachaService.ShownSpeedMulti(player)
+	return GachaService.CarSpeedMulti(player) * MarketConfig.SpeedMulti(player)
 end
 
 function GachaService.SpeedGainMulti(player)

@@ -567,7 +567,8 @@ function Tests.leaderboard()
 
 		-- Scores(player): four integer scores
 		local p, id = player(1, true)
-		p.leaderstats.Speed.Value = 321.9
+		p.BaseSpeed.Value = 321.9
+		task.wait() -- leaderstats.Speed (shown) follows BaseSpeed
 		p:SetAttribute("MoneyEarned", 9000.7)
 		p:SetAttribute("Rolls", 40)
 		gacha.Grant(p, "wooden_car")
@@ -614,7 +615,8 @@ function Tests.leaderboard()
 		)
 
 		-- Speed max rule: a lower Speed (after a rebirth) never overwrites, a higher one does
-		p.leaderstats.Speed.Value = 50.5
+		p.BaseSpeed.Value = 50.5
+		task.wait() -- leaderstats.Speed (shown) follows BaseSpeed
 		p:SetAttribute("Rolls", 25)
 		service.Write(p)
 		local kept = stores.Value("LB_Speed_v1", id)
@@ -622,15 +624,32 @@ function Tests.leaderboard()
 		-- "the others are set to the current value"
 		local rolls = stores.Value("LB_Rolls_v1", id)
 		flag("leaderboard_others_set_to_current_value", rolls == 25, tonumber(rolls) or -1, 25)
-		p.leaderstats.Speed.Value = 400.2
+		p.BaseSpeed.Value = 400.2
+		task.wait() -- leaderstats.Speed (shown) follows BaseSpeed
 		service.Write(p)
 		local raised = stores.Value("LB_Speed_v1", id)
 		flag("leaderboard_higher_speed_overwrites", raised == 400, tonumber(raised) or -1, 400)
+		-- Owner 2026-10-21 (design doc Core stat model): the Speed board shows the shown Speed, base x ShownSpeedMulti
+		local shownP = player(7, true)
+		shownP.BaseSpeed.Value = 100
+		gacha.Grant(shownP, "go_kart")
+		gacha.Equip(shownP, "go_kart")
+		task.wait()
+		local kartMulti = catalog.Get("go_kart").SpeedMulti
+		local shownScores = service.Scores(shownP)
+		local shownScore = type(shownScores) == "table" and shownScores.Speed
+		flag(
+			"leaderboard_scores_speed_is_shown_speed",
+			shownScore == math.floor(100 * kartMulti) and kartMulti > 1,
+			tonumber(shownScore) or -1,
+			math.floor(100 * kartMulti)
+		)
 
 		-- Never for a failed or unloaded save
 		local function loaded(index)
 			local q, qid = player(index, true)
-			q.leaderstats.Speed.Value = 77
+			q.BaseSpeed.Value = 77
+			task.wait() -- leaderstats.Speed (shown) follows BaseSpeed
 			q:SetAttribute("MoneyEarned", 77)
 			q:SetAttribute("Rolls", 77)
 			gacha.Grant(q, "wooden_car")
@@ -647,7 +666,8 @@ function Tests.leaderboard()
 		local zero, zeroId = player(5, true)
 		flag("leaderboard_all_zero_writes_nothing", service.Write(zero) == false and storedNowhere(zeroId))
 		local partial, partialId = player(6, true)
-		partial.leaderstats.Speed.Value = 5
+		partial.BaseSpeed.Value = 5
+		task.wait() -- leaderstats.Speed (shown) follows BaseSpeed
 		flag("leaderboard_partial_write_returns_true", service.Write(partial) == true)
 		flag(
 			"leaderboard_zero_score_not_written",

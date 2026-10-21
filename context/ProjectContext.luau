@@ -3,7 +3,22 @@
 PROJECT CONTEXT - Idle Vehicle Simulator (read me first)
 Shown in Studio at: ServerScriptService > ProjectContext   (source file: context/ProjectContext.luau)
 Do NOT edit this in Studio: edit the file on disk, Rojo syncs it. Claude updates it at the end of every loop.
-Last updated: 2026-10-20 (Claude: car art redesign, all 111 cars as MeshPart skins)
+Last updated: 2026-10-21 (Claude: gate signs, multiplied Speed rule)
+
+GATE SIGNS + MULTIPLIED SPEED RULE - 2026-10-21 (Claude, uncommitted)
+- Owner: every track gate shows the biome and a recommended Speed. BiomeDressing gate: dark GateSign (8 studs tall,
+  under the beam, +Z face toward the oncoming car) with SurfaceGui GateSignGui (Biome, RecSpeed labels).
+  RaceConfig.StatFor(speed) inverts SpeedFor (no multi); HudFormat.Short formats with K M B T Qd Qt Sx Sp Oc No Dc.
+- Retuned (owner): MAX_SPEED 22, NPC BASE_SPEED 15, SPEED_GROWTH 1.37. Live gate rec. Speed: T1 2,578, T2 11,358,
+  T3 41,936, T4 193,912, T5 1.43M, T6 21.6M, T7 886M, T8 143.5B, T9 152.6T, T10 2.14Qt.
+- Shown Speed (owner 2026-10-21, implemented): GachaService.ShownSpeedMulti = car SpeedMulti x aura, published as
+  player attribute ShownSpeedMulti; HUD Speed + profile Speed show leaderstats.Speed x it (leaderstats, saves and
+  leaderboards stay base). RaceConfig.SpeedFor(stat, m) = curve(stat x m): the 1 + log2(m) damping is gone.
+  HudFormat.SpeedText switches to suffixes at SUFFIX_FROM = 1e15 (placeholder). Live check: 578 x 625 = 361,291.
+- Later 2026-10-21: base Speed moved to player.BaseSpeed (NumberValue; PlayerData.speedValue/Setup/SpeedStat/AddSpeed,
+  saves, RebirthService reset, LevelService XP use it). leaderstats.Speed = BaseSpeed x ShownSpeedMulti (display:
+  player list, HUD, profile, Speed leaderboard). ProgressionUi workshop rate + offline credit x ShownSpeedMulti.
+- No tests written for the sign (test-writer owns tests).
 
 CAR ART REDESIGN - 2026-10-20 (Claude, uncommitted)
 - Owner: rebuild every car from the concept renders (git-ignored references/car_redesign/, 111 images, one per catalog

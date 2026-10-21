@@ -127,7 +127,7 @@ function Tests.gift_mailbox()
 		local saved = store.data[data.KeyFor(uid)]
 		flag(
 			"mailbox_v10_and_receipt_atomic",
-			saved.Version == 10 and saved.GiftReceipts["mail-a"] == true and saved.Boosts.LuckIII == 7
+			saved.Version == 11 and saved.GiftReceipts["mail-a"] == true and saved.Boosts.LuckIII == 7
 		)
 		flag("mailbox_lock_retained", saved.Lock ~= nil and saved.Lock.Id == data.SessionId())
 		flag("mailbox_redelivery_enqueue", data.EnqueueGift(uid, "mail-a", gift) == true)
