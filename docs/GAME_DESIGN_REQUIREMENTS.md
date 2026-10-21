@@ -158,6 +158,30 @@ Idle Vehicle Simulator — Game Design Requirements
        Cruise speed = BASE_SPEED + (MAX_SPEED - BASE_SPEED) x log2(1 + Speed / HALF_STAT) / 2,
        x the car's speed multi. Every doubling of Speed (well above HALF_STAT) adds the same
        (MAX_SPEED - BASE_SPEED) / 2 studs per second: diminishing per point, never flat, no cap.
+       Owner decision, 2026-10-20: the Speed stat itself has no cap either (only infinity and
+       non-numbers are rejected, since they can not be saved).
+       Owner decision, 2026-10-20 (one steady speed): the auto-racing car drives at exactly its
+       cruise speed for the whole run, with no acceleration and no slowing in corners. A car
+       starting a run, a checkpoint or a restart is at its cruise speed at once, so every car
+       races at its own speed everywhere on the chain. This must stay stable (no flips, no tilt,
+       on the path) up to the test reference stat MAX_STAT. The NPC opponents are unchanged.
+       Owner decision, 2026-10-20 (slower, harder balancing): cruise speed is much slower
+       (placeholders BASE_SPEED 12, MAX_SPEED 28: +8 studs/s per doubling of Speed, still no
+       cap). The car's speed multi is dampened with a power curve anchored at 1.1x = 1.01x cruise
+       speed; large catalog values remain useful without becoming hundreds of times faster. The multi shown
+       on the car is unchanged. Each
+       next track's NPC is twice as fast as the
+       one before (placeholders: Track 1 = 9 studs/s, x2 per track). A car that leaves the road
+       (more than 2 studs under it or 8 studs over it) is put back on it, so no speed drops a
+       car out of the map.
+       Owner decision, 2026-10-20 (later the same day: much harsher, MUCH slower progression):
+       placeholders MAX_SPEED 22 (+5 studs/s per doubling of Speed), HALF_STAT 5000,
+       GAIN_PER_STUD 0.01 (was 0.05) and workshop BASE_RATE 0.2 (was 1): Speed is earned 5x
+       slower and each point buys less cruise speed. Shapes unchanged: diminishing, no cap.
+       Owner decision, 2026-10-21 (harder NPCs, revised): every NPC, Track 1 included, is much harder.
+       Beginners are expected to lose Track 1 until they build Speed or roll a faster car.
+       Placeholders: Track 1 NPC = 45 studs/s (was 30, formerly 9), x2.5 per track. NPCs on tracks 1-10
+       drive imported car models, and their label shows from 200 studs.
 
   In races, Speed gain uses the same formula without W (proposed). Confirm whether
   races should get every other multiplier or only a flat base rate.
@@ -286,6 +310,18 @@ Idle Vehicle Simulator — Game Design Requirements
 
   With k = 2, twice the NPC's speed wins 80% of the time; ten times wins 99%.
 
+  Checkpoints (owner decision, 2026-10-16). Contract: docs/CHECKPOINT_SPEC.md.
+
+       A "Checkpoints" NPC stands in the spawn hub beside the RACE START pavilion. Pressing its
+       prompt (E) opens a panel with one card per track.
+       The player picks the track their auto race starts on. Track 1 is always open; any other
+       track is open only once the player has beaten it (BestTrack). A locked card is dimmed
+       with a lock over it and can not be picked.
+       Every run starts on the chosen track. A loss sends the car back to the chosen track,
+       and after the last track the chain loops back to it.
+       The choice is saved. The server checks every pick and never starts a player on a track
+       they have not beaten.
+
 
 
 
@@ -322,7 +358,7 @@ Idle Vehicle Simulator — Game Design Requirements
   Requirements
 
        Rebirth unlocks at level milestones: 10, 25, 50, 75, 100, then every 25 after (proposed).
-       Rebirthing resets Money and Speed.
+       Rebirthing resets Money, Speed, Level and XP. Level returns to 1 and XP returns to 0.
        Each rebirth gives a large automatic boost to Speed multi (R) and Luck multi.
        Each rebirth also gives Rebirth Points to spend on four stats.
        Rebirth Points per rebirth: 1 (placeholder; owner 2026-10-15). They join the same free stat
@@ -372,7 +408,9 @@ Idle Vehicle Simulator — Game Design Requirements
 
      Speed                                          Resets (brainstorm)
 
-     Level                                          Open: resetting fits the milestone rule above
+     Level                                          Resets to 1
+
+     XP                                             Resets to 0
 
      Car inventory                                  Kept (proposed): rare cars take too long to re-roll
 
@@ -511,6 +549,28 @@ Idle Vehicle Simulator — Game Design Requirements
   Every roll must return something, so the table needs a catch-all common. The brainstorm's
   1-in-10 Wooden Car leaves 90% of rolls undefined otherwise.
 
+  Owner expansion, 2026-10-20 (docs/CAR_EXPANSION_SPEC.md):
+       Add 100 original base rollable cars: 18 Uncommon, 24 Rare, 22 Epic, 17 Legendary,
+       11 Mythic, and 8 Secret (8 explicitly approved). Rusty Hatchback remains the only
+       Common catch-all. Existing permanent ids, event cars and gamepass exclusions stay.
+       Five visual families have 20 cars each: city/utility, off-road/rally, track/hyper,
+       futuristic/hover, fantasy/novelty. All skins use the shared invisible physics body.
+       Chance and SpeedMulti bands are recorded in the expansion spec/manifest. Art must
+       be original, with source/export/preview notes; no assets extracted from other games.
+
+  Owner car art redesign, 2026-10-20 (docs/CAR_REDESIGN_SPEC.md):
+       Every car with a redesign reference (111 of 112; Ember Wyvern has none and keeps its
+       model) is rebuilt as a Blender-modelled MeshPart skin that matches its reference
+       render: bevelled body, separate wheels, colour from Roblox materials. The references
+       are modelling aids only and are never shipped or committed. Midnight Kart, Golden
+       Racer and Rain Runner get their own models instead of sharing Go-Kart, Rocket Car and
+       Street Racer. Ids, rarities, chances and multipliers do not change; the skin never
+       changes physics. Delivered in waves of about 20 cars, each approved by the owner.
+       Owner, 2026-10-20 (after review): every car gets a slightly aggressive sport look
+       (front splitter with a neon lip, rear diffuser, low lip spoiler unless it has a wing,
+       wider tyres, lower stance) while keeping its identity. Glowing details are bright neon.
+       Singularity keeps its black hole: a dark core inside a tilted neon-gold ring.
+
   Jett Fuel (luck burst, shown in game as TURBO LUCK)
 
   Owner decision, 2026-10-12 (replaces the brainstorm's "every 50 rolls, 10x"):
@@ -606,6 +666,9 @@ Idle Vehicle Simulator — Game Design Requirements
        Owner, 2026-10-16: Ember Wyvern is the stronger car (Secret, listed at 1999 Robux) and
        Singularity the cheaper one (Mythic, listed at 999 Robux). Both are the top (FEATURED)
        section of the Shop.
+       Owner, 2026-10-20: a bought gamepass car is playable: it can be equipped from its
+       pedestal, the Shop and the Backpack. Admins own every gamepass car. Singularity's
+       model is a sharp, original wedge supercar with the black hole in its engine bay.
 
      Shop (owner, 2026-10-16. Contract: docs/GAMEPASS_SHOP_SPEC.md):
        The HUD Shop is one scrolling panel in sections, top to bottom: FEATURED (the two
@@ -622,6 +685,15 @@ Idle Vehicle Simulator — Game Design Requirements
      Codes (owner, 2026-10-16. Contract: docs/SHOP_PURCHASES_SPEC.md):
        The Shop has a code box. A valid code gives potions, once per player. Codes never pay
        Money. The code list lives only on the server.
+
+     Gifting (owner plan, approved 2026-10-20; docs/PANEL_ART_GIFTING_SPEC.md):
+       Potion packs and the potion bundle may be gifted to another player currently in
+       the server. Gamepasses/gamepass cars are account-bound and Server Luck is server-wide,
+       so neither is giftable. The buyer selects a recipient and confirms before Roblox's
+       purchase prompt. Server-owned product definitions determine every grant.
+       A durable recipient mailbox and purchase-id deduplication protect offline delivery
+       and retries. A receipt is acknowledged only after its mailbox grant is durable.
+       Gift state is additive VERSION 10 data; older saves default to empty gift state.
 
   Implementation notes
 
@@ -656,6 +728,8 @@ Idle Vehicle Simulator — Game Design Requirements
 
        Signs in the spawn area show the top players across all servers for: Speed, Money
        earned (lifetime), rolls, and rarest car.
+       The leaderboard signs are large showcase boards, approximately 32 by 20 studs each, arranged in a compact row
+       inside the hub so their rows are readable from the spawn approach without blocking the race-start pavilion.
        Server-only: the server writes and reads the boards; clients only see the signs.
        A rebirth never lowers a player's place on the Speed board (it shows the best Speed
        reached).
@@ -687,9 +761,16 @@ Idle Vehicle Simulator — Game Design Requirements
        Stats and Rebirth are on the left edge, Shop is on the right edge, and Items and Upgrade
        sit left and right of the level bar at the bottom centre. Daily, Quests and
        Market are Roblox-style pills at the top right, next to a round Settings button. Items
-       opens the Backpack (Misc, Trails and Auras tabs; cars are only in the Index). Settings keeps its current
+       opens the Backpack (Misc, Trails, Auras and Cars tabs; owner 2026-10-20: the Cars tab lists owned cars least
+       rare first and equips on click; the Index remains the discovery gallery). Settings keeps its current
        options in the new look. Active potions show bottle icons with the time left under each.
        No buttons or panels may overlap at any screen size.
+
+       Owner plan, 2026-10-20: Daily Rewards, Quests, Shop and Market share the Backpack
+       frame vocabulary (header/icon/title, red X, rounded frame, backdrop, tabs, PanelBand).
+       Daily retains its red styling and all existing panel contents/remotes remain.
+       Trails and auras get shared authored transparent icons and distinct cosmetic
+       in-world profiles, applied to the shared chassis without changing physics or equip authority.
 
   Technical and data requirements
   The server decides every number (Speed, Money, rolls, race results) and the client only
@@ -750,7 +831,6 @@ Idle Vehicle Simulator — Game Design Requirements
        Daily and weekly quests (docs/QUESTS_SPEC.md) track core-loop actions, reset on UTC periods, and reward existing
        potion items. They never create a second Money source.
 
-       Does level reset on rebirth?
        What survives rebirth: cars, fuel, auras, spoilers, workshop upgrades, Jett Fuel?
 
 

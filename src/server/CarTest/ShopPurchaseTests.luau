@@ -30,7 +30,7 @@ local SECTIONS = { Potions = true, Bundle = true, ServerLuck = true }
 local MAX_RECEIPTS = 100
 local CODE_COOLDOWN = 2
 local MAX_CODE_LENGTH = 32
-local DATA_VERSION = 9
+local DATA_VERSION = 10 -- docs/SAVE_SPEC.md: additive gift fields; ordinary receipts still keep the last 100.
 local MSG_INVALID = "Invalid code"
 local MSG_NOT_LOADED = "Data not loaded"
 local MSG_WAIT = "Please wait"
@@ -629,7 +629,7 @@ function Tests.shop_purchases()
 		local rec = store.data[playerData.KeyFor(DATA_UID)]
 		rec = type(rec) == "table" and rec or {}
 		flag("shop_save_ok", loaded and okD == true and saved)
-		flag("shop_save_version_9", rec.Version == DATA_VERSION, rec.Version, DATA_VERSION)
+		flag("shop_save_version_10", rec.Version == DATA_VERSION, rec.Version, DATA_VERSION)
 		flag("shop_save_has_receipts", sameArray(rec.Receipts, { "cartest_saved_r" }))
 		flag("shop_save_has_codes", sameArray(rec.Codes, { CODE }))
 		local pd2 = newPlayer("CarTestShop_Data2", false)

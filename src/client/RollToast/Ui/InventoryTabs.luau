@@ -54,17 +54,12 @@ function Tabs.Attach(refs, player, refreshCars)
 	refs.ConsumablesTab.Visible = false
 	refs.ConsumablesHost.Visible = false
 	make("UIListLayout", "Layout", { Padding = UDim.new(0, 12), SortOrder = Enum.SortOrder.LayoutOrder }, list)
-	make(
-		"UIPadding",
-		"Padding",
-		{
-			PaddingLeft = UDim.new(0, 6),
-			PaddingRight = UDim.new(0, 12),
-			PaddingTop = UDim.new(0, 6),
-			PaddingBottom = UDim.new(0, 12),
-		},
-		list
-	)
+	make("UIPadding", "Padding", {
+		PaddingLeft = UDim.new(0, 6),
+		PaddingRight = UDim.new(0, 12),
+		PaddingTop = UDim.new(0, 6),
+		PaddingBottom = UDim.new(0, 12),
+	}, list)
 	local empty = text(
 		list,
 		"Empty",
@@ -108,18 +103,13 @@ function Tabs.Attach(refs, player, refreshCars)
 	for _, category in config.Order do
 		for _, item in config.ItemsFor(category) do
 			order += 1
-			local row = make(
-				"Frame",
-				item.Id,
-				{
-					Size = UDim2.new(1, 0, 0, 92),
-					BackgroundColor3 = DARK,
-					BorderSizePixel = 0,
-					LayoutOrder = order,
-					Visible = false,
-				},
-				list
-			)
+			local row = make("Frame", item.Id, {
+				Size = UDim2.new(1, 0, 0, 92),
+				BackgroundColor3 = DARK,
+				BorderSizePixel = 0,
+				LayoutOrder = order,
+				Visible = false,
+			}, list)
 			make("UICorner", "Corner", { CornerRadius = UDim.new(0, 10) }, row)
 			outline(row, Enum.ApplyStrokeMode.Border)
 			local art = make("ImageLabel", "Icon", {

@@ -6,7 +6,10 @@
 -- players never see it.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TextService = game:GetService("TextService")
 
+local CarAppearance = require(script.Parent.CarAppearance)
+local CarCatalog = require(script.Parent.CarCatalog)
 local CarConfig = require(script.Parent.CarConfig)
 local CarFactory = require(script.Parent.CarFactory)
 local NpcConfig = require(script.Parent.NpcConfig)
@@ -14,6 +17,8 @@ local TrackBuilder = require(script.Parent.TrackBuilder)
 local TrackRegistry = require(script.Parent.TrackRegistry)
 
 local NpcRacer = {}
+
+local LABEL_TEXT_SIZE = 18 -- bottom label line, px (the billboard has a fixed pixel size)
 
 local GRIP_FRACTION = 0.55 -- PathDriver's BOT_GRIP_FRACTION: the share of the tyre budget used in corners
 local HOOD_TINT = 0.3 -- the hood is the body colour lightened this much towards white
@@ -100,8 +105,8 @@ local function setupParts(model)
 	end
 end
 
--- The NPC car for `info` (NpcConfig.For(n)): the starter car in info.Color, or a clone of
--- ReplicatedStorage.NpcModels[info.Model]. Not parented: the owning client puts it in its own Workspace.
+-- The NPC car for `info` (NpcConfig.For(n)): the starter car in info.Color (skinned with the catalog car info.Model,
+-- like a player's equipped car), or a clone of ReplicatedStorage.NpcModels[info.Model]. Not parented: the owning client puts it in its own Workspace.
 function NpcRacer.BuildModel(info)
 	local model
 	local folder = info.Model and ReplicatedStorage:FindFirstChild("NpcModels")
@@ -121,6 +126,9 @@ function NpcRacer.BuildModel(info)
 		if seat then
 			seat:Destroy() -- nobody sits in an NPC
 		end
+		if info.Model then
+			CarAppearance.Apply(model, info.Model, config)
+		end
 	end
 	model.Name = "NPC_" .. info.Label
 	model:SetAttribute("IsNpc", true)
@@ -130,21 +138,53 @@ function NpcRacer.BuildModel(info)
 	local billboard = Instance.new("BillboardGui")
 	billboard.Name = "NpcLabel"
 	billboard.Adornee = model.PrimaryPart
-	billboard.Size = UDim2.fromOffset(160, 36)
-	billboard.StudsOffset = Vector3.new(0, 4, 0)
+	billboard.Size = UDim2.fromOffset(320, 64)
+	billboard.StudsOffset = Vector3.new(0, 5, 0)
 	billboard.MaxDistance = NpcConfig.LABEL_DISTANCE -- proximity based
 	billboard.LightInfluence = 0
 	billboard.Parent = model
-	local label = Instance.new("TextLabel")
-	label.Name = "Text"
-	label.Size = UDim2.fromScale(1, 1)
-	label.BackgroundTransparency = 1
-	label.Text = info.Label
-	label.TextScaled = true
-	label.Font = Enum.Font.GothamBlack
-	label.TextColor3 = Color3.new(1, 1, 1)
-	label.TextStrokeTransparency = 0
-	label.Parent = billboard
+	local backing = Instance.new("Frame")
+	backing.Name = "Backing"
+	backing.Size = UDim2.fromScale(1, 1)
+	backing.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
+	backing.BackgroundTransparency = 0.35
+	backing.Parent = billboard
+	Instance.new("UICorner").Parent = backing
+	local title = Instance.new("TextLabel")
+	title.Name = "Title"
+	title.Size = UDim2.fromScale(1, 0.4)
+	title.BackgroundTransparency = 1
+	title.Text = "NPC RIVAL"
+	title.TextScaled = true
+	title.Font = Enum.Font.GothamBold
+	title.TextColor3 = info.Color:Lerp(Color3.new(1, 1, 1), 0.4) -- readable on the dark backing, even for black
+	title.TextStrokeTransparency = 0
+	title.Parent = billboard
+	-- Bottom line "track01_NPC · Car Name": two labels so `Text` stays exactly info.Label, centred as one line.
+	local spec = info.Model and CarCatalog.Get(info.Model)
+	local function piece(name, text, font, x, width)
+		local l = Instance.new("TextLabel")
+		l.Name = name
+		l.Position = UDim2.new(0, x, 0.4, 0)
+		l.Size = UDim2.new(0, width, 0.6, 0)
+		l.BackgroundTransparency = 1
+		l.Text = text
+		l.TextSize = LABEL_TEXT_SIZE
+		l.Font = font
+		l.TextColor3 = Color3.new(1, 1, 1)
+		l.TextStrokeTransparency = 0
+		l.Parent = billboard
+		return l
+	end
+	local carText = spec and " · " .. spec.Name or ""
+	local bounds = Vector2.new(1e4, 100)
+	local w1 = TextService:GetTextSize(info.Label, LABEL_TEXT_SIZE, Enum.Font.GothamBlack, bounds).X
+	local w2 = TextService:GetTextSize(carText, LABEL_TEXT_SIZE, Enum.Font.GothamBold, bounds).X
+	local x = (billboard.Size.X.Offset - w1 - w2) / 2
+	piece("Text", info.Label, Enum.Font.GothamBlack, x, w1)
+	if spec then
+		piece("Car", carText, Enum.Font.GothamBold, x + w1, w2)
+	end
 	return model
 end
 

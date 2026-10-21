@@ -1,0 +1,105 @@
+{
+  "id": "midnight_kart",
+  "parts": [
+    "Metal",
+    "Body",
+    "Accent",
+    "Trim",
+    "Wheel_FL",
+    "Wheel_FR",
+    "Wheel_RL",
+    "Wheel_RR",
+    "Light"
+  ],
+  "tris": 5392,
+  "wheels": [
+    "Wheel_FL",
+    "Wheel_FR",
+    "Wheel_RL",
+    "Wheel_RR"
+  ],
+  "min": [
+    -1.91,
+    -2.62,
+    0.008
+  ],
+  "max": [
+    1.91,
+    3.05,
+    1.661
+  ],
+  "materials": {
+    "Metal": {
+      "material": "Metal",
+      "color": [
+        0.62,
+        0.64,
+        0.68
+      ]
+    },
+    "Body": {
+      "material": "SmoothPlastic",
+      "color": [
+        0.9,
+        0.36,
+        0.42
+      ]
+    },
+    "Accent": {
+      "material": "SmoothPlastic",
+      "color": [
+        0.93,
+        0.91,
+        0.87
+      ]
+    },
+    "Trim": {
+      "material": "SmoothPlastic",
+      "color": [
+        0.2,
+        0.21,
+        0.24
+      ]
+    },
+    "Wheel_FL": {
+      "material": "SmoothPlastic",
+      "color": [
+        0.13,
+        0.13,
+        0.14
+      ]
+    },
+    "Wheel_FR": {
+      "material": "SmoothPlastic",
+      "color": [
+        0.13,
+        0.13,
+        0.14
+      ]
+    },
+    "Wheel_RL": {
+      "material": "SmoothPlastic",
+      "color": [
+        0.13,
+        0.13,
+        0.14
+      ]
+    },
+    "Wheel_RR": {
+      "material": "SmoothPlastic",
+      "color": [
+        0.13,
+        0.13,
+        0.14
+      ]
+    },
+    "Light": {
+      "material": "Neon",
+      "color": [
+        1.0,
+        0.4,
+        0.4667
+      ]
+    }
+  }
+}

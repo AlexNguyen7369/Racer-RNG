@@ -9,6 +9,8 @@ local dailyConfig = require(ReplicatedStorage.Shared.DailyLoginConfig)
 local questConfig = require(ReplicatedStorage.Shared.QuestConfig)
 local HttpService = game:GetService("HttpService")
 local PanelSwitch = require(script.Parent:WaitForChild("PanelSwitch"))
+local HudIcons = require(script.Parent.RollToast.Ui.HudIcons)
+local PotionIcons = require(script.Parent.RollToast.Ui.PotionIcons)
 
 local screen = Instance.new("ScreenGui")
 screen.Name = "DailyBoosts"
@@ -17,6 +19,15 @@ screen.IgnoreGuiInset = true
 screen.DisplayOrder = 6
 screen.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 screen.Parent = gui
+
+-- Backpack / Market vocabulary (HUD_LAYOUT_SPEC section 3): dark body, navy tiles with a blue glow border,
+-- white border on the selection, Fredoka text with a dark outline.
+local OUTLINE = Color3.fromRGB(17, 19, 31)
+local BODY = Color3.fromRGB(32, 27, 36)
+local TILE = Color3.fromRGB(14, 24, 52)
+local TILE_BLUE = Color3.fromRGB(47, 107, 255)
+local TAB = Color3.fromRGB(44, 52, 60)
+local GREEN = Color3.fromRGB(60, 200, 90)
 
 local function make(class, name, parent, props)
 	local instance = Instance.new(class)
@@ -38,14 +49,20 @@ local function button(name, parent, position, size, text)
 	local instance = make("TextButton", name, parent, {
 		Position = position,
 		Size = size,
-		BackgroundColor3 = Color3.fromRGB(42, 54, 84),
+		BackgroundColor3 = TAB,
 		TextColor3 = Color3.new(1, 1, 1),
-		Font = Enum.Font.GothamBold,
-		TextSize = 14,
+		Font = Enum.Font.FredokaOne,
+		TextSize = 18,
 		Text = text,
 		AutoButtonColor = true,
 	})
 	rounded(instance, 8)
+	make(
+		"UIStroke",
+		"Edge",
+		instance,
+		{ Color = OUTLINE, Thickness = 3, ApplyStrokeMode = Enum.ApplyStrokeMode.Border }
+	)
 	return instance
 end
 
@@ -53,32 +70,66 @@ local backdrop = make("Frame", "ModalBackdrop", screen, {
 	Position = UDim2.fromScale(0, 0),
 	Size = UDim2.fromScale(1, 1),
 	BackgroundColor3 = Color3.new(0, 0, 0),
-	BackgroundTransparency = 0.35,
+	BackgroundTransparency = 1, -- the world dim is HudChrome/PanelDim, below the HUD
 	Visible = false,
+	Active = false, -- HUD tiles behind stay clickable (owner 2026-10-20)
 })
 PanelSwitch.Register("Daily", backdrop)
 local modal = make("Frame", "Modal", backdrop, {
 	AnchorPoint = Vector2.new(0.5, 0),
-	Position = UDim2.new(0.5, 0, 0, 146),
-	Size = UDim2.fromScale(0.58, 0.48),
-	BackgroundColor3 = Color3.fromRGB(29, 32, 53),
+	Position = UDim2.fromScale(0.5, 0.08),
+	Size = UDim2.fromScale(0.82, 0.78),
+	BackgroundColor3 = BODY,
 })
 rounded(modal, 14)
+local header = make("Frame", "Header", modal, {
+	Position = UDim2.fromOffset(5, 5),
+	Size = UDim2.new(1, -10, 0, 72),
+	BackgroundColor3 = Color3.fromRGB(190, 20, 34),
+	BorderSizePixel = 0,
+})
+rounded(header, 10)
+local headerGradient = Instance.new("UIGradient")
+headerGradient.Color = ColorSequence.new({
+	ColorSequenceKeypoint.new(0, Color3.fromRGB(105, 8, 20)),
+	ColorSequenceKeypoint.new(0.5, Color3.fromRGB(238, 28, 42)),
+	ColorSequenceKeypoint.new(1, Color3.fromRGB(112, 8, 20)),
+})
+headerGradient.Parent = header
+make("ImageLabel", "CalendarIcon", header, {
+	Position = UDim2.fromOffset(14, 10),
+	Size = UDim2.fromOffset(52, 52),
+	BackgroundTransparency = 1,
+	Image = HudIcons.Daily.Image,
+	ScaleType = Enum.ScaleType.Fit,
+})
 local title = make("TextLabel", "Title", modal, {
-	Position = UDim2.fromOffset(18, 10),
-	Size = UDim2.new(1, -76, 0, 34),
+	Position = UDim2.fromOffset(78, 14),
+	Size = UDim2.new(1, -150, 0, 48),
 	BackgroundTransparency = 1,
 	TextColor3 = Color3.new(1, 1, 1),
-	Font = Enum.Font.GothamBold,
-	TextSize = 21,
+	Font = Enum.Font.GothamBlack,
+	TextSize = 30,
+	TextStrokeColor3 = Color3.fromRGB(35, 0, 0),
+	TextStrokeTransparency = 0,
 	TextXAlignment = Enum.TextXAlignment.Left,
 	Text = "DAILY REWARDS",
 })
-local close = button("Close", modal, UDim2.new(1, -50, 0, 8), UDim2.fromOffset(36, 30), "×")
+local close = button("Close", modal, UDim2.new(1, -62, 0, 12), UDim2.fromOffset(48, 48), "×")
 close.BackgroundColor3 = Color3.fromRGB(210, 75, 90)
+close.TextSize = 34
+local panelFrame = require(script.Parent:WaitForChild("PanelFrame")).Attach(modal, {
+	Theme = "Daily",
+	Title = "DAILY REWARDS",
+	Icon = HudIcons.Daily.Image,
+	TitleObject = title,
+	IconObject = header.CalendarIcon,
+	Close = close,
+	MaxWidth = 760,
+})
 local content = make("ScrollingFrame", "Content", modal, {
-	Position = UDim2.fromOffset(14, 52),
-	Size = UDim2.new(1, -28, 1, -66),
+	Position = UDim2.fromOffset(14, 88),
+	Size = UDim2.new(1, -28, 1, -100),
 	BackgroundTransparency = 1,
 	BorderSizePixel = 0,
 	CanvasSize = UDim2.fromOffset(0, 0),
@@ -108,31 +159,33 @@ local weeklyQuestTab = button("Weekly", questTabs, UDim2.new(), UDim2.new(0.5, -
 local questDetail = make("Frame", "QuestDetail", modal, {
 	Position = UDim2.new(0.55, 0, 0, 100),
 	Size = UDim2.new(0.45, -14, 1, -114),
-	BackgroundColor3 = Color3.fromRGB(18, 27, 47),
+	BackgroundColor3 = TILE,
 	BorderSizePixel = 0,
 	Visible = false,
 })
-rounded(questDetail, 10)
+rounded(questDetail, 12)
 local questDetailEdge = Instance.new("UIStroke")
-questDetailEdge.Color = Color3.fromRGB(25, 201, 235)
-questDetailEdge.Thickness = 2
+questDetailEdge.Color = TILE_BLUE
+questDetailEdge.Thickness = 4
 questDetailEdge.Parent = questDetail
 local function detailText(name, position, size, textSize, color)
-	return make("TextLabel", name, questDetail, {
+	local label = make("TextLabel", name, questDetail, {
 		Position = position,
 		Size = size,
 		BackgroundTransparency = 1,
 		Text = "",
 		TextColor3 = color,
-		Font = Enum.Font.GothamBold,
-		TextSize = textSize,
+		Font = Enum.Font.FredokaOne,
+		TextSize = textSize + 2,
 		TextWrapped = true,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		TextYAlignment = Enum.TextYAlignment.Top,
 	})
+	make("UIStroke", "Outline", label, { Color = OUTLINE, Thickness = 2, LineJoinMode = Enum.LineJoinMode.Round })
+	return label
 end
 local questType =
-	detailText("Type", UDim2.fromOffset(14, 12), UDim2.new(1, -28, 0, 20), 13, Color3.fromRGB(25, 201, 235))
+	detailText("Type", UDim2.fromOffset(14, 12), UDim2.new(1, -28, 0, 20), 13, Color3.fromRGB(80, 170, 250))
 local questName =
 	detailText("Name", UDim2.fromOffset(14, 35), UDim2.new(1, -28, 0, 54), 22, Color3.fromRGB(255, 190, 42))
 local questGoal =
@@ -146,7 +199,7 @@ local progressTrack = make("Frame", "ProgressTrack", questDetail, {
 rounded(progressTrack, 8)
 local progressFill = make("Frame", "Fill", progressTrack, {
 	Size = UDim2.fromScale(0, 1),
-	BackgroundColor3 = Color3.fromRGB(25, 201, 235),
+	BackgroundColor3 = GREEN,
 	BorderSizePixel = 0,
 })
 rounded(progressFill, 8)
@@ -185,11 +238,15 @@ local function layoutView()
 	questTabs.Visible = quests
 	questDetail.Visible = quests and not phone
 	if quests then
-		content.Position = UDim2.fromOffset(14, 100)
-		content.Size = phone and UDim2.new(1, -28, 1, -114) or UDim2.new(0.53, -18, 1, -114)
+		local tabTop = phone and 56 or 72
+		questTabs.Position = UDim2.fromOffset(14, tabTop)
+		content.Position = UDim2.fromOffset(14, tabTop + 46)
+		content.Size = phone and UDim2.new(1, -28, 1, -tabTop - 60) or UDim2.new(0.53, -18, 1, -tabTop - 60)
+		questDetail.Position = UDim2.new(0.55, 0, 0, tabTop + 46)
+		questDetail.Size = UDim2.new(0.45, -14, 1, -tabTop - 60)
 	else
-		content.Position = UDim2.fromOffset(14, 52)
-		content.Size = UDim2.new(1, -28, 1, -66)
+		content.Position = UDim2.fromOffset(14, 88)
+		content.Size = UDim2.new(1, -28, 1, -100)
 	end
 end
 
@@ -217,8 +274,77 @@ local function clearContent()
 	fresh.Parent = content
 end
 
+local function rewardArt(reward)
+	if reward.GuaranteedRare then
+		return HudIcons.Rebirth.Image
+	end
+	return PotionIcons[reward.Boost] or HudIcons.Daily.Image
+end
+
+local function dailyCard(parent, day, reward, done, featured, position, size)
+	local card = make("Frame", "Day" .. day, parent, {
+		Position = position,
+		Size = size,
+		BackgroundColor3 = Color3.fromRGB(12, 15, 22),
+		BorderSizePixel = 0,
+	})
+	rounded(card, 12)
+	local edge = Instance.new("UIStroke")
+	edge.Color = done and Color3.fromRGB(43, 190, 73)
+		or (featured and Color3.fromRGB(184, 85, 255) or Color3.fromRGB(45, 122, 220))
+	edge.Thickness = 3
+	edge.Parent = card
+	make("TextLabel", "Label", card, {
+		Position = UDim2.fromOffset(8, 8),
+		Size = UDim2.new(1, -16, 0, featured and 32 or 25),
+		BackgroundTransparency = 1,
+		Text = "DAY " .. day,
+		TextColor3 = done and Color3.fromRGB(120, 120, 120) or Color3.new(1, 1, 1),
+		Font = Enum.Font.GothamBlack,
+		TextSize = featured and 24 or 17,
+		TextStrokeTransparency = 0,
+		TextStrokeColor3 = Color3.new(0, 0, 0),
+	})
+	make("ImageLabel", "RewardIcon", card, {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, featured and 0.54 or 0.57),
+		Size = UDim2.fromScale(featured and 0.62 or 0.48, featured and 0.58 or 0.48),
+		BackgroundTransparency = 1,
+		Image = rewardArt(reward),
+		ScaleType = Enum.ScaleType.Fit,
+		ImageTransparency = done and 0.55 or 0,
+	})
+	local detail = reward.GuaranteedRare and "GUARANTEED RARE"
+		or string.format("x%d %s POTION", reward.BoostCount or 1, (reward.Boost or ""):upper())
+	make("TextLabel", "RewardText", card, {
+		AnchorPoint = Vector2.new(0.5, 1),
+		Position = UDim2.new(0.5, 0, 1, -8),
+		Size = UDim2.new(1, -12, 0, 22),
+		BackgroundTransparency = 1,
+		Text = detail,
+		TextColor3 = done and Color3.fromRGB(115, 115, 115) or Color3.fromRGB(235, 240, 255),
+		Font = Enum.Font.GothamBold,
+		TextSize = featured and 15 or 11,
+		TextScaled = false,
+	})
+	make("TextLabel", "Completion", card, {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.55),
+		Size = UDim2.fromScale(0.55, 0.45),
+		BackgroundTransparency = 1,
+		Text = done and "✓" or "",
+		TextColor3 = Color3.fromRGB(50, 210, 75),
+		Font = Enum.Font.GothamBlack,
+		TextScaled = true,
+		TextStrokeTransparency = 0,
+		TextStrokeColor3 = Color3.fromRGB(0, 30, 0),
+	})
+	return card
+end
+
 local function showDaily()
 	view = "Daily"
+	panelFrame:SetTheme("Daily", nil, HudIcons.Daily.Image)
 	if not backdrop.Visible then
 		PanelSwitch.Toggle("Daily")
 	end
@@ -230,20 +356,56 @@ local function showDaily()
 	local streak = math.clamp(player:GetAttribute("DailyStreak") or 0, 0, 7)
 	local last = player:GetAttribute("DailyLast") or -1
 	local claimedToday = last == math.floor(os.time() / 86400)
+	local camera = workspace.CurrentCamera
+	local phone = camera and camera.ViewportSize.Y <= 500
+	local area = make("Frame", "RewardCards", content, {
+		Size = UDim2.new(1, -8, 0, phone and 530 or 300),
+		BackgroundTransparency = 1,
+	})
 	for day, reward in ipairs(dailyConfig.Rewards) do
-		local details = reward.GuaranteedRare and "Guaranteed rare car"
-			or ("%d x %s Potion I"):format(reward.BoostCount or 1, reward.Boost)
-		local row = make("TextLabel", "Day" .. day, content, {
-			Size = UDim2.new(1, -8, 0, 38),
-			BackgroundColor3 = day <= streak and Color3.fromRGB(48, 110, 78) or Color3.fromRGB(42, 54, 84),
-			TextColor3 = Color3.new(1, 1, 1),
-			Font = Enum.Font.GothamBold,
-			TextSize = 14,
-			TextXAlignment = Enum.TextXAlignment.Left,
-			Text = "  DAY " .. day .. (day <= streak and "  ✓  " or "     ") .. details,
-		})
-		rounded(row, 8)
+		local done = day <= streak
+		if phone then
+			if day < 7 then
+				local column = (day - 1) % 2
+				local row = math.floor((day - 1) / 2)
+				dailyCard(
+					area,
+					day,
+					reward,
+					done,
+					false,
+					UDim2.new(column * 0.5, column == 0 and 0 or 4, 0, row * 122),
+					UDim2.new(0.5, -8, 0, 114)
+				)
+			else
+				dailyCard(area, day, reward, done, true, UDim2.fromOffset(0, 372), UDim2.new(1, -8, 0, 148))
+			end
+		elseif day < 7 then
+			local column = (day - 1) % 3
+			local row = math.floor((day - 1) / 3)
+			dailyCard(
+				area,
+				day,
+				reward,
+				done,
+				false,
+				UDim2.new(column * 0.25, column == 0 and 0 or 4, 0, row * 150),
+				UDim2.new(0.25, -8, 0, 140)
+			)
+		else
+			dailyCard(area, day, reward, done, true, UDim2.new(0.75, 8, 0, 0), UDim2.new(0.245, -8, 1, 0))
+		end
 	end
+	make("TextLabel", "NextReward", content, {
+		Size = UDim2.new(1, -8, 0, 34),
+		BackgroundTransparency = 1,
+		TextColor3 = Color3.fromRGB(184, 255, 28),
+		Font = Enum.Font.GothamBlack,
+		TextSize = phone and 16 or 21,
+		TextStrokeTransparency = 0,
+		TextStrokeColor3 = Color3.fromRGB(30, 45, 0),
+		Text = claimedToday and "NEXT REWARD IN: calculating..." or "CLAIM TODAY'S REWARD!",
+	})
 	local claim = button(
 		"Claim",
 		content,
@@ -283,7 +445,7 @@ end
 
 local function selectQuest(quest, current, weekly)
 	for id, refs in questRows do
-		refs.Edge.Color = id == quest.Id and Color3.new(1, 1, 1) or Color3.fromRGB(25, 201, 235)
+		refs.Edge.Color = id == quest.Id and Color3.new(1, 1, 1) or TILE_BLUE
 	end
 	questType.Text = weekly and "WEEKLY QUEST" or "DAILY QUEST"
 	questName.Text = quest.Name
@@ -300,6 +462,7 @@ end
 
 local function showQuests()
 	view = "Quests"
+	panelFrame:SetTheme("Quests", nil, HudIcons.Quests.Image)
 	if not backdrop.Visible then
 		PanelSwitch.Toggle("Daily")
 	end
@@ -309,10 +472,11 @@ local function showQuests()
 	title.Text = "QUESTS"
 	clearContent()
 	questRows = {}
-	dailyQuestTab.BackgroundColor3 = questCategory == "Daily" and Color3.fromRGB(205, 151, 19)
-		or Color3.fromRGB(42, 54, 84)
-	weeklyQuestTab.BackgroundColor3 = questCategory == "Weekly" and Color3.fromRGB(205, 151, 19)
-		or Color3.fromRGB(42, 54, 84)
+	for _, tab in { dailyQuestTab, weeklyQuestTab } do
+		local selected = tab.Name == questCategory
+		tab.BackgroundColor3 = selected and TILE_BLUE or TAB
+		tab.Edge.Color = selected and Color3.new(1, 1, 1) or OUTLINE
+	end
 	local weekly = questCategory == "Weekly"
 	local quests = weekly and questConfig.Weekly or questConfig.Daily
 	local progress = decode(weekly and "QuestWeeklyProgress" or "QuestDailyProgress")
@@ -323,19 +487,22 @@ local function showQuests()
 		local done = claimed[quest.Id] == 1
 		local row = button(quest.Id, content, UDim2.new(), UDim2.new(1, -8, 0, 72), "")
 		row.AutoButtonColor = false
-		rounded(row, 7)
+		row.BackgroundColor3 = TILE
+		row.Edge:Destroy()
+		rounded(row, 12)
 		local rowEdge = Instance.new("UIStroke")
 		rowEdge.Name = "Selection"
-		rowEdge.Color = Color3.fromRGB(25, 201, 235)
-		rowEdge.Thickness = 2
+		rowEdge.Color = TILE_BLUE
+		rowEdge.Thickness = 4
+		rowEdge.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 		rowEdge.Parent = row
 		make("TextLabel", "Text", row, {
 			Position = UDim2.fromOffset(12, 8),
 			Size = UDim2.new(1, -124, 0, 24),
 			BackgroundTransparency = 1,
 			Text = quest.Name,
-			Font = Enum.Font.GothamBold,
-			TextSize = 15,
+			Font = Enum.Font.FredokaOne,
+			TextSize = 18,
 			TextColor3 = Color3.fromRGB(255, 190, 42),
 			TextXAlignment = Enum.TextXAlignment.Left,
 		})
@@ -344,9 +511,9 @@ local function showQuests()
 			Size = UDim2.new(1, -124, 0, 20),
 			BackgroundTransparency = 1,
 			Text = string.format("%d / %d  •  %s", current, quest.Target, quest.Reward),
-			Font = Enum.Font.Gotham,
-			TextSize = 13,
-			TextColor3 = Color3.fromRGB(193, 205, 225),
+			Font = Enum.Font.FredokaOne,
+			TextSize = 15,
+			TextColor3 = Color3.fromRGB(210, 220, 240),
 			TextXAlignment = Enum.TextXAlignment.Left,
 		})
 		local claim = button(
@@ -358,7 +525,7 @@ local function showQuests()
 		)
 		claim.Active = not done and current >= quest.Target
 		claim.AutoButtonColor = claim.Active
-		claim.BackgroundColor3 = claim.Active and Color3.fromRGB(70, 175, 105) or Color3.fromRGB(80, 88, 112)
+		claim.BackgroundColor3 = claim.Active and GREEN or TAB
 		questRows[quest.Id] = { Button = row, Edge = rowEdge }
 		if not selectedQuest then
 			selectedQuest, selectedCurrent = quest, current
@@ -424,6 +591,19 @@ task.spawn(function()
 		task.wait(1)
 		local last = player:GetAttribute("DailyLast") or -1
 		local today = math.floor(os.time() / 86400)
+		local nextReward = content:FindFirstChild("NextReward")
+		if view == "Daily" and backdrop.Visible and nextReward then
+			local remaining = 86400 - (os.time() % 86400)
+			if last == today then
+				nextReward.Text = string.format(
+					"NEXT REWARD IN: %dh %02dm",
+					math.floor(remaining / 3600),
+					math.floor(remaining % 3600 / 60)
+				)
+			else
+				nextReward.Text = "CLAIM TODAY'S REWARD!"
+			end
+		end
 		-- Auto-open once per UTC day: after the player closes it, only the button reopens it.
 		if last ~= today and autoShownDay ~= today and not backdrop.Visible then
 			autoShownDay = today
@@ -433,4 +613,3 @@ task.spawn(function()
 end)
 
 -- Opens in the shared band between the HUD entries (docs/HUD_LAYOUT_SPEC.md section 6).
-require(script.Parent:WaitForChild("PanelBand")).Fit(modal, 760)

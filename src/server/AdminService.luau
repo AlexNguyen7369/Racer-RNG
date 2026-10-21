@@ -150,7 +150,7 @@ local function speedValue(player)
 end
 
 local function cleanSpeed(n)
-	return math.floor(math.clamp(n, 0, RaceConfig.MAX_STAT) * 1000 + 0.5) / 1000
+	return RaceConfig.CleanStat(math.max(n, 0)) or 0
 end
 
 local function amount(args)

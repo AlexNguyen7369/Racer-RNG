@@ -1,0 +1,834 @@
+<?xml version='1.0' encoding='utf-8'?>
+<roblox version="4">
+  <Item class="Model" referent="RBXMODEL">
+    <Properties>
+      <string name="Name">metro_mini</string>
+      <OptionalCoordinateFrame name="WorldPivotData">
+        <CFrame>
+          <X>0</X>
+          <Y>0</Y>
+          <Z>0</Z>
+          <R00>1</R00>
+          <R01>0</R01>
+          <R02>0</R02>
+          <R10>0</R10>
+          <R11>1</R11>
+          <R12>0</R12>
+          <R20>0</R20>
+          <R21>0</R21>
+          <R22>1</R22>
+        </CFrame>
+      </OptionalCoordinateFrame>
+    </Properties>
+    <Item class="MeshPart" referent="RBX0">
+      <Properties>
+        <string name="Name">Accent</string>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="Massless">true</bool>
+        <bool name="CastShadow">true</bool>
+        <Content name="MeshId">
+          <url>rbxassetid://112640163249906</url>
+        </Content>
+        <Vector3 name="InitialSize">
+          <X>2.88</X>
+          <Y>0.6</Y>
+          <Z>4.512</Z>
+        </Vector3>
+        <Vector3 name="size">
+          <X>2.88</X>
+          <Y>0.6</Y>
+          <Z>4.512</Z>
+        </Vector3>
+        <CoordinateFrame name="CFrame">
+          <X>-0.0</X>
+          <Y>0.7</Y>
+          <Z>0.0</Z>
+          <R00>1</R00>
+          <R01>0</R01>
+          <R02>0</R02>
+          <R10>0</R10>
+          <R11>1</R11>
+          <R12>0</R12>
+          <R20>0</R20>
+          <R21>0</R21>
+          <R22>1</R22>
+        </CoordinateFrame>
+        <Color3 name="Color">
+          <R>0.45</R>
+          <G>0.203</G>
+          <B>0.384</B>
+        </Color3>
+        <token name="Material">272</token>
+        <token name="CollisionFidelity">1</token>
+      </Properties>
+    </Item>
+    <Item class="MeshPart" referent="RBX1">
+      <Properties>
+        <string name="Name">Accent2</string>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="Massless">true</bool>
+        <bool name="CastShadow">true</bool>
+        <Content name="MeshId">
+          <url>rbxassetid://75518186194131</url>
+        </Content>
+        <Vector3 name="InitialSize">
+          <X>2.4</X>
+          <Y>1.85</Y>
+          <Z>3.2825</Z>
+        </Vector3>
+        <Vector3 name="size">
+          <X>2.4</X>
+          <Y>1.85</Y>
+          <Z>3.2825</Z>
+        </Vector3>
+        <CoordinateFrame name="CFrame">
+          <X>0.0</X>
+          <Y>1.305</Y>
+          <Z>-0.9587</Z>
+          <R00>1</R00>
+          <R01>0</R01>
+          <R02>0</R02>
+          <R10>0</R10>
+          <R11>1</R11>
+          <R12>0</R12>
+          <R20>0</R20>
+          <R21>0</R21>
+          <R22>1</R22>
+        </CoordinateFrame>
+        <Color3 name="Color">
+          <R>0.72</R>
+          <G>0.79</G>
+          <B>0.85</B>
+        </Color3>
+        <token name="Material">272</token>
+        <token name="CollisionFidelity">1</token>
+      </Properties>
+    </Item>
+    <Item class="MeshPart" referent="RBX2">
+      <Properties>
+        <string name="Name">Accent3</string>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="Massless">true</bool>
+        <bool name="CastShadow">true</bool>
+        <Content name="MeshId">
+          <url>rbxassetid://135872943938484</url>
+        </Content>
+        <Vector3 name="InitialSize">
+          <X>2.2</X>
+          <Y>0.1298</Y>
+          <Z>3.9692</Z>
+        </Vector3>
+        <Vector3 name="size">
+          <X>2.2</X>
+          <Y>0.1298</Y>
+          <Z>3.9692</Z>
+        </Vector3>
+        <CoordinateFrame name="CFrame">
+          <X>-0.0</X>
+          <Y>1.1649</Y>
+          <Z>0.3654</Z>
+          <R00>1</R00>
+          <R01>0</R01>
+          <R02>0</R02>
+          <R10>0</R10>
+          <R11>1</R11>
+          <R12>0</R12>
+          <R20>0</R20>
+          <R21>0</R21>
+          <R22>1</R22>
+        </CoordinateFrame>
+        <Color3 name="Color">
+          <R>0.867</R>
+          <G>0.6</G>
+          <B>1.0</B>
+        </Color3>
+        <token name="Material">272</token>
+        <token name="CollisionFidelity">1</token>
+      </Properties>
+    </Item>
+    <Item class="MeshPart" referent="RBX3">
+      <Properties>
+        <string name="Name">Accent4</string>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="Massless">true</bool>
+        <bool name="CastShadow">true</bool>
+        <Content name="MeshId">
+          <url>rbxassetid://94069498590494</url>
+        </Content>
+        <Vector3 name="InitialSize">
+          <X>0.6</X>
+          <Y>0.16</Y>
+          <Z>4.82</Z>
+        </Vector3>
+        <Vector3 name="size">
+          <X>0.6</X>
+          <Y>0.16</Y>
+          <Z>4.82</Z>
+        </Vector3>
+        <CoordinateFrame name="CFrame">
+          <X>-0.0</X>
+          <Y>0.55</Y>
+          <Z>-0.015</Z>
+          <R00>1</R00>
+          <R01>0</R01>
+          <R02>0</R02>
+          <R10>0</R10>
+          <R11>1</R11>
+          <R12>0</R12>
+          <R20>0</R20>
+          <R21>0</R21>
+          <R22>1</R22>
+        </CoordinateFrame>
+        <Color3 name="Color">
+          <R>0.93</R>
+          <G>0.93</G>
+          <B>0.88</B>
+        </Color3>
+        <token name="Material">272</token>
+        <token name="CollisionFidelity">1</token>
+      </Properties>
+    </Item>
+    <Item class="MeshPart" referent="RBX4">
+      <Properties>
+        <string name="Name">Body</string>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="Massless">true</bool>
+        <bool name="CastShadow">true</bool>
+        <Content name="MeshId">
+          <url>rbxassetid://111021401055230</url>
+        </Content>
+        <Vector3 name="InitialSize">
+          <X>2.5</X>
+          <Y>1.74</Y>
+          <Z>4.7</Z>
+        </Vector3>
+        <Vector3 name="size">
+          <X>2.5</X>
+          <Y>1.74</Y>
+          <Z>4.7</Z>
+        </Vector3>
+        <CoordinateFrame name="CFrame">
+          <X>-0.0</X>
+          <Y>1.33</Y>
+          <Z>0.0</Z>
+          <R00>1</R00>
+          <R01>0</R01>
+          <R02>0</R02>
+          <R10>0</R10>
+          <R11>1</R11>
+          <R12>0</R12>
+          <R20>0</R20>
+          <R21>0</R21>
+          <R22>1</R22>
+        </CoordinateFrame>
+        <Color3 name="Color">
+          <R>0.313</R>
+          <G>0.381</G>
+          <B>0.92</B>
+        </Color3>
+        <token name="Material">272</token>
+        <token name="CollisionFidelity">1</token>
+      </Properties>
+    </Item>
+    <Item class="MeshPart" referent="RBX5">
+      <Properties>
+        <string name="Name">Glass</string>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="Massless">true</bool>
+        <bool name="CastShadow">true</bool>
+        <Content name="MeshId">
+          <url>rbxassetid://98840316451495</url>
+        </Content>
+        <Vector3 name="InitialSize">
+          <X>1.99</X>
+          <Y>0.98</Y>
+          <Z>2.3076</Z>
+        </Vector3>
+        <Vector3 name="size">
+          <X>1.99</X>
+          <Y>0.98</Y>
+          <Z>2.3076</Z>
+        </Vector3>
+        <CoordinateFrame name="CFrame">
+          <X>-0.0</X>
+          <Y>1.59</Y>
+          <Z>-0.494</Z>
+          <R00>1</R00>
+          <R01>0</R01>
+          <R02>0</R02>
+          <R10>0</R10>
+          <R11>1</R11>
+          <R12>0</R12>
+          <R20>0</R20>
+          <R21>0</R21>
+          <R22>1</R22>
+        </CoordinateFrame>
+        <Color3 name="Color">
+          <R>0.18</R>
+          <G>0.3</G>
+          <B>0.39</B>
+        </Color3>
+        <token name="Material">1568</token>
+        <token name="CollisionFidelity">1</token>
+      </Properties>
+    </Item>
+    <Item class="MeshPart" referent="RBX6">
+      <Properties>
+        <string name="Name">Light</string>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="Massless">true</bool>
+        <bool name="CastShadow">true</bool>
+        <Content name="MeshId">
+          <url>rbxassetid://115107603620209</url>
+        </Content>
+        <Vector3 name="InitialSize">
+          <X>2.2</X>
+          <Y>0.4175</Y>
+          <Z>0.4025</Z>
+        </Vector3>
+        <Vector3 name="size">
+          <X>2.2</X>
+          <Y>0.4175</Y>
+          <Z>0.4025</Z>
+        </Vector3>
+        <CoordinateFrame name="CFrame">
+          <X>0.0</X>
+          <Y>0.5413</Y>
+          <Z>-2.5362</Z>
+          <R00>1</R00>
+          <R01>0</R01>
+          <R02>0</R02>
+          <R10>0</R10>
+          <R11>1</R11>
+          <R12>0</R12>
+          <R20>0</R20>
+          <R21>0</R21>
+          <R22>1</R22>
+        </CoordinateFrame>
+        <Color3 name="Color">
+          <R>1.0</R>
+          <G>0.93</G>
+          <B>0.62</B>
+        </Color3>
+        <token name="Material">288</token>
+        <token name="CollisionFidelity">1</token>
+      </Properties>
+    </Item>
+    <Item class="MeshPart" referent="RBX7">
+      <Properties>
+        <string name="Name">Light2</string>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="Massless">true</bool>
+        <bool name="CastShadow">true</bool>
+        <Content name="MeshId">
+          <url>rbxassetid://119459597854655</url>
+        </Content>
+        <Vector3 name="InitialSize">
+          <X>2.25</X>
+          <Y>0.09</Y>
+          <Z>0.08</Z>
+        </Vector3>
+        <Vector3 name="size">
+          <X>2.25</X>
+          <Y>0.09</Y>
+          <Z>0.08</Z>
+        </Vector3>
+        <CoordinateFrame name="CFrame">
+          <X>-0.0</X>
+          <Y>0.7</Y>
+          <Z>2.375</Z>
+          <R00>1</R00>
+          <R01>0</R01>
+          <R02>0</R02>
+          <R10>0</R10>
+          <R11>1</R11>
+          <R12>0</R12>
+          <R20>0</R20>
+          <R21>0</R21>
+          <R22>1</R22>
+        </CoordinateFrame>
+        <Color3 name="Color">
+          <R>1.0</R>
+          <G>0.15</G>
+          <B>0.19</B>
+        </Color3>
+        <token name="Material">288</token>
+        <token name="CollisionFidelity">1</token>
+      </Properties>
+    </Item>
+    <Item class="MeshPart" referent="RBX8">
+      <Properties>
+        <string name="Name">Light3</string>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="Massless">true</bool>
+        <bool name="CastShadow">true</bool>
+        <Content name="MeshId">
+          <url>rbxassetid://71060714246108</url>
+        </Content>
+        <Vector3 name="InitialSize">
+          <X>0.36</X>
+          <Y>0.02</Y>
+          <Z>3.337</Z>
+        </Vector3>
+        <Vector3 name="size">
+          <X>0.36</X>
+          <Y>0.02</Y>
+          <Z>3.337</Z>
+        </Vector3>
+        <CoordinateFrame name="CFrame">
+          <X>-0.0</X>
+          <Y>1.105</Y>
+          <Z>-0.1175</Z>
+          <R00>1</R00>
+          <R01>0</R01>
+          <R02>0</R02>
+          <R10>0</R10>
+          <R11>1</R11>
+          <R12>0</R12>
+          <R20>0</R20>
+          <R21>0</R21>
+          <R22>1</R22>
+        </CoordinateFrame>
+        <Color3 name="Color">
+          <R>0.867</R>
+          <G>0.6</G>
+          <B>1.0</B>
+        </Color3>
+        <token name="Material">288</token>
+        <token name="CollisionFidelity">1</token>
+      </Properties>
+    </Item>
+    <Item class="MeshPart" referent="RBX9">
+      <Properties>
+        <string name="Name">Light4</string>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="Massless">true</bool>
+        <bool name="CastShadow">true</bool>
+        <Content name="MeshId">
+          <url>rbxassetid://96178437034099</url>
+        </Content>
+        <Vector3 name="InitialSize">
+          <X>0.9</X>
+          <Y>0.32</Y>
+          <Z>0.38</Z>
+        </Vector3>
+        <Vector3 name="size">
+          <X>0.9</X>
+          <Y>0.32</Y>
+          <Z>0.38</Z>
+        </Vector3>
+        <CoordinateFrame name="CFrame">
+          <X>-0.0</X>
+          <Y>2.19</Y>
+          <Z>-0.4175</Z>
+          <R00>1</R00>
+          <R01>0</R01>
+          <R02>0</R02>
+          <R10>0</R10>
+          <R11>1</R11>
+          <R12>0</R12>
+          <R20>0</R20>
+          <R21>0</R21>
+          <R22>1</R22>
+        </CoordinateFrame>
+        <Color3 name="Color">
+          <R>1.0</R>
+          <G>0.82</G>
+          <B>0.18</B>
+        </Color3>
+        <token name="Material">288</token>
+        <token name="CollisionFidelity">1</token>
+      </Properties>
+    </Item>
+    <Item class="MeshPart" referent="RBX10">
+      <Properties>
+        <string name="Name">Metal</string>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="Massless">true</bool>
+        <bool name="CastShadow">true</bool>
+        <Content name="MeshId">
+          <url>rbxassetid://119151188388373</url>
+        </Content>
+        <Vector3 name="InitialSize">
+          <X>3.2</X>
+          <Y>0.8</Y>
+          <Z>5.18</Z>
+        </Vector3>
+        <Vector3 name="size">
+          <X>3.2</X>
+          <Y>0.8</Y>
+          <Z>5.18</Z>
+        </Vector3>
+        <CoordinateFrame name="CFrame">
+          <X>-0.0</X>
+          <Y>0.52</Y>
+          <Z>-0.05</Z>
+          <R00>1</R00>
+          <R01>0</R01>
+          <R02>0</R02>
+          <R10>0</R10>
+          <R11>1</R11>
+          <R12>0</R12>
+          <R20>0</R20>
+          <R21>0</R21>
+          <R22>1</R22>
+        </CoordinateFrame>
+        <Color3 name="Color">
+          <R>0.72</R>
+          <G>0.79</G>
+          <B>0.85</B>
+        </Color3>
+        <token name="Material">1088</token>
+        <token name="CollisionFidelity">1</token>
+      </Properties>
+    </Item>
+    <Item class="MeshPart" referent="RBX11">
+      <Properties>
+        <string name="Name">Metal2</string>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="Massless">true</bool>
+        <bool name="CastShadow">true</bool>
+        <Content name="MeshId">
+          <url>rbxassetid://119246083241218</url>
+        </Content>
+        <Vector3 name="InitialSize">
+          <X>3.175</X>
+          <Y>0.48</Y>
+          <Z>3.488</Z>
+        </Vector3>
+        <Vector3 name="size">
+          <X>3.175</X>
+          <Y>0.48</Y>
+          <Z>3.488</Z>
+        </Vector3>
+        <CoordinateFrame name="CFrame">
+          <X>-0.0</X>
+          <Y>0.48</Y>
+          <Z>0.0</Z>
+          <R00>1</R00>
+          <R01>0</R01>
+          <R02>0</R02>
+          <R10>0</R10>
+          <R11>1</R11>
+          <R12>0</R12>
+          <R20>0</R20>
+          <R21>0</R21>
+          <R22>1</R22>
+        </CoordinateFrame>
+        <Color3 name="Color">
+          <R>0.867</R>
+          <G>0.6</G>
+          <B>1.0</B>
+        </Color3>
+        <token name="Material">1088</token>
+        <token name="CollisionFidelity">1</token>
+      </Properties>
+    </Item>
+    <Item class="MeshPart" referent="RBX12">
+      <Properties>
+        <string name="Name">Trim</string>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="Massless">true</bool>
+        <bool name="CastShadow">true</bool>
+        <Content name="MeshId">
+          <url>rbxassetid://97340752943904</url>
+        </Content>
+        <Vector3 name="InitialSize">
+          <X>2.54</X>
+          <Y>0.965</Y>
+          <Z>5.33</Z>
+        </Vector3>
+        <Vector3 name="size">
+          <X>2.54</X>
+          <Y>0.965</Y>
+          <Z>5.33</Z>
+        </Vector3>
+        <CoordinateFrame name="CFrame">
+          <X>-0.0</X>
+          <Y>0.8025</Y>
+          <Z>-0.065</Z>
+          <R00>1</R00>
+          <R01>0</R01>
+          <R02>0</R02>
+          <R10>0</R10>
+          <R11>1</R11>
+          <R12>0</R12>
+          <R20>0</R20>
+          <R21>0</R21>
+          <R22>1</R22>
+        </CoordinateFrame>
+        <Color3 name="Color">
+          <R>0.05</R>
+          <G>0.05</G>
+          <B>0.07</B>
+        </Color3>
+        <token name="Material">272</token>
+        <token name="CollisionFidelity">1</token>
+      </Properties>
+    </Item>
+    <Item class="MeshPart" referent="RBX13">
+      <Properties>
+        <string name="Name">Trim2</string>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="Massless">true</bool>
+        <bool name="CastShadow">true</bool>
+        <Content name="MeshId">
+          <url>rbxassetid://83219078538560</url>
+        </Content>
+        <Vector3 name="InitialSize">
+          <X>2.5</X>
+          <Y>0.32</Y>
+          <Z>4.69</Z>
+        </Vector3>
+        <Vector3 name="size">
+          <X>2.5</X>
+          <Y>0.32</Y>
+          <Z>4.69</Z>
+        </Vector3>
+        <CoordinateFrame name="CFrame">
+          <X>-0.0</X>
+          <Y>0.53</Y>
+          <Z>-0.095</Z>
+          <R00>1</R00>
+          <R01>0</R01>
+          <R02>0</R02>
+          <R10>0</R10>
+          <R11>1</R11>
+          <R12>0</R12>
+          <R20>0</R20>
+          <R21>0</R21>
+          <R22>1</R22>
+        </CoordinateFrame>
+        <Color3 name="Color">
+          <R>0.09</R>
+          <G>0.1</G>
+          <B>0.15</B>
+        </Color3>
+        <token name="Material">272</token>
+        <token name="CollisionFidelity">1</token>
+      </Properties>
+    </Item>
+    <Item class="MeshPart" referent="RBX14">
+      <Properties>
+        <string name="Name">Wheel_FL</string>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="Massless">true</bool>
+        <bool name="CastShadow">true</bool>
+        <Content name="MeshId">
+          <url>rbxassetid://112167009728430</url>
+        </Content>
+        <Vector3 name="InitialSize">
+          <X>0.456</X>
+          <Y>0.9415</Y>
+          <Z>0.9415</Z>
+        </Vector3>
+        <Vector3 name="size">
+          <X>0.456</X>
+          <Y>0.9415</Y>
+          <Z>0.9415</Z>
+        </Vector3>
+        <CoordinateFrame name="CFrame">
+          <X>-1.332</X>
+          <Y>0.48</Y>
+          <Z>-1.504</Z>
+          <R00>1</R00>
+          <R01>0</R01>
+          <R02>0</R02>
+          <R10>0</R10>
+          <R11>1</R11>
+          <R12>0</R12>
+          <R20>0</R20>
+          <R21>0</R21>
+          <R22>1</R22>
+        </CoordinateFrame>
+        <Color3 name="Color">
+          <R>0.09</R>
+          <G>0.1</G>
+          <B>0.15</B>
+        </Color3>
+        <token name="Material">272</token>
+        <token name="CollisionFidelity">1</token>
+      </Properties>
+    </Item>
+    <Item class="MeshPart" referent="RBX15">
+      <Properties>
+        <string name="Name">Wheel_FR</string>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="Massless">true</bool>
+        <bool name="CastShadow">true</bool>
+        <Content name="MeshId">
+          <url>rbxassetid://112167009728430</url>
+        </Content>
+        <Vector3 name="InitialSize">
+          <X>0.456</X>
+          <Y>0.9415</Y>
+          <Z>0.9415</Z>
+        </Vector3>
+        <Vector3 name="size">
+          <X>0.456</X>
+          <Y>0.9415</Y>
+          <Z>0.9415</Z>
+        </Vector3>
+        <CoordinateFrame name="CFrame">
+          <X>1.332</X>
+          <Y>0.48</Y>
+          <Z>-1.504</Z>
+          <R00>1</R00>
+          <R01>0</R01>
+          <R02>0</R02>
+          <R10>0</R10>
+          <R11>1</R11>
+          <R12>0</R12>
+          <R20>0</R20>
+          <R21>0</R21>
+          <R22>1</R22>
+        </CoordinateFrame>
+        <Color3 name="Color">
+          <R>0.09</R>
+          <G>0.1</G>
+          <B>0.15</B>
+        </Color3>
+        <token name="Material">272</token>
+        <token name="CollisionFidelity">1</token>
+      </Properties>
+    </Item>
+    <Item class="MeshPart" referent="RBX16">
+      <Properties>
+        <string name="Name">Wheel_RL</string>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="Massless">true</bool>
+        <bool name="CastShadow">true</bool>
+        <Content name="MeshId">
+          <url>rbxassetid://112167009728430</url>
+        </Content>
+        <Vector3 name="InitialSize">
+          <X>0.456</X>
+          <Y>0.9415</Y>
+          <Z>0.9415</Z>
+        </Vector3>
+        <Vector3 name="size">
+          <X>0.456</X>
+          <Y>0.9415</Y>
+          <Z>0.9415</Z>
+        </Vector3>
+        <CoordinateFrame name="CFrame">
+          <X>-1.332</X>
+          <Y>0.48</Y>
+          <Z>1.504</Z>
+          <R00>1</R00>
+          <R01>0</R01>
+          <R02>0</R02>
+          <R10>0</R10>
+          <R11>1</R11>
+          <R12>0</R12>
+          <R20>0</R20>
+          <R21>0</R21>
+          <R22>1</R22>
+        </CoordinateFrame>
+        <Color3 name="Color">
+          <R>0.09</R>
+          <G>0.1</G>
+          <B>0.15</B>
+        </Color3>
+        <token name="Material">272</token>
+        <token name="CollisionFidelity">1</token>
+      </Properties>
+    </Item>
+    <Item class="MeshPart" referent="RBX17">
+      <Properties>
+        <string name="Name">Wheel_RR</string>
+        <bool name="Anchored">true</bool>
+        <bool name="CanCollide">false</bool>
+        <bool name="CanTouch">false</bool>
+        <bool name="CanQuery">false</bool>
+        <bool name="Massless">true</bool>
+        <bool name="CastShadow">true</bool>
+        <Content name="MeshId">
+          <url>rbxassetid://112167009728430</url>
+        </Content>
+        <Vector3 name="InitialSize">
+          <X>0.456</X>
+          <Y>0.9415</Y>
+          <Z>0.9415</Z>
+        </Vector3>
+        <Vector3 name="size">
+          <X>0.456</X>
+          <Y>0.9415</Y>
+          <Z>0.9415</Z>
+        </Vector3>
+        <CoordinateFrame name="CFrame">
+          <X>1.332</X>
+          <Y>0.48</Y>
+          <Z>1.504</Z>
+          <R00>1</R00>
+          <R01>0</R01>
+          <R02>0</R02>
+          <R10>0</R10>
+          <R11>1</R11>
+          <R12>0</R12>
+          <R20>0</R20>
+          <R21>0</R21>
+          <R22>1</R22>
+        </CoordinateFrame>
+        <Color3 name="Color">
+          <R>0.09</R>
+          <G>0.1</G>
+          <B>0.15</B>
+        </Color3>
+        <token name="Material">272</token>
+        <token name="CollisionFidelity">1</token>
+      </Properties>
+    </Item>
+  </Item>
+</roblox>

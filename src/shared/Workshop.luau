@@ -3,7 +3,6 @@
 -- tests. Numbers: Shared/WorkshopConfig. Spec: docs/WORKSHOP_SPEC.md. Plot rects are local (x, z) of Track 1's
 -- flattened Start (SpawnArea.Base), floor top at SpawnArea.TOP_Y.
 
-local RaceConfig = require(script.Parent.RaceConfig)
 local SpawnArea = require(script.Parent.SpawnArea)
 local WorkshopConfig = require(script.Parent.WorkshopConfig)
 
@@ -122,7 +121,7 @@ function Workshop.Rate(stat, speedMulti, level, workshopMulti)
 	return WorkshopConfig.BASE_RATE * speedMulti * Workshop.LevelMulti(level) * workshopMulti
 end
 
--- Offline Speed: the workshop rate x OFFLINE_FRACTION x the capped time, never past MAX_STAT.
+-- Offline Speed: the workshop rate x OFFLINE_FRACTION x the capped time (the stat has no cap).
 function Workshop.OfflineGain(stat, speedMulti, level, workshopMulti, seconds)
 	if
 		not finite(stat)
@@ -136,10 +135,9 @@ function Workshop.OfflineGain(stat, speedMulti, level, workshopMulti, seconds)
 	then
 		return 0
 	end
-	stat = math.min(stat, RaceConfig.MAX_STAT)
 	local duration = math.clamp(seconds, 0, WorkshopConfig.OFFLINE_CAP)
 	local gain = Workshop.Rate(stat, speedMulti, level, workshopMulti) * WorkshopConfig.OFFLINE_FRACTION * duration
-	return math.min(gain, RaceConfig.MAX_STAT - stat)
+	return gain
 end
 
 return Workshop

@@ -1314,6 +1314,8 @@ end
 local RACE_ORIGIN = Vector3.new(-20000, 0, 20000)
 local RACE_LOOKAHEAD_FLAT = 30 -- studs of path that must be level for a "flat straight" sample
 local RACE_LOOKAHEAD_STRAIGHT = 80 -- studs of path that must be curvature-free for a sample
+-- centre-line window lost the car (it drives LANE_OFFSET right of centre): do a full-polyline search
+local RACE_CENTRE_RESYNC = 3 * TrackBuilder.LANE_OFFSET
 local RACE_MIN_SAMPLES = 30
 -- deg of heading per stud travelled: the tightest lane radius (~43 studs) is 1.33; a heading snapped to the waypoint polyline is >= 2.4
 local RAIL_MAX_YAW_PER_STUD = 2.0
@@ -1451,7 +1453,7 @@ function Scenarios.race()
 	end
 
 	local HALF = RaceConfig.HALF_STAT
-	local BIG = 20 * HALF -- 20000 with HALF_STAT 1000: the same high-stat run as before (was 10 * GAIN_SOFT)
+	local BIG = 20 * HALF -- 100000 with HALF_STAT 5000 (owner 2026-10-20; was 20000 at HALF_STAT 1000)
 	local targetHalf = RaceConfig.SpeedFor(HALF)
 	if type(targetHalf) ~= "number" then
 		check(checks, "race_speed_for_number", 0, 1, false)
@@ -1679,6 +1681,15 @@ function Scenarios.race()
 			if not inLoop then
 				st.minUpOwn = math.min(st.minUpOwn, upY)
 			end
+			-- signed lateral position against the ROAD centre line: positive = right of centre. Tracked every
+			-- frame from t = 0 like idx, so the window keeps up at any speed (at MAX_STAT the car is past Track 1
+			-- by t = 3); if the window still loses the car (a frame hitch), resync with a full search.
+			local cD, ci, q, dir =
+				nearestOnPolyline(centre, pos, math.max(cIdx - 3, 1), math.min(cIdx + 25, #centre - 1))
+			if cD > RACE_CENTRE_RESYNC then
+				cD, ci, q, dir = nearestOnPolyline(centre, pos, 1, #centre - 1)
+			end
+			cIdx = ci
 			if t > 3 then
 				-- how far the car is from the route (to the nearest SEGMENT, not just the nearest waypoint)
 				local dist, seg = nearestOnPolyline(wps, pos, math.max(idx - 3, 1), math.min(idx + 3, n - 1))
@@ -1688,10 +1699,6 @@ function Scenarios.race()
 				else
 					st.dev2 = math.max(st.dev2, dist)
 				end
-				-- signed lateral position against the ROAD centre line: positive = right of centre
-				local _, ci, q, dir =
-					nearestOnPolyline(centre, pos, math.max(cIdx - 3, 1), math.min(cIdx + 25, #centre - 1))
-				cIdx = ci
 				local look = flatV(chassis.CFrame.LookVector)
 				local tangent = flatV(dir)
 				if look.Magnitude > 1e-6 and tangent.Magnitude > 1e-6 then
@@ -2094,8 +2101,215 @@ function Scenarios.flip_recovery()
 
 	flipTest("upside_down", math.pi)
 	flipTest("on_side", math.pi / 2)
+
+	-- Fall guard (owner 2026-10-20, RaceService.RAIL_FALL_HEIGHT): a racing car far below or high above the road is
+	-- put back on the path within PhysicsTargets.race.RailFallRecoverySeconds, never drops below the map, and keeps
+	-- racing upright. Before this, fast cars fell out of the map.
+	local metrics = {}
+	local FALL_RECOVER = R.RailFallRecoverySeconds
+	local fallHeight = RaceService.RAIL_FALL_HEIGHT
+	local fallApiOk = type(FALL_RECOVER) == "number" and type(fallHeight) == "number" and fallHeight > 0
+	check(checks, "rail_fall_api_exists", fallApiOk and 1 or 0, 1, fallApiOk)
+	local minUpStrict = PhysicsTargets.lap and PhysicsTargets.lap.MinUpYStrict or 0.9
+	local lowestRoad = math.huge
+	for _, w in wps do
+		lowestRoad = math.min(lowestRoad, w.Y)
+	end
+	local railStart = CFrame.lookAt(
+		wps[1] + Vector3.new(0, CarConfig.RestHeight, 0),
+		Vector3.new(wps[2].X, wps[1].Y + CarConfig.RestHeight, wps[2].Z)
+	) -- on the race path (right-hand lane), so the run starts on its rail
+	local function heightAndDistance(p)
+		local d, _, q = nearestOnPolyline(wps, p, 1, #wps - 1)
+		return p.Y - q.Y, d
+	end
+
+	-- dy: studs the chassis is moved straight up (+) or down (-) from where it is racing
+	local function fallTest(tag, dy)
+		if not fallApiOk then
+			return
+		end
+		local car = CarFactory.build(CarConfig)
+		car.Name = "CarTestFallCar"
+		car:PivotTo(railStart)
+		car.Parent = Workspace
+		local player = Instance.new("Folder")
+		player.Name = "CarTestFallPlayer"
+		player.Parent = Workspace
+		local okSetup = pcall(function()
+			Money.Setup(player)
+			PlayerData.Setup(player)
+			player.leaderstats.Speed.Value = RaceConfig.HALF_STAT
+		end)
+		local okRun, run = false, nil
+		if okSetup then
+			okRun, run = pcall(RaceService.NewRun, car, route, player, nil)
+		end
+		local started = okSetup and okRun and type(run) == "table"
+		check(checks, tag .. "_run_started", started and 1 or 0, 1, started)
+		if not started then
+			car:Destroy()
+			player:Destroy()
+			return
+		end
+		local chassis = car.PrimaryPart
+		local target = RaceConfig.SpeedFor(RaceConfig.HALF_STAT)
+		frames(3)
+		local snapsBefore = type(run.RailSnaps) == "number" and run.RailSnaps or 0
+		local idxBefore = run.Driver and run.Driver.Index or 0
+		local pivot = car:GetPivot()
+		car:PivotTo(pivot + Vector3.new(0, dy, 0))
+		local movedY = chassis.Position.Y
+		local h0 = heightAndDistance(chassis.Position)
+		check(checks, tag .. "_moved_off_rail", h0, fallHeight, (dy > 0 and h0 > fallHeight) or (dy < 0 and h0 < -2))
+
+		local tBack, minY, offAfter, minUpAfter, peakAfter = nil, math.huge, 0, 1, 0
+		frames(FALL_RECOVER + 2, function(t)
+			if chassis.Parent == nil then
+				return "stop"
+			end
+			local p = chassis.Position
+			minY = math.min(minY, p.Y)
+			local h, d = heightAndDistance(p)
+			local onPath = d <= R.MaxPathDeviation + 3 and h >= -2 and h <= fallHeight
+			if not tBack and onPath then
+				tBack = t
+			end
+			if tBack then
+				offAfter += onPath and 0 or 1 -- frames off the path (or out of the height band) once it was back
+				minUpAfter = math.min(minUpAfter, chassis.CFrame.UpVector.Y)
+				peakAfter = math.max(peakAfter, chassis.AssemblyLinearVelocity.Magnitude)
+			end
+		end)
+		check(checks, tag .. "_car_kept", chassis.Parent ~= nil and 1 or 0, 1, chassis.Parent ~= nil)
+		check(checks, tag .. "_back_on_path_fast", tBack or -1, FALL_RECOVER, tBack ~= nil and tBack <= FALL_RECOVER)
+		check(checks, tag .. "_stays_on_path", offAfter, 0, tBack ~= nil and offAfter == 0)
+		-- never below the map: never lower than where it was put (below) or than the lowest road point (above)
+		local floorY = math.min(movedY, lowestRoad) - 2
+		check(checks, tag .. "_never_below_map", minY, floorY, minY >= floorY)
+		local snaps = (type(run.RailSnaps) == "number" and run.RailSnaps or 0) - snapsBefore
+		check(checks, tag .. "_snap_counted", snaps, 1, snaps >= 1)
+		check(checks, tag .. "_upright_after", minUpAfter, minUpStrict, tBack ~= nil and minUpAfter >= minUpStrict)
+		local progressed = (run.Driver and run.Driver.Index or 0) - idxBefore
+		check(checks, tag .. "_keeps_progressing", progressed, 5, progressed >= 5)
+		check(checks, tag .. "_keeps_driving", peakAfter, 0.5 * target, tBack ~= nil and peakAfter > 0.5 * target)
+		metrics[tag .. "BackSeconds"] = tBack and round(tBack) or -1
+		pcall(function()
+			run:Destroy()
+		end)
+		car:Destroy()
+		player:Destroy()
+	end
+
+	fallTest("fall_below", -30)
+	fallTest("launched_above", 40)
+
+	-- High car multi: the fastest catalog car (SpeedMulti 2800, damped to about a 2.29x cruise factor) at a high
+	-- stat drives the whole track on its path, upright, never below the map. The stat is 200 x HALF_STAT (1e6 at
+	-- HALF_STAT 5000: cruise ~50 x 2.29 = ~115 studs/s).
+	local GachaService = serverModule("GachaService")
+	local CarCatalog = sharedModule("CarCatalog")
+	local fastApiOk = GachaService ~= nil
+		and CarCatalog ~= nil
+		and type(GachaService.Setup) == "function"
+		and type(GachaService.Grant) == "function"
+		and type(GachaService.Equip) == "function"
+		and type(CarCatalog.All) == "function"
+	check(checks, "high_multi_api_exists", fastApiOk and 1 or 0, 1, fastApiOk)
+	if fastApiOk and fallApiOk then
+		local best = nil
+		for _, spec in CarCatalog.All() do
+			if type(spec.SpeedMulti) == "number" and (best == nil or spec.SpeedMulti > best.SpeedMulti) then
+				best = spec
+			end
+		end
+		local multi = best and best.SpeedMulti or 0
+		check(checks, "high_multi_car_found", multi, 2800, multi >= 2800)
+		local BIG_STAT = 200 * RaceConfig.HALF_STAT
+		local car = CarFactory.build(CarConfig)
+		car.Name = "CarTestHighMultiCar"
+		car:PivotTo(railStart)
+		car.Parent = Workspace
+		local player = Instance.new("Folder")
+		player.Name = "CarTestHighMultiPlayer"
+		player.Parent = Workspace
+		local okSetup = best ~= nil
+			and pcall(function()
+				Money.Setup(player)
+				PlayerData.Setup(player)
+				GachaService.Setup(player)
+				GachaService.Grant(player, best.Id)
+				GachaService.Equip(player, best.Id)
+				player.leaderstats.Speed.Value = BIG_STAT
+			end)
+		local okRun, run = false, nil
+		if okSetup then
+			okRun, run = pcall(RaceService.NewRun, car, route, player, nil)
+		end
+		local started = okSetup and okRun and type(run) == "table"
+		check(checks, "high_multi_run_started", started and 1 or 0, 1, started)
+		if started then
+			local chassis = car.PrimaryPart
+			local want = RaceConfig.SpeedFor(BIG_STAT, multi)
+			local ts = type(run.TargetSpeed) == "number" and run.TargetSpeed or -1
+			check(
+				checks,
+				"high_multi_target_is_damped_multi",
+				ts,
+				want,
+				math.abs(ts - want) <= 1e-6 * want
+					and math.abs(want - RaceConfig.SpeedFor(BIG_STAT) * multi ^ (math.log(1.01) / math.log(1.1)))
+						<= 1e-6 * want
+			)
+			check(checks, "high_multi_target_at_least_written_speed", want, 100, want >= 100)
+			local len = 0
+			for i = 2, #wps do
+				len += (wps[i] - wps[i - 1]).Magnitude
+			end
+			local cap = len / (0.5 * math.max(want, 1)) + 10
+			local worstDev, minY, minUp, t0 = 0, math.huge, 1, nil
+			local elapsed = frames(cap, function(t)
+				if chassis.Parent == nil or run.Finished then
+					return "stop"
+				end
+				local p = chassis.Position
+				minY = math.min(minY, p.Y)
+				local _, d = heightAndDistance(p)
+				if t >= 0.5 then -- the rail settles the lane in the first half second
+					t0 = t0 or t
+					worstDev = math.max(worstDev, d)
+					minUp = math.min(minUp, chassis.CFrame.UpVector.Y)
+				end
+			end)
+			check(checks, "high_multi_car_kept", chassis.Parent ~= nil and 1 or 0, 1, chassis.Parent ~= nil)
+			check(checks, "high_multi_finished", elapsed, cap, run.Finished == true)
+			check(
+				checks,
+				"high_multi_sticks_to_path",
+				worstDev,
+				R.MaxPathDeviation,
+				t0 ~= nil and worstDev <= R.MaxPathDeviation
+			)
+			local floorY = lowestRoad - fallHeight -- the rail's fall band, mirrored below the lowest road point
+			check(checks, "high_multi_never_below_map", minY, floorY, minY >= floorY)
+			check(checks, "high_multi_never_tilted", minUp, minUpStrict, t0 ~= nil and minUp >= minUpStrict)
+			local runUp = type(run.MinUpY) == "number" and run.MinUpY or -1
+			check(checks, "high_multi_run_never_tilted", runUp, minUpStrict, runUp >= minUpStrict)
+			local rec = type(run.FlipRecoveries) == "number" and run.FlipRecoveries or -1
+			check(checks, "high_multi_no_flip_recoveries", rec, 0, rec == 0)
+			metrics.highMultiTarget = round(want)
+			metrics.highMultiSeconds = round(elapsed)
+			metrics.highMultiRailSnaps = type(run.RailSnaps) == "number" and run.RailSnaps or -1
+			pcall(function()
+				run:Destroy()
+			end)
+		end
+		car:Destroy()
+		player:Destroy()
+	end
+
 	model:Destroy()
-	return result("flip_recovery", checks, {})
+	return result("flip_recovery", checks, metrics)
 end
 
 -- Auto race toggle (the "Stop Auto" / "Auto Race" button). BRIEF (user): "Implement a button that says 'Stop Auto'
@@ -3312,10 +3526,10 @@ function Scenarios.economy()
 		return type(x) == "number" and x == x
 	end
 	local consts = {
-		BASE_SPEED = 30,
-		MAX_SPEED = 75,
-		HALF_STAT = 1000,
-		GAIN_PER_STUD = 0.05,
+		BASE_SPEED = 12, -- owner 2026-10-20 (slower, harder balancing): was 30
+		MAX_SPEED = 22, -- owner 2026-10-20 (much harsher progression): was 28, before that 75
+		HALF_STAT = 5000, -- owner 2026-10-20 (much harsher progression): was 1000
+		GAIN_PER_STUD = 0.01, -- owner 2026-10-20 (much harsher progression): was 0.05
 		MAX_STAT = 1e9,
 	}
 	for name, want in consts do
@@ -3476,6 +3690,71 @@ function Scenarios.economy()
 		p = num(g) and g or p
 	end
 	check(checks, "gain_at_cruise_increases_with_stat", inc and 1 or 0, 1, inc)
+
+	-- Car speed multi on the cruise speed uses a damped power curve anchored at 1.1x -> 1.01x;
+	-- m <= 1 and bad values are unchanged.
+	local function sfm(x, m)
+		local ok, v = pcall(RaceConfig.SpeedFor, x, m)
+		return ok and v or nil
+	end
+	local function rel(a, b)
+		return num(a) and num(b) and math.abs(a - b) <= 1e-9 * math.max(1, math.abs(b))
+	end
+	local dampedOk, dampedWorst = true, 0
+	local exponent = math.log(1.01) / math.log(1.1)
+	for _, s in { 0, half, 1e6, maxStat } do
+		for _, m in { 1.01, 1.5, 3, 10, 100, 2400, 2800, 1e6 } do
+			local v, want = sfm(s, m), (sf(s) or 0) * m ^ exponent
+			if not rel(v, want) then
+				dampedOk = false
+			end
+			dampedWorst = math.max(dampedWorst, num(v) and math.abs(v - want) or math.huge)
+		end
+	end
+	check(checks, "speed_for_multi_is_damped", dampedWorst, 1e-9, dampedOk)
+	local doubleMultiOk = true
+	for _, s in { 0, 1, half, 1e5, maxStat } do
+		if not rel(sfm(s, 2), 2 ^ exponent * (sf(s) or -1)) then
+			doubleMultiOk = false
+		end
+	end
+	check(checks, "speed_for_multi_two_is_damped", doubleMultiOk and 1 or 0, 1, doubleMultiOk)
+	check(checks, "speed_for_multi_two_at_zero", sfm(0, 2) or -1, 12 * 2 ^ exponent, rel(sfm(0, 2), 12 * 2 ^ exponent))
+	local want2800 = 12 * 2800 ^ exponent
+	check(checks, "speed_for_multi_2800_at_zero", sfm(0, 2800) or -1, want2800, rel(sfm(0, 2800), want2800))
+	check(checks, "speed_for_multi_2800_is_bounded", sfm(0, 2800) or -1, 36, sfm(0, 2800) < 36)
+	local multis = { 1, 1.0001, 1.01, 1.5, 2, 3, 10, 100, 1000, 2600, 2800, 1e6, 1e12 }
+	local multiInc = true
+	for _, s in { 0, half, maxStat } do
+		local prevM = -1
+		for _, m in multis do
+			local v = sfm(s, m)
+			if not num(v) or v <= prevM then
+				multiInc = false
+			end
+			prevM = num(v) and v or prevM
+		end
+	end
+	check(checks, "speed_for_multi_strictly_increasing", multiInc and 1 or 0, 1, multiInc)
+	-- At or below 1 the multi is still linear (an aura or car below 1 slows the car by exactly that factor)
+	local lowOk = true
+	for _, s in { 0, half, 1e6 } do
+		for _, m in { 0.25, 0.5, 0.9, 1 } do
+			if not rel(sfm(s, m), (sf(s) or -1) * m) then
+				lowOk = false
+			end
+		end
+	end
+	check(checks, "speed_for_multi_at_most_one_linear", lowOk and 1 or 0, 1, lowOk)
+	local badMultiOk = true
+	for _, m in { "nan", 0, -2, "2", true, {} } do
+		local v = sfm(half, m == "nan" and 0 / 0 or m)
+		if not rel(v, sf(half)) then
+			badMultiOk = false
+		end
+	end
+	badMultiOk = badMultiOk and rel(sfm(half, nil), sf(half))
+	check(checks, "speed_for_bad_multi_is_one", badMultiOk and 1 or 0, 1, badMultiOk)
 	return result("economy", checks, {})
 end
 
@@ -3517,10 +3796,10 @@ local function anyCountAttribute(player)
 end
 
 -- Data: PlayerData saves/loads Money and the float Speed stat through an injected store (no real DataStore is touched).
--- The current save version is 9 (docs/SAVE_SPEC.md 2a, owner 2026-10-16: Receipts and Codes; 8 was session lock,
+-- The current save version is 10 (docs/SAVE_SPEC.md, owner 2026-10-20: GiftMailbox/GiftReceipts; 9 was Receipts/Codes; 8 was session lock,
 -- MoneyEarned, DuelWins; 7 was market, rebirth/boosts/daily login, and level/XP); older versions still load.
 function Scenarios.data()
-	local DATA_VERSION = 9
+	local DATA_VERSION = 10
 	local checks = {}
 	local PlayerData = serverModule("PlayerData")
 	local RaceConfig = sharedModule("RaceConfig")
@@ -3703,9 +3982,11 @@ function Scenarios.data()
 	-- sanitised save; Speed is rounded to 3 decimals
 	local cases = {
 		{ money = -50, speed = 0, wantMoney = 0, wantSpeed = 0, name = "negative" },
-		{ money = 2e12, speed = 2e12, wantMoney = 1e12, wantSpeed = MAX, name = "huge" },
+		-- owner 2026-10-20: the Speed stat has no cap; only NaN, negatives and infinity are rejected (to 0)
+		{ money = 2e12, speed = 2e12, wantMoney = 1e12, wantSpeed = 2e12, name = "huge" },
+		{ money = 5, speed = 1e15, wantMoney = 5, wantSpeed = 1e15, name = "speed_above_max_stat_kept" },
 		{ money = 5, speed = -3, wantMoney = 5, wantSpeed = 0, name = "speed_negative" },
-		{ money = 5, speed = math.huge, wantMoney = 5, wantSpeed = MAX, name = "speed_infinite" },
+		{ money = 5, speed = math.huge, wantMoney = 5, wantSpeed = 0, name = "speed_infinite" },
 		{ money = 5, speed = 12.34567, wantMoney = 5, wantSpeed = 12.346, name = "speed_rounded" },
 	}
 	for i, c in cases do
@@ -3733,8 +4014,8 @@ function Scenarios.data()
 		{ name = "empty_table", value = {}, wantSpeed = 0 },
 		{ name = "not_a_table_string", value = "garbage", wantSpeed = 0 },
 		{ name = "not_a_table_number", value = 12345, wantSpeed = 0 },
-		{ name = "huge", value = { Money = 1e30, Speed = 1e30, Version = 2 }, wantSpeed = MAX },
-		{ name = "infinite", value = { Money = math.huge, Speed = math.huge, Version = 2 }, wantSpeed = MAX },
+		{ name = "huge", value = { Money = 1e30, Speed = 1e30, Version = 2 }, wantSpeed = 1e30 },
+		{ name = "infinite", value = { Money = math.huge, Speed = math.huge, Version = 2 }, wantSpeed = 0 },
 	}
 	for i, c in corrupt do
 		local id = 9200 + i
@@ -3846,7 +4127,8 @@ function Scenarios.data()
 	check(checks, "set_error_save_no_throw", oks2 and 1 or 0, 1, oks2)
 	check(checks, "set_error_save_returns_false", saved2 == false and 1 or 0, 1, oks2 and saved2 == false)
 
-	-- SpeedStat clamps to [0, MAX_STAT]
+	-- SpeedStat: any finite stat >= 0 is kept (no cap, owner 2026-10-20, MAX_STAT is not a limit); negatives,
+	-- infinity and NaN read as 0
 	PlayerData.SetStore(makeStore())
 	local pl = newPlayer("CarTestDataStat")
 	PlayerData.Load(pl, 9400)
@@ -3854,7 +4136,18 @@ function Scenarios.data()
 	local clampOk = speedValue ~= nil
 	if speedValue then
 		for _, pair in
-			{ { 0, 0 }, { -5, 0 }, { 3.25, 3.25 }, { MAX, MAX }, { MAX + 50, MAX }, { 1e30, MAX }, { math.huge, MAX } }
+			{
+				{ 0, 0 },
+				{ -5, 0 },
+				{ 3.25, 3.25 },
+				{ MAX, MAX },
+				{ MAX + 50, MAX + 50 },
+				{ 1e12, 1e12 },
+				{ 1e15, 1e15 },
+				{ 1e30, 1e30 },
+				{ math.huge, 0 },
+				{ -math.huge, 0 },
+			}
 		do
 			speedValue.Value = pair[1]
 			local got = PlayerData.SpeedStat(pl)
@@ -3864,11 +4157,11 @@ function Scenarios.data()
 		end
 		speedValue.Value = 0 / 0
 		local nanStat = PlayerData.SpeedStat(pl)
-		if not (type(nanStat) == "number" and nanStat >= 0 and nanStat <= MAX) then
+		if nanStat ~= 0 then
 			clampOk = false
 		end
 	end
-	check(checks, "speed_stat_clamped", clampOk and 1 or 0, 1, clampOk)
+	check(checks, "speed_stat_uncapped_rejects_bad", clampOk and 1 or 0, 1, clampOk)
 	local bare = newPlayer("CarTestDataBare")
 	local okb, bareStat = pcall(PlayerData.SpeedStat, bare)
 	check(checks, "speed_stat_no_stats_is_0", okb and bareStat or -1, 0, okb and bareStat == 0)
@@ -3910,14 +4203,35 @@ function Scenarios.data()
 		)
 		speedValue.Value = MAX - 1
 		local okc, rc = pcall(PlayerData.AddSpeed, pl, 10)
-		check(checks, "add_speed_clamps_to_max", okc and rc or -1, MAX, okc and rc == MAX and speedValue.Value == MAX)
+		check(
+			checks,
+			"add_speed_past_max_stat_not_clamped",
+			okc and rc or -1,
+			MAX + 9,
+			okc and rc == MAX + 9 and speedValue.Value == MAX + 9
+		)
+		speedValue.Value = 1e15
+		local okb, rb = pcall(PlayerData.AddSpeed, pl, 1e6)
+		check(
+			checks,
+			"add_speed_above_1e15_kept",
+			okb and rb or -1,
+			1e15 + 1e6,
+			okb and rb == 1e15 + 1e6 and speedValue.Value == 1e15 + 1e6
+		)
+		speedValue.Value = math.huge
+		local oki, ri = pcall(PlayerData.AddSpeed, pl, 1)
+		check(checks, "add_speed_refuses_infinite_result", oki and ri == nil and 1 or 0, 1, oki and ri == nil)
+		speedValue.Value = 0
 	else
 		for _, name in
 			{
 				"add_speed_returns_new_stat",
 				"add_speed_rejects_bad_amounts",
 				"add_speed_accepts_upper_bound",
-				"add_speed_clamps_to_max",
+				"add_speed_past_max_stat_not_clamped",
+				"add_speed_above_1e15_kept",
+				"add_speed_refuses_infinite_result",
 			}
 		do
 			check(checks, name, 0, 1, false)
@@ -4980,14 +5294,17 @@ function Scenarios.hud()
 		end
 	end
 	check(checks, "speed_text_bad_input_is_zero", badOk and 1 or 0, 1, badOk)
-	local clampOk = true
-	for _, b in { math.huge, 1e30, 1e15, 5e9 } do
-		local s = call(HudFormat.SpeedText, b)
-		if s ~= "1,000,000,000" then
-			clampOk = false
-		end
-	end
-	check(checks, "speed_text_huge_clamped", clampOk and 1 or 0, 1, clampOk)
+	-- owner 2026-10-20: the Speed stat has no cap, so big stats show in full; infinity is not a stat and shows 0
+	local hugeOk = call(HudFormat.SpeedText, 5e9) == "5,000,000,000"
+		and call(HudFormat.SpeedText, 1e12) == "1,000,000,000,000"
+		and call(HudFormat.SpeedText, 1e15) == "1,000,000,000,000,000"
+		and call(HudFormat.SpeedText, math.huge) == "0"
+	local big = call(HudFormat.SpeedText, 1e30)
+	hugeOk = hugeOk
+		and type(big) == "string"
+		and #string.gsub(big, ",", "") == 31
+		and string.match(big, "^[%d,]+$") ~= nil
+	check(checks, "speed_text_huge_not_clamped", hugeOk and 1 or 0, 1, hugeOk)
 	local sciOk = true
 	for _, v in { 1e6, 1e9, 1e15, 1e30, math.huge, 123456.789 } do
 		local s = call(HudFormat.SpeedText, v)
@@ -5157,7 +5474,7 @@ function Scenarios.hud()
 end
 
 -- Car gacha + index + stat allocation (plan: car gacha, index and stat allocation). The expected catalog is the
--- design doc's 7 placeholder cars; every number below comes from the brief / API contract, not from an implementation.
+-- design doc's seed contracts plus the approved expansion manifest. Keep the seven-car discovery fixtures fixed.
 local GACHA_SEED = {
 	{ Id = "rusty_hatchback", Rarity = "Common", Chance = nil, SpeedMulti = 1.1 },
 	{ Id = "wooden_car", Rarity = "Uncommon", Chance = 10, SpeedMulti = 1.25 },
@@ -5170,11 +5487,29 @@ local GACHA_SEED = {
 -- Approved weather variants extend the catalog; the original seven odds/multis
 -- and seven-discovery stat-point fixtures remain unchanged.
 local GACHA_EVENT_SEED = {
-	{ Id = "rain_runner", Event = "rain", Model = "street_racer", Rarity = "Epic", Chance = 500, SpeedMulti = 6 },
-	{ Id = "midnight_kart", Event = "night", Model = "go_kart", Rarity = "Legendary", Chance = 2500, SpeedMulti = 8 },
-	{ Id = "golden_racer", Event = "gold", Model = "rocket_car", Rarity = "Legendary", Chance = 5000, SpeedMulti = 10 },
+	-- Own models since the car art redesign (owner 2026-10-20, docs/CAR_REDESIGN_SPEC.md section 5).
+	{ Id = "rain_runner", Event = "rain", Model = "rain_runner", Rarity = "Epic", Chance = 500, SpeedMulti = 6 },
+	{
+		Id = "midnight_kart",
+		Event = "night",
+		Model = "midnight_kart",
+		Rarity = "Legendary",
+		Chance = 2500,
+		SpeedMulti = 8,
+	},
+	{
+		Id = "golden_racer",
+		Event = "gold",
+		Model = "golden_racer",
+		Rarity = "Legendary",
+		Chance = 5000,
+		SpeedMulti = 10,
+	},
 }
 local GACHA_CATALOG = table.clone(GACHA_SEED)
+for _, spec in (sharedModule("CarExpansionManifest") or { Cars = {} }).Cars do
+	table.insert(GACHA_CATALOG, spec)
+end
 for _, spec in GACHA_EVENT_SEED do
 	table.insert(GACHA_CATALOG, spec)
 end
@@ -5351,8 +5686,9 @@ function Scenarios.gacha()
 			eventRollCount += 1
 		end
 	end
-	check(checks, "catalog_seven_cars", baseCount, #GACHA_SEED, baseCount == #GACHA_SEED)
-	check(checks, "rollable_seven_cars", baseRollCount, #GACHA_SEED, baseRollCount == #GACHA_SEED)
+	local expectedBase = #GACHA_CATALOG - #GACHA_EVENT_SEED
+	check(checks, "catalog_seed_and_expansion_cars", baseCount, expectedBase, baseCount == expectedBase)
+	check(checks, "rollable_seed_and_expansion_cars", baseRollCount, expectedBase, baseRollCount == expectedBase)
 	check(checks, "catalog_three_event_cars", eventCount, #GACHA_EVENT_SEED, eventCount == #GACHA_EVENT_SEED)
 	check(checks, "rollable_three_event_cars", eventRollCount, #GACHA_EVENT_SEED, eventRollCount == #GACHA_EVENT_SEED)
 	check(checks, "catalog_base_and_event_cars", #all, #GACHA_CATALOG, #all == #GACHA_CATALOG)
@@ -5418,7 +5754,7 @@ function Scenarios.gacha()
 		elseif got.Model ~= nil then
 			-- Model is optional (nil = "?" placeholder). When set it must be a non-empty string that
 			-- resolves to ReplicatedStorage.CarModels[Model] (a Model) now. RollShowcase/Index look up
-			-- Original cars retain Model == Id. Only documented Event variants may reuse a mesh.
+			-- Original cars retain Model == Id (event variants too, since 2026-10-20).
 			local folder = ReplicatedStorage:FindFirstChild("CarModels")
 			local template = type(got.Model) == "string" and folder and folder:FindFirstChild(got.Model)
 			if
@@ -5432,10 +5768,7 @@ function Scenarios.gacha()
 		end
 	end
 	check(checks, "catalog_matches_design_doc", seedOk and 1 or 0, 1, seedOk)
-	local eventOk, modelsOk, baseIds = true, true, {}
-	for _, spec in GACHA_SEED do
-		baseIds[spec.Id] = true
-	end
+	local eventOk, modelsOk = true, true
 	for _, want in GACHA_EVENT_SEED do
 		local got = CarCatalog.Get(want.Id)
 		if
@@ -5455,13 +5788,9 @@ function Scenarios.gacha()
 		if got.Model ~= nil then
 			local folder = ReplicatedStorage:FindFirstChild("CarModels")
 			local template = type(got.Model) == "string" and folder and folder:FindFirstChild(got.Model)
-			local source = type(got.Model) == "string" and CarCatalog.Get(got.Model)
-			local identityOk = got.Event == nil and got.Model == got.Id
-				or (got.Event == "rain" or got.Event == "night" or got.Event == "gold")
-					and baseIds[got.Model] == true
-					and source ~= nil
-					and source.Event == nil
-					and source.Model == got.Model
+			-- Every car, event variants included, uses its own model (docs/CAR_REDESIGN_SPEC.md section 5).
+			local identityOk = got.Model == got.Id
+				and (got.Event == nil or got.Event == "rain" or got.Event == "night" or got.Event == "gold")
 			if got.Model == "" or not identityOk or not (template and template:IsA("Model")) then
 				modelsOk = false
 			end
@@ -5470,7 +5799,7 @@ function Scenarios.gacha()
 		end
 	end
 	check(checks, "catalog_event_variants_match_contract", eventOk and 1 or 0, 1, eventOk)
-	check(checks, "catalog_all_models_resolve_with_event_only_reuse", modelsOk and 1 or 0, 1, modelsOk)
+	check(checks, "catalog_all_models_resolve_to_own_id", modelsOk and 1 or 0, 1, modelsOk)
 	local orderOk, orders = #all > 0, {}
 	for i, c in all do
 		local o = type(c) == "table" and c.Order or nil
@@ -5672,7 +6001,7 @@ function Scenarios.gacha()
 		local rolledOwned, newMatches = owns(q, id1), true
 		for _ = 1, 20 do
 			local ownedBefore = {}
-			for _, c in GACHA_SEED do
+			for _, c in GACHA_CATALOG do
 				ownedBefore[c.Id] = owns(q, c.Id)
 			end
 			local id, isNew = GachaService.Roll(q, rng)
@@ -5690,8 +6019,8 @@ function Scenarios.gacha()
 			checks,
 			"service_rolls_all_granted",
 			uq,
-			"1..min(Rolls, 7)",
-			rolledOwned and uq >= 1 and uq <= math.min(21, #GACHA_SEED) and GachaService.UniqueCount(q) == uq
+			"1..min(Rolls, base catalog)",
+			rolledOwned and uq >= 1 and uq <= math.min(21, expectedBase) and GachaService.UniqueCount(q) == uq
 		)
 		check(checks, "service_roll_is_new_matches_ownership", newMatches and 1 or 0, 1, newMatches)
 		check(checks, "service_roll_no_count_attribute", anyCountAttribute(q) and 1 or 0, 0, not anyCountAttribute(q))
@@ -5839,8 +6168,8 @@ function Scenarios.gacha()
 			checks,
 			"auto_roll_grants_cars",
 			ua,
-			"1..min(Rolls, 7)",
-			ua >= 1 and ua <= math.min(autoRolls, #GACHA_SEED)
+			"1..min(Rolls, base catalog)",
+			ua >= 1 and ua <= math.min(autoRolls, expectedBase)
 		)
 		local okStop = type(autoHandle) == "table" and pcall(autoHandle.Stop, autoHandle)
 		autoHandle = nil
@@ -6286,10 +6615,13 @@ end
 -- loser screen and is sent back to the start of Track 1 where the Track 1 race starts again. A track's checkpoint
 -- money is paid only when the player WINS that track; money from checkpoints already won is kept. Floating text
 -- above each NPC, proximity based, editable, default track01_NPC, track02_NPC, ... Players pass through each other."
+-- OWNER CHANGE 2026-10-20 (docs/NPC_RACER_SPEC.md): every NPC is much harder, Track 1 included: Track 1's NPC is
+-- faster than RaceConfig.BASE_SPEED (a stat-0 starter car loses). NPCs are skinned as catalog cars
+-- (NpcConfig.Tracks[n].Model -> EquippedVisual with CarId) and the label has a "NPC RIVAL" Title above the name.
 local NPC_ORIGIN = Vector3.new(40000, 0, 0)
 local MULTI_ORIGIN = Vector3.new(-40000, 0, 0)
 local NPC_LOSE_SCREEN = 1 -- s: LoseScreenSeconds used by the test runs
-local NPC_SLOW = 15 -- studs/s: an NPC every player beats
+local NPC_SLOW = 6 -- studs/s: an NPC every player beats (half of RaceConfig.BASE_SPEED 12; was 15 = half of 30)
 local NPC_FAST = 60 -- studs/s: an NPC a stat-0 player (RaceConfig.BASE_SPEED) can not beat
 local NPC_RESET_RADIUS = 15 -- studs (horizontal) from Track 1's race start after a reset
 local NPC_FINISH_RADIUS = 25 -- studs (horizontal) from the track's finish pose when its Result arrives
@@ -6634,7 +6966,17 @@ function Scenarios.npc()
 			end
 			check(checks, "npc_speed_increasing_1_to_5", increasing and 1 or 0, 1, increasing)
 			local s1 = isFiniteNumber(infos[1].Speed) and infos[1].Speed or math.huge
-			check(checks, "npc_track1_very_easy", s1, RaceConfig.BASE_SPEED, s1 < RaceConfig.BASE_SPEED)
+			local s1Beats = isFiniteNumber(infos[1].Speed) and s1 > RaceConfig.BASE_SPEED
+			check(checks, "npc_track1_beats_beginner", s1, RaceConfig.BASE_SPEED, s1Beats)
+			check(
+				checks,
+				"npc_track1_is_substantially_harder",
+				s1,
+				RaceConfig.BASE_SPEED * 3,
+				s1 >= RaceConfig.BASE_SPEED * 3
+			)
+			local growth = infos[2].Speed / infos[1].Speed
+			check(checks, "npc_speed_growth_is_hard", growth, 2.5, math.abs(growth - 2.5) <= 1e-6)
 			check(
 				checks,
 				"npc_label_track1",
@@ -6953,9 +7295,15 @@ function Scenarios.npc()
 					isFiniteNumber(ld) and ld or -1,
 					bbOk and isFiniteNumber(ld) and md == ld
 				)
-				local tl = bbOk and bb:FindFirstChildWhichIsA("TextLabel", true)
-				local textOk = tl ~= nil and tl ~= false and tl.Text == "track01_NPC"
+				local tl = bbOk and bb:FindFirstChild("Text", true)
+				local textOk = tl ~= nil and tl ~= false and tl:IsA("TextLabel") and tl.Text == "track01_NPC"
 				check(checks, "npc_label_text", textOk and 1 or 0, 1, textOk)
+				local title = bbOk and bb:FindFirstChild("Title", true)
+				local titleOk = title ~= nil
+					and title ~= false
+					and title:IsA("TextLabel")
+					and string.sub(title.Text, 1, 9) == "NPC RIVAL"
+				check(checks, "npc_label_title_rival", titleOk and 1 or 0, 1, titleOk)
 			end
 			if okM1 and typeof(m1) == "Instance" then
 				m1:Destroy()
@@ -6963,6 +7311,41 @@ function Scenarios.npc()
 			if okM2 and typeof(m2) == "Instance" then
 				m2:Destroy()
 			end
+
+			-- catalog skins (owner 2026-10-20): Tracks[n].Model is a car id; BuildModel adds EquippedVisual with
+			-- CarId == Model when ReplicatedStorage.CarModels has that template
+			local carModels = ReplicatedStorage:FindFirstChild("CarModels")
+			local skinned, skinBad, skinMissing = 0, 0, {}
+			for n = 1, 10 do
+				local okI, info = pcall(NpcConfig.For, n)
+				local id = okI and type(info) == "table" and info.Model or nil
+				if type(id) == "string" and id ~= "" and carModels and carModels:FindFirstChild(id) then
+					skinned += 1
+					local okB, m = pcall(NpcRacer.BuildModel, info)
+					local vis = okB and typeof(m) == "Instance" and m:FindFirstChild("EquippedVisual") or nil
+					if not (vis and vis:IsA("Model") and vis:GetAttribute("CarId") == id) then
+						skinBad += 1
+						table.insert(skinMissing, n)
+					end
+					if okB and typeof(m) == "Instance" then
+						m:Destroy()
+					end
+				end
+			end
+			metrics.npcSkinned = skinned
+			metrics.npcSkinBadTracks = table.concat(skinMissing, ",")
+			check(checks, "npc_model_catalog_skin", skinBad, 0, skinBad == 0)
+			-- every Track 1..10 NPC names a real catalog car (owner list, docs/NPC_RACER_SPEC.md)
+			local CarCatalog = sharedModule("CarCatalog")
+			local notCatalog = 0
+			for n = 1, 10 do
+				local okI, info = pcall(NpcConfig.For, n)
+				local id = okI and type(info) == "table" and info.Model or nil
+				if not (CarCatalog and type(id) == "string" and CarCatalog.Get(id) ~= nil) then
+					notCatalog += 1
+				end
+			end
+			check(checks, "npc_models_are_catalog_ids", notCatalog, 0, notCatalog == 0)
 		end
 
 		-- RaceService route with per-track NPC data, PathDriver.Chain start / finish indices
@@ -9157,15 +9540,27 @@ function Scenarios.admin()
 				return math.abs(ls.Speed.Value - 12.345) <= 1e-6
 			end
 		)
+		-- owner 2026-10-20: the Speed stat has no cap; MAX_STAT (1e9) is only a test reference, never a clamp
 		accepted(
-			"admin_speed_clamp_max",
+			"admin_speed_above_max_stat_kept",
 			"/speed 1e12",
 			function()
 				return ls.Speed.Value
 			end,
-			MAX_STAT,
+			1e12,
 			function()
-				return ls.Speed.Value == MAX_STAT
+				return ls.Speed.Value == 1e12 and ls.Speed.Value > MAX_STAT
+			end
+		)
+		accepted(
+			"admin_speed_1e15_kept",
+			"/speed 1e15",
+			function()
+				return ls.Speed.Value
+			end,
+			1e15,
+			function()
+				return ls.Speed.Value == 1e15
 			end
 		)
 		accepted(
@@ -9214,14 +9609,14 @@ function Scenarios.admin()
 			end
 		)
 		accepted(
-			"admin_addspeed_clamp_max",
+			"admin_addspeed_past_max_stat_not_clamped",
 			"/addspeed 2e9",
 			function()
 				return ls.Speed.Value
 			end,
-			MAX_STAT,
+			2e9 + 12.501,
 			function()
-				return ls.Speed.Value == MAX_STAT
+				return math.abs(ls.Speed.Value - (2e9 + 12.501)) <= 1e-3 and ls.Speed.Value > MAX_STAT
 			end
 		)
 		accepted(
@@ -9238,6 +9633,9 @@ function Scenarios.admin()
 		ls.Speed.Value = 7
 		rejected("admin_speed_junk_false", "/speed fast")
 		rejected("admin_speed_inf_false", "/speed inf")
+		rejected("admin_speed_nan_false", "/speed nan")
+		rejected("admin_speed_overflow_false", "/speed 1e400")
+		rejected("admin_addspeed_inf_false", "/addspeed inf")
 		rejected("admin_addspeed_missing_false", "/addspeed")
 		rejected("admin_speed_unknown_target_false", "/speed 5 zzqx_nobody_here")
 
@@ -9909,7 +10307,8 @@ function Scenarios.roll_anim()
 		end
 		local pNon = 1 - expected[catchAllId]
 		local pRare = 0
-		for _, c in GACHA_SEED do
+		-- every rollable car (seed + expansion manifest + event variants at 0), not only the seven seeds
+		for _, c in GACHA_CATALOG do
 			if c.Chance and c.Chance >= 50 then
 				pRare += expected[c.Id]
 			end
@@ -10061,7 +10460,13 @@ function Scenarios.roll_anim()
 		GachaService.Announce = function(player, id, rolls)
 			table.insert(calls, { player = player, id = id, rolls = rolls })
 		end
-		local secret = seqRoller({ 0 }) -- hits the rarest car first: void_racer
+		local rarestId = nil
+		for _, spec in GACHA_CATALOG do
+			if not spec.Event and spec.Chance and (not rarestId or spec.Chance > CarCatalog.Get(rarestId).Chance) then
+				rarestId = spec.Id
+			end
+		end
+		local secret = seqRoller({ 0 }) -- hits the manifest's rarest base car first
 		local r1 = newTestPlayer(cleanup, "CarTestRollAnimP1")
 		GachaService.Setup(r1)
 		local packed = table.pack(pcall(GachaService.Roll, r1, secret))
@@ -10069,16 +10474,16 @@ function Scenarios.roll_anim()
 		-- Owner, 2026-10-13 (docs/ROLL_ANIMATION_CONTRACT.md `RollResult` bullet): a 6th value, luck, was added (was 5).
 		local sixOk = okR1 and packed.n == 7 and type(packed[7]) == "number" and packed[7] == GachaService.Luck(r1)
 		check(checks, "service_roll_returns_six_values", okR1 and packed.n - 1 or -1, 6, sixOk)
-		local first = okR1 and packed[2] == "void_racer" and packed[3] == true and packed[4] == 1 and packed[5] == true
+		local first = okR1 and packed[2] == rarestId and packed[3] == true and packed[4] == 1 and packed[5] == true
 		check(checks, "service_roll_new_secret_emphasized", first and 1 or 0, 1, first)
 		local ann1 = #calls == 1
 			and calls[1].player == r1
-			and calls[1].id == "void_racer"
+			and calls[1].id == rarestId
 			and calls[1].rolls == 1
 			and r1:GetAttribute("Rolls") == 1
 		check(checks, "announce_on_emphasized_roll", #calls, 1, ann1)
 		local okR2, id2, new2, _, emph2 = pcall(GachaService.Roll, r1, secret)
-		local second = okR2 and id2 == "void_racer" and new2 == false and emph2 == false
+		local second = okR2 and id2 == rarestId and new2 == false and emph2 == false
 		check(checks, "service_roll_owned_not_emphasized", second and 1 or 0, 1, second)
 		check(checks, "announce_not_on_owned_roll", #calls, 1, #calls == 1)
 
@@ -10089,7 +10494,14 @@ function Scenarios.roll_anim()
 			GachaService.Grant(r2, id)
 		end
 		local before = #calls
-		local okK, idK, newK, _, emphK = pcall(GachaService.Roll, r2, seqRoller({ 0.99, 0.99, 0.99, 0.99, 0 }))
+		local kartDraws = {}
+		for _, spec in GACHA_CATALOG do
+			if not spec.Event and spec.Chance and spec.Chance > 50 then
+				table.insert(kartDraws, 0.99)
+			end
+		end
+		table.insert(kartDraws, 0)
+		local okK, idK, newK, _, emphK = pcall(GachaService.Roll, r2, seqRoller(kartDraws))
 		local kart = okK and idK == "go_kart" and newK == true and emphK == true
 		check(checks, "service_roll_rarer_than_fifth_emphasized", kart and 1 or 0, 1, kart)
 		local annK = #calls == before + 1
@@ -10255,7 +10667,7 @@ function Scenarios.roll_anim()
 			string.format("<= %.2f", interval + ROLL_ANIM_LATE),
 			offRolls == 0 and resumedAt ~= nil and resumeIn <= interval + ROLL_ANIM_LATE
 		)
-		local riggedOk = okA and owns(pa, "void_racer")
+		local riggedOk = okA and owns(pa, rarestId)
 		check(checks, "auto_roll_uses_given_roller", riggedOk and 1 or 0, 1, riggedOk)
 		local gap = #rollTimes >= 2 and rollTimes[2] - rollTimes[1] or -1
 		metrics.autoRollPauseGap = round(gap)
@@ -11680,7 +12092,7 @@ WSHOP.GAP = 8 -- studs between neighbouring plots
 WSHOP.EDGE_MARGIN = 4 -- studs from the floor's outer sides
 WSHOP.ZONE = Vector3.new(32, 12, 32)
 WSHOP.TICK = 0.5
-WSHOP.BASE_RATE = 1
+WSHOP.BASE_RATE = 0.2 -- owner 2026-10-20 (much harsher progression, WORKSHOP_SPEC): was 1
 WSHOP.EMPTY = "EMPTY PLOT"
 WSHOP.TAG = "WorkshopPlot"
 WSHOP.BASE_RAISE = 0.5 -- the plot Base top is "a hair above the floor": (TOP_Y, TOP_Y + this]
@@ -12029,7 +12441,7 @@ function Scenarios.workshop()
 		)
 		local statFree = true
 		local wantFree = WSHOP.BASE_RATE * 2.4 * levelMultiWant(MAXL) * 1.2
-		for _, stat in { 0, 2000, 1e6, RaceConfig.MAX_STAT or 1e9 } do
+		for _, stat in { 0, 2000, 1e6, RaceConfig.MAX_STAT or 1e9, 1e12, 1e15 } do
 			local okf, v = try("Rate", Workshop.Rate, stat, 2.4, MAXL, 1.2)
 			statFree = statFree and okf and near(v, wantFree, 1e-9)
 		end
@@ -12704,5 +13116,14 @@ Scenarios.duel = require(script.Parent.DuelTests).duel -- docs/DUEL_SPEC.md sect
 Scenarios.pass_cars = require(script.Parent.PassCarTests).pass_cars -- docs/GAMEPASS_CARS_SPEC.md section 7
 Scenarios.shop_purchases = require(script.Parent.ShopPurchaseTests).shop_purchases -- docs/SHOP_PURCHASES_SPEC.md
 Scenarios.environment = require(script.Parent.EnvironmentTests).environment -- docs/BIOME_DRESSING_SPEC.md
+Scenarios.car_expansion = require(script.Parent.ExpansionTests).car_expansion
+Scenarios.car_redesign = require(script.Parent.RedesignTests).car_redesign -- docs/CAR_REDESIGN_SPEC.md section 7
+Scenarios.gifting = require(script.Parent.GiftTests).gifting
+Scenarios.gift_mailbox = require(script.Parent.GiftTests).gift_mailbox
+-- docs/PANEL_ART_GIFTING_SPEC.md: cosmetic effects on the chassis, no mass/controls change, equip preserved
+Scenarios.vehicle_effects = require(script.Parent.VehicleEffectTests).make({
+	newFakeCharacter = newFakeCharacter,
+	clearSpawnOfRealPlayers = clearSpawnOfRealPlayers,
+})
 
 return Scenarios

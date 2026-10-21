@@ -110,4 +110,12 @@ MonetizationConfig.Products = {
 	},
 }
 
+-- Separate ids keep a delayed ordinary receipt from consuming a gift reservation.
+-- Owner creates the corresponding recipient-owned developer products before enabling.
+for _, product in MonetizationConfig.Products do
+	if product.Grants then
+		product.GiftProductId = 0
+	end
+end
+
 return MonetizationConfig

@@ -2,6 +2,8 @@
 
 > Every model is a **skin** on a shared invisible physics body, not a physics object: any shape works (a car, or later a dragon). Rules: `docs/VEHICLE_SKINS_SPEC.md`.
 
+> **Car art redesign (2026-10-20):** every rollable and gamepass car is being rebuilt as a MeshPart skin from the concept renders in `references/car_redesign/`. Rules, files and load order: `docs/CAR_REDESIGN_SPEC.md`.
+
 Reference-driven pipeline: external generators and real-world sources provide **references**; Claude builds the final car in Roblox Studio and checks it against them.
 
 ## Tools

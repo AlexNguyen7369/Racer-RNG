@@ -86,6 +86,9 @@ local byId = {}
 for kind, items in MarketConfig.Items do
 	for _, item in items do
 		item.Kind = kind
+		if kind == "Aura" or kind == "Trail" then
+			item.Icon = "vector:" .. item.Id
+		end
 		byId[item.Id] = item
 	end
 end

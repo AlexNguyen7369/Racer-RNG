@@ -1,7 +1,7 @@
 --!nonstrict
--- Backpack (docs/HUD_LAYOUT_SPEC.md section 3): Misc (potions), Trails and Auras tabs with item tiles. Cars live
--- only in the Index. Clicking a potion asks the server to use one and clicking a trail or aura asks it to equip
--- it; the server decides both.
+-- Backpack (docs/HUD_LAYOUT_SPEC.md section 3): Misc (potions), Trails, Auras and Cars tabs with item tiles.
+-- Clicking a potion asks the server to use one; clicking a trail, aura or car asks it to equip it; the server
+-- decides all of them. Cars are listed least rare first (owner, 2026-10-20).
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local player = Players.LocalPlayer
@@ -14,6 +14,10 @@ local PanelSwitch = require(script.Parent:WaitForChild("PanelSwitch"))
 local Ui = script.Parent:WaitForChild("RollToast"):WaitForChild("Ui")
 local Icons = require(Ui.HudIcons)
 local PotionIcons = require(Ui.PotionIcons)
+local MarketArt = require(script.Parent:WaitForChild("MarketArt"))
+local CarCatalog = require(shared.CarCatalog)
+local GachaConfig = require(shared.GachaConfig)
+local Components = require(Ui.RacerComponents)
 
 local OUTLINE = Color3.fromRGB(17, 19, 31)
 local BODY = Color3.fromRGB(32, 27, 36)
@@ -110,7 +114,6 @@ local rail = make("Frame", "Tabs", panel, {
 	BackgroundTransparency = 1,
 })
 make("UIListLayout", "Layout", rail, { Padding = UDim.new(0, 10), SortOrder = Enum.SortOrder.LayoutOrder })
-local railScale = make("UIScale", "Scale", rail, {})
 local tabs = {}
 local function tab(name, order, art)
 	local b = make("TextButton", name .. "Tab", rail, {
@@ -130,23 +133,13 @@ local function tab(name, order, art)
 		Text = name,
 		TextSize = 20,
 	})
-	tabs[name] = { Button = b, Edge = edge }
+	-- Per-tab scale: a UIScale on the rail would shrink the rail with the tabs and never make them fit.
+	tabs[name] = { Button = b, Edge = edge, Scale = make("UIScale", "Scale", b, {}) }
 	return b
 end
--- Trails and auras have no icon art yet: a trail is a colour streak, an aura a glowing orb.
+-- Same original art as Market tiles, tabs and detail previews.
 local function swatch(parent, item, kind, pos, size)
-	local art = make("Frame", "Art", parent, {
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = pos,
-		Size = size,
-		BackgroundColor3 = Color3.new(1, 1, 1),
-		Rotation = kind == "Trail" and -20 or 0,
-		ZIndex = 3,
-	})
-	make("UICorner", "Corner", art, { CornerRadius = UDim.new(1, 0) })
-	make("UIGradient", "Gradient", art, { Color = ColorSequence.new(item.Color, item.Accent or item.Color) })
-	stroke(art, OUTLINE, 3)
-	return art
+	return MarketArt.Draw(parent, item, pos, kind == "Trail" and UDim2.new(size.X, size.X) or size)
 end
 tab("Misc", 1, function(b)
 	make("ImageLabel", "Art", b, {
@@ -163,6 +156,41 @@ end)
 tab("Auras", 3, function(b)
 	swatch(b, Market.Items.Aura[1], "Aura", UDim2.fromOffset(48, 36), UDim2.fromOffset(48, 48))
 end)
+tab("Cars", 4, function(b)
+	local spec = CarCatalog.All()[1]
+	local art = Components.CarModelArt(b, "Art", spec, UDim2.fromOffset(8, 2), UDim2.fromOffset(80, 66))
+	ReplicatedStorage:WaitForChild("CarModels").ChildAdded:Connect(function()
+		Components.FillCarModel(art, spec)
+	end)
+end)
+
+-- Owned cars, least rare first, then catalog order.
+local rarityRank = {}
+for i, rarity in GachaConfig.RARITY_ORDER do
+	rarityRank[rarity] = i
+end
+local function ownedCars()
+	local data = player:FindFirstChild("GachaData")
+	local list = {}
+	for _, spec in CarCatalog.All() do
+		if data and data:FindFirstChild(spec.Id) then
+			table.insert(list, spec)
+		end
+	end
+	for _, spec in CarCatalog.Passes() do -- gamepass cars are owned through Roblox (Pass_<id>), not GachaData
+		if player:GetAttribute("Pass_" .. spec.Id) == true then
+			table.insert(list, spec)
+		end
+	end
+	table.sort(list, function(a, b)
+		local ra, rb = rarityRank[a.Rarity] or 99, rarityRank[b.Rarity] or 99
+		if ra ~= rb then
+			return ra < rb
+		end
+		return (a.Order or 0) < (b.Order or 0)
+	end)
+	return list
+end
 
 local grid = make("ScrollingFrame", "Items", panel, {
 	Position = UDim2.fromOffset(120, 76),
@@ -252,7 +280,47 @@ function render()
 		refs.Edge.Color = name == current and Color3.new(1, 1, 1) or OUTLINE
 	end
 	local shown = 0
-	if current ~= "Misc" then
+	if current == "Cars" then
+		local equipped = player:GetAttribute("EquippedCar")
+		for order, spec in ownedCars() do
+			shown += 1
+			local b = tile(spec.Id, order, spec.Id == equipped)
+			Components.CarModelArt(b, "Art", spec, UDim2.fromOffset(6, 4), UDim2.new(1, -12, 1, -46))
+			caption("Name", b, {
+				AnchorPoint = Vector2.new(0.5, 1),
+				Position = UDim2.new(0.5, 0, 1, -20),
+				Size = UDim2.new(1, -8, 0, 20),
+				Text = spec.Name,
+				TextSize = 15,
+				TextScaled = true,
+				ZIndex = 5,
+			})
+			caption("Multi", b, {
+				AnchorPoint = Vector2.new(0.5, 1),
+				Position = UDim2.new(0.5, 0, 1, -2),
+				Size = UDim2.new(1, -8, 0, 18),
+				Text = "x" .. tostring(spec.SpeedMulti),
+				TextSize = 14,
+				TextColor3 = GachaConfig.RARITY_COLORS[spec.Rarity] or Color3.new(1, 1, 1),
+				ZIndex = 5,
+			})
+			b.MouseEnter:Connect(function()
+				hint.Text = string.format(
+					"%s (%s) x%s speed. Click to equip.",
+					spec.Name,
+					spec.Rarity,
+					tostring(spec.SpeedMulti)
+				)
+			end)
+			b.Activated:Connect(function()
+				if spec.Id ~= player:GetAttribute("EquippedCar") then
+					remotes.EquipCar:FireServer(spec.Id)
+					hint.Text = "Equipping " .. spec.Name
+				end
+			end)
+		end
+		empty.Text = "No cars yet. Keep rolling!"
+	elseif current ~= "Misc" then
 		local kind = current == "Trails" and "Trail" or "Aura"
 		local equipped = player:GetAttribute("Equipped" .. kind)
 		for order, item in Market.Items[kind] do
@@ -356,12 +424,39 @@ panel:GetPropertyChangedSignal("Visible"):Connect(function()
 	end
 end)
 player.AttributeChanged:Connect(function(attr)
-	if panel.Visible and (attr:sub(1, 6) == "Boost_" or attr:sub(1, 3) == "Own" or attr:sub(1, 8) == "Equipped") then
+	local watched = attr:sub(1, 6) == "Boost_" or attr:sub(1, 3) == "Own" or attr:sub(1, 8) == "Equipped"
+	if panel.Visible and (watched or attr:sub(1, 5) == "Pass_") then
 		render()
 	end
 end)
--- Same band as the other panels; short panels (phones) shrink the three tabs to fit.
-require(script.Parent:WaitForChild("PanelBand")).Fit(panel, 760)
-panel:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
-	railScale.Scale = math.clamp((panel.AbsoluteSize.Y - 88) / (3 * 96 + 20), 0.4, 1)
+task.spawn(function()
+	local data = player:WaitForChild("GachaData")
+	local function changed()
+		if panel.Visible and current == "Cars" then
+			render()
+		end
+	end
+	data.ChildAdded:Connect(changed)
+	data.ChildRemoved:Connect(changed)
 end)
+-- Same band as the other panels; short panels (phones) shrink the four tabs to fit.
+require(script.Parent:WaitForChild("PanelFrame")).Attach(panel, {
+	Theme = "Backpack",
+	Title = "Backpack",
+	Icon = Icons.Items.Image,
+	TitleObject = header.Title,
+	Close = close,
+	MaxWidth = 760,
+})
+local function fitTabs()
+	local ancestor = rail.AbsoluteSize.X / 96 -- PanelBand scale; the rail is 96 design px wide
+	if ancestor <= 0 then
+		return
+	end
+	local scale = math.clamp((rail.AbsoluteSize.Y / ancestor - 3 * 10) / (4 * 96), 0.4, 1)
+	for _, refs in tabs do
+		refs.Scale.Scale = scale
+	end
+end
+rail:GetPropertyChangedSignal("AbsoluteSize"):Connect(fitTabs)
+fitTabs()

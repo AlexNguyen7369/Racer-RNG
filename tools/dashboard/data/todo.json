@@ -1,6 +1,17 @@
 {
   "items": [
     {
+      "id": "npc-harder-models",
+      "title": "Harder NPCs, imported NPC car models, wider label",
+      "detail": "Owner 2026-10-20: Track 1 NPC 30 studs/s (x2 per track), label 200 studs with NPC RIVAL title, tracks 1-10 skinned with imported catalog cars (NpcConfig.Tracks). Code + docs done; needs full CarTest (npc, bank, multiplayer, weather) and a live look in Studio.",
+      "status": "doing",
+      "source": "Owner brief 2026-10-20",
+      "by": "Claude",
+      "added": "2026-10-20T12:00:00-07:00",
+      "updated": "2026-10-20T12:00:00-07:00",
+      "updatedBy": "Claude"
+    },
+    {
       "id": "racer-ui-tests",
       "title": "UI tests for Isaac's Racer UI",
       "detail": "Owner decision 2026-10-06: the merged Racer UI (RacerHud/Index/Stats/Settings/Rebirth, new RollShowcase) is the UI spec. ui-test-writer rewrites UiSpec/UiScenarios for it (old SpeedHud/AutoRaceButton/IndexUi/StatsUi/RollUi tests are obsolete). Then update CLAUDE.md HUD rules (Speed now bottom centre) and docs/ROLL_ANIMATION_CONTRACT.md, and run /compat-check. Blocks the green stamp for the money tree + workshop round.",
@@ -733,14 +744,16 @@
       "detail": "Rail steers with velocity instead of a per-frame PivotTo; client sees the car move every frame. Harness 41/41 on 2026-10-15. /compat-check not run.",
       "status": "done",
       "done": "2026-10-15",
-      "owner": "Claude"
+      "owner": "Claude",
+      "updated": null
     },
     {
       "id": "isaac-ui-tests-reconcile",
       "title": "Reconcile UI tests with Isaac's inventory/upgrade-tree UI (ccea607)",
       "detail": "ui-test-writer updates UiSpec/UiScenarios for INVENTORY tabs, removed Bag, full-screen hex upgrade tree; then ui-tester and /compat-check. Blocks the green stamp for main.",
       "status": "next",
-      "owner": "Claude"
+      "owner": "Claude",
+      "updated": null
     },
     {
       "id": "rebirth-panel",
@@ -748,56 +761,65 @@
       "detail": "Reference-image layout (warning, rewards, level requirement bar). Harness 41/41, ui_rebirth 38/38 on 2026-10-15. /compat-check not run.",
       "status": "done",
       "done": "2026-10-15",
-      "owner": "Claude"
+      "owner": "Claude",
+      "updated": null
     },
     {
       "id": "rebirth-rebake",
       "title": "Re-bake StarterGui.rbxm with the new RacerRebirth panel",
       "detail": "The baked RacerRebirth still has the old spec hash; Bind rebuilds it from code at runtime. Bake it in Studio Edit and export assets/studio/StarterGui.rbxm.",
       "status": "backlog",
-      "owner": "Claude"
+      "owner": "Claude",
+      "updated": null
     },
     {
       "id": "hud-redesign",
       "title": "HUD redesign: icon tiles, top-right pills, Backpack, Settings pills, potion timers",
       "detail": "docs/HUD_LAYOUT_SPEC.md. Code done and checked live on desktop; waiting on the UI test update (ui-test-writer), a phone-viewport check and /compat-check.",
       "status": "doing",
-      "owner": "Claude"
+      "owner": "Claude",
+      "updated": null
     },
     {
       "id": "hud-daily-quests-restyle",
       "title": "Restyle the Daily, Quests, Shop and Market panels to the Backpack frame",
       "detail": "They still use the plain dark Gotham modal; the owner gave references only for their buttons.",
       "status": "backlog",
-      "owner": "Claude"
+      "owner": "Claude",
+      "updated": null
     },
     {
       "id": "trail-aura-icons",
       "title": "Icon art for trails and auras in the Backpack",
       "detail": "Backpack shows a colour streak / orb swatch until real art exists.",
       "status": "backlog",
-      "owner": "Claude"
+      "owner": "Claude",
+      "updated": null
     },
     {
       "id": "shop-redesign",
       "title": "Shop redesign + Robux potions + codes + Market restyle",
-      "detail": "Shop sections per images/UI_ShopReference1-4 (Featured cars 1999/999, Gamepasses, Potions + bundle, Server Luck, Codes); Server/ShopService receipts + codes (save VERSION 9); Market in the Backpack look. Harness shop_purchases 76/76. Pending: UI suite, phone viewport, /compat-check.",
+      "detail": "Shop sections per images/UI_ShopReference1-4 (Featured cars 1999/999, Gamepasses, Potions + bundle, Server Luck, Codes); Server/ShopService receipts + codes (save VERSION 9); Market in the Backpack look. Harness shop_purchases 76/76. Pending: UI suite, phone viewport, /compat-check. 2026-10-20: shop_purchases 76/76 live; Market tab-rail + render-on-show fixed; ui_market fixtures updated for the PanelFrame close/price row. Left: hitbox backdrop decision, /compat-check.",
       "status": "doing",
-      "owner": "Claude"
+      "owner": "Claude",
+      "updated": "2026-10-20T14:29:38-07:00",
+      "updatedBy": "Claude"
     },
     {
       "id": "server-luck",
       "title": "Build Server Luck (2x/4x/8x developer products)",
       "detail": "Design doc lists it; the Shop shows it as Coming soon (no Grants, receipt never granted).",
       "status": "backlog",
-      "owner": "Claude"
+      "owner": "Claude",
+      "updated": null
     },
     {
       "id": "shop-gifting",
       "title": "Gift buttons in the Shop",
       "detail": "References show gift buttons; not built.",
       "status": "backlog",
-      "owner": "Claude"
+      "owner": "Claude",
+      "updated": null
     },
     {
       "id": "biome-drive-by",
@@ -809,6 +831,129 @@
       "by": "Alex Nguyen",
       "added": "2026-10-20T02:30:00-07:00",
       "updated": "2026-10-20T04:00:00-07:00"
+    },
+    {
+      "id": "checkpoint-tests",
+      "title": "Checkpoint tests (harness + UiSpec)",
+      "detail": "test-writer: checkpoint scenario (validation, start track, loss resets to checkpoint, loop). ui-test-writer: CheckpointUi in UiSpec (overlap, locked cards, phone landscape). docs/CHECKPOINT_SPEC.md.",
+      "status": "next",
+      "owner": "Claude",
+      "updated": null
+    },
+    {
+      "id": "3bd027f3",
+      "title": "Biome drive-by scenery",
+      "detail": "",
+      "status": "doing",
+      "source": "feature branch",
+      "by": "Alex Nguyen",
+      "added": "2026-10-20T01:59:39-07:00",
+      "branch": "feature/alex/biome-drive-by-scenery",
+      "featureId": "ddbd7b8a",
+      "owner": "Alex Nguyen",
+      "ownerGithub": "AlexNguyen7369",
+      "updated": "2026-10-20T01:59:39-07:00",
+      "updatedBy": "Alex Nguyen"
+    },
+    {
+      "source": "Claude",
+      "by": "Claude",
+      "added": "2026-10-20T14:29:38-07:00",
+      "updated": "2026-10-20T14:29:38-07:00",
+      "updatedBy": "Claude",
+      "id": "car-expansion-100",
+      "title": "100-car expansion + Index/Backpack car models",
+      "status": "doing",
+      "detail": "Done 2026-10-20: 100 cars + Blender art (detail pass), Index/roll card/Backpack Cars tab show models, harness car_expansion 2692/2692, ui_backpack_cars + ui_car_icons green. Left: phone-landscape ui-tester pass, /compat-check, commit."
+    },
+    {
+      "source": "Claude",
+      "by": "Claude",
+      "added": "2026-10-20T14:29:38-07:00",
+      "updated": "2026-10-20T14:29:38-07:00",
+      "updatedBy": "Claude",
+      "id": "shop-gifting",
+      "title": "Shop gifting (potions) with durable mailbox",
+      "status": "doing",
+      "detail": "GiftService/GiftMailbox/GiftPicker, save VERSION 10. gifting 30/30, gift_mailbox 25/25 live 2026-10-20. Left: UI pass of the gift picker, /compat-check, real dev product ids."
+    },
+    {
+      "source": "Claude",
+      "by": "Claude",
+      "added": "2026-10-20T14:29:38-07:00",
+      "updated": "2026-10-20T14:29:38-07:00",
+      "updatedBy": "Claude",
+      "id": "panel-backdrop-hud",
+      "title": "Decide: Shop/Market/Daily backdrops cover the HUD tiles",
+      "status": "done",
+      "detail": "ui_hitboxes: HUD tiles are under ShopUi/MarketUi/DailyBoosts backdrops while open (HUD_LAYOUT_SPEC: dimmed background buttons; GAMEPASS_SHOP_SPEC: backdrop closes the panel). Owner decision needed. DONE 2026-10-20: owner chose HUD tiles clickable; backdrops non-interactive, outside click closes; live-checked.",
+      "done": "2026-10-20"
+    },
+    {
+      "id": "band-vs-compact-roll",
+      "title": "Shop/Market panels cover the compact roll toast",
+      "status": "next",
+      "source": "Claude",
+      "by": "Claude",
+      "added": "2026-10-20T14:46:41-07:00",
+      "updated": "2026-10-20T14:46:41-07:00",
+      "updatedBy": "Claude",
+      "detail": "ui_hitboxes button_topmost_at_centre_shop_open/market_open: RollToast/Toast under the panel. PanelBand top = below Race button; the compact roll also sits below Race. Owner: band below the compact roll, or panel over the dimmed toast?"
+    },
+    {
+      "id": "ui-world-dim-only",
+      "title": "Panels dim only the world; HUD stays bright",
+      "status": "doing",
+      "source": "Owner",
+      "by": "Claude",
+      "added": "2026-10-20T15:10:00-07:00",
+      "updated": "2026-10-20T15:10:00-07:00",
+      "updatedBy": "Claude",
+      "detail": "Owner 2026-10-20 (HUD_LAYOUT_SPEC 6): HudChrome/PanelDim (DisplayOrder 0) replaces the per-HUD veils; Shop/Market/Daily backdrops transparent. Code done; ui-test-writer updating PanelDimmers checks; UI suite not run yet."
+    },
+    {
+      "id": "checkpoint-quest-panel-style",
+      "title": "Checkpoint and Quest panels use the Backpack look",
+      "status": "doing",
+      "source": "Owner",
+      "by": "Claude",
+      "added": "2026-10-20T15:10:00-07:00",
+      "updated": "2026-10-20T15:10:00-07:00",
+      "updatedBy": "Claude",
+      "detail": "Owner 2026-10-20: CheckpointUi on PanelFrame (flag icon), navy/blue tiles; quest rows/tabs/detail in Backpack colours + Fredoka. Not checked visually in Studio yet."
+    },
+    {
+      "id": "sharp-car-shells",
+      "title": "Sharper, more unique car models",
+      "status": "doing",
+      "source": "Owner",
+      "by": "Claude",
+      "added": "2026-10-20T15:10:00-07:00",
+      "updated": "2026-10-20T15:10:00-07:00",
+      "updatedBy": "Claude",
+      "detail": "Owner 2026-10-20: build_expansion_cars.py shell rewritten (chamfered shoulders, wedge nose, fastback/Kamm/ducktail, tapered glass, seeded proportions/paint); all 100 re-authored. Blender preview wedge mesh fixed (was upside down). The 7 Draft05 MeshPart cars are NOT changed: need new meshes uploaded by hand."
+    },
+    {
+      "id": "singularity-playable",
+      "title": "Singularity: sharp supercar, playable after purchase, admin access",
+      "status": "doing",
+      "source": "Owner",
+      "by": "Claude",
+      "added": "2026-10-20T15:10:00-07:00",
+      "updated": "2026-10-20T15:10:00-07:00",
+      "updatedBy": "Claude",
+      "detail": "Owner 2026-10-20: new singularity_recipe (69 parts) exported to ExpansionCarModels/singularity.rbxmx; admins own every pass car (PassCarService); Shop Featured button equips owned cars; Backpack Cars lists owned pass cars. Verified live: admin gets Pass_singularity, Equip works. GamepassId still 0 (owner must create the pass)."
+    },
+    {
+      "id": "car-redesign",
+      "title": "Car art redesign: 111 MeshPart skins from the concept renders",
+      "status": "doing",
+      "source": "Owner",
+      "by": "Claude",
+      "added": "2026-10-20T23:00:00-07:00",
+      "updated": "2026-10-20T23:59:00-07:00",
+      "updatedBy": "Claude",
+      "detail": "docs/CAR_REDESIGN_SPEC.md. All 111 cars built, uploaded and synced (assets/studio/RedesignCarModels). Review page: https://claude.ai/artifact/X5NTsqk2FWamprTYyRwpHQ. Left: owner review of the 100 expansion cars, run car_redesign + gacha + weather + car_size in Studio, commit."
     }
   ]
 }

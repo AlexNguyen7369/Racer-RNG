@@ -114,6 +114,44 @@ function Components.CarArt(parent, name, icon, pos, size)
 	return picture(parent, name, icon, pos, size)
 end
 
+-- The car's own model, front three-quarter view (docs/CAR_EXPANSION_SPEC.md "Car icons"). Idempotent; false
+-- while the template has not replicated yet. Cars face -Z.
+function Components.FillCarModel(view, spec, name)
+	name = name or "Car"
+	if view:FindFirstChild(name) then
+		return true
+	end
+	local CarAppearance = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared").CarAppearance)
+	local car = CarAppearance.Display(spec, CFrame.new(), 1)
+	if not car then
+		return false
+	end
+	car.Name = name
+	car.Parent = view
+	local box, extents = car:GetBoundingBox()
+	local camera = view.CurrentCamera or make("Camera", { Name = "Camera", FieldOfView = 30 }, view)
+	view.CurrentCamera = camera
+	-- Bounding-sphere fit is loose for long, low cars; 0.7 fills the tile without clipping.
+	local distance = 0.7 * extents.Magnitude / 2 / math.sin(math.rad(15))
+	camera.CFrame = CFrame.lookAt(box.Position + Vector3.new(-0.75, 0.55, -1).Unit * distance, box.Position)
+	return true
+end
+
+function Components.CarModelArt(parent, name, spec, pos, size)
+	local view = make("ViewportFrame", {
+		Name = name,
+		BackgroundTransparency = 1,
+		Position = pos,
+		Size = size,
+		Ambient = Color3.fromRGB(175, 175, 185),
+		LightColor = WHITE,
+		LightDirection = Vector3.new(-1, -2, -1),
+		ZIndex = 4,
+	}, parent)
+	Components.FillCarModel(view, spec)
+	return view
+end
+
 local function scroll(host, name)
 	local grid = make("ScrollingFrame", {
 		Name = name,
@@ -151,7 +189,7 @@ function Components.BakeIndex(refs, catalog, config)
 		tile.LayoutOrder = spec.Order
 		tile:FindFirstChildOfClass("UIStroke").Color = color
 		label(tile, "CarName", "???", UDim2.fromOffset(4, 4), UDim2.new(1, -8, 0, 20), 17)
-		local art = picture(tile, "Art", spec.Id, UDim2.fromOffset(8, 28), UDim2.new(1, -16, 0, 88))
+		local art = Components.CarModelArt(tile, "Art", spec, UDim2.fromOffset(8, 28), UDim2.new(1, -16, 0, 88))
 		art.ImageColor3 = Color3.new(0, 0, 0)
 		label(tile, "Locked", "?", UDim2.new(0.5, -15, 0, 55), UDim2.fromOffset(30, 30), 26)
 		local info = label(tile, "Info", spec.Rarity, UDim2.fromOffset(4, 122), UDim2.new(1, -8, 0, 20), 16, color)
@@ -180,6 +218,17 @@ function Components.BindIndex(refs, catalog)
 			Spec = spec,
 		}
 	end
+	-- Tiles baked before a model replicated (or as old atlas images) get the model once it exists.
+	local function fillModels()
+		for _, tile in tiles do
+			if tile.Art:IsA("ViewportFrame") then
+				Components.FillCarModel(tile.Art, tile.Spec)
+			end
+		end
+	end
+	local models = game:GetService("ReplicatedStorage"):WaitForChild("CarModels")
+	models.ChildAdded:Connect(fillModels)
+	fillModels()
 	local layout = grid:FindFirstChildOfClass("UIGridLayout")
 	local function fit()
 		local phone = workspace.CurrentCamera.ViewportSize.Y <= 500

@@ -31,6 +31,13 @@ function LevelService.Setup(player)
 	return level
 end
 
+function LevelService.Reset(player)
+	LevelService.Setup(player)
+	player:SetAttribute("Level", LevelConfig.START_LEVEL)
+	player:SetAttribute("XP", LevelConfig.START_XP)
+	player:SetAttribute("XPToNext", LevelConfig.XPToNext(LevelConfig.START_LEVEL))
+end
+
 function LevelService.Apply(player, saved)
 	saved = type(saved) == "table" and saved or {}
 	local level = LevelConfig.CleanLevel(saved.Level)

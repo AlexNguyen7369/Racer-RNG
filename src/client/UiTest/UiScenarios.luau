@@ -116,6 +116,9 @@ UiScenarios.Names = {
 	"ui_daily_boosts",
 	"ui_shop",
 	"ui_market",
+	-- Backpack Cars tab and car model icons (UiContracts; owner 2026-10-20)
+	"ui_backpack_cars",
+	"ui_car_icons",
 	-- At rest here (no duel message yet); after each duel_* server fixture it runs again through
 	-- UiSpec.Duel.FixtureChecks (UiTestScenario) and judges that message.
 	"ui_duel",
@@ -586,6 +589,29 @@ local function sameSize(a, b)
 	return math.abs(a.X - b.X) < 0.5 and math.abs(a.Y - b.Y) < 0.5
 end
 
+-- MarketUi's per-tab fit (Client/MarketUi fitTabs, mirrored in UiSpec.Market.TabFit): each side tab's UIScale "Scale"
+-- = clamp((rail height / rail scale - (n - 1) x gap) / (n x tab size), Min, Max), the rail scale being its rendered
+-- width / design width. nil for any other UIScale.
+local function marketTabScale(obj, child, ctx)
+	local fit = UiSpec.Market.TabFit
+	local rail = obj.Parent
+	if child.Name ~= fit.ScaleName or not (rail and pathOf(rail) == UiSpec.Market.Tabs) then
+		return nil
+	end
+	local rr = simRect(rail, ctx)
+	local railScale = rr.w / fit.RailWidth
+	if railScale <= 0 then
+		return nil
+	end
+	local n = 0
+	for _, tab in rail:GetChildren() do
+		if tab:IsA("GuiButton") then
+			n += 1
+		end
+	end
+	return math.clamp((rr.h / railScale - (n - 1) * fit.Gap) / (n * fit.TabSize), fit.Min, fit.Max)
+end
+
 -- The layout factor of obj's own UIScale children at ctx.vp (1 without one). UIScale scales the object about its
 -- AnchorPoint and all its descendants. Generated "UIScale"s come from the model (UiResponsive.ScaleAt) at every
 -- viewport; hover / press scales (UiSpec.TransientScales) count as 1; any other UIScale is read live on the live
@@ -596,7 +622,9 @@ local function ownScale(obj, ctx)
 		if child:IsA("UIScale") and not UiSpec.TransientScales[child.Name] then
 			-- A runtime fit (RacerUiController.fitPanels) replaces the generated scale: ctx.scaleOverride[obj]
 			local override = child.Name == "UIScale" and ctx.scaleOverride and ctx.scaleOverride[obj]
-			local modelled = override or (child.Name == "UIScale" and UiResponsive.ScaleAt(pathOf(obj), ctx.vp))
+			local modelled = override
+				or (child.Name == "UIScale" and UiResponsive.ScaleAt(pathOf(obj), ctx.vp))
+				or marketTabScale(obj, child, ctx)
 			if modelled then
 				s *= modelled
 			else
@@ -2493,7 +2521,10 @@ function S.ui_motion(res)
 		if not (stroke and stroke:IsA("UIStroke")) then
 			table.insert(missing, pathOf(target) .. ": no " .. cfg.Highlight)
 		elseif
-			(stroke.Color - cfg.HighlightColour).Magnitude > 0.01
+			-- Color3 has no arithmetic in Luau: compare channel by channel
+			math.abs(stroke.Color.R - cfg.HighlightColour.R) > 0.01
+			or math.abs(stroke.Color.G - cfg.HighlightColour.G) > 0.01
+			or math.abs(stroke.Color.B - cfg.HighlightColour.B) > 0.01
 			or math.abs(stroke.Thickness - cfg.HighlightThickness) > 0.01
 			or stroke.ApplyStrokeMode ~= Enum.ApplyStrokeMode.Border
 		then
@@ -2654,6 +2685,12 @@ function S.ui_inventory(res)
 			end
 			checkList(res, "non_interactive_" .. guiName .. "_" .. partName, bad)
 		end
+	end
+	-- Shop / Market / Daily dimmers let clicks through to the HUD (owner 2026-10-20)
+	for _, p in UiSpec.ClickThroughBackdrops do
+		local o = findPath(p)
+		local value = o and (o.ClassName .. " Active=" .. tostring(o.Active)) or "missing"
+		check(res, "backdrop_click_through_" .. p, value, "Frame Active=false", o ~= nil and not swallows(o))
 	end
 end
 
@@ -3316,8 +3353,8 @@ function S.ui_buttons(res)
 			res,
 			"autorace_label_matches_server",
 			allText(toggle),
-			HudFormat.AutoButtonText(racing),
-			allText(toggle) == HudFormat.AutoButtonText(racing)
+			string.upper(HudFormat.AutoButtonText(racing)),
+			allText(toggle) == string.upper(HudFormat.AutoButtonText(racing))
 		)
 	else
 		check(res, "autorace_label_matches_server", "missing", "present", false)
@@ -3487,8 +3524,8 @@ function S.ui_hud(res)
 		res,
 		"autorace_label_follows_server",
 		toggle and allText(toggle),
-		HudFormat.AutoButtonText(racing),
-		toggle ~= nil and allText(toggle) == HudFormat.AutoButtonText(racing)
+		string.upper(HudFormat.AutoButtonText(racing)),
+		toggle ~= nil and allText(toggle) == string.upper(HudFormat.AutoButtonText(racing))
 	)
 end
 
@@ -3581,7 +3618,9 @@ function S.ui_index(res)
 			if not (name and name.Text == "???") then
 				table.insert(wrong, id .. ": undiscovered but name is " .. tostring(name and name.Text))
 			end
-			if not (art and art:IsA("ImageLabel") and art.ImageColor3 == Color3.new(0, 0, 0)) then
+			-- Owner 2026-10-20 (docs/CAR_EXPANSION_SPEC.md "Car icons"): the silhouette is the car's own model in a
+			-- ViewportFrame (was the atlas ImageLabel), still black
+			if not (art and art:IsA("ViewportFrame") and art.ImageColor3 == Color3.new(0, 0, 0)) then
 				table.insert(wrong, id .. ": undiscovered art is not a silhouette")
 			end
 			if not (locked and locked:IsA("TextLabel") and locked.Text == "?" and effectivelyVisible(locked)) then
@@ -4975,22 +5014,91 @@ function S.ui_panels(res)
 		end
 	end
 
-	-- Every PanelSwitch state uses the same four visual dimmers, while the
-	-- persistent controls underneath remain present and effectively visible.
+	-- UiSpec.PanelDimmers (owner 2026-10-20, HUD_LAYOUT_SPEC section 6): ONE world dim ScreenGui below the HUD,
+	-- enabled only while a panel is open; no full-screen dark frame over the HUD; persistent controls stay drawn.
+	local cfgDim = UiSpec.PanelDimmers
 	setPanels({})
-	local dimmerDeadline = os.clock() + UiSpec.HiddenWhilePanelOpenWait
-	repeat
-		frames(1)
-		local allPresent = true
-		for _, path in UiSpec.PanelDimmers.Paths do
-			allPresent = allPresent and findPath(path) ~= nil
+	local function waitUntil(cond)
+		local deadline = os.clock() + UiSpec.HiddenWhilePanelOpenWait
+		repeat
+			frames(1)
+		until cond() or os.clock() >= deadline
+		return cond()
+	end
+	waitUntil(function()
+		return playerGui:FindFirstChild(cfgDim.Gui) ~= nil
+	end)
+	local dimGui = playerGui:FindFirstChild(cfgDim.Gui)
+	local dimFrame = findPath(cfgDim.Frame)
+	check(
+		res,
+		"panel_dim_gui_present",
+		dimGui and dimGui.ClassName or "missing",
+		"ScreenGui",
+		dimGui ~= nil and dimGui:IsA("ScreenGui")
+	)
+	check(
+		res,
+		"panel_dim_frame_present",
+		dimFrame and dimFrame.ClassName or "missing",
+		"Frame",
+		dimFrame ~= nil and dimFrame:IsA("Frame")
+	)
+	local isDimGui = dimGui ~= nil and dimGui:IsA("ScreenGui")
+	if isDimGui then
+		local restOff = waitUntil(function()
+			return not dimGui.Enabled
+		end)
+		check(res, "panel_dim_disabled_at_rest", dimGui.Enabled, false, restOff)
+		check(res, "panel_dim_ignores_inset", dimGui.IgnoreGuiInset, true, dimGui.IgnoreGuiInset == true)
+		check(
+			res,
+			"panel_dim_display_order",
+			dimGui.DisplayOrder,
+			cfgDim.DisplayOrder,
+			dimGui.DisplayOrder == cfgDim.DisplayOrder
+		)
+		for _, hudName in cfgDim.Below do
+			local hud = playerGui:FindFirstChild(hudName)
+			local order = hud and hud:IsA("ScreenGui") and hud.DisplayOrder or nil
+			check(
+				res,
+				"panel_dim_below_" .. hudName,
+				order or "missing",
+				"> " .. tostring(dimGui.DisplayOrder),
+				order ~= nil and order > dimGui.DisplayOrder
+			)
 		end
-		if allPresent then
-			break
+	end
+	if dimFrame and dimFrame:IsA("GuiObject") then
+		check(
+			res,
+			"panel_dim_non_interactive",
+			("Active=%s Selectable=%s"):format(tostring(dimFrame.Active), tostring(dimFrame.Selectable)),
+			"Active=false Selectable=false",
+			not dimFrame.Active and not dimFrame.Selectable
+		)
+		local t = dimFrame.BackgroundTransparency
+		check(
+			res,
+			"panel_dim_transparency",
+			t,
+			("%.2f..%.2f"):format(cfgDim.Transparency.Min, cfgDim.Transparency.Max),
+			t >= cfgDim.Transparency.Min and t <= cfgDim.Transparency.Max
+		)
+		local full = dimFrame.Size.X.Scale >= 1 and dimFrame.Size.Y.Scale >= 1 and dimFrame.Visible
+		check(res, "panel_dim_full_screen", tostring(dimFrame.Size), "{1, 0}, {1, 0}", full)
+	end
+	local retired = {}
+	for _, path in cfgDim.Retired do
+		if findPath(path) then
+			table.insert(retired, path)
 		end
-	until os.clock() >= dimmerDeadline
+	end
+	checkList(res, "panel_dim_old_veils_removed", retired)
+
 	local dynamicPersistent = {}
-	for _, rootPath in UiSpec.PanelDimmers.DynamicPersistentRoots do
+	for _, rootPath in cfgDim.DynamicPersistentRoots do
 		local root = findPath(rootPath)
 		if root then
 			for _, descendant in root:GetDescendants() do
@@ -5001,49 +5109,58 @@ function S.ui_panels(res)
 		end
 	end
 	local persistentPaths = {}
-	for _, path in UiSpec.PanelDimmers.PersistentButtons do
+	for _, path in cfgDim.PersistentButtons do
 		table.insert(persistentPaths, path)
 	end
 	for _, path in dynamicPersistent do
 		table.insert(persistentPaths, path)
 	end
-	for _, path in UiSpec.PanelDimmers.Paths do
-		local dimmer = findPath(path)
-		check(
-			res,
-			"dimmer_present_at_rest_" .. path,
-			dimmer and dimmer.ClassName or "missing",
-			"Frame",
-			dimmer ~= nil and dimmer:IsA("Frame")
-		)
-		if dimmer and dimmer:IsA("GuiObject") then
-			check(res, "dimmer_hidden_at_rest_" .. path, dimmer.Visible, false, not dimmer.Visible)
-			check(
-				res,
-				"dimmer_non_interactive_" .. path,
-				dimmer.Active,
-				false,
-				not dimmer.Active and not dimmer.Selectable
-			)
+	-- The lowest HUD DisplayOrder: a full-screen dark frame at or above it would be drawn over the HUD.
+	local hudFloor = math.huge
+	for _, hudName in cfgDim.Below do
+		local hud = playerGui:FindFirstChild(hudName)
+		if hud and hud:IsA("ScreenGui") then
+			hudFloor = math.min(hudFloor, hud.DisplayOrder)
 		end
+	end
+	local function darkVeils()
+		local vp = viewport()
+		local area = math.max(1, vp.X * vp.Y)
+		local found = {}
+		for _, g in playerGui:GetChildren() do
+			if
+				g:IsA("ScreenGui")
+				and g.Enabled
+				and g.Name ~= cfgDim.Gui
+				and not cfgDim.VeilExempt[g.Name]
+				and g.DisplayOrder >= hudFloor
+			then
+				for _, d in g:GetDescendants() do
+					if
+						d:IsA("GuiObject")
+						and effectivelyVisible(d)
+						and d.BackgroundTransparency < cfgDim.Veil.MaxTransparency
+					then
+						local cover = math.min(d.AbsoluteSize.X, vp.X) * math.min(d.AbsoluteSize.Y, vp.Y) / area
+						if cover >= cfgDim.Veil.MinCoverage then
+							table.insert(found, pathOf(d))
+						end
+					end
+				end
+			end
+		end
+		return found
 	end
 	for _, panelPath in registered do
 		setPanels({ panelPath })
 		frames(2)
-		for _, dimmerPath in UiSpec.PanelDimmers.Paths do
-			local dimmer = findPath(dimmerPath)
-			local transparency = dimmer and dimmer:IsA("GuiObject") and dimmer.BackgroundTransparency or nil
-			local inRange = type(transparency) == "number"
-				and transparency >= UiSpec.PanelDimmers.Transparency.Min
-				and transparency <= UiSpec.PanelDimmers.Transparency.Max
-			check(
-				res,
-				"dimmer_visible_" .. dimmerPath .. "_while_" .. panelPath,
-				dimmer and effectivelyVisible(dimmer),
-				true,
-				dimmer ~= nil and dimmer.Visible and effectivelyVisible(dimmer) and inRange
-			)
+		if isDimGui then
+			local on = waitUntil(function()
+				return dimGui.Enabled
+			end)
+			check(res, "panel_dim_enabled_while_" .. panelPath, dimGui.Enabled, true, on)
 		end
+		checkList(res, "no_dark_veil_over_hud_while_" .. panelPath, darkVeils())
 		for _, buttonPath in persistentPaths do
 			local button = findPath(buttonPath)
 			check(
@@ -5053,7 +5170,26 @@ function S.ui_panels(res)
 				true,
 				button ~= nil and button:IsA("GuiButton") and effectivelyVisible(button)
 			)
+			if button and button:IsA("GuiButton") and effectivelyVisible(button) then
+				-- HUD_LAYOUT_SPEC section 6: the HUD entries stay clickable over the world dim and any panel backdrop
+				local top = topAt(centre(realRect(button)))
+				local onTop = top ~= nil and (top == button or button:IsAncestorOf(top))
+				check(
+					res,
+					"persistent_button_clickable_" .. buttonPath .. "_while_" .. panelPath,
+					top and pathOf(top) or "nothing",
+					buttonPath,
+					onTop
+				)
+			end
 		end
+	end
+	setPanels({})
+	if isDimGui then
+		local off = waitUntil(function()
+			return not dimGui.Enabled
+		end)
+		check(res, "panel_dim_disabled_after_close", dimGui.Enabled, false, off)
 	end
 
 	-- UiSpec.HiddenWhilePanelOpen: each declared element really is hidden while a panel that hides it is open (the
@@ -5545,6 +5681,24 @@ local shopMarket = UiShopMarket.Build({
 for name, fn in shopMarket.Scenarios do
 	S[name] = fn
 end
+local contracts = require(script.Parent.UiContracts).Build({
+	check = check,
+	checkList = checkList,
+	find = findPath,
+	visible = effectivelyVisible,
+	setPanels = setPanels,
+	player = player,
+	pathOf = pathOf,
+	frames = frames,
+	allText = allText,
+	realRect = realRect,
+	topAt = topAt,
+	geometry = shopMarket.Geometry,
+	switch = require(script.Parent.Parent.PanelSwitch),
+})
+for name, fn in contracts.Scenarios do
+	S[name] = fn
+end
 
 -- BoostDailyUi now owns Daily Rewards plus a reference-driven Daily/Weekly
 -- quest browser; Backpack moved to RacerBackpack and its old Bag view is not a
@@ -5980,6 +6134,10 @@ function UiScenarios.RunClick(id)
 	local savedCanvas = grid and grid.CanvasPosition
 	local probe = nil
 	frames(2)
+	-- Opening a panel may re-render its view (the Backpack rebuilds its tiles on show): use the button there now
+	if button.Parent == nil then
+		button = findPath(spec.Gui .. "/" .. path) or button
+	end
 	if tileId and grid then
 		local tile = findPath("RacerIndex/Panel/Face/GridHost/Gallery/" .. tileId)
 		local rel = tile.AbsolutePosition.Y - grid.AbsolutePosition.Y + grid.CanvasPosition.Y
@@ -6116,9 +6274,25 @@ function UiScenarios.RunClick(id)
 		end
 	end
 
-	-- Where to click: the target's centre, a corner, or another element's centre (the target must be topmost there)
+	-- Where to click: the target's centre, a corner, an empty point, or another element's centre (the target must be
+	-- topmost there; for "empty", nothing may be)
+	local empty = spec.ClickAt == "empty"
 	local function clickPoint()
-		if spec.ClickAt == "corner" then
+		if empty then
+			local vp, tl = viewport(), inset()
+			local ci, step = UiSpec.Showcase.CornerInset, UiSpec.EmptyClickStep
+			local body = panelBody(spec.Gui .. "/" .. path)
+			local br = body and body ~= button and realRect(body) or nil
+			for y = tl.Y + ci, vp.Y - ci, step do
+				for x = ci, vp.X - ci, step do
+					local inBody = br and x >= br.x and x <= br.x + br.w and y >= br.y and y <= br.y + br.h
+					if not inBody and topAt(x, y) == nil then
+						return x, y
+					end
+				end
+			end
+			return nil
+		elseif spec.ClickAt == "corner" then
 			local vp = viewport()
 			local ci = UiSpec.Showcase.CornerInset
 			return vp.X - ci, vp.Y - ci
@@ -6186,8 +6360,17 @@ function UiScenarios.RunClick(id)
 		end
 		local top = topAt(cx, cy)
 		local lands = top ~= nil and (top == button or button:IsAncestorOf(top))
+		if empty then
+			lands = top == nil
+		end
 		if attempt == attempts or lands then
-			check(res, "target_topmost_before_click", top and pathOf(top) or "nothing", pathOf(button), lands)
+			check(
+				res,
+				"target_topmost_before_click",
+				top and pathOf(top) or "nothing",
+				empty and "nothing" or pathOf(button),
+				lands
+			)
 		end
 
 		-- Where the click really lands: recorded at the press (before Activated changes anything), in screen
@@ -6251,6 +6434,9 @@ function UiScenarios.RunClick(id)
 		if press then
 			-- press.target: the button at that path at the press (the same instance unless its view re-rendered)
 			local landed = press.hit ~= nil and (press.hit == press.target or press.target:IsAncestorOf(press.hit))
+			if empty then
+				landed = press.hit == nil
+			end
 			check(
 				res,
 				"click_landed_on_button",
@@ -6259,7 +6445,7 @@ function UiScenarios.RunClick(id)
 					math.floor(press.y + 0.5),
 					press.hit and pathOf(press.hit) or "nothing"
 				),
-				pathOf(button),
+				empty and "nothing" or pathOf(button),
 				landed
 			)
 		else
@@ -6373,7 +6559,7 @@ function UiScenarios.RunClick(id)
 			local text = result and allText(result) or ""
 			check(res, cond, text, "server rejection money", string.find(string.lower(text), "money", 1, true) ~= nil)
 		elseif cond == "autorace_label_follows_server" then
-			local want = HudFormat.AutoButtonText(attr("AutoRacing") == true)
+			local want = string.upper(HudFormat.AutoButtonText(attr("AutoRacing") == true))
 			check(res, cond, allText(button), want, allText(button) == want)
 		elseif cond == "autoracing_is_arg" then
 			check(res, cond, attr("AutoRacing") == true, wantArg, (attr("AutoRacing") == true) == wantArg)
@@ -6826,6 +7012,8 @@ function UiScenarios.RunClick(id)
 			checkList(res, "showcase_not_clickable_after_close", showcaseHits())
 		elseif extras.After[cond] then
 			extras.After[cond](res, { pre = pre })
+		elseif contracts.After[cond] then
+			contracts.After[cond](res, { pre = pre, spec = spec, path = path })
 		elseif shopMarket.After[cond] then
 			shopMarket.After[cond](res, { pre = pre, spec = spec, path = path })
 		elseif Progression.After[cond] then

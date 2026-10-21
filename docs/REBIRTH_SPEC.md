@@ -6,7 +6,7 @@ Owner request 2026-10-15. Must not contradict `docs/GAME_DESIGN_REQUIREMENTS.md`
 
 - Requirement: player level >= `LevelConfig.RebirthLevelRequirement(RebirthLevel)` (milestones 10, 25, 50, 75, 100,
   then every 25). Not while auto racing. `RebirthService.Rebirth` decides; the client only displays.
-- A rebirth resets `leaderstats.Money` and `leaderstats.Speed` to 0 and adds 1 to `RebirthLevel`.
+- A rebirth resets `leaderstats.Money` and `leaderstats.Speed` to 0, resets `Level` to 1 and `XP` to 0, updates `XPToNext`, and adds 1 to `RebirthLevel`.
 - Automatic bonus per rebirth: `RebirthConfig.GAIN_PER_LEVEL` passive Speed gain and
   `RebirthConfig.LUCK_GAIN_PER_LEVEL` roll luck (both +10% now, placeholders).
 - Rebirth Points: `RebirthConfig.POINTS_PER_REBIRTH` = 1 (placeholder). Earned stat points =

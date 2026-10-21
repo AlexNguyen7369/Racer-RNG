@@ -9,6 +9,12 @@
       "CarModels": {
         "$path": "assets/studio/CarModels.rbxm"
       },
+      "ExpansionCarModels": {
+        "$path": "assets/studio/ExpansionCarModels"
+      },
+      "RedesignCarModels": {
+        "$path": "assets/studio/RedesignCarModels"
+      },
       "RacingGarage": {
         "$path": "assets/studio/RacingGarage.rbxmx"
       },

@@ -730,13 +730,11 @@ local function showModel(b, spec)
 			child:Destroy()
 		end
 	end
-	-- Imported CarModels are reserved for the equipped racing vehicle.
-	local art = carTile(spec, b.Viewport, b.Z + 4)
-	art.Position = UDim2.fromScale(0.5, 0.5)
-	art.Size = UDim2.fromScale(b.Full and 1 or 1.35, b.Full and 1 or 1.35)
-	b.Model = art
-	b.Placeholder.Visible = false
-	return true
+	-- ROLL_ANIMATION_CONTRACT: the landed result is the car's model (CarModels[spec.Model]); "?" without one.
+	local shown = spec.Model ~= nil and Components.FillCarModel(b.Viewport, spec, spec.Model)
+	b.Model = shown and b.Viewport:FindFirstChild(spec.Model) or nil
+	b.Placeholder.Visible = not shown
+	return shown
 end
 
 -- The card before the spin: rarity unknown, plain frame, turbo flames + badge on a turbo roll

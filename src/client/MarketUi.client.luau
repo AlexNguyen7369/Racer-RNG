@@ -14,6 +14,7 @@ local PanelSwitch = require(script.Parent:WaitForChild("PanelSwitch"))
 local Ui = script.Parent:WaitForChild("RollToast"):WaitForChild("Ui")
 local Icons = require(Ui.HudIcons)
 local PotionIcons = require(Ui.PotionIcons)
+local MarketArt = require(script.Parent:WaitForChild("MarketArt"))
 
 local OUTLINE = Color3.fromRGB(17, 19, 31)
 local BODY = Color3.fromRGB(32, 27, 36)
@@ -56,13 +57,11 @@ local root = make(
 	gui,
 	{ ResetOnSpawn = false, IgnoreGuiInset = true, DisplayOrder = 4, ZIndexBehavior = Enum.ZIndexBehavior.Sibling }
 )
-local backdrop = make("TextButton", "Backdrop", root, {
+local backdrop = make("Frame", "Backdrop", root, {
 	Size = UDim2.fromScale(1, 1),
-	Text = "",
 	BackgroundColor3 = Color3.fromRGB(8, 10, 22),
-	BackgroundTransparency = 0.35,
+	BackgroundTransparency = 1, -- the world dim is HudChrome/PanelDim, below the HUD
 	Visible = false,
-	AutoButtonColor = false,
 })
 PanelSwitch.Register("Market", backdrop)
 local panel = make("Frame", "Panel", backdrop, {
@@ -116,9 +115,8 @@ local rail = make("Frame", "Tabs", panel, {
 	BackgroundTransparency = 1,
 })
 make("UIListLayout", "Layout", rail, { Padding = UDim.new(0, 10), SortOrder = Enum.SortOrder.LayoutOrder })
-local railScale = make("UIScale", "Scale", rail, {})
 
--- Trails and auras have no icon art: a trail is a colour streak, an aura a glowing orb.
+-- Potions retain their bottle artwork; cosmetics share the authored vector renderer.
 local function swatch(parent, item, kind, pos, size)
 	if kind == "Potion" then
 		return make("ImageLabel", "Art", parent, {
@@ -131,18 +129,7 @@ local function swatch(parent, item, kind, pos, size)
 			ZIndex = 3,
 		})
 	end
-	local art = make("Frame", "Art", parent, {
-		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = pos,
-		Size = kind == "Trail" and UDim2.new(size.X, UDim.new(size.Y.Scale * 0.35, size.Y.Offset * 0.35)) or size,
-		BackgroundColor3 = Color3.new(1, 1, 1),
-		Rotation = kind == "Trail" and -20 or 0,
-		ZIndex = 3,
-	})
-	corner(art, 999)
-	make("UIGradient", "Gradient", art, { Color = ColorSequence.new(item.Color, item.Accent or item.Color) })
-	stroke(art, OUTLINE, 3)
-	return art
+	return MarketArt.Draw(parent, item, pos, size)
 end
 
 local tabs = {}
@@ -165,7 +152,8 @@ for order, entry in KINDS do
 		Text = label,
 		TextSize = 20,
 	})
-	tabs[kind] = { Button = b, Edge = edge }
+	-- Per-tab scale: a UIScale on the rail would shrink the rail with the tabs and never make them fit.
+	tabs[kind] = { Button = b, Edge = edge, Scale = make("UIScale", "Scale", b, {}) }
 end
 
 -- Tile grid.
@@ -471,7 +459,7 @@ end
 -- The top-right Market pill (HudChrome) opens it.
 PanelSwitch.SetAction("Market", open)
 close.Activated:Connect(closeMarket)
-backdrop.Activated:Connect(closeMarket)
+require(script.Parent:WaitForChild("PanelFrame")).CloseOnOutsideClick(backdrop, closeMarket)
 remotes:WaitForChild("MarketOpen").OnClientEvent:Connect(open)
 player.AttributeChanged:Connect(function(attr)
 	if backdrop.Visible and (attr:sub(1, 6) == "Boost_" or attr:sub(1, 3) == "Own" or attr:sub(1, 8) == "Equipped") then
@@ -480,7 +468,33 @@ player.AttributeChanged:Connect(function(attr)
 end)
 
 -- Opens in the shared band between the HUD entries (docs/HUD_LAYOUT_SPEC.md section 6); short panels shrink the tabs.
-require(script.Parent:WaitForChild("PanelBand")).Fit(panel, 900)
-panel:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
-	railScale.Scale = math.clamp((panel.AbsoluteSize.Y - 88) / (3 * 96 + 20), 0.4, 1)
+require(script.Parent:WaitForChild("PanelFrame")).Attach(panel, {
+	Theme = "Market",
+	Title = "Market",
+	Icon = Icons.Market.Image,
+	TitleObject = header.Title,
+	Close = close,
+	MaxWidth = 900,
+})
+local function fitTabs()
+	local ancestor = rail.AbsoluteSize.X / 96 -- PanelBand scale; the rail is 96 design px wide
+	if ancestor <= 0 then
+		return
+	end
+	local count = 0
+	for _ in tabs do
+		count += 1
+	end
+	local scale = math.clamp((rail.AbsoluteSize.Y / ancestor - (count - 1) * 10) / (count * 96), 0.4, 1)
+	for _, refs in tabs do
+		refs.Scale.Scale = scale
+	end
+end
+rail:GetPropertyChangedSignal("AbsoluteSize"):Connect(fitTabs)
+fitTabs()
+-- However the panel is shown, its grid is filled.
+backdrop:GetPropertyChangedSignal("Visible"):Connect(function()
+	if backdrop.Visible then
+		render()
+	end
 end)

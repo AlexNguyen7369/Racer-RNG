@@ -1,4 +1,4 @@
-# Saves: session lock and VERSION 9 (contract for tests and implementation)
+# Saves: session lock and VERSION 10 (contract for tests and implementation)
 
 Design rule (`docs/GAME_DESIGN_REQUIREMENTS.md`, "Technical and data requirements"): DataStores with session locking
 so data can not duplicate across servers; save on leave, on an interval and on server shutdown. Owner decision
@@ -47,7 +47,17 @@ last confirmed it (`PlayerData` clock, seconds).
 - `Version = 9`. `Receipts` (developer-product purchase ids already granted, last 100) and `Codes` (redeemed codes).
   Missing = empty. Owned by `Server/ShopService` (`docs/SHOP_PURCHASES_SPEC.md`). A rebirth keeps both.
 
+## 2b. Checkpoint (owner, 2026-10-16)
+
+- Still `Version = 9` (additive field, older saves load with the default). `Checkpoint` (integer >= 1), player attribute `Checkpoint`: the track the player's runs start on
+  (`docs/CHECKPOINT_SPEC.md`). Missing = 1. A rebirth keeps it.
+
 ## 3. What Money and Speed do on load (owner, 2026-10-12)
+
+VERSION 10 (owner 2026-10-20): additive `GiftMailbox` and `GiftReceipts` tables default
+to empty for all older saves. Mailbox entries and delivered receipt ids persist across
+rebirth. Pending sender routes live in the dedicated server-only gifting store.
+`PANEL_ART_GIFTING_SPEC.md` defines atomic claiming, serialized saves and deduplication.
 
 - Offline earnings are Speed only: no Money is credited on load, `Workshop.OfflineMoney` and
   `WorkshopConfig.OFFLINE_MONEY_FRACTION` do not exist, and the player attribute `OfflineMoney` is not set.

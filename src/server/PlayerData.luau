@@ -24,11 +24,12 @@ local DailyLoginService = require(script.Parent.DailyLoginService)
 local LevelService = require(script.Parent.LevelService)
 local QuestService = require(script.Parent.QuestService)
 local ShopService = require(script.Parent.ShopService)
+local GiftMailbox = require(script.Parent.GiftMailbox)
 
 local PlayerData = {}
 
 local STORE_NAME = "PlayerStats_v1"
-local VERSION = 9 -- 3: gacha; 4: upgrades/workshop; 5: market; 6: rebirth/boosts/daily login; 7: level/xp;
+local VERSION = 10 -- 10: durable gift mailbox and delivered receipt ids
 -- 8: session lock, MoneyEarned, DuelWins; 9: Receipts, Codes (docs/SAVE_SPEC.md)
 local MAX_MONEY = 1e12
 local MAX_ADD = 1e6 -- most a single AddSpeed call may add
@@ -43,6 +44,8 @@ PlayerData.LOAD_RETRY_WAIT = 2 -- seconds between attempts
 
 local store = nil
 local clock = os.time
+local saving = setmetatable({}, { __mode = "k" })
+local giftReceipts = setmetatable({}, { __mode = "k" })
 
 function PlayerData.SetClock(fn)
 	clock = fn or os.time
@@ -106,12 +109,9 @@ local function cleanInt(value, lo, hi, default)
 	return math.floor(math.clamp(value, lo, hi))
 end
 
--- The Speed stat: a number in [0, MAX_STAT] rounded to 3 decimals; anything else becomes 0.
+-- The Speed stat: any finite number >= 0 (no cap) rounded to 3 decimals; anything else becomes 0.
 local function cleanStat(value)
-	if type(value) ~= "number" or value ~= value or value < 0 then
-		return 0
-	end
-	return math.floor(math.min(value, RaceConfig.MAX_STAT) * 1000 + 0.5) / 1000
+	return RaceConfig.CleanStat(value) or 0
 end
 
 local function speedValue(player)
@@ -172,8 +172,10 @@ function PlayerData.Load(player, userId)
 		QuestService.Apply(player, data)
 		LevelService.Apply(player, data)
 		ShopService.Apply(player, data) -- version 8 and older: no receipts, no codes
+		giftReceipts[player] = type(data.GiftReceipts) == "table" and table.clone(data.GiftReceipts) or {}
 		player:SetAttribute("MoneyEarned", cleanInt(data.MoneyEarned, 0, MAX_MONEY, 0))
 		player:SetAttribute("DuelWins", cleanInt(data.DuelWins, 0, MAX_DUEL_WINS, 0))
+		player:SetAttribute("Checkpoint", cleanInt(data.Checkpoint, 1, MAX_DUEL_WINS, 1)) -- docs/CHECKPOINT_SPEC.md
 	end
 
 	-- One UpdateAsync per attempt takes the lock and claims the offline Speed together, so a retried or competing
@@ -233,12 +235,49 @@ function PlayerData.Load(player, userId)
 	player:SetAttribute("OfflineSeconds", seconds)
 	player:SetAttribute("DataFailed", nil)
 	player:SetAttribute("DataLoaded", true)
+	-- The mailbox was persisted even if the recipient was offline. Claim through the same
+	-- atomic save path; a failed claim stays in the mailbox for the next autosave.
+	if type(updated.GiftMailbox) == "table" and next(updated.GiftMailbox) then
+		PlayerData.Save(player, userId)
+	end
 	return true
+end
+
+-- Server-only: enqueue without touching the recipient's session lock or other fields.
+function PlayerData.EnqueueGift(userId, purchaseId, gift)
+	if
+		type(userId) ~= "number"
+		or userId <= 0
+		or userId % 1 ~= 0
+		or type(purchaseId) ~= "string"
+		or purchaseId == ""
+		or #purchaseId > 200
+		or not GiftMailbox.Valid(gift)
+	then
+		return false
+	end
+	local dataStore = getStore()
+	if not dataStore then
+		return false
+	end
+	local ok, result = pcall(function()
+		return dataStore:UpdateAsync(PlayerData.KeyFor(userId), function(current)
+			local record = type(current) == "table" and table.clone(current) or {}
+			record.GiftMailbox = type(record.GiftMailbox) == "table" and table.clone(record.GiftMailbox) or {}
+			if not record.GiftMailbox[purchaseId] then
+				local entry = table.clone(gift)
+				entry.Grants = table.clone(gift.Grants)
+				record.GiftMailbox[purchaseId] = entry
+			end
+			return record
+		end)
+	end)
+	return ok and type(result) == "table" and result.GiftMailbox[purchaseId] ~= nil
 end
 
 -- Returns true if the stats were written. Never writes for a player whose load failed or has not finished, or
 -- when another server took the session lock. `release` (leave, shutdown) writes the record without a lock.
-function PlayerData.Save(player, userId, release)
+local function save(player, userId, release)
 	userId = userId or player.UserId
 	-- Never write before the load finished: a leaving player whose GetAsync is still pending would
 	-- otherwise overwrite their real save with defaults.
@@ -291,25 +330,54 @@ function PlayerData.Save(player, userId, release)
 		DuelWins = cleanInt(player:GetAttribute("DuelWins"), 0, MAX_DUEL_WINS, 0),
 		Receipts = shop.Receipts,
 		Codes = shop.Codes,
+		Checkpoint = cleanInt(player:GetAttribute("Checkpoint"), 1, MAX_DUEL_WINS, 1),
 		OfflineAt = clock(),
 		Version = VERSION,
 	}
 	local refused = false
-	local ok = pcall(function()
-		dataStore:UpdateAsync(PlayerData.KeyFor(userId), function(current)
+	local known = giftReceipts[player] or {}
+	local ok, result = pcall(function()
+		return dataStore:UpdateAsync(PlayerData.KeyFor(userId), function(current)
 			local at = clock()
 			refused = lockedElsewhere(current, at)
 			if refused then
 				return nil -- this server lost the session: never overwrite the other server's save
 			end
-			payload.Lock = if release then nil else { Id = PlayerData.SessionId(), At = at }
-			return payload
+			local merged = GiftMailbox.Merge(table.clone(payload), type(current) == "table" and current or {}, known)
+			merged.Lock = if release then nil else { Id = PlayerData.SessionId(), At = at }
+			return merged
 		end)
 	end)
-	return ok and not refused
+	if ok and not refused and type(result) == "table" then
+		-- Preserve any legitimate potion changes made while UpdateAsync yielded.
+		for id, count in result.Boosts do
+			local delta = count - (boosts.Boosts[id] or 0)
+			local item = require(Shared.BoostConfig).Get(id)
+			if item and item.Id == id and delta > 0 then
+				BoostService.Add(player, id, delta)
+			end
+		end
+		giftReceipts[player] = result.GiftReceipts
+		return true
+	end
+	return false
 end
 
--- The player's Speed stat, a number in [0, MAX_STAT] (0 if they have none).
+function PlayerData.Save(player, userId, release)
+	while saving[player] do
+		task.wait()
+	end
+	saving[player] = true
+	local ok, result = pcall(save, player, userId, release)
+	saving[player] = nil
+	if not ok then
+		warn("PlayerData save failed: " .. tostring(result))
+		return false
+	end
+	return result
+end
+
+-- The player's Speed stat, a finite number >= 0 (0 if they have none).
 function PlayerData.SpeedStat(player)
 	local stats = player:FindFirstChild("leaderstats")
 	local speed = stats and stats:FindFirstChild("Speed")
@@ -323,7 +391,11 @@ function PlayerData.AddSpeed(player, amount)
 		return nil
 	end
 	local speed = PlayerData.Setup(player)
-	speed.Value = math.min(speed.Value + amount, RaceConfig.MAX_STAT)
+	local new = speed.Value + amount
+	if new == math.huge then
+		return nil
+	end
+	speed.Value = new
 	return speed.Value
 end
 

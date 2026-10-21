@@ -1,0 +1,127 @@
+{
+  "id": "quantum_quasar",
+  "parts": [
+    "Trim",
+    "Body",
+    "Accent3",
+    "Glass",
+    "Light2",
+    "Light3",
+    "Accent",
+    "Light",
+    "Trim2",
+    "Metal",
+    "Accent2",
+    "Accent4"
+  ],
+  "tris": 2732,
+  "wheels": [],
+  "min": [
+    -1.6,
+    -2.88,
+    0.06
+  ],
+  "max": [
+    1.6,
+    2.797,
+    2.58
+  ],
+  "materials": {
+    "Trim": {
+      "material": "SmoothPlastic",
+      "color": [
+        0.09,
+        0.1,
+        0.15
+      ]
+    },
+    "Body": {
+      "material": "SmoothPlastic",
+      "color": [
+        0.313,
+        0.92,
+        0.367
+      ]
+    },
+    "Accent3": {
+      "material": "SmoothPlastic",
+      "color": [
+        0.6,
+        1,
+        0.948
+      ]
+    },
+    "Glass": {
+      "material": "Glass",
+      "color": [
+        0.18,
+        0.3,
+        0.39
+      ]
+    },
+    "Light2": {
+      "material": "Neon",
+      "color": [
+        1.0,
+        0.93,
+        0.62
+      ]
+    },
+    "Light3": {
+      "material": "Neon",
+      "color": [
+        1.0,
+        0.15,
+        0.19
+      ]
+    },
+    "Accent": {
+      "material": "SmoothPlastic",
+      "color": [
+        0.72,
+        0.79,
+        0.85
+      ]
+    },
+    "Light": {
+      "material": "Neon",
+      "color": [
+        0.6,
+        1.0,
+        0.948
+      ]
+    },
+    "Trim2": {
+      "material": "SmoothPlastic",
+      "color": [
+        0.05,
+        0.05,
+        0.07
+      ]
+    },
+    "Metal": {
+      "material": "Metal",
+      "color": [
+        0.72,
+        0.79,
+        0.85
+      ]
+    },
+    "Accent2": {
+      "material": "SmoothPlastic",
+      "color": [
+        0.75,
+        0.338,
+        0.648
+      ]
+    },
+    "Accent4": {
+      "material": "SmoothPlastic",
+      "color": [
+        0.93,
+        0.93,
+        0.88
+      ]
+    }
+  }
+}

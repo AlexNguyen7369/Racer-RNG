@@ -40,6 +40,9 @@ lowers it. Admin `/money` and `/addmoney` do not count.
 - `Workspace.SpawnArea.Leaderboards` (Model) holds one `Board_<Id>` Part per board: anchored, `CanCollide` true,
   inside `HUB_MIN..HUB_MAX`, and it overlaps no plot, pad, `Spawn`, marketplace footprint, race platform or track
   part. Each has a `SurfaceGui` named `Board` with a `Title` TextLabel and rows `Row1 .. Row10`.
+- The four signs use a large showcase footprint of `32 x 20 x 1` studs in a compact edge-to-edge row, centered at
+  local X positions `168, 136, 104, 72` and local Z `40`. This keeps the Rarest Car board clear of the race-start
+  pavilion while the boards remain inside the hub and readable from the spawn approach.
 - A row reads `<rank>. <Name>  <score>`; scores use `Shared/HudFormat`; `RarestCar` shows the car's name and
   `1 in <Chance>`. Empty rows are blank.
 - The server sets the text; the signs replicate like any other part.

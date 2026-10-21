@@ -20,10 +20,10 @@ end
 
 -- "1,234" (whole number, thousands separators, never scientific). Anything that is not a real stat shows 0.
 function HudFormat.SpeedText(stat)
-	if type(stat) ~= "number" or stat ~= stat or stat < 0 then
+	if type(stat) ~= "number" or stat ~= stat or stat < 0 or stat == math.huge then
 		return "0"
 	end
-	return commas(math.min(stat, RaceConfig.MAX_STAT))
+	return commas(stat)
 end
 
 -- "$1,234" for the Money row. Anything that is not a real, finite, non-negative amount shows $0.

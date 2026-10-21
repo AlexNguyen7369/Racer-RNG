@@ -60,6 +60,20 @@ function ShopMarket.Build(h)
 	local function textOf(obj)
 		return obj and (obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox")) and obj.Text or "missing"
 	end
+	-- The text a button shows: its own Text, else (the shared PanelFrame close: Text "" with a TextLabel "X" child)
+	-- its visible child TextLabel's
+	local function shownText(obj)
+		local own = textOf(obj)
+		if own ~= "" or not obj then
+			return own
+		end
+		for _, child in obj:GetChildren() do
+			if child:IsA("TextLabel") and h.visible(child) and child.Text ~= "" then
+				return child.Text
+			end
+		end
+		return own
+	end
 	local function redFamily(c)
 		return Spec.Rebirth.Colours.red(c)
 	end
@@ -249,7 +263,7 @@ function ShopMarket.Build(h)
 	end
 
 	local function closeChecks(res, prefix, close, want)
-		local text = textOf(close)
+		local text = shownText(close)
 		h.check(
 			res,
 			prefix .. "_close_is_button",
@@ -553,11 +567,22 @@ function ShopMarket.Build(h)
 		if string.upper(textOf(part("Name"))) ~= string.upper(item.Name) then
 			table.insert(bad, ("Name shows %q, want %q"):format(textOf(part("Name")), item.Name))
 		end
-		if not has(textOf(part("Price")), HudFormat.MoneyText(item.Price)) then
-			table.insert(
-				bad,
-				("Price shows %q, want %q"):format(textOf(part("Price")), HudFormat.MoneyText(item.Price))
-			)
+		-- Price row (a Frame since 016c467): its Value label. Potions: price and the owned count (Boost_<Id>); an
+		-- owned trail / aura: "Owned"; else the price.
+		local priceRow = part("Price")
+		local priceText = textOf(priceRow and priceRow:FindFirstChild(MK.PriceText))
+		local wantPrice = { HudFormat.MoneyText(item.Price) }
+		local ok = has(priceText, wantPrice[1])
+		if kind == "Potion" then
+			local count = tostring(attr("Boost_" .. item.Id) or 0)
+			table.insert(wantPrice, "x" .. count)
+			ok = ok and string.match(priceText, "[xX](%d+)%s*$") == count
+		elseif attr("Own" .. kind .. "_" .. item.Id) == true then
+			wantPrice = { "Owned" }
+			ok = has(priceText, "Owned")
+		end
+		if not ok then
+			table.insert(bad, ("Price shows %q, want %q"):format(priceText, table.concat(wantPrice, " + ")))
 		end
 		if not has(textOf(part("Description")), item.Description) then
 			table.insert(bad, ("Description shows %q, want %q"):format(textOf(part("Description")), item.Description))
@@ -637,6 +662,11 @@ function ShopMarket.Build(h)
 			else
 				table.insert(dParts, o)
 			end
+		end
+		local priceRow = detail and detail:FindFirstChild("Price")
+		local priceLabel = priceRow and priceRow:FindFirstChild(MK.PriceText)
+		if priceRow and not (priceLabel and priceLabel:IsA("TextLabel")) then
+			table.insert(detailBad, ("Price/%s missing (TextLabel)"):format(MK.PriceText))
 		end
 		h.checkList(res, "market_detail_parts", detailBad)
 		local shown = textOf(detail and detail:FindFirstChild("Name"))
@@ -727,7 +757,11 @@ function ShopMarket.Build(h)
 		h.check(res, "shop_redeem_status_from_server", text, table.concat(SH.BadCodeReplies, " | "), ok)
 	end
 
-	return { Scenarios = scenarios, After = after }
+	return {
+		Scenarios = scenarios,
+		After = after,
+		Geometry = { Panel = panelGeometry, Group = groupGeometry, Topmost = topmostChecks },
+	}
 end
 
 return ShopMarket

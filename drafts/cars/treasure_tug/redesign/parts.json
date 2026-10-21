@@ -1,0 +1,231 @@
+{
+  "id": "treasure_tug",
+  "parts": [
+    "Trim2",
+    "Body",
+    "Accent3",
+    "Light3",
+    "Glass",
+    "Light",
+    "Light2",
+    "Accent2",
+    "Wheel_FL",
+    "Metal2",
+    "Wheel_RL",
+    "Wheel_FR",
+    "Wheel_RR",
+    "Accent7",
+    "Metal3",
+    "Trim",
+    "Metal",
+    "Accent",
+    "Accent4",
+    "Metal4",
+    "Accent5",
+    "Accent6",
+    "Light4"
+  ],
+  "tris": 3648,
+  "wheels": [
+    "Wheel_FL",
+    "Wheel_FR",
+    "Wheel_RL",
+    "Wheel_RR"
+  ],
+  "min": [
+    -1.65,
+    -2.6,
+    0.009
+  ],
+  "max": [
+    1.65,
+    2.697,
+    1.758
+  ],
+  "materials": {
+    "Trim2": {
+      "material": "SmoothPlastic",
+      "color": [
+        0.09,
+        0.1,
+        0.15
+      ]
+    },
+    "Body": {
+      "material": "SmoothPlastic",
+      "color": [
+        0.592,
+        0.313,
+        0.92
+      ]
+    },
+    "Accent3": {
+      "material": "SmoothPlastic",
+      "color": [
+        1,
+        0.6,
+        0.904
+      ]
+    },
+    "Light3": {
+      "material": "Neon",
+      "color": [
+        1.0,
+        0.6,
+        0.904
+      ]
+    },
+    "Glass": {
+      "material": "Glass",
+      "color": [
+        0.18,
+        0.3,
+        0.39
+      ]
+    },
+    "Light": {
+      "material": "Neon",
+      "color": [
+        1.0,
+        0.93,
+        0.62
+      ]
+    },
+    "Light2": {
+      "material": "Neon",
+      "color": [
+        1.0,
+        0.15,
+        0.19
+      ]
+    },
+    "Accent2": {
+      "material": "SmoothPlastic",
+      "color": [
+        0.72,
+        0.79,
+        0.85
+      ]
+    },
+    "Wheel_FL": {
+      "material": "SmoothPlastic",
+      "color": [
+        0.09,
+        0.1,
+        0.15
+      ]
+    },
+    "Metal2": {
+      "material": "Metal",
+      "color": [
+        1,
+        0.6,
+        0.904
+      ]
+    },
+    "Wheel_RL": {
+      "material": "SmoothPlastic",
+      "color": [
+        0.09,
+        0.1,
+        0.15
+      ]
+    },
+    "Wheel_FR": {
+      "material": "SmoothPlastic",
+      "color": [
+        0.09,
+        0.1,
+        0.15
+      ]
+    },
+    "Wheel_RR": {
+      "material": "SmoothPlastic",
+      "color": [
+        0.09,
+        0.1,
+        0.15
+      ]
+    },
+    "Accent7": {
+      "material": "SmoothPlastic",
+      "color": [
+        0.6,
+        0.3,
+        0.1
+      ]
+    },
+    "Metal3": {
+      "material": "Metal",
+      "color": [
+        1,
+        0.8,
+        0.12
+      ]
+    },
+    "Trim": {
+      "material": "SmoothPlastic",
+      "color": [
+        0.05,
+        0.05,
+        0.07
+      ]
+    },
+    "Metal": {
+      "material": "Metal",
+      "color": [
+        0.72,
+        0.79,
+        0.85
+      ]
+    },
+    "Accent": {
+      "material": "SmoothPlastic",
+      "color": [
+        0.405,
+        0.654,
+        0.9
+      ]
+    },
+    "Accent4": {
+      "material": "SmoothPlastic",
+      "color": [
+        0.93,
+        0.93,
+        0.88
+      ]
+    },
+    "Metal4": {
+      "material": "Metal",
+      "color": [
+        1,
+        0.82,
+        0.2
+      ]
+    },
+    "Accent5": {
+      "material": "SmoothPlastic",
+      "color": [
+        1,
+        0.3,
+        0.55
+      ]
+    },
+    "Accent6": {
+      "material": "SmoothPlastic",
+      "color": [
+        0.95,
+        0.9,
+        0.8
+      ]
+    },
+    "Light4": {
+      "material": "Neon",
+      "color": [
+        1.0,
+        0.7,
+        0.3
+      ]
+    }
+  }
+}

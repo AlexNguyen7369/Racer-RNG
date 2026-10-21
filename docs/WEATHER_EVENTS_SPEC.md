@@ -41,6 +41,10 @@ Three permanent catalog keys are available only during their matching event (Cle
 | `midnight_kart` | Night Race | 1 in 2,500 | ×8 | `go_kart` |
 | `golden_racer` | Gold Rush | 1 in 5,000 | ×10 | `rocket_car` |
 
+**Own models (owner, 2026-10-20, `docs/CAR_REDESIGN_SPEC.md` section 5):** the three event cars now set `Model` to their
+own id (`rain_runner`, `midnight_kart`, `golden_racer`) with their own redesigned MeshPart skins; the Mesh column
+above records the model they used before. IDs, events, odds and multipliers are unchanged.
+
 The seven original catalog cars retain their IDs, odds, multipliers and models. Event-ineligible cars are filtered before sampling random numbers. Unknown saved IDs remain preserved.
 
 The `weather` harness scenario verifies exact expiry, multipliers, actual roll thresholds, payouts, NPC start speeds and event-only eligibility. Automatic scheduling is suspended while `CarTestRunning` is true; explicit event fixtures still work. Results 2026-10-13 (live Studio): harness `weather` 216/216 inside `[CARTEST] END pass=35 fail=0`; `ui_weather` green for `weather_rain`, `weather_night`, `weather_gold`, `weather_clear` and `weather_rain_roll`; each sky was looked at live and the clear sky came back to the exact baseline values. The full `/compat-check` has not run on this code.

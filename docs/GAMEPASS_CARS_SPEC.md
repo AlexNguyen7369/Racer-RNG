@@ -34,7 +34,11 @@ stronger car) and each car file has `RobuxPrice`, the listed price the Shop show
   `Pass_<carId>` to `true`, else leaves it `nil`. `PassChecked = true` once every pass was asked.
 - `MarketplaceService.PromptGamePassPurchaseFinished(player, passId, wasPurchased)`: with `wasPurchased` and a known
   pass id, set `Pass_<carId> = true` and equip that car.
-- `GamepassId = 0` is never asked and never owned.
+- `GamepassId = 0` is never asked and never owned by a player.
+- Owner 2026-10-20: an admin (`AdminService.IsAdmin`, real Players only) owns every gamepass car, on sale or not:
+  `Check` sets `Pass_<carId> = true` for them, so the pedestal, the Shop and the Backpack equip it.
+- Owner 2026-10-20: an owned gamepass car is playable. The Shop's Featured card turns its price button into
+  "Equip" / "Equipped" (it fires `EquipCar`), and the Backpack `Cars` tab lists owned gamepass cars.
 - `PassCarService.SetMarket(fake)` lets tests inject `{ Owns(userId, passId) -> boolean, Prompt(player, passId) }`;
   `nil` restores the real service. `PassCarService.Check(player)` runs the ownership check now.
   `PassCarService.Trigger(player, carId)` is what a pedestal prompt calls. `PassCarService.Purchased(player, passId)`

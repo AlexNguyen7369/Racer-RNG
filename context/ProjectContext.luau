@@ -3,7 +3,79 @@
 PROJECT CONTEXT - Idle Vehicle Simulator (read me first)
 Shown in Studio at: ServerScriptService > ProjectContext   (source file: context/ProjectContext.luau)
 Do NOT edit this in Studio: edit the file on disk, Rojo syncs it. Claude updates it at the end of every loop.
-Last updated: 2026-10-20 (Claude: biome drive-by scenery on all 10 tracks, branch feature/alex/biome-drive-by-scenery)
+Last updated: 2026-10-20 (Claude: car art redesign, all 111 cars as MeshPart skins)
+
+CAR ART REDESIGN - 2026-10-20 (Claude, uncommitted)
+- Owner: rebuild every car from the concept renders (git-ignored references/car_redesign/, 111 images, one per catalog
+  Name). Rules: docs/CAR_REDESIGN_SPEC.md (+ GAME_DESIGN_REQUIREMENTS entry, WEATHER_EVENTS_SPEC own-model note).
+- All 111 built as bevelled Blender MeshPart skins: tools/build_redesign_cars.py (11 hand-built wave-1 cars, 100
+  expansion cars converted from recipe.json) -> tools/upload_car_meshes.py (Open Cloud) -> Studio mesh dump ->
+  tools/write_redesign_rbxmx.py -> assets/studio/RedesignCarModels (Rojo: ReplicatedStorage.RedesignCarModels).
+- Shared/DraftCarModels.Ensure: redesigns win over CarModels.rbxm (attribute Redesign); Shared/CarAppearance skips
+  the catalog Tint for them. midnight_kart / golden_racer / rain_runner now have their own Model. Neon rule: glowing
+  details are Light* parts in Neon at full brightness (Singularity: neon gold). Ember Wyvern + starter unchanged.
+- 2026-10-21 owner review: approved; every car gets a sport kit (splitter + neon lip, diffuser, spoiler/wing, wider
+  tyres, lowered), Singularity keeps its black hole, Zero G Zipper hand-built, fantasy/novelty lower and less bulky.
+- Tests (test-writer): new car_redesign scenario; gacha + weather event-car model checks updated. NOT RUN yet
+  (owner skipped the full suite); verified only by Studio inspection (111 models, 352 neon parts, all MeshIds).
+
+HARDER NPCS + IMPORTED NPC MODELS - 2026-10-20 (Claude, uncommitted)
+- Owner: every NPC much harder, Track 1 included (beginners lose until they build Speed). NpcConfig.BASE_SPEED 30
+  (was 9), still x2 per track; LABEL_DISTANCE 200 (was 60). Tracks 1-10 drive imported catalog cars via
+  CarAppearance.Apply in NpcRacer.BuildModel (rusty_hatchback .. void_racer). Label: dark backing, Title
+  "NPC RIVAL" over "track01_NPC · <car>" (Text + Car labels). Docs: NPC_RACER_SPEC, GAME_DESIGN_REQUIREMENTS (dated).
+- test-writer: npc_track1_very_easy replaced (Track 1 now beats a stat-0 car), skin + Title checks added.
+- Unverified in Studio until the next full CarTest run.
+
+ONE STEADY RACE SPEED - 2026-10-20 (Claude, uncommitted)
+- Owner rule (design doc): the auto-race car holds exactly its cruise speed everywhere, no acceleration, no corner
+  slowing, from every start / checkpoint / restart; stable to MAX_STAT. RaceService rail sets speed = run.TargetSpeed.
+- Tests: CarTest END pass=45 fail=2 (race max_speed lane checks = test lag, fixed by test-writer, unverified;
+  track:Volcano never_tilted 0.811, bot lap not using RaceService, unexplained). Re-run pending (Studio closed).
+
+VOID TRAIL VFX - 2026-10-20 (Claude, uncommitted)
+- Shared/VehicleEffects: void_trail Style "Void" = dark ground-flat wake (Core) between the rear wheels, flickering
+  dashed neon edges (EdgeL/EdgeR, hard-step Transparency), void smoke + motes. Visual only (spec PANEL_ART_GIFTING).
+- Tuned from live Studio captures on a client-only rig (screen_capture ~3-5 s/frame; background Studio renders ~15 fps,
+  so particle density looks thinner in captures than in play). Seen live on the real StarterCar in an auto race.
+- New CarTest scenario vehicle_effects (CarTest/VehicleEffectTests, test-writer): 118 checks. Full suite 2026-10-20:
+  CarTest END pass=47 fail=0. Not covered: real-Player attribute listeners, aura preservation.
+
+OWNER REQUESTS 2026-10-20 (evening, uncommitted)
+- Panels dim only the world: HudChrome/PanelDim (DisplayOrder 0) under every HUD ScreenGui; the old PanelDimmer
+  veils are gone; Shop/Market/Daily backdrops transparent (HUD_LAYOUT_SPEC 6).
+- Checkpoints + Quests panels use the Backpack look (PanelFrame header, navy/blue tiles, Fredoka).
+- Car art: tools/build_expansion_cars.py sharp shell for all 100 expansion cars; Singularity is a new 69-part wedge
+  supercar (assets/studio/ExpansionCarModels/singularity.rbxmx). The 7 Draft05 MeshPart cars are unchanged.
+- Gamepass cars: admins own all of them (PassCarService); owned cars equip from the Shop and the Backpack.
+- NPC speeds much harder: NpcConfig.SPEED_GROWTH 1.5 (x1.5 per track, was +12 studs/s); Track 1 stays 20.
+  Not run in Studio yet.
+- Speed stat uncapped (owner): RaceConfig.CleanStat (finite >= 0, no max) in PlayerData/AdminService; Workshop
+  offline gain and HudFormat no longer clamp. MAX_STAT stays only as the stability-test reference stat.
+  Clamp tests (Phase2Tests offline_max_stat_*, Scenarios SpeedStat/admin clamp checks) need test-writer.
+- Tests 2026-10-20: CarTest END pass=46 fail=0. UI suite 13/18 with a 1x1 client viewport (not trustworthy); re-run with the game view visible.
+
+RACER-RNG COMPLETION (Codex plan, finished by Claude) - 2026-10-20 (main working tree, uncommitted)
+- Rules: design doc (Items line, 100-car expansion, panel frame), docs/CAR_EXPANSION_SPEC.md (incl. "Car icons and
+  model detail"), docs/PANEL_ART_GIFTING_SPEC.md, HUD_LAYOUT_SPEC section 3 (Backpack Cars tab, owner 2026-10-20,
+  replaces "no cars in the Backpack"), SAVE_SPEC VERSION 10 (gift mailbox).
+- 100 expansion cars: Shared/CarExpansionManifest + src/shared/Cars/*; Blender art via tools/build_expansion_cars.py
+  (per-car detail pass seeded by crc32(id)) -> assets/studio/ExpansionCarModels/*.rbxmx (Rojo) + drafts/cars/<id>/.
+- Index tiles, Backpack Cars tiles and the landed roll card show the car's own model (RacerComponents.CarModelArt /
+  FillCarModel, ViewportFrame). Backpack Cars tab: owned cars least rare first, click = EquipCar.
+- Gifting: Server/GiftService + GiftMailbox, Client/GiftPicker. Fix: GiftMailbox.Valid rejects potion category
+  aliases (Merge overwrote them). Panel frame: Client/PanelFrame; trail/aura art: Shared/MarketArtConfig, Client/MarketArt.
+- Backpack and Market side tabs scale per tab (a UIScale on the rail never made them fit); Market renders whenever shown.
+- Owner 2026-10-20: Shop/Market/Daily backdrops are non-interactive Frames; HUD tiles stay clickable; a click on
+  empty screen closes Shop/Market (PanelFrame.CloseOnOutsideClick). Live-checked.
+- Tests 2026-10-20 (Studio): full CarTest END pass=46 fail=0 (car_expansion 2692, gifting 30, gift_mailbox 25,
+  shop_purchases 76, roll_anim 65). UI suite END pass=20 fail=11 (was 15/16): green now incl. ui_market, ui_motion,
+  ui_backpack_cars, ui_car_icons, ui_toast, ui_roll_anim, ui_index, ui_daily_boosts. Still red: ui_hitboxes
+  (compact RollToast under Shop/Market panels: PanelBand top is below Race, not below the compact roll; upgrades tree),
+  ui_buttons (Stats label reads "Stats 1" with the badge), ui_upgrades / ui_progression_layout / ui_inventory (upgrade
+  tree + checkpoint cards, separate TODOs), ui_loser / ui_billboards / ui_roll_emphasized (need ui-tester ServerSetup).
+- Unverified: phone-landscape pass of the new tabs by ui-tester, /compat-check, Codex bus delivery (needs Codex).
+
 
 BIOME DRIVE-BY SCENERY - 2026-10-20 (Claude, branch feature/alex/biome-drive-by-scenery, worktree ../RobloxGames-biomes)
 - Rules: design doc "Racing" > "Track environments"; docs/BIOME_DRESSING_SPEC.md (new; TRACKS_6_10_SPEC links it).
@@ -18,10 +90,30 @@ BIOME DRIVE-BY SCENERY - 2026-10-20 (Claude, branch feature/alex/biome-drive-by-
 - Tests 2026-10-20 (Studio, worktree synced): environment 197/197; full CarTest suite END pass=43 fail=0.
   Live: meshes render textured and face the road (Speedway grandstand, City towers). world-tester 2026-10-20: green
   (1547 server parts visual-only, 88 client meshes, car never touched scenery, 0 road overlaps, gates 26.5 studs up).
-  Open: Baseplate (top y=0) hides the themed grounds of tracks 1-5 (GROUND_TOP -1, pre-existing; owner decision).
-- Needs you: enable Mesh / Image APIs for the published game (dashboard biome-mesh-api).
+- Merged into main 2026-10-20. Mesh / Image APIs: owner confirmed on.
+- Placement fixes 2026-10-20 (main): (1) every baked mesh floated by half its height (a MeshPart keeps the mesh
+  origin = the prop base as its centre) -> BiomeMeshCodec centres the geometry on its box; (2) Kenney colours baked
+  washed out (glTF factors are sRGB values) -> the bake converts them to linear for kenney-* packs; 20 textures
+  re-uploaded (BiomeMeshAssets); (3) props whose footprint leaves their track's Ground are skipped (spec rule);
+  (4) Baseplate lowered to top y=-2 via CFrame in default.project.json (Position did not sync) and the spawn floor
+  is 3 studs thick (bottom y=-2) so it shows no gap. environment 197/197 live; full CarTest END pass=46 fail=0; screenshots: City towers, Forest
+  trees/rocks, spawn edge all grounded.
 - Known: Prune removes about half of the props on tracks 1, 4, 5 (tracks close together / spawn area); some props stay
   plain parts (TyreStack, LogCabin, gas stations, IceCliff, lava, planets, horizon hills).
+Last updated: 2026-10-16 (Claude: Checkpoints NPC; live-checked, no harness/UI tests yet)
+
+CHECKPOINTS - 2026-10-16 (Claude, branch main, uncommitted)
+- Owner request: a "Checkpoints" NPC beside the RACE START pavilion (hub-local 32, -6) whose E prompt opens a panel
+  of track cards; pick the track your run starts on. Rules: design doc "Racing" > "Checkpoints",
+  docs/CHECKPOINT_SPEC.md (new), NPC_RACER_SPEC (loss/loop go to the start track), SAVE_SPEC 2b.
+- Owner answers: beaten tracks only (Track 1 always; n needs BestTrack >= n), a loss and the loop go back to the
+  checkpoint, saved (Checkpoint field, still VERSION 9: additive).
+- Code: Shared/CheckpointConfig, Server/CheckpointService (Remotes.SetCheckpoint), RaceService (options.StartTrack,
+  StartTrackFor), CarService (spawn at the checkpoint), PlayerData (Checkpoint), SpawnArea (CheckpointNpc),
+  Client/CheckpointUi (PanelSwitch "Checkpoints").
+- Live 2026-10-16: NPC built, prompt opens the panel, locked cards dimmed with a lock, remote rejects 11 / "x",
+  accepts 3, cooldown works; a run with Checkpoint 3 started on Track 3 and moved to 4. NOT verified: the loss
+  reset to the checkpoint, harness scenario, UiSpec entry (CheckpointUi is a new ScreenGui), phone landscape.
 
 SHOP REDESIGN + PURCHASES + MARKET - 2026-10-16 (Claude, branch main, uncommitted)
 - Owner request with images/UI_ShopReference1-4.png and UI_ItemsReference.png. Rules: design doc "Monetization" (Shop,

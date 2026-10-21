@@ -75,49 +75,25 @@ local root = make("ScreenGui", "HudChrome", gui, {
 	DisplayOrder = 1,
 	ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
 })
--- Keep the entry points visible when a panel opens. The panel is in a higher
--- DisplayOrder, while this non-interactive veil makes the HUD read as a
--- background layer instead of making buttons disappear.
-local panelDimmer = make("Frame", "PanelDimmer", root, {
+-- Owner 2026-10-20 (HUD_LAYOUT_SPEC section 6): an open panel dims only the world. The dim layer sits below
+-- every HUD ScreenGui (DisplayOrder 0), so the HUD entries stay bright and clickable over it.
+local worldDim = make("ScreenGui", "PanelDim", gui, {
+	ResetOnSpawn = false,
+	IgnoreGuiInset = true,
+	DisplayOrder = 0,
+	Enabled = false,
+})
+make("Frame", "Dim", worldDim, {
 	Size = UDim2.fromScale(1, 1),
 	BackgroundColor3 = Color3.fromRGB(8, 10, 18),
-	BackgroundTransparency = 0.58,
+	BackgroundTransparency = 0.45,
 	BorderSizePixel = 0,
 	Active = false,
 	Selectable = false,
-	Visible = false,
-	ZIndex = 20,
 })
 
--- RacerHud and the compact RollToast live in separate ScreenGuis, so HudChrome's
--- veil cannot reliably tint them. Give each persistent HUD layer its own
--- non-interactive veil: every entry remains drawn and clickable in the
--- background while an open panel reads as the foreground.
-local function dimmerFor(screen)
-	local existing = screen:FindFirstChild("PanelDimmer")
-	if existing and existing:IsA("Frame") then
-		return existing
-	end
-	return make("Frame", "PanelDimmer", screen, {
-		Size = UDim2.fromScale(1, 1),
-		BackgroundColor3 = Color3.fromRGB(8, 10, 18),
-		BackgroundTransparency = 0.58,
-		BorderSizePixel = 0,
-		Active = false,
-		Selectable = false,
-		Visible = false,
-		ZIndex = 100,
-	})
-end
-
 local function setHudDimmed(dimmed)
-	panelDimmer.Visible = dimmed
-	for _, screenName in { "RacerHud", "RollToast", "RacerProgression" } do
-		local screen = gui:FindFirstChild(screenName)
-		if screen and screen:IsA("ScreenGui") then
-			dimmerFor(screen).Visible = dimmed
-		end
-	end
+	worldDim.Enabled = dimmed
 end
 
 -- Icon tiles -----------------------------------------------------------------------------------------------------

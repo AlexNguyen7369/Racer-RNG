@@ -1,5 +1,80 @@
 # Agent handoff
 
+## Codex — NPC difficulty and damped car speed multipliers — 2026-10-20
+
+- Owner request: make track NPCs harder to beat and make car speed multipliers non-linear. The first linear
+  interpretation (`1 + (SpeedMulti - 1) * 0.1`) made Singularity's 2800x multiplier catastrophically fast.
+- Codex changed `src/shared/RaceConfig.luau` to a power curve with exponent `log(1.01)/log(1.1)`: 1.1x is
+  exactly 1.01x speed, while 2800x is about 2.29x. Updated the matching economy/high-multiplier assertions in
+  `src/server/CarTest/Scenarios.luau` and the rule text in `docs/GAME_DESIGN_REQUIREMENTS.md`.
+- After Studio became free, Codex tuned the owned NPC files: `NpcConfig.BASE_SPEED` is now 45 (from 30) and
+  `SPEED_GROWTH` is now 2.5 (from 2), with matching updates to `NPC_RACER_SPEC`, `GAME_DESIGN_REQUIREMENTS`,
+  and the NPC scenario assertions. Track 1 is now 3.75x the stat-0 starter cruise speed; Track 2 is 112.5 studs/s.
+- Static checks: `git diff --check`, StyLua, Selene, and `rojo build` passed. Selene has only existing shadowing
+  warnings at Scenarios lines 4214 and 5349. Studio economy/NPC scenarios still need a targeted run after this change.
+
+## Harder NPCs + imported NPC models — 2026-10-20 (Claude, main, uncommitted)
+
+- Owner: NPCs much harder (Track 1 too; beginners may lose), label wider and clearer, tracks 1-10 NPCs use imported
+  car models. Plan: `~/.claude/plans/npc-s-should-be-much-glowing-ladybug.md`. Rules recorded (dated) in
+  `docs/NPC_RACER_SPEC.md` and `docs/GAME_DESIGN_REQUIREMENTS.md`.
+- Code: `Shared/NpcConfig` (BASE_SPEED 30, LABEL_DISTANCE 200, Tracks[1..10].Model), `Shared/NpcRacer.BuildModel`
+  (CarAppearance.Apply skin, Title line, dark backing). test-writer updated the `npc` scenario.
+- Next: full CarTest (wait for / stop any leftover run first), live look at Track 1 NPC + label distance.
+
+## Car art redesign — 2026-10-20 (Claude, main, uncommitted)
+
+- Owner: rebuild every car from the concept renders (git-ignored `references/car_redesign/`, 111 images = catalog
+  Names; Ember Wyvern + starter have none). Owner chose Blender MeshParts, own models for Midnight Kart / Golden Racer
+  / Rain Runner, neon details at full brightness (Singularity neon gold), skip the full physics suite for now.
+- Done: ALL 111 built, uploaded and synced. Pipeline: `tools/build_redesign_cars.py` (Blender MCP; hand builders for
+  the 11 wave-1 cars, `recipe_car()` converts the 100 expansion recipes) -> `tools/upload_car_meshes.py --skip-done`
+  (run with `zsh -ic '/usr/bin/python3 -u ...'`, 4 parallel) -> Studio `InsertService:LoadAsset` dump (posted to a
+  local receiver) -> `assets/meshes/cars/meshes.json` -> `tools/write_redesign_rbxmx.py` -> `assets/studio/RedesignCarModels`.
+  Code: `default.project.json`, `Shared/DraftCarModels` (redesigns win, attribute `Redesign`), `Shared/CarAppearance`
+  (no Tint on redesigns), 3 Cars files (own Model). Docs: CAR_REDESIGN_SPEC, GAME_DESIGN_REQUIREMENTS, WEATHER_EVENTS_SPEC.
+- Tests by test-writer (not run): `car_redesign` (RedesignTests.luau), gacha GACHA_EVENT_SEED + identity check,
+  weather own-model flag. Studio inspection: 111 models, 352 neon parts, all MeshParts have MeshIds.
+- Review page: https://claude.ai/artifact/X5NTsqk2FWamprTYyRwpHQ (reference vs build for all 111).
+- Owner review 2026-10-21: all approved, plus (done, re-uploaded, synced) sport kit on every car, Singularity black
+  hole restored (core + tilted neon-gold ring + halo), Zero G Zipper hand-built to its roadster reference, fantasy/
+  novelty cars 72% height + lower + rear wing. Docs updated (GAME_DESIGN_REQUIREMENTS, CAR_REDESIGN_SPEC).
+- Studio cleanup done (RedesignPreview removed, ShowDevelopmentGui back on).
+- Next: owner reviews the expansion cars; run car_redesign, gacha, weather, car_size, index; commit; progress-tracker.
+
+## Void Trail VFX + capture workflow — 2026-10-20 (Claude, main, uncommitted)
+
+- Owner: test screenshot-driven VFX work for trails/auras, start with the Void Trail. Rule: PANEL_ART_GIFTING_SPEC
+  (effects on chassis, no collision/mass/control change); MarketConfig text "dark neon wake that flickers at the edges".
+- Done: `Shared/VehicleEffects` `voidTrail` (Core wake, dashed EdgeL/R, Motes, Smoke); lint clean.
+- Workflow that works: client-only rig (CarFactory car, effects applied with a fake player table) circling over a grey
+  `VfxStage` part at y=800, camera via `BindToRenderStep(Last)` (the game camera overrides RenderStepped), then
+  `screen_capture`. Gotchas: one capture hung >120 s (stop + retry); Trail `Brightness` > 1 hides partial transparency;
+  the play session caches modules, so test edited module code inlined in execute_luau.
+- Verified: seen on the real car in an auto race; new `vehicle_effects` scenario (118 checks); full CarTest
+  `END pass=47 fail=0`. Back-to-back captures during a live race hang often (2 of 3 >120 s).
+- Next: same loop for rainbow/solar trails and the three auras; test aura preservation.
+
+## UI dim, panel styling, sharp cars, Singularity — 2026-10-20 (Claude, main, uncommitted)
+
+- Owner asks: panels must not dim the whole screen (world dim only, HUD bright); Checkpoint + Quest UI in the
+  Backpack look; all car models sharper and more unique; Singularity a sharp supercar, playable after purchase,
+  admins can use it. Rules recorded (dated) in HUD_LAYOUT_SPEC 2/6, CHECKPOINT_SPEC 3, CAR_EXPANSION_SPEC,
+  GAMEPASS_CARS_SPEC 3, GAME_DESIGN_REQUIREMENTS (Gamepass cars).
+- Code: `Client/HudChrome` (PanelDim ScreenGui replaces PanelDimmer veils), Shop/Market/Daily backdrops transparent,
+  `Client/CheckpointUi` on PanelFrame, `Client/BoostDailyUi` quest styling, `PanelFrame` theme Checkpoints,
+  `Server/PassCarService` (admins own pass cars, Trigger equips owned first), `Client/ShopUi` (owned = Equip),
+  `Client/BackpackUi` (owned pass cars in Cars tab), `Shared/DraftCarModels` (singularity uses the export).
+- Art: `tools/build_expansion_cars.py` new shell + `singularity_recipe`/`build_singularity`; Blender preview wedge
+  mesh was upside down (exports were right). All 100 + Singularity re-authored, bounds asserted.
+- Not changed: the 7 Draft05 MeshPart cars (need hand-made meshes uploaded; mesh upload impossible from tooling).
+- Verified live: Studio admin gets Pass_singularity/Pass_ember_wyvern, Equip singularity works, template 69 parts.
+- Tests: full CarTest `END pass=46 fail=0`. ui-test-writer rewrote `UiSpec.PanelDimmers` (PanelDim checks, no dark
+  veil over the HUD, persistent buttons clickable) + Checkpoints PanelFrame check (selene clean). UI suite run
+  `END pass=13 fail=18`, but the client viewport was 1x1 (Studio game view hidden), so hitbox/layout reds and the
+  missing PanelDim results are not trustworthy. ui_index red only because the test player had Singularity equipped.
+- Next: show the Studio game view (normal window size), re-run the UI suite, check Checkpoint/Quest panels by eye.
+
 ## Biome prop placement fixes — 2026-10-20 (Claude, main, uncommitted)
 
 - Owner: check the Baseplate in Studio; fix floating / misplaced assets. Rules: `docs/BIOME_DRESSING_SPEC.md`
@@ -56,9 +131,25 @@ below is incomplete. This entry is rebuilt from Codex's rollout log
   test-writer changed the `pRare` loop to `GACHA_CATALOG` (no tolerance change). Not re-run live yet.
 - UI suite started but Play was stopped externally mid-run; no result.
 
+### Session 2 (Claude, 2026-10-20 evening): owner requests + finishing Codex's work
+- Owner rules recorded: Backpack `Cars` tab (owned cars, least rare first, click = EquipCar; HUD_LAYOUT_SPEC 3,
+  replaces "no cars in Backpack"); every Index / Backpack / landed roll card shows the car's own model
+  (CAR_EXPANSION_SPEC "Car icons"); HUD tiles stay clickable over Shop/Market/Daily backdrops (HUD_LAYOUT_SPEC 6).
+- Code: `RacerComponents.CarModelArt/FillCarModel` (ViewportFrame), Index rebake when Art isn't a ViewportFrame,
+  `RollToast.showModel` uses the model (ROLL_ANIMATION_CONTRACT), `BackpackUi` Cars tab, per-tab UIScale in Backpack
+  and Market (rail UIScale never fit), Market renders on show, `PanelFrame.CloseOnOutsideClick`, Shop/Market backdrops
+  are Frames. SpeedMulti float noise rounded in 11 car modules + manifest.
+- Car art: `tools/build_expansion_cars.py` detail pass (windshield/rear glass, pillars, seams, handles, arches, spokes,
+  plates, exhausts, two-tone, hood option, 2-3 id-seeded family extras); all 100 re-authored and bounds-checked.
+- Tests: harness 46/46; UI suite 20 pass / 11 fail (details in ProjectContext). ui-test-writer updated fixtures for
+  Cars tab, model icons, PanelFrame close/price row, Market tab scale, Color3 crash, AUTO RACE casing, backdrops.
+- Generated `src/client/RollToast/Ui/*` must not be run through stylua (subagents did; restored with git checkout).
+
 ### Next
-1. Restart Play, re-run `roll_anim`, then the UI suite (UiTestRun false -> true) and phone landscape.
-2. Full harness, then `/compat-check`; then ProjectContext, todo.json (Doing items), README features.
+1. Owner decision: compact roll toast vs Shop/Market panels (todo `band-vs-compact-roll`).
+2. ui-tester run with ServerSetup states (ui_loser, ui_billboards, ui_roll_emphasized) + phone landscape.
+3. Stats label "Stats 1" (ui_buttons), upgrade-tree / checkpoint UI reds (own TODOs).
+4. `/compat-check`, then commit on a feature branch (nothing committed yet). Codex bus delivery needs a live Codex.
 
 ## Biome drive-by scenery — 2026-10-20 (Claude, merged into main)
 
@@ -69,7 +160,8 @@ below is incomplete. This entry is rebuilt from Codex's rollout log
 
 ### Where things are
 - Branch `feature/alex/biome-drive-by-scenery`, worktree `/Users/alexnguyen7369/Documents/RobloxGames-biomes`.
-  All commits pushed to origin (b1b9660, 2026-10-20). The main checkout stays on `main` with Codex's uncommitted work.
+  Merged into `main` 2026-10-20 (fast-forward to 1e3b2cf). Codex's uncommitted work was stashed, the merge done, the
+  stash re-applied with 8 keep-both conflict fixes (backup stash `codex-uncommitted-before-biome-merge 2026-10-20`).
 - Rojo serves the MAIN checkout again (restored 2026-10-20 12:56); Studio was handed back to Codex.
 - Code: `Shared/BiomeThemes` (data), `Shared/BiomeDressing` (builder + `Prune`, called from `Main` after
   `SpawnArea.Build`), `Shared/BiomeMeshCodec`, `Shared/BiomeMeshData/<Biome>` (generated), `Shared/BiomeMeshAssets`
@@ -95,11 +187,71 @@ below is incomplete. This entry is rebuilt from Codex's rollout log
 ### Resume steps
 1. Owner: enable Mesh / Image APIs (Game Settings > Security; dashboard Needs you `biome-mesh-api`), then check a
    published server shows the meshes.
-2. Owner: decide the Baseplate vs themed ground (bug 4b68c6d9).
-3. Push the branch and merge to main (conflicts expected in CarTest/Scenarios.luau, TestConfig, CLAUDE.md, todo.json);
-   rerun the full suite after the merge.
+2. Done: Baseplate lowered to top y=-2 (owner 2026-10-20). Check in Studio, then close bug 4b68c6d9.
+3. Done: merged. Rerun the full suite on main once Codex's catalog/gift tests compile (TestConfig now also lists
+   car_expansion, gifting, gift_mailbox from the uncommitted work).
 4. Optional: tune Prune losses on tracks 1/4/5; replace props that are still plain parts (TyreStack, LogCabin, gas
    stations, IceCliff, lava, planets, hills) via props.json, re-bake, re-upload textures, `write_texture_ids.py`.
+## Full completion continuation — 2026-10-20 (Codex, active)
+
+- Owner approved 8 new Secrets and requested remaining work on newest game. `git ls-remote`
+  confirms GitHub main is 595d18d, matching checkout; preserve newer uncommitted checkpoints,
+  rebirth and Daily Rewards edits. Previous roster-count blocker is resolved.
+- Studio b09a67db-56a8-484a-913c-1ca56f6000a7 is Racer RNG, Play mode, 12 car modules;
+  current source expansion is not loaded into that Play session.
+- Scope: catalog/skins, shared panels/art, durable gifting, tests and live checks.
+- Design updated first in GAME_DESIGN_REQUIREMENTS, CAR_EXPANSION_SPEC, PANEL_ART_GIFTING_SPEC,
+  HUD_LAYOUT_SPEC, GAMEPASS_SHOP_SPEC and SAVE_SPEC. Implementation/testing in progress.
+- Dashboard default port 8765 belongs to NoteFlow; do not write Roblox state through it.
+
+## 100-car catalog expansion — 2026-10-20 (Codex)
+
+- Added `docs/CAR_EXPANSION_SPEC.md`, `docs/CAR_MODELING_WORKFLOW.md`, `Shared/CarExpansionManifest`, and 100
+  permanent snake-case modules under `src/shared/Cars/` across five families. Added deterministic procedural
+  template silhouettes in `Shared/DraftCarModels`; they use the existing `CarAppearance` shared-chassis weld path
+  and are explicitly interim placeholders for Blender-authored exports.
+- Static checks: 100 new modules, unique ids/orders/chances, requested non-Common counts, Selene 0 errors/0 warnings,
+  Rojo build `/tmp/racer-rng-expansion.rbxlx` succeeded. No Studio harness, live skin checks, UI suite, or compatibility
+  result was run.
+- Blocker for resume: the requested distribution sums to 100 including one Common catch-all, while the existing catalog
+  already owns that catch-all. The provisional implementation uses 8 new Secrets to reach 100 new ids; owner must choose
+  between that and 99 new ids with the specified 7 Secrets before this roster is final.
+- Active files: `docs/CAR_EXPANSION_SPEC.md`, `docs/CAR_MODELING_WORKFLOW.md`, `src/shared/CarExpansionManifest.luau`,
+  `src/shared/Cars/*.luau` (100 new files), `src/shared/DraftCarModels.luau`.
+- Resume: get the rarity-count decision, adjust the manifest/modules, then add wave-based catalog/skin tests and
+  complete Blender source/preview/license deliverables before claiming the 100-car work complete.
+
+## Checkpoints NPC — 2026-10-16 (Claude)
+
+- Owner request: Checkpoints NPC beside the RACE START pavilion (reference: hub NPC with E prompt). Owner answers:
+  beaten tracks only, loss + loop go back to the checkpoint, saved.
+- Rules first: design doc "Racing" > "Checkpoints", `docs/CHECKPOINT_SPEC.md` (new), NPC_RACER_SPEC, SAVE_SPEC 2b
+  (field `Checkpoint`, still VERSION 9 so the three tests pinning `Version == 9` stay valid).
+- Code: `Shared/CheckpointConfig`, `Server/CheckpointService`, `RaceService` (StartTrack / StartTrackFor /
+  startAgain), `CarService`, `PlayerData`, `SpawnArea` (CheckpointNpc), `Main`, `Client/CheckpointUi`.
+- Live check passed (panel, locks, remote validation, run from Track 3). Owner's save left at Checkpoint 1.
+- Next: test-writer harness scenario + ui-test-writer UiSpec entry (todo `checkpoint-tests`); verify a loss resets to
+  the checkpoint; phone landscape.
+
+## Rebirth reset, Daily Rewards redesign, enlarged leaderboards — 2026-10-16 (Codex)
+
+- Owner request: rebirth must also reset Level; Daily Rewards should follow `images/UI_DailyRewardsReference.png`; world leaderboard signs should be much larger using `images/UI_LeaderboardReference.png`.
+- Changed `RebirthService`/`LevelService`: successful rebirth now resets Level to 1, XP to 0, and XPToNext to the level-1 threshold. Updated the design and rebirth specs and rebirth harness expectations.
+- Reworked `BoostDailyUi` Daily view into a responsive seven-card layout with red gradient header, calendar icon, existing potion/HUD artwork, completion checks, featured Day 7, and next-reward countdown. Updated UI test inspection for reward cards. Quests and server claim behavior remain unchanged.
+- Enlarged leaderboard signs to `32 x 20 x 1` studs. Owner follow-up tightened them to an edge-to-edge row at centers `{168, 136, 104, 72}`, moving the Rarest Car board clear of the race-start pavilion; updated design/spec documentation. SpawnArea consumes the shared config, so no direct geometry code change was needed.
+- Validation: targeted StyLua, Selene (0 warnings), `python3 ui/tooling/verify.py`, Rojo build `/tmp/racer-rng-codex.rbxlx`, dashboard integration tests 14/14, and `git diff --check` pass.
+
+### Failed attempts / blockers
+
+- Live Roblox Studio harness/UI suite and full `/compat-check` were not run; no current green compatibility stamp exists for this source fingerprint.
+- The first dashboard unittest invocation from the repository root failed to import `agent_bus`; rerunning from `tools/dashboard` passed all 14 tests.
+
+### Resume steps
+
+1. Re-read this entry and `python3 tools/dashboard/agent_bus.py context --agent codex` before editing shared files.
+2. Connect the current worktree to Studio/Rojo and run the focused rebirth, daily UI, and leaderboard scenarios.
+3. Check Daily Rewards at desktop and phone landscape; verify all seven cards, claim/countdown behavior, and no overlap.
+4. Check the four enlarged world boards remain inside the hub and readable, then run the full `/compat-check`.
 
 ## Upgrades panel keeps the HUD drawn — 2026-10-16 (Claude)
 

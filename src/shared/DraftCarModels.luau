@@ -4,6 +4,7 @@
 -- same name replaces them. Like the imported templates: pivot at the base centre, forward -Z, about 5 studs long.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local CarExpansionManifest = require(script.Parent.CarExpansionManifest)
 
 local DraftCarModels = {}
 
@@ -83,8 +84,14 @@ local function wyvern()
 	return m
 end
 
--- A black hypercar around a small black hole: the void_racer body in black, a dark core and accretion rings.
+-- A black hypercar around a small black hole. The Blender-authored wedge supercar
+-- (tools/build_expansion_cars.py singularity_recipe, owner 2026-10-20) wins; the void_racer recolour is the fallback.
 local function singularity(templates)
+	local exports = ReplicatedStorage:FindFirstChild("ExpansionCarModels")
+	local authored = exports and exports:FindFirstChild("singularity")
+	if authored then
+		return authored:Clone()
+	end
 	local source = templates:FindFirstChild("void_racer")
 	if not (source and source:IsA("Model")) then
 		return nil
@@ -122,12 +129,83 @@ local function singularity(templates)
 	return m
 end
 
+-- Deterministic authored placeholder silhouettes for the 100-car expansion. These are deliberately
+-- simple source-controlled Roblox parts, not extracted meshes. They let the catalog, index, roll and
+-- replacement paths exercise every permanent id while Blender exports are produced wave by wave.
+local function expansion(spec)
+	local m = Instance.new("Model")
+	local tint = spec.Tint or Color3.fromRGB(120, 180, 220)
+	local dark = tint:Lerp(Color3.new(0, 0, 0), 0.45)
+	local glow = tint:Lerp(Color3.new(1, 1, 1), 0.45)
+	local family = spec.Family
+	part(m, "Body", Vector3.new(2.4, 0.65, 4.1), CFrame.new(0, 0.85, 0), tint)
+	part(m, "Cabin", Vector3.new(1.65, 0.58, 1.8), CFrame.new(0, 1.42, 0.15), dark, Enum.Material.Glass)
+	part(m, "Nose", Vector3.new(2.05, 0.35, 0.9), CFrame.new(0, 0.72, -2.05), glow, Enum.Material.Neon)
+	for _, x in { -0.85, 0.85 } do
+		part(
+			m,
+			"Wheel",
+			Vector3.new(0.35, 0.58, 0.72),
+			CFrame.new(x, 0.42, -1.25),
+			dark,
+			Enum.Material.SmoothPlastic,
+			Enum.PartType.Cylinder
+		)
+		part(
+			m,
+			"Wheel",
+			Vector3.new(0.35, 0.58, 0.72),
+			CFrame.new(x, 0.42, 1.25),
+			dark,
+			Enum.Material.SmoothPlastic,
+			Enum.PartType.Cylinder
+		)
+	end
+	if family == "city_utility" then
+		part(m, "RoofRack", Vector3.new(1.8, 0.12, 1.45), CFrame.new(0, 1.83, 0.25), glow, Enum.Material.Metal)
+	elseif family == "offroad_rally" then
+		part(m, "RollBar", Vector3.new(1.7, 0.15, 1.9), CFrame.new(0, 1.9, 0.25), glow, Enum.Material.Metal)
+	elseif family == "track_hyper" then
+		part(m, "Wing", Vector3.new(2.8, 0.12, 0.55), CFrame.new(0, 1.3, 1.75), glow, Enum.Material.Neon)
+	elseif family == "futuristic_hover" then
+		part(
+			m,
+			"HoverRing",
+			Vector3.new(0.12, 2.7, 2.7),
+			CFrame.new(0, 0.65, 0) * CFrame.Angles(0, 0, math.rad(90)),
+			glow,
+			Enum.Material.Neon,
+			Enum.PartType.Cylinder
+		)
+	elseif family == "fantasy_novelty" then
+		part(m, "Crest", Vector3.new(0.25, 1.1, 0.8), CFrame.new(0, 2.05, -0.4), glow, Enum.Material.Neon, "Wedge")
+	end
+	m.WorldPivot = CFrame.new()
+	return m
+end
+
 local BUILDERS = { ember_wyvern = wyvern, singularity = singularity }
 
 function DraftCarModels.Ensure()
 	local templates = ReplicatedStorage:FindFirstChild("CarModels")
 	if not templates then
 		return
+	end
+	-- The MeshPart redesigns (docs/CAR_REDESIGN_SPEC.md section 4) always win, even over CarModels.rbxm imports.
+	local redesigns = ReplicatedStorage:FindFirstChild("RedesignCarModels")
+	if redesigns then
+		for _, authored in redesigns:GetChildren() do
+			local old = templates:FindFirstChild(authored.Name)
+			if not (old and old:GetAttribute("Redesign")) then -- Ensure runs more than once (Main, PassCarService)
+				if old then
+					old:Destroy()
+				end
+				local model = authored:Clone()
+				model.WorldPivot = CFrame.new()
+				model:SetAttribute("Redesign", true)
+				model.Parent = templates
+			end
+		end
 	end
 	for name, build in BUILDERS do
 		if not templates:FindFirstChild(name) then
@@ -136,6 +214,16 @@ function DraftCarModels.Ensure()
 				model.Name = name
 				model.Parent = templates
 			end
+		end
+	end
+	for _, spec in CarExpansionManifest.Cars do
+		if not templates:FindFirstChild(spec.Model) then
+			local exports = ReplicatedStorage:FindFirstChild("ExpansionCarModels")
+			local authored = exports and exports:FindFirstChild(spec.Model)
+			local model = authored and authored:Clone() or expansion(spec)
+			model.WorldPivot = CFrame.new()
+			model.Name = spec.Model
+			model.Parent = templates
 		end
 	end
 end

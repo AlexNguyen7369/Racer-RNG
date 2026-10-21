@@ -36,6 +36,15 @@ pills, white text, and a round button for Settings.
   a tile grid, and a detail pane (name, rarity, preview, price, description, Buy / Equip).
 - `Settings`: a round gear button. It opens Settings.
 
+The Daily Rewards panel follows `images/UI_DailyRewardsReference.png`: a red gradient header with a calendar icon and
+close button, seven large reward cards, darkened completed cards with a green checkmark, and a prominent next-reward
+countdown. Days 1–6 form a two-by-three card grid beside a larger Day 7 card on desktop; phone landscape stacks the
+cards into a two-column layout. Cards use existing potion and car/HUD artwork, and claiming remains server-authoritative.
+
+Owner 2026-10-20: the quest panel and the Checkpoints panel use the Backpack / Market look (section 3): the
+`PanelFrame` header, dark body, navy tiles with a blue glow border (white or green on the selection), grey tabs and
+Fredoka text with a dark outline.
+
 The quest panel follows the supplied quest reference using only existing quest data: Daily / Weekly category tabs,
 a scrollable selectable quest list, and a read-only detail pane showing the selected quest's name, progress and
 reward. On phone landscape the detail pane collapses and the list uses the available width. Hovering a quest row
@@ -44,14 +53,18 @@ adds the shared white highlight and slight enlargement; its Claim button remains
 ## 3. Backpack (Items)
 
 - It has a blue checkered header with an icon and the title "Backpack", and a square red X close button.
-- Side tabs on the left: `Misc`, `Trails` and `Auras` (owner, 2026-10-15). There are no cars in the Backpack:
-  cars live only in the Index.
+- Side tabs on the left: `Misc`, `Trails`, `Auras` and `Cars` (owner, 2026-10-20; replaces the 2026-10-15
+  rule that kept cars out of the Backpack). The Index stays the discovery gallery of every car.
 - The body is a grid of square tiles with a blue glow border. Each tile shows its icon.
 - Misc: every consumable with a count above 0 (potions for now, later every consumable type), with the count in
   the bottom right (`x12`, `x1.2k`). Clicking one asks the server to use it (`UseBoost`). Hovering a tile shows its
   name and effect.
 - Trails and Auras: every owned trail or aura, with its name under the art. Clicking one asks the server to equip
   it (`MarketEquip`). The equipped one has a green border. They are bought in the Market.
+- Cars (owner, 2026-10-20): every owned car, ordered by rarity from least to most rare (Common, Uncommon, Rare,
+  Epic, Legendary, Mythic, Secret; gamepass and event cars by their catalog rarity), then by catalog `Order`.
+  Each tile shows the car's model, its name and its speed multi. Clicking one asks the server to equip it
+  (`EquipCar`, the same validated remote the Index uses). The equipped car has a green border.
 
 ## 4. Settings
 
@@ -77,10 +90,19 @@ adds the shared white highlight and slight enlargement; its Claim button remains
 
 ## 6. No overlap
 
-- Whenever a `PanelSwitch` panel is open, every persistent HUD entry remains drawn behind it: the HudChrome
+- Owner 2026-10-20: Daily, Quests, Shop and Market use `Client/PanelFrame` for the Backpack
+  header/frame vocabulary; Daily remains red. Trail/Aura art is shared through `MarketArt`
+  and `MarketConfig.Icon`. Details: `PANEL_ART_GIFTING_SPEC.md`.
+
+- Whenever a `PanelSwitch` panel is open, every persistent HUD entry remains drawn: the HudChrome
   tiles/pills, Auto Race, the compact roll when it would otherwise be shown, the weather button and active potion
-  buttons. Each HUD ScreenGui gets the same non-interactive dark veil so these controls look dimmed without being
-  hidden. The full-screen roll showcase is exempt because it intentionally replaces the HUD.
+  buttons. Owner 2026-10-20 (replaces the per-HUD veil): a panel never dims the whole screen. Only the world
+  behind the UI is dimmed, by one non-interactive layer (`HudChrome` creates ScreenGui `PanelDim`, DisplayOrder 0,
+  below every HUD ScreenGui); the HUD stays at full brightness. Panels' own full-screen `Backdrop` frames are
+  transparent. The full-screen roll showcase is exempt because it intentionally replaces the HUD.
+- Owner 2026-10-20: the HUD tiles stay clickable while Shop, Market or Daily is open. Their full-screen dim
+  `Backdrop` is a non-interactive Frame (it never swallows clicks); clicking a HUD tile switches panels, and a click
+  on empty screen that no GUI handles closes Shop or Market (`PanelFrame.CloseOnOutsideClick`).
 - No two reachable buttons, panels or labels overlap at any tested viewport, phone landscape included
   (`UiSpec` / `UiResponsive`).
 - On phones (viewport height <= 500) the grid tiles and pills shrink.

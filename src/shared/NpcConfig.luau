@@ -6,13 +6,13 @@
 --   Color  Color3 of the starter car body
 --   Speed  cruise speed, studs/s (the NPC slows only where corner grip requires it)
 --   Label  floating text above the NPC
---   Model  name of a Model under ReplicatedStorage.NpcModels to use instead of the starter car
+--   Model  name of a Model under ReplicatedStorage.NpcModels, or a car catalog id (skinned like the player's car)
 
 local NpcConfig = {}
 
-NpcConfig.BASE_SPEED = 20 -- Track 1, studs/s: very easy (the player starts at RaceConfig.BASE_SPEED = 30)
-NpcConfig.SPEED_STEP = 12 -- studs/s added for every later track
-NpcConfig.LABEL_DISTANCE = 60 -- studs: the label only shows when the player is this close
+NpcConfig.BASE_SPEED = 45 -- Track 1, studs/s: a stat-0 starter car (12) loses decisively
+NpcConfig.SPEED_GROWTH = 2.5 -- every later track's NPC is this many times faster; each jump is a major hurdle
+NpcConfig.LABEL_DISTANCE = 200 -- studs: the label only shows when the player is this close (owner 2026-10-20, was 60)
 NpcConfig.LOSE_SCREEN_SECONDS = 3 -- loser screen time before the player is sent back to the spawn
 NpcConfig.LABEL_FORMAT = "track%02d_NPC"
 
@@ -28,8 +28,18 @@ NpcConfig.PALETTE = {
 	Color3.fromRGB(245, 245, 245), -- white
 }
 
+-- Owner 2026-10-20: tracks 1-10 drive imported car models, rarer on every later track.
 NpcConfig.Tracks = {
-	[1] = { Color = Color3.fromRGB(230, 45, 45) }, -- red
+	[1] = { Color = Color3.fromRGB(230, 45, 45), Model = "rusty_hatchback" }, -- red
+	[2] = { Model = "wooden_car" },
+	[3] = { Model = "go_kart" },
+	[4] = { Model = "rain_runner" },
+	[5] = { Model = "street_racer" },
+	[6] = { Model = "midnight_kart" },
+	[7] = { Model = "golden_racer" },
+	[8] = { Model = "rocket_car" },
+	[9] = { Model = "hover_car" },
+	[10] = { Model = "void_racer" },
 }
 
 -- Everything about track `number`'s NPC: { Number, Speed, Color, Label, Model }.
@@ -39,7 +49,7 @@ function NpcConfig.For(number)
 	local palette = NpcConfig.PALETTE
 	return {
 		Number = number,
-		Speed = o.Speed or NpcConfig.BASE_SPEED + NpcConfig.SPEED_STEP * (number - 1),
+		Speed = o.Speed or NpcConfig.BASE_SPEED * NpcConfig.SPEED_GROWTH ^ (number - 1),
 		Color = o.Color or palette[(number - 1) % #palette + 1],
 		Label = o.Label or string.format(NpcConfig.LABEL_FORMAT, number),
 		Model = o.Model,

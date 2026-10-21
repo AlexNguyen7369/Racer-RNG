@@ -1,9 +1,9 @@
 --!nonstrict
 -- BRIEF: Workshop phase 2: exact 25% offline rate, eight-hour cap,
--- MAX_STAT, guarded next-level purchase, OfflineAt persistence and one-time credit.
+-- no Speed cap, guarded next-level purchase, OfflineAt persistence and one-time credit.
 -- Owner, 2026-10-13 (design doc "Core stat model", WORKSHOP_SPEC section 4): no diminishing term. Offline Speed =
--- Workshop.Rate x OFFLINE_FRACTION x min(seconds, OFFLINE_CAP), never above MAX_STAT - stat; the stat itself
--- never reduces it. (Was: the integral of rate / (1 + stat / GAIN_SOFT).)
+-- Workshop.Rate x OFFLINE_FRACTION x min(seconds, OFFLINE_CAP); the stat itself never reduces it and, owner
+-- 2026-10-20, the Speed stat has no cap (MAX_STAT is only a test reference stat, it clamps nothing). (Was: the integral of rate / (1 + stat / GAIN_SOFT).)
 -- Weather: rain luck 2, night NPC speed 1.25/money 2, gold money 3, expiry,
 -- actual rolls/payouts and Event-only catalog eligibility. No owner prices assumed.
 -- Weather, owner 2026-10-13 (design doc "Weather events", WEATHER_EVENTS_SPEC "Schedule"): a weather every
@@ -41,12 +41,12 @@ local function near(a, b, tolerance)
 	return type(a) == "number" and a == a and math.abs(a - b) <= (tolerance or 1e-6)
 end
 
--- Independent oracle (owner, 2026-10-13): 25% of the workshop rate x the time capped at eight hours, clamped to
--- MAX_STAT - stat. The stat does not reduce it. This deliberately never calls Workshop.Rate/OfflineGain.
-local function integrated(stat, speedMulti, levelMulti, workshopMulti, seconds, config, race)
+-- Independent oracle (owner, 2026-10-13): 25% of the workshop rate x the time capped at eight hours. The stat does
+-- not reduce it and nothing clamps it to a max stat (owner 2026-10-20: no Speed cap). This deliberately never calls Workshop.Rate/OfflineGain.
+local function integrated(_stat, speedMulti, levelMulti, workshopMulti, seconds, config)
 	local a = 0.25 * config.BASE_RATE * speedMulti * levelMulti * workshopMulti
 	local t = math.clamp(seconds, 0, 8 * 60 * 60)
-	return math.min(a * t, math.max(0, race.MAX_STAT - stat))
+	return a * t
 end
 
 function Tests.workshop_offline()
@@ -60,9 +60,15 @@ function Tests.workshop_offline()
 		return r
 	end
 	local function exact(label, stat, sm, level, wm, seconds)
-		local want = integrated(stat, sm, config.Levels[level].Multi, wm, seconds, config, race)
+		local want = integrated(stat, sm, config.Levels[level].Multi, wm, seconds, config)
 		local ok, got = pcall(workshop.OfflineGain, stat, sm, level, wm, seconds)
-		flag(label, ok and near(got, want), type(got) == "number" and got or -1, want)
+		-- relative tolerance: uncapped gains can reach 1e12+, where 1e-6 absolute is below double precision
+		flag(
+			label,
+			ok and near(got, want, math.max(1e-6, math.abs(want) * 1e-9)),
+			type(got) == "number" and got or -1,
+			want
+		)
 		return got, want
 	end
 	exact("offline_exact_quarter_rate_from_zero", 0, 1, 1, 1, 3600)
@@ -73,8 +79,19 @@ function Tests.workshop_offline()
 	exact("offline_negative_seconds", 100, 2, 1, 3, -1)
 	exact("offline_zero_speed_multi", 100, 0, 1, 3, 3600)
 	exact("offline_zero_workshop_multi", 100, 2, 1, 0, 3600)
-	exact("offline_max_stat_no_gain", race.MAX_STAT, 2, 1, 3, 8 * 3600)
-	exact("offline_crossing_max_stat_clamped", race.MAX_STAT - 0.25, 1e8, 1, 2, 8 * 3600)
+	-- Owner 2026-10-20: no Speed cap. At and above the old 1e9 reference the full gain is still paid.
+	exact("offline_at_max_stat_full_gain", race.MAX_STAT, 2, 1, 3, 8 * 3600)
+	exact("offline_crossing_max_stat_not_clamped", race.MAX_STAT - 0.25, 1e8, 1, 2, 8 * 3600)
+	exact("offline_above_1e12_full_gain", 1e12, 2, 1, 3, 8 * 3600)
+	exact("offline_above_1e15_full_gain", 1e15, 2, 1, 3, 3600)
+	do
+		local ok, got = pcall(workshop.OfflineGain, race.MAX_STAT - 0.25, 1e8, 1, 2, 8 * 3600)
+		flag("offline_gain_can_pass_max_stat", ok and type(got) == "number" and got > 0.25, ok and got or -1, 0.25)
+		for _, bad in { { "inf", math.huge }, { "nan", 0 / 0 }, { "negative", -1 } } do
+			local okBad, gotBad = pcall(workshop.OfflineGain, bad[2], 2, 1, 3, 3600)
+			flag("offline_bad_stat_no_gain_" .. bad[1], okBad and gotBad == 0, okBad and gotBad or -1, 0)
+		end
+	end
 	-- Owner, 2026-10-13: the rate x the capped time IS the rule (was: an integral that paid less).
 	local got = exact("offline_is_rate_times_capped_time", 0, 10, 1, 5, 8 * 3600)
 	local linear = 0.25 * config.BASE_RATE * 10 * 5 * 8 * 3600
@@ -94,7 +111,7 @@ function Tests.workshop_offline()
 	flag("offline_equals_rate_times_fraction_times_time", contract)
 	local same = true
 	local atZero = workshop.OfflineGain(0, 2, 1, 3, 3600)
-	for _, stat in { 2000, 1e6, 5e8 } do
+	for _, stat in { 2000, 1e6, 5e8, 1e9, 1e12, 1e15 } do
 		same = same and atZero > 0 and workshop.OfflineGain(stat, 2, 1, 3, 3600) == atZero
 	end
 	flag("offline_same_gain_at_any_stat", same, type(atZero) == "number" and atZero or -1, 0.25 * 2 * 3 * 3600)
@@ -281,15 +298,8 @@ function Tests.workshop_phase2()
 		data.SetStore(store)
 		local p = player("OfflineLoad")
 		gacha.Apply(p, initial)
-		local offlineGain = integrated(
-			initial.Speed,
-			gacha.SpeedMulti(p),
-			config.Levels[1].Multi,
-			gacha.WorkshopMulti(p),
-			3600,
-			config,
-			race
-		)
+		local offlineGain =
+			integrated(initial.Speed, gacha.SpeedMulti(p), config.Levels[1].Multi, gacha.WorkshopMulti(p), 3600, config)
 		local want = initial.Speed + offlineGain
 		-- Owner, 2026-10-12 (docs/SAVE_SPEC.md section 3): offline earnings are Speed ONLY. Money after the load is
 		-- the saved Money exactly (was: + 10% of the Speed credit).
@@ -377,7 +387,7 @@ function Tests.workshop_phase2()
 		flag("offline_save_succeeds", data.Save(p, 74002) == true)
 		flag(
 			"offline_at_saved_unix_timestamp",
-			saved ~= nil and type(saved.OfflineAt) == "number" and saved.OfflineAt == clock and saved.Version == 9
+			saved ~= nil and type(saved.OfflineAt) == "number" and saved.OfflineAt == clock and saved.Version == 10
 		)
 		local afterSave = player("ReconnectAfterSave")
 		data.Load(afterSave, 74002)
@@ -729,13 +739,13 @@ function Tests.weather()
 			end
 			flag("weather_event_only_car_exists_" .. event, eventCar ~= nil)
 			if eventCar then
-				local sharedMesh = false
-				for _, spec in catalog.All() do
-					if not spec.Event and spec.Model ~= nil and spec.Model == eventCar.Model then
-						sharedMesh = true
-					end
-				end
-				flag("weather_variant_shares_existing_mesh_" .. event, sharedMesh)
+				-- Own model since the car art redesign (owner 2026-10-20, docs/CAR_REDESIGN_SPEC.md section 5).
+				local models = ReplicatedStorage:FindFirstChild("CarModels")
+				local template = models and models:FindFirstChild(eventCar.Id)
+				flag(
+					"weather_variant_own_model_" .. event,
+					eventCar.Model == eventCar.Id and template ~= nil and template:IsA("Model")
+				)
 				for _, active in { "", "rain", "night", "gold", "clear", "aurora" } do
 					-- the state must really be `active`: a refused SetEvent would leave the previous weather on
 					local set = weather.SetEvent(active, at) == true and weather.Current() == active
@@ -1247,9 +1257,9 @@ function Tests.weather()
 end
 
 -- BRIEF (owner, 2026-10-12; docs/GAME_DESIGN_REQUIREMENTS.md "Rebirth system", docs/SAVE_SPEC.md sections 2 and 3):
--- "Rebirthing resets Money and Speed." RebirthService.Rebirth(player) sets BOTH leaderstats.Money and
--- leaderstats.Speed to 0. A refused rebirth changes nothing. The rebirth level, cars, upgrades, workshop level,
--- Level / XP, MoneyEarned and DuelWins survive.
+-- "Rebirthing resets Money, Speed, Level and XP." RebirthService.Rebirth(player) sets both leaderstats values to 0,
+-- Level to 1 and XP to 0. A refused rebirth changes nothing. The rebirth level, cars, upgrades, workshop level,
+-- MoneyEarned and DuelWins survive.
 function Tests.rebirth()
 	local r, flag = report("rebirth")
 	local service = module(Server, "RebirthService")
@@ -1368,7 +1378,15 @@ function Tests.rebirth()
 				and upgradesAfter.TurboCount == 7
 		)
 		flag("rebirth_keeps_workshop_level", p:GetAttribute("WorkshopLevel") == 1)
-		flag("rebirth_keeps_level_and_xp", p:GetAttribute("Level") == need and p:GetAttribute("XP") == 37)
+		flag("rebirth_resets_level", p:GetAttribute("Level") == 1, p:GetAttribute("Level"), 1)
+		flag("rebirth_resets_xp", p:GetAttribute("XP") == 0, p:GetAttribute("XP"), 0)
+		local levelConfig = module(Shared, "LevelConfig")
+		flag(
+			"rebirth_resets_xp_to_next",
+			levelConfig ~= nil and p:GetAttribute("XPToNext") == levelConfig.XPToNext(1),
+			p:GetAttribute("XPToNext"),
+			levelConfig and levelConfig.XPToNext(1) or "missing"
+		)
 		flag("rebirth_keeps_money_earned", p:GetAttribute("MoneyEarned") == 9000, p:GetAttribute("MoneyEarned"), 9000)
 		flag("rebirth_keeps_duel_wins", p:GetAttribute("DuelWins") == 3, p:GetAttribute("DuelWins"), 3)
 

@@ -15,6 +15,8 @@ local MarketplaceBuilder = require(script.Parent.MarketplaceBuilder)
 local LeaderboardConfig = require(script.Parent.LeaderboardConfig)
 local PassCarConfig = require(script.Parent.PassCarConfig)
 local CarCatalog = require(script.Parent.CarCatalog)
+local CheckpointConfig = require(script.Parent.CheckpointConfig)
+local Players = game:GetService("Players")
 
 -- Match WorkshopBuilder's native-mesh safeguard before Main builds the area.
 local raceTemplate = ReplicatedStorage:WaitForChild("RaceStartPavilion"):Clone()
@@ -449,6 +451,88 @@ function SpawnArea.Build(startCFrame)
 		stand.Parent = passCars
 	end
 	passCars.Parent = model
+
+	-- Checkpoints NPC (docs/CHECKPOINT_SPEC.md): a rig on a purple ring; its prompt opens Client/CheckpointUi.
+	local npc = Instance.new("Model")
+	npc.Name = "CheckpointNpc"
+	local spot = CheckpointConfig.NPC_POS
+	local here = world(startCFrame, spot.X, spot.Y, top)
+	local face = world(startCFrame, CheckpointConfig.NPC_FACE.X, CheckpointConfig.NPC_FACE.Y, top)
+	local stand = CFrame.lookAt(here, face)
+	local ring = Instance.new("Part")
+	ring.Name = "Ring"
+	ring.Shape = Enum.PartType.Cylinder
+	ring.Size = Vector3.new(0.3, 9, 9)
+	ring.CFrame = stand * CFrame.new(0, 0.15, 0) * CFrame.Angles(0, 0, math.rad(90))
+	ring.Color = Color3.fromRGB(190, 90, 255)
+	ring.Material = Enum.Material.Neon
+	ring.Transparency = 0.3
+	ring.Anchored = true
+	ring.CanCollide = false
+	ring.CanTouch = false
+	ring.CanQuery = false
+	ring.Parent = npc
+	-- Only the server can build a rig from a description; anywhere else the ring and prompt still work.
+	local ok, rig = pcall(function()
+		return Players:CreateHumanoidModelFromDescription(Instance.new("HumanoidDescription"), Enum.HumanoidRigType.R15)
+	end)
+	if ok and rig then
+		rig.Name = "Rig"
+		for _, part in rig:GetDescendants() do
+			if part:IsA("BasePart") then
+				part.Anchored = true
+				part.CanCollide = false
+			end
+		end
+		local humanoid = rig:FindFirstChildOfClass("Humanoid")
+		humanoid.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
+		rig:PivotTo(stand * CFrame.new(0, 0.3 + humanoid.HipHeight + rig.PrimaryPart.Size.Y / 2, 0))
+		rig.Parent = npc
+	end
+	local anchor = Instance.new("Part")
+	anchor.Name = "PromptAnchor"
+	anchor.Size = Vector3.new(1, 1, 1)
+	anchor.CFrame = stand * CFrame.new(0, 3, 0)
+	anchor.Transparency = 1
+	anchor.Anchored = true
+	anchor.CanCollide = false
+	anchor.CanTouch = false
+	anchor.Parent = npc
+	local open = Instance.new("ProximityPrompt")
+	open.Name = "OpenCheckpoints"
+	open.ActionText = "Checkpoints"
+	open.ObjectText = "Choose your start"
+	open.KeyboardKeyCode = Enum.KeyCode.E
+	open.HoldDuration = 0
+	open.MaxActivationDistance = CheckpointConfig.PROMPT_DISTANCE
+	open.RequiresLineOfSight = false
+	open.Parent = anchor
+	local title = Instance.new("BillboardGui")
+	title.Name = "Title"
+	title.Size = UDim2.fromScale(10, 2.4)
+	title.StudsOffset = Vector3.new(0, 4.2, 0)
+	title.MaxDistance = CheckpointConfig.TEXT_DISTANCE
+	title.Parent = anchor
+	for i, line in
+		{
+			{ "Name", "Checkpoints", Color3.new(1, 1, 1) },
+			{ "Sub", "Choose your start", Color3.fromRGB(200, 140, 255) },
+		}
+	do
+		local label = Instance.new("TextLabel")
+		label.Name = line[1]
+		label.BackgroundTransparency = 1
+		label.Position = UDim2.fromScale(0, (i - 1) * 0.58)
+		label.Size = UDim2.fromScale(1, i == 1 and 0.58 or 0.42)
+		label.Font = Enum.Font.FredokaOne
+		label.TextScaled = true
+		label.Text = line[2]
+		label.TextColor3 = line[3]
+		label.TextStrokeTransparency = 0
+		label.Parent = title
+	end
+	npc.PrimaryPart = anchor
+	npc.Parent = model
 	return model
 end
 

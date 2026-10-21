@@ -55,13 +55,13 @@
     "files": "RaceService, PathDriver, RaceConfig, CarPhysics, Tracks"
   },
   "flip_recovery": {
-    "checks": "A car put upside down mid-race is set upright back on the path in time and keeps racing.",
-    "why": "Safety net: a stuck car would end the idle loop.",
-    "limits": "race.FlipRecoverySeconds 3",
-    "files": "RaceService (FLIP_UP_Y, FLIP_SECONDS)"
+    "checks": "A car put upside down mid-race is set upright back on the path in time and keeps racing. Fall guard (owner 2026-10-20): a racing car moved 30 studs below the road or 40 above it is back on the path within race.RailFallRecoverySeconds, never drops below the map and keeps racing upright; the fastest catalog car (2800x, cruise x(1 + log2 2800)) at stat 200 x HALF_STAT (cruise at least the ~587 studs/s it was written at) drives the whole track within race.MaxPathDeviation, upright, never below the map.",
+    "why": "Safety net: a stuck car would end the idle loop, and fast cars used to fall out of the map.",
+    "limits": "race.FlipRecoverySeconds 3, race.RailFallRecoverySeconds 0.25, race.MaxPathDeviation 5, lap.MinUpYStrict 0.9",
+    "files": "RaceService (FLIP_UP_Y, FLIP_SECONDS, RAIL_FALL_HEIGHT), RaceConfig.SpeedFor"
   },
   "economy": {
-    "checks": "RaceConfig maths: SpeedFor rises from BASE_SPEED towards MAX_SPEED with diminishing returns; GainPerSecond is GAIN_PER_STUD x actual speed at every stat (owner 2026-10-13: the stat never reduces it, GAIN_SOFT removed), so the gain at cruise speed rises with the stat; every doubling of a high stat adds (MAX_SPEED - BASE_SPEED) / 2 studs/s of cruise speed.",
+    "checks": "RaceConfig maths: SpeedFor rises from BASE_SPEED towards MAX_SPEED with diminishing returns; GainPerSecond is GAIN_PER_STUD x actual speed at every stat (owner 2026-10-13: the stat never reduces it, GAIN_SOFT removed), so the gain at cruise speed rises with the stat; every doubling of a high stat adds (MAX_SPEED - BASE_SPEED) / 2 studs/s of cruise speed. Owner 2026-10-20 constants (much harsher progression): BASE_SPEED 12, MAX_SPEED 22, HALF_STAT 5000, GAIN_PER_STUD 0.01, MAX_STAT 1e9. A car multi m > 1 counts as 1 + log2(m) on the cruise speed (2x stays exactly 2x, SpeedFor(0, 2) = 24, SpeedFor(0, 2800) = 12 x (1 + log2 2800)), strictly increasing in m; m <= 1 stays linear and bad multis count as 1.",
     "why": "Balancing numbers in one place, tested as pure functions.",
     "limits": "RaceConfig constants",
     "files": "Shared/RaceConfig"
@@ -103,7 +103,7 @@
     "files": "Server/GachaService, RaceService, MoneyService"
   },
   "npc": {
-    "checks": "Each track's NPC drives the left lane as pure maths; win if you finish before it, lose plays out then resets to Track 1; a loss empties the bank.",
+    "checks": "Each track's NPC drives the left lane as pure maths and is faster than a stat-0 car even on Track 1; it wears a catalog car skin and a NPC RIVAL label; win if you finish before it, lose plays out then resets to Track 1; a loss empties the bank.",
     "why": "The race against the NPC is the game's challenge.",
     "limits": "NpcConfig",
     "files": "Shared/NpcRacer, Shared/NpcConfig, RaceService"
@@ -353,5 +353,47 @@
     "why": "docs/BIOME_DRESSING_SPEC.md Acceptance: scenery is visual only and never blocks or clips the road.",
     "limits": "CLEARANCE 8, BUDGET 400 (placeholders in BiomeDressing), gate within 60 studs of Start, 0.05 stud overlap tolerance, CFrame 1e-3, mesh sizes 1e-3, ground top 1e-3",
     "files": "Shared/BiomeDressing, Shared/BiomeThemes, Tracks/*, TrackBuilder, SpawnArea, Shared/BiomeMeshData, BiomeMeshCodec, BiomeMeshAssets"
+  },
+  "car_expansion": {
+    "checks": "The 100 expansion cars: exact ids, rarity counts (8 Secrets), one catch-all, unique chances/orders, chance and speed bands, every model resolves and passes skin size, collision and massless rules, seeded rolls never nil.",
+    "why": "The 100-car catalog must be valid and safe to roll, display and save.",
+    "limits": "docs/CAR_EXPANSION_SPEC.md bands",
+    "files": "CarExpansionManifest, Cars/*, DraftCarModels, ExpansionCarModels"
+  },
+  "car_redesign": {
+    "checks": "Every catalog car except starter and ember_wyvern (111) has a redesign; every delivered redesign wins in CarModels with Redesign = true, is MeshParts with a MeshId, non-colliding/non-touch/non-query/massless, fits |x| <= 1.95, |z| <= 3.3, y >= 0, uses only material-group part names (Body/Trim/Accent/Glass/Metal/Light plus an optional number) with all four Wheel_* or none, Light* parts are Neon, Glass* Glass, Metal* Metal, Singularity has a neon-gold Light part, is applied without the catalog Tint, and midnight_kart / golden_racer / rain_runner use their own model.",
+    "why": "Redesigned car skins must look like their reference and never touch physics, collisions or the size budget.",
+    "limits": "docs/CAR_REDESIGN_SPEC.md sections 2, 4, 5, 7",
+    "files": "RedesignCarModels, DraftCarModels, CarAppearance, Cars/*"
+  },
+  "gifting": {
+    "checks": "Gift flow: invalid recipient/product/self-gift rejected, cooldown, one pending gift per sender, receipt routed to the recorded recipient, exactly-once grant.",
+    "why": "Robux gifts must reach the right player once and never be granted from client input.",
+    "limits": "docs/PANEL_ART_GIFTING_SPEC.md",
+    "files": "GiftService, ShopService, GiftPicker"
+  },
+  "gift_mailbox": {
+    "checks": "Durable mailbox: offline delivery on next join, atomic profile merge, duplicate receipts and save-failure retries never double-grant, invalid grants (aliases, non-integers) rejected.",
+    "why": "Gifts to players who left must not be lost or duplicated.",
+    "limits": "SAVE_SPEC VERSION 10",
+    "files": "GiftMailbox, PlayerData"
+  },
+  "ui_backpack_cars": {
+    "checks": "Backpack has four tabs (Misc, Trails, Auras, Cars) without overlap at desktop and phone landscape; Cars shows exactly the owned cars, least rare first, each with its model, name and speed multi; equipped car has a green border; clicking equips.",
+    "why": "Owner 2026-10-20: owned cars in the Backpack.",
+    "limits": "HUD_LAYOUT_SPEC section 3",
+    "files": "BackpackUi, RacerComponents"
+  },
+  "ui_car_icons": {
+    "checks": "Every catalog car has a model template; every Index tile shows its car's own model in a ViewportFrame; undiscovered tiles are black silhouettes.",
+    "why": "No shared fallback icons in the Index.",
+    "limits": "CAR_EXPANSION_SPEC 'Car icons'",
+    "files": "RacerComponents, RacerUiController"
+  },
+  "vehicle_effects": {
+    "checks": "On a fake player's real auto-racing car: Market equip of void_trail builds MarketEffects (Trail=void_trail) with void_trailCore/EdgeL/EdgeR on chassis attachments (non-zero width, FaceCamera false, Enabled) and the Motes/Smoke emitters (Rate > 0); no BasePart added, mass unchanged (1e-6), same run drives the car; over 3 s the chassis moves > 20 studs with every attachment riding on it and up-vector Y >= MinUpYStrict; skin replacement and Stop/Start respawn re-apply it and keep EquippedTrail; unequip clears every effect.",
+    "why": "Cosmetic trails must look right in motion without touching physics, controls or the server-owned equip attributes.",
+    "limits": "docs/PANEL_ART_GIFTING_SPEC.md; GAME_DESIGN_REQUIREMENTS.md cosmetic profiles; PhysicsTargets.lap.MinUpYStrict",
+    "files": "VehicleEffects, CarService, MarketService, CarAppearance"
   }
 }

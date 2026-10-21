@@ -1,0 +1,1727 @@
+[
+  {
+    "name": "Floor",
+    "pos": [
+      0,
+      0.42,
+      0.1
+    ],
+    "size": [
+      3.1,
+      0.16,
+      5.8
+    ],
+    "color": [
+      0.09,
+      0.09,
+      0.11
+    ],
+    "shape": "Block",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "Body",
+    "pos": [
+      0,
+      0.64,
+      0.15
+    ],
+    "size": [
+      3.3,
+      0.28,
+      5.3
+    ],
+    "color": [
+      0.03,
+      0.03,
+      0.05
+    ],
+    "shape": "Block",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "NoseTip",
+    "pos": [
+      0,
+      0.64,
+      -2.75
+    ],
+    "size": [
+      3.1,
+      0.28,
+      0.5
+    ],
+    "color": [
+      0.03,
+      0.03,
+      0.05
+    ],
+    "shape": "Wedge",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "Nose",
+    "pos": [
+      0,
+      0.93,
+      -1.95
+    ],
+    "size": [
+      3.1,
+      0.3,
+      1.5
+    ],
+    "color": [
+      0.03,
+      0.03,
+      0.05
+    ],
+    "shape": "Wedge",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "Splitter",
+    "pos": [
+      0,
+      0.46,
+      -2.95
+    ],
+    "size": [
+      3.3,
+      0.08,
+      0.5
+    ],
+    "color": [
+      0.09,
+      0.09,
+      0.11
+    ],
+    "shape": "Wedge",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      180,
+      0
+    ]
+  },
+  {
+    "name": "SplitterLip",
+    "pos": [
+      0,
+      0.42,
+      -3.17
+    ],
+    "size": [
+      3.1,
+      0.03,
+      0.05
+    ],
+    "color": [
+      1,
+      0.5,
+      0.1
+    ],
+    "shape": "Block",
+    "material": "Neon",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "BodyUpper",
+    "pos": [
+      0,
+      0.93,
+      0.35
+    ],
+    "size": [
+      2.3,
+      0.3,
+      2.1
+    ],
+    "color": [
+      0.03,
+      0.03,
+      0.05
+    ],
+    "shape": "Block",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "ShoulderL",
+    "pos": [
+      -1.4,
+      0.93,
+      0.35
+    ],
+    "size": [
+      2.1,
+      0.3,
+      0.5
+    ],
+    "color": [
+      0.03,
+      0.03,
+      0.05
+    ],
+    "shape": "Wedge",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      90,
+      0
+    ]
+  },
+  {
+    "name": "HaunchL",
+    "pos": [
+      -1.38,
+      1.02,
+      2.05
+    ],
+    "size": [
+      0.55,
+      0.48,
+      1.3
+    ],
+    "color": [
+      0.03,
+      0.03,
+      0.05
+    ],
+    "shape": "Block",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "HaunchRampL",
+    "pos": [
+      -1.38,
+      1.02,
+      1.05
+    ],
+    "size": [
+      0.55,
+      0.48,
+      0.7
+    ],
+    "color": [
+      0.03,
+      0.03,
+      0.05
+    ],
+    "shape": "Wedge",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      180,
+      0
+    ]
+  },
+  {
+    "name": "IntakeL",
+    "pos": [
+      -1.66,
+      0.8,
+      0.9
+    ],
+    "size": [
+      0.04,
+      0.26,
+      1.1
+    ],
+    "color": [
+      0.09,
+      0.09,
+      0.11
+    ],
+    "shape": "Block",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "IntakeGlowL",
+    "pos": [
+      -1.67,
+      0.74,
+      0.95
+    ],
+    "size": [
+      0.03,
+      0.05,
+      0.9
+    ],
+    "color": [
+      1,
+      0.5,
+      0.1
+    ],
+    "shape": "Block",
+    "material": "Neon",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "HeadlampL",
+    "pos": [
+      -1.0,
+      0.84,
+      -2.35
+    ],
+    "size": [
+      0.75,
+      0.05,
+      0.1
+    ],
+    "color": [
+      0.72,
+      0.88,
+      1
+    ],
+    "shape": "Block",
+    "material": "Neon",
+    "rotation": [
+      0,
+      14,
+      0
+    ]
+  },
+  {
+    "name": "DRLL",
+    "pos": [
+      -1.38,
+      0.74,
+      -2.55
+    ],
+    "size": [
+      0.06,
+      0.16,
+      0.4
+    ],
+    "color": [
+      0.72,
+      0.88,
+      1
+    ],
+    "shape": "Block",
+    "material": "Neon",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "MirrorL",
+    "pos": [
+      -1.02,
+      1.36,
+      -0.85
+    ],
+    "size": [
+      0.32,
+      0.1,
+      0.2
+    ],
+    "color": [
+      0.03,
+      0.03,
+      0.05
+    ],
+    "shape": "Wedge",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "Wheel_FL",
+    "pos": [
+      -1.5,
+      0.5,
+      -1.95
+    ],
+    "size": [
+      0.46,
+      1.0,
+      1.0
+    ],
+    "color": [
+      0.03,
+      0.03,
+      0.05
+    ],
+    "shape": "Cylinder",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "Wheel_FLRim",
+    "pos": [
+      -1.74,
+      0.5,
+      -1.95
+    ],
+    "size": [
+      0.03,
+      0.75,
+      0.75
+    ],
+    "color": [
+      1,
+      0.5,
+      0.1
+    ],
+    "shape": "Cylinder",
+    "material": "Neon",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "Wheel_FLHub",
+    "pos": [
+      -1.76,
+      0.5,
+      -1.95
+    ],
+    "size": [
+      0.03,
+      0.3,
+      0.3
+    ],
+    "color": [
+      0.55,
+      0.58,
+      0.64
+    ],
+    "shape": "Cylinder",
+    "material": "Metal",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "ArchWheel_FL",
+    "pos": [
+      -1.5,
+      1.08,
+      -1.95
+    ],
+    "size": [
+      0.58,
+      0.12,
+      1.15
+    ],
+    "color": [
+      0.09,
+      0.09,
+      0.11
+    ],
+    "shape": "Block",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "Wheel_RL",
+    "pos": [
+      -1.5,
+      0.56,
+      1.95
+    ],
+    "size": [
+      0.46,
+      1.12,
+      1.12
+    ],
+    "color": [
+      0.03,
+      0.03,
+      0.05
+    ],
+    "shape": "Cylinder",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "Wheel_RLRim",
+    "pos": [
+      -1.74,
+      0.56,
+      1.95
+    ],
+    "size": [
+      0.03,
+      0.8400000000000001,
+      0.8400000000000001
+    ],
+    "color": [
+      1,
+      0.5,
+      0.1
+    ],
+    "shape": "Cylinder",
+    "material": "Neon",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "Wheel_RLHub",
+    "pos": [
+      -1.76,
+      0.56,
+      1.95
+    ],
+    "size": [
+      0.03,
+      0.336,
+      0.336
+    ],
+    "color": [
+      0.55,
+      0.58,
+      0.64
+    ],
+    "shape": "Cylinder",
+    "material": "Metal",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "ArchWheel_RL",
+    "pos": [
+      -1.5,
+      1.2000000000000002,
+      1.95
+    ],
+    "size": [
+      0.58,
+      0.12,
+      1.288
+    ],
+    "color": [
+      0.09,
+      0.09,
+      0.11
+    ],
+    "shape": "Block",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "ShoulderR",
+    "pos": [
+      1.4,
+      0.93,
+      0.35
+    ],
+    "size": [
+      2.1,
+      0.3,
+      0.5
+    ],
+    "color": [
+      0.03,
+      0.03,
+      0.05
+    ],
+    "shape": "Wedge",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      -90,
+      0
+    ]
+  },
+  {
+    "name": "HaunchR",
+    "pos": [
+      1.38,
+      1.02,
+      2.05
+    ],
+    "size": [
+      0.55,
+      0.48,
+      1.3
+    ],
+    "color": [
+      0.03,
+      0.03,
+      0.05
+    ],
+    "shape": "Block",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "HaunchRampR",
+    "pos": [
+      1.38,
+      1.02,
+      1.05
+    ],
+    "size": [
+      0.55,
+      0.48,
+      0.7
+    ],
+    "color": [
+      0.03,
+      0.03,
+      0.05
+    ],
+    "shape": "Wedge",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      180,
+      0
+    ]
+  },
+  {
+    "name": "IntakeR",
+    "pos": [
+      1.66,
+      0.8,
+      0.9
+    ],
+    "size": [
+      0.04,
+      0.26,
+      1.1
+    ],
+    "color": [
+      0.09,
+      0.09,
+      0.11
+    ],
+    "shape": "Block",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "IntakeGlowR",
+    "pos": [
+      1.67,
+      0.74,
+      0.95
+    ],
+    "size": [
+      0.03,
+      0.05,
+      0.9
+    ],
+    "color": [
+      1,
+      0.5,
+      0.1
+    ],
+    "shape": "Block",
+    "material": "Neon",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "HeadlampR",
+    "pos": [
+      1.0,
+      0.84,
+      -2.35
+    ],
+    "size": [
+      0.75,
+      0.05,
+      0.1
+    ],
+    "color": [
+      0.72,
+      0.88,
+      1
+    ],
+    "shape": "Block",
+    "material": "Neon",
+    "rotation": [
+      0,
+      -14,
+      0
+    ]
+  },
+  {
+    "name": "DRLR",
+    "pos": [
+      1.38,
+      0.74,
+      -2.55
+    ],
+    "size": [
+      0.06,
+      0.16,
+      0.4
+    ],
+    "color": [
+      0.72,
+      0.88,
+      1
+    ],
+    "shape": "Block",
+    "material": "Neon",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "MirrorR",
+    "pos": [
+      1.02,
+      1.36,
+      -0.85
+    ],
+    "size": [
+      0.32,
+      0.1,
+      0.2
+    ],
+    "color": [
+      0.03,
+      0.03,
+      0.05
+    ],
+    "shape": "Wedge",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "Wheel_FR",
+    "pos": [
+      1.5,
+      0.5,
+      -1.95
+    ],
+    "size": [
+      0.46,
+      1.0,
+      1.0
+    ],
+    "color": [
+      0.03,
+      0.03,
+      0.05
+    ],
+    "shape": "Cylinder",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "Wheel_FRRim",
+    "pos": [
+      1.74,
+      0.5,
+      -1.95
+    ],
+    "size": [
+      0.03,
+      0.75,
+      0.75
+    ],
+    "color": [
+      1,
+      0.5,
+      0.1
+    ],
+    "shape": "Cylinder",
+    "material": "Neon",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "Wheel_FRHub",
+    "pos": [
+      1.76,
+      0.5,
+      -1.95
+    ],
+    "size": [
+      0.03,
+      0.3,
+      0.3
+    ],
+    "color": [
+      0.55,
+      0.58,
+      0.64
+    ],
+    "shape": "Cylinder",
+    "material": "Metal",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "ArchWheel_FR",
+    "pos": [
+      1.5,
+      1.08,
+      -1.95
+    ],
+    "size": [
+      0.58,
+      0.12,
+      1.15
+    ],
+    "color": [
+      0.09,
+      0.09,
+      0.11
+    ],
+    "shape": "Block",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "Wheel_RR",
+    "pos": [
+      1.5,
+      0.56,
+      1.95
+    ],
+    "size": [
+      0.46,
+      1.12,
+      1.12
+    ],
+    "color": [
+      0.03,
+      0.03,
+      0.05
+    ],
+    "shape": "Cylinder",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "Wheel_RRRim",
+    "pos": [
+      1.74,
+      0.56,
+      1.95
+    ],
+    "size": [
+      0.03,
+      0.8400000000000001,
+      0.8400000000000001
+    ],
+    "color": [
+      1,
+      0.5,
+      0.1
+    ],
+    "shape": "Cylinder",
+    "material": "Neon",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "Wheel_RRHub",
+    "pos": [
+      1.76,
+      0.56,
+      1.95
+    ],
+    "size": [
+      0.03,
+      0.336,
+      0.336
+    ],
+    "color": [
+      0.55,
+      0.58,
+      0.64
+    ],
+    "shape": "Cylinder",
+    "material": "Metal",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "ArchWheel_RR",
+    "pos": [
+      1.5,
+      1.2000000000000002,
+      1.95
+    ],
+    "size": [
+      0.58,
+      0.12,
+      1.288
+    ],
+    "color": [
+      0.09,
+      0.09,
+      0.11
+    ],
+    "shape": "Block",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "Cabin",
+    "pos": [
+      0,
+      1.28,
+      -0.05
+    ],
+    "size": [
+      1.3,
+      0.4,
+      1.3
+    ],
+    "color": [
+      0.08,
+      0.1,
+      0.18
+    ],
+    "shape": "Block",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "Windshield",
+    "pos": [
+      0,
+      1.28,
+      -1.25
+    ],
+    "size": [
+      1.9,
+      0.4,
+      1.1
+    ],
+    "color": [
+      0.08,
+      0.1,
+      0.18
+    ],
+    "shape": "Wedge",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "RearWindow",
+    "pos": [
+      0,
+      1.28,
+      0.85
+    ],
+    "size": [
+      1.9,
+      0.4,
+      0.5
+    ],
+    "color": [
+      0.08,
+      0.1,
+      0.18
+    ],
+    "shape": "Wedge",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      180,
+      0
+    ]
+  },
+  {
+    "name": "CabinSideL",
+    "pos": [
+      -0.8,
+      1.28,
+      -0.05
+    ],
+    "size": [
+      1.3,
+      0.4,
+      0.3
+    ],
+    "color": [
+      0.08,
+      0.1,
+      0.18
+    ],
+    "shape": "Wedge",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      90,
+      0
+    ]
+  },
+  {
+    "name": "CabinSideR",
+    "pos": [
+      0.8,
+      1.28,
+      -0.05
+    ],
+    "size": [
+      1.3,
+      0.4,
+      0.3
+    ],
+    "color": [
+      0.08,
+      0.1,
+      0.18
+    ],
+    "shape": "Wedge",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      -90,
+      0
+    ]
+  },
+  {
+    "name": "Roof",
+    "pos": [
+      0,
+      1.52,
+      -0.05
+    ],
+    "size": [
+      1.3,
+      0.08,
+      1.2
+    ],
+    "color": [
+      0.03,
+      0.03,
+      0.05
+    ],
+    "shape": "Block",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "RoofSpine",
+    "pos": [
+      0,
+      1.57,
+      0.2
+    ],
+    "size": [
+      0.14,
+      0.04,
+      1.6
+    ],
+    "color": [
+      1,
+      0.5,
+      0.1
+    ],
+    "shape": "Block",
+    "material": "Neon",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "EngineDeck",
+    "pos": [
+      0,
+      1.0,
+      2.25
+    ],
+    "size": [
+      2.2,
+      0.44,
+      1.7
+    ],
+    "color": [
+      0.03,
+      0.03,
+      0.05
+    ],
+    "shape": "Wedge",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      180,
+      0
+    ]
+  },
+  {
+    "name": "Core",
+    "pos": [
+      0,
+      1.5,
+      1.75
+    ],
+    "size": [
+      0.55,
+      0.55,
+      0.55
+    ],
+    "color": [
+      0,
+      0,
+      0
+    ],
+    "shape": "Ball",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "Disc",
+    "pos": [
+      0,
+      1.5,
+      1.75
+    ],
+    "size": [
+      0.04,
+      1.1,
+      1.1
+    ],
+    "color": [
+      1,
+      0.5,
+      0.1
+    ],
+    "shape": "Cylinder",
+    "material": "Neon",
+    "rotation": [
+      0,
+      0,
+      14
+    ]
+  },
+  {
+    "name": "Halo",
+    "pos": [
+      0,
+      1.5,
+      1.75
+    ],
+    "size": [
+      0.03,
+      0.8,
+      0.8
+    ],
+    "color": [
+      0.72,
+      0.88,
+      1
+    ],
+    "shape": "Cylinder",
+    "material": "Neon",
+    "rotation": [
+      0,
+      0,
+      -24
+    ]
+  },
+  {
+    "name": "EngineSlat0",
+    "pos": [
+      -0.6,
+      1.25,
+      2.6
+    ],
+    "size": [
+      0.06,
+      0.03,
+      0.7
+    ],
+    "color": [
+      0.09,
+      0.09,
+      0.11
+    ],
+    "shape": "Block",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "EngineSlat1",
+    "pos": [
+      -0.3,
+      1.25,
+      2.6
+    ],
+    "size": [
+      0.06,
+      0.03,
+      0.7
+    ],
+    "color": [
+      0.09,
+      0.09,
+      0.11
+    ],
+    "shape": "Block",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "EngineSlat2",
+    "pos": [
+      0.0,
+      1.25,
+      2.6
+    ],
+    "size": [
+      0.06,
+      0.03,
+      0.7
+    ],
+    "color": [
+      0.09,
+      0.09,
+      0.11
+    ],
+    "shape": "Block",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "EngineSlat3",
+    "pos": [
+      0.29999999999999993,
+      1.25,
+      2.6
+    ],
+    "size": [
+      0.06,
+      0.03,
+      0.7
+    ],
+    "color": [
+      0.09,
+      0.09,
+      0.11
+    ],
+    "shape": "Block",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "EngineSlat4",
+    "pos": [
+      0.6,
+      1.25,
+      2.6
+    ],
+    "size": [
+      0.06,
+      0.03,
+      0.7
+    ],
+    "color": [
+      0.09,
+      0.09,
+      0.11
+    ],
+    "shape": "Block",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "WingPost-1",
+    "pos": [
+      -0.7,
+      1.5,
+      2.85
+    ],
+    "size": [
+      0.08,
+      0.55,
+      0.2
+    ],
+    "color": [
+      0.09,
+      0.09,
+      0.11
+    ],
+    "shape": "Block",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "Endplate-1",
+    "pos": [
+      -1.77,
+      1.72,
+      2.85
+    ],
+    "size": [
+      0.05,
+      0.4,
+      0.7
+    ],
+    "color": [
+      0.03,
+      0.03,
+      0.05
+    ],
+    "shape": "Wedge",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      180,
+      0
+    ]
+  },
+  {
+    "name": "WingPost1",
+    "pos": [
+      0.7,
+      1.5,
+      2.85
+    ],
+    "size": [
+      0.08,
+      0.55,
+      0.2
+    ],
+    "color": [
+      0.09,
+      0.09,
+      0.11
+    ],
+    "shape": "Block",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "Endplate1",
+    "pos": [
+      1.77,
+      1.72,
+      2.85
+    ],
+    "size": [
+      0.05,
+      0.4,
+      0.7
+    ],
+    "color": [
+      0.03,
+      0.03,
+      0.05
+    ],
+    "shape": "Wedge",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      180,
+      0
+    ]
+  },
+  {
+    "name": "Wing",
+    "pos": [
+      0,
+      1.8,
+      2.85
+    ],
+    "size": [
+      3.55,
+      0.07,
+      0.6
+    ],
+    "color": [
+      0.03,
+      0.03,
+      0.05
+    ],
+    "shape": "Block",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "WingEdge",
+    "pos": [
+      0,
+      1.84,
+      2.6
+    ],
+    "size": [
+      3.45,
+      0.02,
+      0.06
+    ],
+    "color": [
+      1,
+      0.5,
+      0.1
+    ],
+    "shape": "Block",
+    "material": "Neon",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "TailBlade",
+    "pos": [
+      0,
+      0.9,
+      2.92
+    ],
+    "size": [
+      3.0,
+      0.05,
+      0.06
+    ],
+    "color": [
+      1,
+      0.5,
+      0.1
+    ],
+    "shape": "Block",
+    "material": "Neon",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "DiffuserFin0",
+    "pos": [
+      -1.0,
+      0.45,
+      2.75
+    ],
+    "size": [
+      0.04,
+      0.2,
+      0.7
+    ],
+    "color": [
+      0.09,
+      0.09,
+      0.11
+    ],
+    "shape": "Block",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "DiffuserFin1",
+    "pos": [
+      -0.6,
+      0.45,
+      2.75
+    ],
+    "size": [
+      0.04,
+      0.2,
+      0.7
+    ],
+    "color": [
+      0.09,
+      0.09,
+      0.11
+    ],
+    "shape": "Block",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "DiffuserFin2",
+    "pos": [
+      -0.19999999999999996,
+      0.45,
+      2.75
+    ],
+    "size": [
+      0.04,
+      0.2,
+      0.7
+    ],
+    "color": [
+      0.09,
+      0.09,
+      0.11
+    ],
+    "shape": "Block",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "DiffuserFin3",
+    "pos": [
+      0.20000000000000018,
+      0.45,
+      2.75
+    ],
+    "size": [
+      0.04,
+      0.2,
+      0.7
+    ],
+    "color": [
+      0.09,
+      0.09,
+      0.11
+    ],
+    "shape": "Block",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "DiffuserFin4",
+    "pos": [
+      0.6000000000000001,
+      0.45,
+      2.75
+    ],
+    "size": [
+      0.04,
+      0.2,
+      0.7
+    ],
+    "color": [
+      0.09,
+      0.09,
+      0.11
+    ],
+    "shape": "Block",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "DiffuserFin5",
+    "pos": [
+      1.0,
+      0.45,
+      2.75
+    ],
+    "size": [
+      0.04,
+      0.2,
+      0.7
+    ],
+    "color": [
+      0.09,
+      0.09,
+      0.11
+    ],
+    "shape": "Block",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "Exhaust",
+    "pos": [
+      0,
+      0.62,
+      2.85
+    ],
+    "size": [
+      0.5,
+      0.2,
+      0.2
+    ],
+    "color": [
+      0.55,
+      0.58,
+      0.64
+    ],
+    "shape": "Cylinder",
+    "material": "Metal",
+    "rotation": [
+      0,
+      90,
+      0
+    ]
+  }
+]

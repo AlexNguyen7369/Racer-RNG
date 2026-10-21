@@ -395,11 +395,17 @@ function Extras.Build(h)
 		local streak = math.clamp(attr("DailyStreak") or 0, 0, days)
 		local claimed = attr("DailyLast") == today()
 		for day = 1, days do
-			local row = content:FindFirstChild(DB.DayRow:format(day))
-			if not (row and row:IsA("TextLabel") and has(row.Text, DB.DayText:format(day))) then
+			local row = content:FindFirstChild("RewardCards")
+			row = row and row:FindFirstChild(DB.DayRow:format(day))
+			local label = row and row:FindFirstChild("Label")
+			if not (row and row:IsA("Frame") and label and has(label.Text, DB.DayText:format(day))) then
 				table.insert(bad, ("day %d: no row"):format(day))
-			elseif has(row.Text, DB.DoneMark) ~= (day <= streak) then
-				table.insert(bad, ("day %d: %q with DailyStreak %d"):format(day, row.Text, streak))
+			else
+				local completion = row:FindFirstChild("Completion")
+				local marked = completion and completion:IsA("TextLabel") and has(completion.Text, DB.DoneMark)
+				if marked ~= (day <= streak) then
+					table.insert(bad, ("day %d completion with DailyStreak %d"):format(day, streak))
+				end
 			end
 		end
 		local claim = content:FindFirstChild("Claim")

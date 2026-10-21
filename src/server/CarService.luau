@@ -278,6 +278,8 @@ local function spawnCar(player, character, gen, duel)
 	local start = spawnCFrame(index)
 	if duel then
 		start = RaceService.TrackStartCFrame(duel.Track) * CFrame.new(-DUEL_SLOT_GAP * ((duel.Slot or 1) - 1), 0, 0)
+	elseif RaceService.StartTrackFor(player) > 1 then
+		start = RaceService.TrackStartCFrame(RaceService.StartTrackFor(player)) or start -- checkpoint (CHECKPOINT_SPEC)
 	end
 	local car = CarFactory.build(CarConfig)
 	if duel then

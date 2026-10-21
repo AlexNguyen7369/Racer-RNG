@@ -53,7 +53,7 @@ attribute for testing; it disappears when the player leaves and multiplies norma
 | `/help` | Lists every command's usage. `true`. |
 | `/money <n> [target]` | `leaderstats.Money.Value = floor(n)`, n in [0, 1e15]; negative / junk -> `false`. |
 | `/addmoney <n> [target]` | Money += floor(n) (n may be negative; result clamped at 0). |
-| `/speed <n> [target]` | `leaderstats.Speed.Value` = n clamped to [0, `RaceConfig.MAX_STAT`], 3 decimals. |
+| `/speed <n> [target]` | `leaderstats.Speed.Value` = n clamped to >= 0 with no upper cap (owner 2026-10-20), 3 decimals. |
 | `/addspeed <n> [target]` | Speed += n, same clamp. |
 | `/resetspeed [target]` | Sets Speed to 0. |
 | `/givespeed <n> [target]` | Adds positive n to Speed, same clamp. |

@@ -100,12 +100,10 @@ local root = make("ScreenGui", "ShopUi", gui, {
 	DisplayOrder = 7,
 	ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
 })
-local backdrop = make("TextButton", "Backdrop", root, {
+local backdrop = make("Frame", "Backdrop", root, {
 	Size = UDim2.fromScale(1, 1),
-	Text = "",
-	AutoButtonColor = false,
 	BackgroundColor3 = Color3.fromRGB(8, 10, 22),
-	BackgroundTransparency = 0.35,
+	BackgroundTransparency = 1, -- the world dim is HudChrome/PanelDim, below the HUD
 	Visible = false,
 })
 PanelSwitch.Register("Shop", backdrop)
@@ -145,8 +143,8 @@ stroke(close, 3)
 caption("X", close, { Size = UDim2.fromScale(1, 1), Text = "X", TextSize = 30, ZIndex = 3 })
 
 local list = make("ScrollingFrame", "Items", panel, {
-	Position = UDim2.fromOffset(12, 36),
-	Size = UDim2.new(1, -24, 1, -46),
+	Position = UDim2.fromOffset(12, 76),
+	Size = UDim2.new(1, -24, 1, -88),
 	BackgroundTransparency = 1,
 	BorderSizePixel = 0,
 	ScrollBarThickness = 6,
@@ -214,6 +212,9 @@ local function buyButton(parent, kind, id, robuxPrice, props)
 		end
 	end)
 	button.Activated:Connect(function()
+		if button:GetAttribute("Owned") then
+			return -- an owned gamepass car's button equips it instead (Featured below)
+		end
 		if kind == "pass" then
 			MarketplaceService:PromptGamePassPurchase(player, id)
 		else
@@ -280,15 +281,27 @@ for order, car in catalog.Passes() do
 		Position = UDim2.new(0.5, 0, 1, -10),
 		Size = UDim2.fromScale(0.56, 0.2),
 	})
+	-- Owned (bought, or an admin): the button equips the car through the same validated EquipCar remote.
 	local function owned()
 		if player:GetAttribute("Pass_" .. car.Id) == true then
-			buy.Price.Text = "Owned"
+			local equipped = player:GetAttribute("EquippedCar") == car.Id
+			buy:SetAttribute("Owned", true)
+			buy.Price.Text = equipped and "Equipped" or "Equip"
 			buy.Robux.Visible = false
-			buy.Active = false
+			if buy:FindFirstChild("Soon") then
+				buy.Soon.Visible = false
+			end
+			buy.Active = not equipped
 		end
 	end
 	owned()
 	player:GetAttributeChangedSignal("Pass_" .. car.Id):Connect(owned)
+	player:GetAttributeChangedSignal("EquippedCar"):Connect(owned)
+	buy.Activated:Connect(function()
+		if buy:GetAttribute("Owned") and player:GetAttribute("EquippedCar") ~= car.Id then
+			ReplicatedStorage.Remotes.EquipCar:FireServer(car.Id)
+		end
+	end)
 end
 
 -- 2. Gamepasses grid.
@@ -586,12 +599,84 @@ make("TextLabel", "Thanks", list, {
 })
 
 -- The HudChrome Shop tile opens it (PanelSwitch.Toggle("Shop")).
+local openGift = require(script.Parent:WaitForChild("GiftPicker")).Create(panel, list, backdrop)
+local function giftButton(box, product, reason)
+	local enabled = product and (product.GiftProductId or 0) > 0 and (product.ProductId or 0) > 0
+	local buy = box:FindFirstChild("Buy")
+	if not buy then
+		return
+	end
+	local bundle = box.Name == "Bundle"
+	buy.AnchorPoint = Vector2.new(0, 1)
+	buy.Position = bundle and UDim2.new(0.62, 0, 1, -42) or UDim2.new(0.04, 0, 1, -28)
+	buy.Size = bundle and UDim2.fromScale(0.34, 0.25) or UDim2.fromScale(0.51, 0.2)
+	local gift = make("TextButton", "Gift", box, {
+		AnchorPoint = Vector2.new(1, 1),
+		Position = bundle and UDim2.new(1, -8, 1, -6) or UDim2.new(0.96, 0, 1, -28),
+		Size = bundle and UDim2.new(0.34, -8, 0, 30) or UDim2.fromScale(0.37, 0.2),
+		Text = "Gift",
+		Font = Enum.Font.FredokaOne,
+		TextSize = 18,
+		TextColor3 = Color3.new(1, 1, 1),
+		BackgroundColor3 = Color3.fromRGB(130, 75, 190),
+		BackgroundTransparency = enabled and 0 or 0.45,
+		Active = enabled == true,
+		AutoButtonColor = enabled == true,
+	})
+	corner(gift, 8)
+	if not enabled then
+		local note = make("TextLabel", "GiftReason", box, {
+			AnchorPoint = Vector2.new(0, 1),
+			Position = bundle and UDim2.new(0, 6, 1, -2) or UDim2.new(0, 4, 1, -4),
+			Size = bundle and UDim2.new(0.6, -12, 0, 18) or UDim2.new(1, -8, 0, 18),
+			Text = reason or "Gift unavailable • coming soon",
+			BackgroundTransparency = 1,
+			Font = Enum.Font.GothamBold,
+			TextSize = 10,
+			TextColor3 = OUTLINE,
+			TextScaled = true,
+		})
+		make("UITextSizeConstraint", "Max", note, { MaxTextSize = 11 })
+	end
+	gift.Activated:Connect(function()
+		if enabled then
+			openGift(product)
+		end
+	end)
+end
+for _, car in catalog.Passes() do
+	giftButton(featuredRow[car.Id], nil, "Account-bound • no gifting")
+end
+for _, pass in config.Gamepasses do
+	giftButton(grid[pass.Id], nil, "Account-bound • no gifting")
+end
+for _, product in config.Products do
+	if product.Section == "Potions" then
+		giftButton(packRow[product.Id], product)
+	elseif product.Section == "Bundle" then
+		giftButton(potions.Bundle, product)
+	elseif product.Section == "ServerLuck" then
+		giftButton(tiers[product.Id], nil, "Server-wide • no gifting")
+	end
+end
 close.Activated:Connect(function()
 	PanelSwitch.Close("Shop")
 end)
-backdrop.Activated:Connect(function()
+require(script.Parent:WaitForChild("PanelFrame")).CloseOnOutsideClick(backdrop, function()
 	PanelSwitch.Close("Shop")
 end)
 
 -- Opens in the shared band between the HUD entries (docs/HUD_LAYOUT_SPEC.md section 6).
-require(script.Parent:WaitForChild("PanelBand")).Fit(panel, 900)
+require(script.Parent:WaitForChild("PanelFrame")).Attach(panel, {
+	Theme = "Shop",
+	Title = "Shop",
+	Icon = Icons.Shop.Image,
+	TitleObject = title,
+	Close = close,
+	MaxWidth = 900,
+})
+panel:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+	local columns = panel.AbsoluteSize.X < 560 and 2 or 3
+	grid.Layout.CellSize = UDim2.new(1 / columns, -11, 0, 196)
+	packRow.Layout.CellSize = UDim2.new(1 / columns, -11, 0, 196)
+end)

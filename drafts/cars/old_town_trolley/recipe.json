@@ -1,0 +1,1752 @@
+[
+  {
+    "name": "Sill",
+    "pos": [
+      0,
+      0.55,
+      0
+    ],
+    "size": [
+      2.6999999999999997,
+      0.24,
+      4.8
+    ],
+    "color": [
+      0.09,
+      0.1,
+      0.15
+    ],
+    "shape": "Block",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "Body",
+    "pos": [
+      0,
+      0.67,
+      0
+    ],
+    "size": [
+      2.6999999999999997,
+      0.3,
+      5.0
+    ],
+    "color": [
+      0.4324,
+      0.92,
+      0.3128
+    ],
+    "shape": "Block",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "BodyUpper",
+    "pos": [
+      0,
+      0.99,
+      0.09999999999999992
+    ],
+    "size": [
+      2.3,
+      0.34,
+      3.3999999999999995
+    ],
+    "color": [
+      0.4324,
+      0.92,
+      0.3128
+    ],
+    "shape": "Block",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "ShoulderL",
+    "pos": [
+      -1.2499999999999998,
+      0.99,
+      0.09999999999999992
+    ],
+    "size": [
+      3.3999999999999995,
+      0.34,
+      0.2
+    ],
+    "color": [
+      0.4324,
+      0.92,
+      0.3128
+    ],
+    "shape": "Wedge",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      90,
+      0
+    ]
+  },
+  {
+    "name": "ShoulderR",
+    "pos": [
+      1.2499999999999998,
+      0.99,
+      0.09999999999999992
+    ],
+    "size": [
+      3.3999999999999995,
+      0.34,
+      0.2
+    ],
+    "color": [
+      0.4324,
+      0.92,
+      0.3128
+    ],
+    "shape": "Wedge",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      -90,
+      0
+    ]
+  },
+  {
+    "name": "Nose",
+    "pos": [
+      0,
+      0.99,
+      -2.05
+    ],
+    "size": [
+      2.6999999999999997,
+      0.34,
+      0.8999999999999999
+    ],
+    "color": [
+      0.4324,
+      0.92,
+      0.3128
+    ],
+    "shape": "Wedge",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "Tail",
+    "pos": [
+      0,
+      0.99,
+      2.15
+    ],
+    "size": [
+      2.6999999999999997,
+      0.34,
+      0.7000000000000001
+    ],
+    "color": [
+      0.4324,
+      0.92,
+      0.3128
+    ],
+    "shape": "Block",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "Ducktail",
+    "pos": [
+      0,
+      1.23,
+      2.3
+    ],
+    "size": [
+      2.4,
+      0.14,
+      0.4
+    ],
+    "color": [
+      0.6,
+      1,
+      0.8332
+    ],
+    "shape": "Wedge",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "RaceStripe",
+    "pos": [
+      0,
+      1.165,
+      0.09999999999999992
+    ],
+    "size": [
+      0.36,
+      0.02,
+      3.3999999999999995
+    ],
+    "color": [
+      0.6,
+      1,
+      0.8332
+    ],
+    "shape": "Block",
+    "material": "Neon",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "Hood",
+    "pos": [
+      0,
+      1.175,
+      -0.9199999999999999
+    ],
+    "size": [
+      1.8999999999999997,
+      0.03,
+      1.0199999999999998
+    ],
+    "color": [
+      0.6,
+      1,
+      0.8332
+    ],
+    "shape": "Block",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "Cabin",
+    "pos": [
+      0,
+      1.5499999999999998,
+      -0.20000000000000007
+    ],
+    "size": [
+      1.674,
+      0.78,
+      2.0
+    ],
+    "color": [
+      0.18,
+      0.3,
+      0.39
+    ],
+    "shape": "Block",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "CabinSideL",
+    "pos": [
+      -0.947,
+      1.5499999999999998,
+      -0.20000000000000007
+    ],
+    "size": [
+      2.0,
+      0.78,
+      0.22
+    ],
+    "color": [
+      0.18,
+      0.3,
+      0.39
+    ],
+    "shape": "Wedge",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      90,
+      0
+    ]
+  },
+  {
+    "name": "CabinSideR",
+    "pos": [
+      0.947,
+      1.5499999999999998,
+      -0.20000000000000007
+    ],
+    "size": [
+      2.0,
+      0.78,
+      0.22
+    ],
+    "color": [
+      0.18,
+      0.3,
+      0.39
+    ],
+    "shape": "Wedge",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      -90,
+      0
+    ]
+  },
+  {
+    "name": "Roof",
+    "pos": [
+      0,
+      2.0,
+      -0.15000000000000008
+    ],
+    "size": [
+      1.674,
+      0.12,
+      1.88
+    ],
+    "color": [
+      0.4324,
+      0.92,
+      0.3128
+    ],
+    "shape": "Block",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "Headlamp-1",
+    "pos": [
+      -0.8909999999999999,
+      0.76,
+      -2.525
+    ],
+    "size": [
+      0.55,
+      0.1,
+      0.08
+    ],
+    "color": [
+      1,
+      0.93,
+      0.62
+    ],
+    "shape": "Block",
+    "material": "Neon",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "TailLamp-1",
+    "pos": [
+      -0.8909999999999999,
+      0.76,
+      2.525
+    ],
+    "size": [
+      0.6,
+      0.09,
+      0.08
+    ],
+    "color": [
+      1,
+      0.15,
+      0.19
+    ],
+    "shape": "Block",
+    "material": "Neon",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "Mirror-1",
+    "pos": [
+      -1.137,
+      1.32,
+      -1.1
+    ],
+    "size": [
+      0.25,
+      0.12,
+      0.22
+    ],
+    "color": [
+      0.72,
+      0.79,
+      0.85
+    ],
+    "shape": "Wedge",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "Wheel_FL",
+    "pos": [
+      -1.4699999999999998,
+      0.48,
+      -1.6
+    ],
+    "size": [
+      0.38,
+      0.96,
+      0.96
+    ],
+    "color": [
+      0.09,
+      0.1,
+      0.15
+    ],
+    "shape": "Cylinder",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "Wheel_FLHub",
+    "pos": [
+      -1.67,
+      0.48,
+      -1.6
+    ],
+    "size": [
+      0.035,
+      0.48,
+      0.48
+    ],
+    "color": [
+      0.6,
+      1,
+      0.8332
+    ],
+    "shape": "Cylinder",
+    "material": "Metal",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "Wheel_RL",
+    "pos": [
+      -1.4699999999999998,
+      0.48,
+      1.6
+    ],
+    "size": [
+      0.38,
+      0.96,
+      0.96
+    ],
+    "color": [
+      0.09,
+      0.1,
+      0.15
+    ],
+    "shape": "Cylinder",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "Wheel_RLHub",
+    "pos": [
+      -1.67,
+      0.48,
+      1.6
+    ],
+    "size": [
+      0.035,
+      0.48,
+      0.48
+    ],
+    "color": [
+      0.6,
+      1,
+      0.8332
+    ],
+    "shape": "Cylinder",
+    "material": "Metal",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "Headlamp1",
+    "pos": [
+      0.8909999999999999,
+      0.76,
+      -2.525
+    ],
+    "size": [
+      0.55,
+      0.1,
+      0.08
+    ],
+    "color": [
+      1,
+      0.93,
+      0.62
+    ],
+    "shape": "Block",
+    "material": "Neon",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "TailLamp1",
+    "pos": [
+      0.8909999999999999,
+      0.76,
+      2.525
+    ],
+    "size": [
+      0.6,
+      0.09,
+      0.08
+    ],
+    "color": [
+      1,
+      0.15,
+      0.19
+    ],
+    "shape": "Block",
+    "material": "Neon",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "Mirror1",
+    "pos": [
+      1.137,
+      1.32,
+      -1.1
+    ],
+    "size": [
+      0.25,
+      0.12,
+      0.22
+    ],
+    "color": [
+      0.72,
+      0.79,
+      0.85
+    ],
+    "shape": "Wedge",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "Wheel_FR",
+    "pos": [
+      1.4699999999999998,
+      0.48,
+      -1.6
+    ],
+    "size": [
+      0.38,
+      0.96,
+      0.96
+    ],
+    "color": [
+      0.09,
+      0.1,
+      0.15
+    ],
+    "shape": "Cylinder",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "Wheel_FRHub",
+    "pos": [
+      1.67,
+      0.48,
+      -1.6
+    ],
+    "size": [
+      0.035,
+      0.48,
+      0.48
+    ],
+    "color": [
+      0.6,
+      1,
+      0.8332
+    ],
+    "shape": "Cylinder",
+    "material": "Metal",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "Wheel_RR",
+    "pos": [
+      1.4699999999999998,
+      0.48,
+      1.6
+    ],
+    "size": [
+      0.38,
+      0.96,
+      0.96
+    ],
+    "color": [
+      0.09,
+      0.1,
+      0.15
+    ],
+    "shape": "Cylinder",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "Wheel_RRHub",
+    "pos": [
+      1.67,
+      0.48,
+      1.6
+    ],
+    "size": [
+      0.035,
+      0.48,
+      0.48
+    ],
+    "color": [
+      0.6,
+      1,
+      0.8332
+    ],
+    "shape": "Cylinder",
+    "material": "Metal",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "Grille",
+    "pos": [
+      0,
+      0.66,
+      -2.55
+    ],
+    "size": [
+      0.75,
+      0.18,
+      0.08
+    ],
+    "color": [
+      0.09,
+      0.1,
+      0.15
+    ],
+    "shape": "Block",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "Bumper",
+    "pos": [
+      0,
+      0.5,
+      -2.63
+    ],
+    "size": [
+      2.5919999999999996,
+      0.12,
+      0.24
+    ],
+    "color": [
+      0.72,
+      0.79,
+      0.85
+    ],
+    "shape": "Wedge",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      180,
+      0
+    ]
+  },
+  {
+    "name": "CourierBox",
+    "pos": [
+      0,
+      1.85,
+      1.5
+    ],
+    "size": [
+      1.65,
+      1.2,
+      1.25
+    ],
+    "color": [
+      0.6,
+      1,
+      0.8332
+    ],
+    "shape": "Block",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "ParcelStrap",
+    "pos": [
+      0,
+      2.47,
+      1.5
+    ],
+    "size": [
+      0.15,
+      0.06,
+      1.27
+    ],
+    "color": [
+      0.09,
+      0.1,
+      0.15
+    ],
+    "shape": "Block",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "Windshield",
+    "pos": [
+      0,
+      1.5499999999999998,
+      -1.4800000000000002
+    ],
+    "size": [
+      2.114,
+      0.78,
+      0.56
+    ],
+    "color": [
+      0.18,
+      0.3,
+      0.39
+    ],
+    "shape": "Wedge",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "RearWindow",
+    "pos": [
+      0,
+      1.5499999999999998,
+      1.0
+    ],
+    "size": [
+      2.114,
+      0.78,
+      0.4
+    ],
+    "color": [
+      0.18,
+      0.3,
+      0.39
+    ],
+    "shape": "Wedge",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      180,
+      0
+    ]
+  },
+  {
+    "name": "APillar-1",
+    "pos": [
+      -1.037,
+      1.5499999999999998,
+      -1.2500000000000002
+    ],
+    "size": [
+      0.08,
+      0.78,
+      0.1
+    ],
+    "color": [
+      0.4324,
+      0.92,
+      0.3128
+    ],
+    "shape": "Block",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "DoorSeamF-1",
+    "pos": [
+      -1.3599999999999999,
+      0.67,
+      -0.55
+    ],
+    "size": [
+      0.02,
+      0.28,
+      0.04
+    ],
+    "color": [
+      0.05,
+      0.05,
+      0.07
+    ],
+    "shape": "Block",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "DoorSeamR-1",
+    "pos": [
+      -1.3599999999999999,
+      0.67,
+      0.35
+    ],
+    "size": [
+      0.02,
+      0.28,
+      0.04
+    ],
+    "color": [
+      0.05,
+      0.05,
+      0.07
+    ],
+    "shape": "Block",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "DoorHandle-1",
+    "pos": [
+      -1.38,
+      0.74,
+      0.09999999999999992
+    ],
+    "size": [
+      0.04,
+      0.05,
+      0.22
+    ],
+    "color": [
+      0.72,
+      0.79,
+      0.85
+    ],
+    "shape": "Block",
+    "material": "Metal",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "SideSkirt-1",
+    "pos": [
+      -1.3699999999999999,
+      0.52,
+      0
+    ],
+    "size": [
+      0.06,
+      0.12,
+      2.1
+    ],
+    "color": [
+      0.405,
+      0.9,
+      0.7019
+    ],
+    "shape": "Block",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "Stripe2Tone-1",
+    "pos": [
+      -1.3649999999999998,
+      0.8,
+      0
+    ],
+    "size": [
+      0.03,
+      0.04,
+      4.8
+    ],
+    "color": [
+      0.405,
+      0.9,
+      0.7019
+    ],
+    "shape": "Block",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "Arch-1False",
+    "pos": [
+      -1.41,
+      1.01,
+      -1.6
+    ],
+    "size": [
+      0.26,
+      0.1,
+      1.1039999999999999
+    ],
+    "color": [
+      0.405,
+      0.9,
+      0.7019
+    ],
+    "shape": "Block",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "Spoke-1False0",
+    "pos": [
+      -1.6849999999999998,
+      0.48,
+      -1.6
+    ],
+    "size": [
+      0.03,
+      0.72,
+      0.09
+    ],
+    "color": [
+      0.72,
+      0.79,
+      0.85
+    ],
+    "shape": "Block",
+    "material": "Metal",
+    "rotation": [
+      0.0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "Spoke-1False1",
+    "pos": [
+      -1.6849999999999998,
+      0.48,
+      -1.6
+    ],
+    "size": [
+      0.03,
+      0.72,
+      0.09
+    ],
+    "color": [
+      0.72,
+      0.79,
+      0.85
+    ],
+    "shape": "Block",
+    "material": "Metal",
+    "rotation": [
+      60.0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "Spoke-1False2",
+    "pos": [
+      -1.6849999999999998,
+      0.48,
+      -1.6
+    ],
+    "size": [
+      0.03,
+      0.72,
+      0.09
+    ],
+    "color": [
+      0.72,
+      0.79,
+      0.85
+    ],
+    "shape": "Block",
+    "material": "Metal",
+    "rotation": [
+      120.0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "Arch-1True",
+    "pos": [
+      -1.41,
+      1.01,
+      1.6
+    ],
+    "size": [
+      0.26,
+      0.1,
+      1.1039999999999999
+    ],
+    "color": [
+      0.405,
+      0.9,
+      0.7019
+    ],
+    "shape": "Block",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "Spoke-1True0",
+    "pos": [
+      -1.6849999999999998,
+      0.48,
+      1.6
+    ],
+    "size": [
+      0.03,
+      0.72,
+      0.09
+    ],
+    "color": [
+      0.72,
+      0.79,
+      0.85
+    ],
+    "shape": "Block",
+    "material": "Metal",
+    "rotation": [
+      0.0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "Spoke-1True1",
+    "pos": [
+      -1.6849999999999998,
+      0.48,
+      1.6
+    ],
+    "size": [
+      0.03,
+      0.72,
+      0.09
+    ],
+    "color": [
+      0.72,
+      0.79,
+      0.85
+    ],
+    "shape": "Block",
+    "material": "Metal",
+    "rotation": [
+      60.0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "Spoke-1True2",
+    "pos": [
+      -1.6849999999999998,
+      0.48,
+      1.6
+    ],
+    "size": [
+      0.03,
+      0.72,
+      0.09
+    ],
+    "color": [
+      0.72,
+      0.79,
+      0.85
+    ],
+    "shape": "Block",
+    "material": "Metal",
+    "rotation": [
+      120.0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "APillar1",
+    "pos": [
+      1.037,
+      1.5499999999999998,
+      -1.2500000000000002
+    ],
+    "size": [
+      0.08,
+      0.78,
+      0.1
+    ],
+    "color": [
+      0.4324,
+      0.92,
+      0.3128
+    ],
+    "shape": "Block",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "DoorSeamF1",
+    "pos": [
+      1.3599999999999999,
+      0.67,
+      -0.55
+    ],
+    "size": [
+      0.02,
+      0.28,
+      0.04
+    ],
+    "color": [
+      0.05,
+      0.05,
+      0.07
+    ],
+    "shape": "Block",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "DoorSeamR1",
+    "pos": [
+      1.3599999999999999,
+      0.67,
+      0.35
+    ],
+    "size": [
+      0.02,
+      0.28,
+      0.04
+    ],
+    "color": [
+      0.05,
+      0.05,
+      0.07
+    ],
+    "shape": "Block",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "DoorHandle1",
+    "pos": [
+      1.38,
+      0.74,
+      0.09999999999999992
+    ],
+    "size": [
+      0.04,
+      0.05,
+      0.22
+    ],
+    "color": [
+      0.72,
+      0.79,
+      0.85
+    ],
+    "shape": "Block",
+    "material": "Metal",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "SideSkirt1",
+    "pos": [
+      1.3699999999999999,
+      0.52,
+      0
+    ],
+    "size": [
+      0.06,
+      0.12,
+      2.1
+    ],
+    "color": [
+      0.405,
+      0.9,
+      0.7019
+    ],
+    "shape": "Block",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "Stripe2Tone1",
+    "pos": [
+      1.3649999999999998,
+      0.8,
+      0
+    ],
+    "size": [
+      0.03,
+      0.04,
+      4.8
+    ],
+    "color": [
+      0.405,
+      0.9,
+      0.7019
+    ],
+    "shape": "Block",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "Arch1False",
+    "pos": [
+      1.41,
+      1.01,
+      -1.6
+    ],
+    "size": [
+      0.26,
+      0.1,
+      1.1039999999999999
+    ],
+    "color": [
+      0.405,
+      0.9,
+      0.7019
+    ],
+    "shape": "Block",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "Spoke1False0",
+    "pos": [
+      1.6849999999999998,
+      0.48,
+      -1.6
+    ],
+    "size": [
+      0.03,
+      0.72,
+      0.09
+    ],
+    "color": [
+      0.72,
+      0.79,
+      0.85
+    ],
+    "shape": "Block",
+    "material": "Metal",
+    "rotation": [
+      0.0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "Spoke1False1",
+    "pos": [
+      1.6849999999999998,
+      0.48,
+      -1.6
+    ],
+    "size": [
+      0.03,
+      0.72,
+      0.09
+    ],
+    "color": [
+      0.72,
+      0.79,
+      0.85
+    ],
+    "shape": "Block",
+    "material": "Metal",
+    "rotation": [
+      60.0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "Spoke1False2",
+    "pos": [
+      1.6849999999999998,
+      0.48,
+      -1.6
+    ],
+    "size": [
+      0.03,
+      0.72,
+      0.09
+    ],
+    "color": [
+      0.72,
+      0.79,
+      0.85
+    ],
+    "shape": "Block",
+    "material": "Metal",
+    "rotation": [
+      120.0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "Arch1True",
+    "pos": [
+      1.41,
+      1.01,
+      1.6
+    ],
+    "size": [
+      0.26,
+      0.1,
+      1.1039999999999999
+    ],
+    "color": [
+      0.405,
+      0.9,
+      0.7019
+    ],
+    "shape": "Block",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "Spoke1True0",
+    "pos": [
+      1.6849999999999998,
+      0.48,
+      1.6
+    ],
+    "size": [
+      0.03,
+      0.72,
+      0.09
+    ],
+    "color": [
+      0.72,
+      0.79,
+      0.85
+    ],
+    "shape": "Block",
+    "material": "Metal",
+    "rotation": [
+      0.0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "Spoke1True1",
+    "pos": [
+      1.6849999999999998,
+      0.48,
+      1.6
+    ],
+    "size": [
+      0.03,
+      0.72,
+      0.09
+    ],
+    "color": [
+      0.72,
+      0.79,
+      0.85
+    ],
+    "shape": "Block",
+    "material": "Metal",
+    "rotation": [
+      60.0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "Spoke1True2",
+    "pos": [
+      1.6849999999999998,
+      0.48,
+      1.6
+    ],
+    "size": [
+      0.03,
+      0.72,
+      0.09
+    ],
+    "color": [
+      0.72,
+      0.79,
+      0.85
+    ],
+    "shape": "Block",
+    "material": "Metal",
+    "rotation": [
+      120.0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "PlateF",
+    "pos": [
+      0,
+      0.6,
+      -2.56
+    ],
+    "size": [
+      0.6,
+      0.14,
+      0.03
+    ],
+    "color": [
+      0.93,
+      0.93,
+      0.88
+    ],
+    "shape": "Block",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "PlateR",
+    "pos": [
+      0,
+      0.62,
+      2.53
+    ],
+    "size": [
+      0.6,
+      0.14,
+      0.03
+    ],
+    "color": [
+      0.93,
+      0.93,
+      0.88
+    ],
+    "shape": "Block",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "Exhaust0",
+    "pos": [
+      -0.55,
+      0.5,
+      2.58
+    ],
+    "size": [
+      0.22,
+      0.16,
+      0.16
+    ],
+    "color": [
+      0.72,
+      0.79,
+      0.85
+    ],
+    "shape": "Cylinder",
+    "material": "Metal",
+    "rotation": [
+      0,
+      90,
+      0
+    ]
+  },
+  {
+    "name": "Exhaust1",
+    "pos": [
+      0.55,
+      0.5,
+      2.58
+    ],
+    "size": [
+      0.22,
+      0.16,
+      0.16
+    ],
+    "color": [
+      0.72,
+      0.79,
+      0.85
+    ],
+    "shape": "Cylinder",
+    "material": "Metal",
+    "rotation": [
+      0,
+      90,
+      0
+    ]
+  },
+  {
+    "name": "Emblem",
+    "pos": [
+      0,
+      0.82,
+      -2.54
+    ],
+    "size": [
+      0.22,
+      0.14,
+      0.06
+    ],
+    "color": [
+      1,
+      0.82,
+      0.2
+    ],
+    "shape": "Wedge",
+    "material": "Metal",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "Antenna",
+    "pos": [
+      0.8099999999999999,
+      2.39,
+      0.7
+    ],
+    "size": [
+      0.05,
+      0.9,
+      0.05
+    ],
+    "color": [
+      0.72,
+      0.79,
+      0.85
+    ],
+    "shape": "Block",
+    "material": "SmoothPlastic",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "Bullbar",
+    "pos": [
+      0,
+      0.78,
+      -2.75
+    ],
+    "size": [
+      1.8899999999999997,
+      0.4,
+      0.08
+    ],
+    "color": [
+      0.72,
+      0.79,
+      0.85
+    ],
+    "shape": "Block",
+    "material": "Metal",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "name": "RoofSign",
+    "pos": [
+      0,
+      2.2399999999999998,
+      -0.20000000000000007
+    ],
+    "size": [
+      1.0,
+      0.35,
+      0.12
+    ],
+    "color": [
+      0.6,
+      1,
+      0.8332
+    ],
+    "shape": "Block",
+    "material": "Neon",
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  }
+]

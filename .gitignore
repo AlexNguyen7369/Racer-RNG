@@ -21,3 +21,7 @@ references/biome_packs/**
 !references/biome_packs/*/
 !references/biome_packs/*/License*.txt
 !references/biome_packs/*/LICENSE*
+
+# Car redesign concept renders: modelling references only, never shipped (docs/CAR_REDESIGN_SPEC.md)
+drafts/cars/Roblox_Car_Redesign_References.zip
+references/car_redesign/

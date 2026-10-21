@@ -7,6 +7,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared.RebirthConfig)
+local LevelService = require(script.Parent.LevelService)
 
 local RebirthService = {}
 local lastRequest = setmetatable({}, { __mode = "k" })
@@ -72,6 +73,7 @@ function RebirthService.Rebirth(player)
 	if speed then
 		speed.Value = 0
 	end
+	LevelService.Reset(player)
 	player:SetAttribute("RebirthLevel", nextLevel)
 	refreshStatPoints(player) -- each rebirth adds RebirthConfig.POINTS_PER_REBIRTH free stat points
 	local rebirth = folder:FindFirstChild("Rebirth")

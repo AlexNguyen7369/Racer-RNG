@@ -20,7 +20,13 @@ function CarAppearance.Apply(car, id, config)
 		skin:PivotTo(chassis.CFrame * CFrame.new(0, -config.RestHeight, 0))
 		for _, part in ipairs(skin:GetDescendants()) do
 			if part:IsA("BasePart") then
-				if spec and spec.Tint and part.Material ~= Enum.Material.Glass then
+				-- Redesigned skins carry their reference colours (docs/CAR_REDESIGN_SPEC.md section 4): no tint.
+				if
+					spec
+					and spec.Tint
+					and not template:GetAttribute("Redesign")
+					and part.Material ~= Enum.Material.Glass
+				then
 					part.Color = part.Color:Lerp(spec.Tint, 0.35)
 				end
 				part.CanCollide = false
@@ -72,7 +78,7 @@ function CarAppearance.Display(spec, cframe, scale)
 	car.Name = "Car"
 	for _, part in car:GetDescendants() do
 		if part:IsA("BasePart") then
-			if spec.Tint and part.Material ~= Enum.Material.Glass then
+			if spec.Tint and not template:GetAttribute("Redesign") and part.Material ~= Enum.Material.Glass then
 				part.Color = part.Color:Lerp(spec.Tint, 0.35)
 			end
 			part.Anchored = true

@@ -1,0 +1,127 @@
+{
+  "id": "neon_lifter",
+  "parts": [
+    "Trim",
+    "Body",
+    "Accent3",
+    "Glass",
+    "Light2",
+    "Light3",
+    "Accent",
+    "Light",
+    "Trim2",
+    "Metal",
+    "Accent2",
+    "Accent4"
+  ],
+  "tris": 2840,
+  "wheels": [],
+  "min": [
+    -1.45,
+    -2.73,
+    0.06
+  ],
+  "max": [
+    1.45,
+    2.648,
+    2.19
+  ],
+  "materials": {
+    "Trim": {
+      "material": "SmoothPlastic",
+      "color": [
+        0.09,
+        0.1,
+        0.15
+      ]
+    },
+    "Body": {
+      "material": "SmoothPlastic",
+      "color": [
+        0.544,
+        0.313,
+        0.92
+      ]
+    },
+    "Accent3": {
+      "material": "SmoothPlastic",
+      "color": [
+        1,
+        0.6,
+        0.936
+      ]
+    },
+    "Glass": {
+      "material": "Glass",
+      "color": [
+        0.18,
+        0.3,
+        0.39
+      ]
+    },
+    "Light2": {
+      "material": "Neon",
+      "color": [
+        1.0,
+        0.93,
+        0.62
+      ]
+    },
+    "Light3": {
+      "material": "Neon",
+      "color": [
+        1.0,
+        0.15,
+        0.19
+      ]
+    },
+    "Accent": {
+      "material": "SmoothPlastic",
+      "color": [
+        0.72,
+        0.79,
+        0.85
+      ]
+    },
+    "Light": {
+      "material": "Neon",
+      "color": [
+        1.0,
+        0.6,
+        0.936
+      ]
+    },
+    "Trim2": {
+      "material": "SmoothPlastic",
+      "color": [
+        0.05,
+        0.05,
+        0.07
+      ]
+    },
+    "Metal": {
+      "material": "Metal",
+      "color": [
+        0.72,
+        0.79,
+        0.85
+      ]
+    },
+    "Accent2": {
+      "material": "SmoothPlastic",
+      "color": [
+        0.9,
+        0.795,
+        0.405
+      ]
+    },
+    "Accent4": {
+      "material": "SmoothPlastic",
+      "color": [
+        0.93,
+        0.93,
+        0.88
+      ]
+    }
+  }
+}

@@ -14,6 +14,7 @@ local CarCatalog = require(Shared.CarCatalog)
 local Config = require(Shared.PassCarConfig)
 local DraftCarModels = require(Shared.DraftCarModels)
 local GachaService = require(script.Parent.GachaService)
+local AdminService = require(script.Parent.AdminService)
 
 local PassCarService = {}
 
@@ -46,11 +47,18 @@ local function ownsPass(player, id)
 	return ok and owned == true -- a failed request counts as not owned for this session
 end
 
+-- Owner 2026-10-20 (GAMEPASS_CARS_SPEC section 3): admins own every gamepass car, on sale or not.
+-- Only real Players: the harness's stand-in players are Folders and must not be admins through ALLOW_IN_STUDIO.
+local function adminOwns(player)
+	return player:IsA("Player") and AdminService.IsAdmin(player)
+end
+
 -- Asks Roblox about every pass, then takes off an equipped gamepass car the player does not own. Yields.
 function PassCarService.Check(player)
+	local admin = adminOwns(player)
 	for _, spec in CarCatalog.Passes() do
 		local id = passId(spec)
-		if id and ownsPass(player, id) then
+		if admin or (id and ownsPass(player, id)) then
 			player:SetAttribute("Pass_" .. spec.Id, true)
 		end
 	end
@@ -75,13 +83,12 @@ end
 
 -- A pedestal prompt: equip when owned, else ask Roblox to show the purchase. Not on sale: nothing.
 function PassCarService.Trigger(player, carId)
-	local spec = CarCatalog.Get(carId)
-	local id = passId(spec)
+	if player:GetAttribute("Pass_" .. carId) == true then
+		return GachaService.Equip(player, carId) -- an admin owns it even while it is not on sale
+	end
+	local id = passId(CarCatalog.Get(carId))
 	if not id then
 		return false
-	end
-	if player:GetAttribute("Pass_" .. carId) == true then
-		return GachaService.Equip(player, carId)
 	end
 	local ok = pcall(function()
 		if market then

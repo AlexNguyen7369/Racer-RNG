@@ -9,10 +9,13 @@ User brief (2026-10-01):
   leaving the previous track's checkpoint (finish) onto the next track.
 - The NPC is per player: it races only against its own player. Other players never see it (it exists only on the
   owning client, never in the server Workspace).
-- NPC speeds rise per track: very easy on Track 1, increasing on every later track.
+- NPC speeds rise per track, increasing on every later track. Owner 2026-10-21: every NPC is much harder,
+  Track 1 included; a beginner (stat 0, starter car) loses Track 1 decisively and wins only after building Speed
+  or rolling a faster car (was "very easy on Track 1").
 - A numbers game: if the NPC reaches the finish of the track before the player, the player LOSES. The race still
   plays out (the player's car keeps driving to the finish), then the player sees a loser screen and is sent back
-  to the spawn point (start of Track 1) where the Track 1 race starts again.
+  to the start of the run's start track (Track 1, or the player's checkpoint, owner 2026-10-16,
+  `docs/CHECKPOINT_SPEC.md`) where that track's race starts again.
 - Money: a track's checkpoint money (its WinPad `Cash`) is paid only when the player WINS that track. Losing a
   track pays nothing for it; money from checkpoints already won is kept.
 - Floating text above each NPC, proximity based (finite `MaxDistance`), editable. Default `track01_NPC`,
@@ -22,18 +25,24 @@ User brief (2026-10-01):
 ## Modules and API
 
 ### `src/shared/NpcConfig.luau` (editable knobs)
-- `BASE_SPEED` (studs/s, Track 1, very easy, below `RaceConfig.BASE_SPEED`): 20
-- `SPEED_STEP` (studs/s added per track number): 12
-- `LABEL_DISTANCE` (studs, BillboardGui `MaxDistance`): 60
+- `BASE_SPEED` (studs/s, Track 1, above `RaceConfig.BASE_SPEED` so a stat-0 starter car loses): 45 (owner
+  2026-10-21: made substantially harder than the previous 30)
+- `SPEED_GROWTH` (each track's NPC is this many times faster than the previous one): 2.5 (owner 2026-10-21:
+  made each later track a much larger hurdle; was 2)
+- `LABEL_DISTANCE` (studs, BillboardGui `MaxDistance`): 200 (owner 2026-10-20: wider, was 60)
 - `LOSE_SCREEN_SECONDS`: 3
 - `LABEL_FORMAT`: `"track%02d_NPC"`
 - `Tracks = { [number] = { Color?, Speed?, Label?, Model? } }` per-track overrides. Track 1 `Color` is red.
+  Owner 2026-10-20: tracks 1-10 drive imported car models (catalog ids, rising rarity): 1 rusty_hatchback,
+  2 wooden_car, 3 go_kart, 4 rain_runner, 5 street_racer, 6 midnight_kart, 7 golden_racer, 8 rocket_car,
+  9 hover_car, 10 void_racer.
 - `NpcConfig.For(number)` -> `{ Number, Speed, Color, Label, Model }`
-  - `Speed` = override or `BASE_SPEED + SPEED_STEP * (number - 1)`; strictly increasing with the number.
+  - `Speed` = override or `BASE_SPEED * SPEED_GROWTH ^ (number - 1)`; strictly increasing with the number.
   - `Color` = override or a palette entry; Track 1 is red (R high, G and B low); the colours of tracks 1..5 are all
     different and none equals the player's `CarConfig.Colors.Body`.
   - `Label` = override or `LABEL_FORMAT:format(number)` (Track 1 -> `track01_NPC`).
-  - `Model` = override name of a Model under `ReplicatedStorage.NpcModels`, or nil (= starter car in `Color`).
+  - `Model` = override name of a Model under `ReplicatedStorage.NpcModels`, or a car catalog id (skinned like
+    the player's equipped car), or nil (= starter car in `Color`).
 
 ### `src/shared/NpcRacer.luau` (pure maths + model builder, used by server and client)
 - `NpcRacer.LanePath(entry)` -> `{ Waypoints, Curvature, Length }` in WORLD space for a chain entry
@@ -48,9 +57,14 @@ User brief (2026-10-01):
 - `NpcRacer.ChainEntries()` -> `{ { Layout, Origin, Number }, ... }` computed purely from `TrackRegistry.Chain()`
   (same origins as `Main` builds), so the client can rebuild the lanes without the track models.
 - `NpcRacer.BuildModel(info)` -> Model named `"NPC_" .. info.Label`, attribute `IsNpc = true`, attribute
-  `TrackNumber`. Starter car body in `info.Color` (or a clone of `ReplicatedStorage.NpcModels[info.Model]`). Every
+  `TrackNumber`. Starter car body in `info.Color` (or a clone of `ReplicatedStorage.NpcModels[info.Model]`). When
+  `info.Model` is a catalog id and no NpcModels entry exists, the starter car is skinned with
+  `CarAppearance.Apply(model, info.Model, CarConfig)` (starter parts hidden, `EquippedVisual` added). Every
   BasePart: `Anchored`, `CanCollide = false`, `CanTouch = false`, `CanQuery = false`. A `BillboardGui` named
   `NpcLabel` with a `TextLabel` whose `Text == info.Label` and `MaxDistance == NpcConfig.LABEL_DISTANCE`.
+  Owner 2026-10-20 ("clearly labeled"): the label is larger, on a dark backing, with a `Title` TextLabel above
+  `Text` reading `NPC RIVAL`; the bottom line reads `track01_NPC · <car Name>`, made of `Text` (exactly
+  `info.Label`) and a `Car` TextLabel beside it when the NPC drives a catalog car, centred as one line.
   The builder does not parent it; the client parents it to its own Workspace.
 
 ### `PathDriver.Chain(entries)`
@@ -69,14 +83,15 @@ Also returns `StartIndices[i]` and `FinishIndices[i]` (route waypoint index of e
     player starts track n (spawn on Track 1, after crossing track n-1's finish, after a reset).
   - `{ Type = "Result", Track = n, Result = "Win" | "Lose", PlayerTime, NpcTime, Paid }` when the player's car
     reaches track n's finish (`FinishIndex`). Win if the player's time on the track < the NPC's `TotalTime`.
-  - `{ Type = "Reset", Track = 1, LostAt = n }` is emitted immediately after a loss: the server puts the car
-    back at the start of Track 1 (upright, facing along the path), then emits a new Track 1 `Start`. The loser
+  - `{ Type = "Reset", Track = s, LostAt = n }` is emitted immediately after a loss: the server puts the car
+    back at the start of the run's start track s (Track 1 unless `options.StartTrack`, the checkpoint; upright,
+    facing along the path), then emits a new track s `Start`. The loser
     screen duration is presentation-only and must not delay the authoritative reset.
 - Run fields: `run.RaceTrack` (current track number), `run.Results` (list of Result events), `run.Wins`,
   `run.Losses`, `run.Resets`, plus all existing fields (`PaidTotal`, `Payouts`, `MinUpY`, `MaxPathDeviation`, ...).
 - Money in NPC mode: track n's pad pays (`MoneyService.Collect`) exactly once, at its finish, only on a Win.
   A Lose pays nothing for that track; earlier wins stay paid.
-- After winning the LAST track the car loops back to Track 1 (as today) and a new Track 1 race starts.
+- After winning the LAST track the car loops back to the start track (Track 1 or the checkpoint) and its race starts.
 - The run's stability rules are unchanged: no flips/tilt past `MinUpYStrict`, stays on the path.
 
 ### Client

@@ -1,0 +1,114 @@
+{
+  "id": "wooden_car",
+  "parts": [
+    "Body",
+    "Accent",
+    "Glass",
+    "Trim",
+    "Metal",
+    "Light",
+    "Wheel_FL",
+    "Wheel_FR",
+    "Wheel_RL",
+    "Wheel_RR"
+  ],
+  "tris": 4852,
+  "wheels": [
+    "Wheel_FL",
+    "Wheel_FR",
+    "Wheel_RL",
+    "Wheel_RR"
+  ],
+  "min": [
+    -1.82,
+    -2.945,
+    0.011
+  ],
+  "max": [
+    1.82,
+    3.015,
+    2.44
+  ],
+  "materials": {
+    "Body": {
+      "material": "SmoothPlastic",
+      "color": [
+        0.96,
+        0.87,
+        0.64
+      ]
+    },
+    "Accent": {
+      "material": "SmoothPlastic",
+      "color": [
+        0.8,
+        0.63,
+        0.45
+      ]
+    },
+    "Glass": {
+      "material": "Glass",
+      "color": [
+        0.2,
+        0.26,
+        0.33
+      ]
+    },
+    "Trim": {
+      "material": "SmoothPlastic",
+      "color": [
+        0.2,
+        0.21,
+        0.23
+      ]
+    },
+    "Metal": {
+      "material": "Metal",
+      "color": [
+        0.78,
+        0.79,
+        0.81
+      ]
+    },
+    "Light": {
+      "material": "Neon",
+      "color": [
+        1.0,
+        0.92,
+        0.66
+      ]
+    },
+    "Wheel_FL": {
+      "material": "SmoothPlastic",
+      "color": [
+        0.12,
+        0.12,
+        0.13
+      ]
+    },
+    "Wheel_FR": {
+      "material": "SmoothPlastic",
+      "color": [
+        0.12,
+        0.12,
+        0.13
+      ]
+    },
+    "Wheel_RL": {
+      "material": "SmoothPlastic",
+      "color": [
+        0.12,
+        0.12,
+        0.13
+      ]
+    },
+    "Wheel_RR": {
+      "material": "SmoothPlastic",
+      "color": [
+        0.12,
+        0.12,
+        0.13
+      ]
+    }
+  }
+}

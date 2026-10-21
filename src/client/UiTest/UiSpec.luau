@@ -289,6 +289,12 @@ UiSpec.Guis = {
 		Buttons = {},
 		NonInteractive = true,
 	},
+	-- The world dim behind open panels (UiSpec.PanelDimmers); below the HUD, never takes a click.
+	PanelDim = {
+		Source = "Client/HudChrome",
+		Buttons = {},
+		NonInteractive = true,
+	},
 }
 
 -- The ScreenGuis the Racer UI replaced (owner decision 2026-10-06): their scripts are disabled and they must not be
@@ -505,18 +511,20 @@ UiSpec.PanelSwitch = {
 		["ShopUi/Backdrop"] = "Shop",
 		["DailyBoosts/ModalBackdrop"] = "Daily",
 		["MarketUi/Backdrop"] = "Market",
+		["CheckpointUi/Panel"] = "Checkpoints",
 	},
 }
 
 -- Money market (Client/MarketUi; docs/HUD_LAYOUT_SPEC.md section 2 "Market", owner 2026-10-16: the Backpack look).
--- Backdrop is the full-screen dim TextButton (a click off the panel closes it); Panel holds Header (square red X),
+-- Backdrop is the full-screen dim, NON-interactive Frame (owner 2026-10-20, docs/HUD_LAYOUT_SPEC.md section 6: HUD
+-- tiles stay clickable while it is open; a click on empty screen that no GUI processed closes it, click
+-- close_market_outside); Panel holds Header (square red X),
 -- side Tabs (one per MarketConfig.Items kind), the tile Grid of the selected kind and the Detail pane of the selected
 -- tile. UiSpec.Market holds the parts; ui_market and the market_* clicks check them.
 UiSpec.Guis.MarketUi = {
 	Source = "Client/MarketUi",
 	Panels = { "Backdrop" },
 	Buttons = {
-		{ Path = "Backdrop", Does = "close_panel", Panel = "MarketUi/Backdrop", Text = "" },
 		{ Path = "Backdrop/Panel/Header/Close", Does = "close_panel", Panel = "MarketUi/Backdrop", Text = "X" },
 		{ Path = "Backdrop/Panel/Tabs/TrailTab", Does = "local", Effect = "market_tab:Trail" },
 		{ Path = "Backdrop/Panel/Tabs/AuraTab", Does = "local", Effect = "market_tab:Aura" },
@@ -549,10 +557,14 @@ UiSpec.Guis.RacerBackpack = {
 		{ Path = "Panel/Tabs/MiscTab", Does = "local", Effect = "backpack_category", Text = "Misc" },
 		{ Path = "Panel/Tabs/TrailsTab", Does = "local", Effect = "backpack_category", Text = "Trails" },
 		{ Path = "Panel/Tabs/AurasTab", Does = "local", Effect = "backpack_category", Text = "Auras" },
+		-- Owner 2026-10-20 (docs/HUD_LAYOUT_SPEC.md section 3): the Cars tab lists the owned cars (UiSpec.Backpack).
+		{ Path = "Panel/Tabs/CarsTab", Does = "local", Effect = "backpack_category", Text = "Cars" },
 		{
+			-- Misc tiles invoke UseBoost(id); Trails / Auras tiles invoke MarketEquip(kind, id); Cars tiles fire
+			-- EquipCar(THAT tile's car id), the equipped car's tile fires nothing (clicks backpack_equip_car*).
 			Path = "Panel/Items/*",
 			Does = "remote",
-			Remote = "UseBoost|MarketEquip",
+			Remote = "UseBoost|MarketEquip|EquipCar",
 			Arg = "item_id",
 			Count = "dynamic",
 			ClickCoverage = "ui_motion_dynamic",
@@ -566,7 +578,6 @@ UiSpec.Guis.ShopUi = {
 	Source = "Client/ShopUi",
 	Panels = { "Backdrop" },
 	Buttons = {
-		{ Path = "Backdrop", Does = "close_panel", Panel = "ShopUi/Backdrop", Text = "" },
 		{ Path = "Backdrop/Panel/Close", Does = "close_panel", Panel = "ShopUi/Backdrop", Text = "X" },
 		{
 			-- Codes: sends the Input text to the server (RemoteFunction RedeemCode); Status shows the reply
@@ -630,7 +641,8 @@ UiSpec.Market = {
 		{ Name = "Name", Class = "TextLabel" },
 		{ Name = "Rarity", Class = "TextLabel" },
 		{ Name = "Preview", Class = "ViewportFrame" },
-		{ Name = "Price", Class = "TextLabel" },
+		-- Since the Market restyle (016c467) Price is a Frame row; its TextLabel "Value" (PriceText) holds the text
+		{ Name = "Price", Class = "Frame" },
 		{ Name = "Description", Class = "TextLabel" },
 		{ Name = "Action", Class = "TextButton" },
 	},
@@ -640,6 +652,11 @@ UiSpec.Market = {
 	-- potion, so selecting it really changes Detail.
 	SelectKind = "Potion",
 	SelectId = "SpeedII",
+	-- The price text inside Detail/Price
+	PriceText = "Value",
+	-- Client/MarketUi fitTabs: a UIScale "Scale" in each side tab (not on the rail), fitted to the rail's height.
+	-- Mirrored so the layout solver models it at every viewport (UiScenarios marketTabScale).
+	TabFit = { ScaleName = "Scale", RailWidth = 96, TabSize = 96, Gap = 10, Min = 0.4, Max = 1 },
 }
 
 -- Panels fitted by Client/PanelBand.Fit (docs/HUD_LAYOUT_SPEC.md: between the left grid and the Shop column, below the
@@ -648,6 +665,9 @@ UiSpec.Market = {
 UiSpec.BandPanels = {
 	["ShopUi/Backdrop/Panel"] = 900,
 	["MarketUi/Backdrop/Panel"] = 900,
+	["CheckpointUi/Panel"] = 760,
+	["DailyBoosts/ModalBackdrop/Modal"] = 760,
+	["RacerBackpack/Panel"] = 760,
 }
 UiSpec.Band = {
 	Race = "RacerHud/Race",
@@ -690,16 +710,26 @@ UiSpec.HiddenWhilePanelOpen = {
 -- ProgressionUi applies its visibility on a 0.25 s poll: the checks wait up to this long for it.
 UiSpec.HiddenWhilePanelOpenWait = 1
 
--- Every persistent HUD layer gets a non-interactive tint while a PanelSwitch
--- panel is open. The controls remain drawn underneath it; the overlay is visual
--- feedback, not a replacement for hiding controls.
+-- Owner 2026-10-20 (docs/HUD_LAYOUT_SPEC.md section 6, replaces the per-HUD veils): a panel never dims the whole
+-- screen. Client/HudChrome makes ONE ScreenGui `Gui` (DisplayOrder `DisplayOrder`, IgnoreGuiInset) holding the
+-- non-interactive full-screen Frame `Dim`; the ScreenGui is Enabled only while PanelSwitch.AnyOpen(). It draws below
+-- every ScreenGui in `Below` (strictly lower DisplayOrder), so the HUD stays fully bright and clickable. The old
+-- veils in `Retired` must be gone. While a panel is open, no visible GuiObject in an enabled ScreenGui other than
+-- `Gui` (and the declared `VeilExempt` full-screen overlays) may cover at least `Veil.MinCoverage` of the viewport
+-- with BackgroundTransparency below `Veil.MaxTransparency` (that would be a full-screen dark frame over the HUD).
 UiSpec.PanelDimmers = {
-	Paths = {
+	Gui = "PanelDim",
+	Frame = "PanelDim/Dim",
+	DisplayOrder = 0,
+	Below = { "HudChrome", "RacerHud", "RollToast", "RacerProgression" },
+	Retired = {
 		"HudChrome/PanelDimmer",
 		"RacerHud/PanelDimmer",
 		"RollToast/PanelDimmer",
 		"RacerProgression/PanelDimmer",
 	},
+	VeilExempt = { RollShowcase = true, LoserScreen = true },
+	Veil = { MinCoverage = 0.9, MaxTransparency = 0.95 },
 	PersistentButtons = {
 		"HudChrome/Grid/Index",
 		"HudChrome/Grid/Stats",
@@ -1113,6 +1143,10 @@ Prepare:
  WaitSeconds    extra wait before publishing
 ClickAt: where to click when it is not the target's centre: "corner" (UiSpec.Showcase.CornerInset px in from the
  bottom-right corner, off the card) or a "<Gui>/<Path>" whose centre is used. The target must be topmost there.
+ "empty": the target is a click-through panel (UiSpec.ClickThroughBackdrops); the harness picks the first point of a
+ UiSpec.EmptyClickStep px grid (scanned row by row from the top-left, below the top bar, CornerInset in from every
+ edge) that lies outside the panel's UiSpec.PanelBody and where NOTHING takes a click (no GuiButton, TextBox or
+ Active object). Nothing may be topmost there before the click, and the press must land on nothing.
 Key: instead of Gui/Path, a key press ("Escape"). The harness prints "[UITEST] KEY <id> key=<key> done=<done>" and
  publishes UiTestClickTarget = JSON { id, key, done }; ui-tester presses that key once in the game view (Roblox Studio
  MCP keyboard input; the Studio window must have focus), closes Roblox's own menu if the key opened it (the harness
@@ -1158,10 +1192,12 @@ UiSpec.Clicks = {
 		Expect = { Panels = { ["MarketUi/Backdrop"] = true }, Remote = false },
 	},
 	{
-		Id = "close_market_backdrop",
+		-- Owner 2026-10-20: the Backdrop is no button; a click on empty screen (nothing Active there, outside the
+		-- Panel) is unprocessed and PanelFrame.CloseOnOutsideClick closes the Market
+		Id = "close_market_outside",
 		Gui = "MarketUi",
 		Path = "Backdrop",
-		ClickAt = "corner",
+		ClickAt = "empty",
 		Prepare = only("MarketUi/Backdrop"),
 		Expect = { Panels = { ["MarketUi/Backdrop"] = false }, Remote = false },
 	},
@@ -1238,10 +1274,11 @@ UiSpec.Clicks = {
 		Expect = { Panels = { ["ShopUi/Backdrop"] = true }, Remote = false },
 	},
 	{
-		Id = "close_shop_backdrop",
+		-- Owner 2026-10-20: as close_market_outside, for the Shop
+		Id = "close_shop_outside",
 		Gui = "ShopUi",
 		Path = "Backdrop",
-		ClickAt = "corner",
+		ClickAt = "empty",
 		Prepare = only("ShopUi/Backdrop"),
 		Expect = { Panels = { ["ShopUi/Backdrop"] = false }, Remote = false },
 	},
@@ -2257,6 +2294,11 @@ UiSpec.PanelBody = {
 }
 table.insert(UiSpec.AllowOverlap, { "DailyBoosts/ModalBackdrop", "RacerHud/Speed" })
 table.insert(UiSpec.AllowOverlap, { "DailyBoosts/ModalBackdrop", "RacerHud/Money" })
+-- Full-screen dimmers of the Shop, Market and Daily panels (owner 2026-10-20, docs/HUD_LAYOUT_SPEC.md section 6 and
+-- docs/GAMEPASS_SHOP_SPEC.md): never a GuiButton, Active = false, so the HUD tiles behind stay clickable
+-- (button_topmost_at_centre_shop_open / market_open / daily_boosts_open) and only their PanelBody takes clicks.
+UiSpec.ClickThroughBackdrops = { "ShopUi/Backdrop", "MarketUi/Backdrop", "DailyBoosts/ModalBackdrop" }
+UiSpec.EmptyClickStep = 40 -- px grid for ClickAt = "empty"
 UiSpec.DailyBoosts = {
 	Daily = "HudChrome/TopRight/Daily",
 	Quests = "HudChrome/TopRight/Quests",
@@ -2271,7 +2313,7 @@ UiSpec.DailyBoosts = {
 	QuestTitle = "QUESTS",
 	DailyText = { [false] = "Daily", [true] = "%d:%02d:%02d" },
 	TimerTolerance = 2, -- s between the shown timer and 86400 - os.time() % 86400
-	DayRow = "Day%d", -- one TextLabel per DailyLoginConfig.Rewards entry, text "DAY <n>", "✓" up to DailyStreak
+	DayRow = "Day%d", -- one reward card per DailyLoginConfig.Rewards entry with descendant text "DAY <n>"
 	DayText = "DAY %d",
 	DoneMark = "✓",
 	ClaimText = { [false] = "CLAIM DAY %d", [true] = "CLAIMED TODAY" }, -- [claimed today]; %d = min(streak + 1, 7)
@@ -2304,15 +2346,51 @@ table.insert(UiSpec.Clicks, {
 	Prepare = only("RacerBackpack/Panel"),
 	Expect = { Panels = { ["RacerBackpack/Panel"] = false }, Remote = false },
 })
-for _, tab in { "Misc", "Trails", "Auras" } do
+-- Cars last: the Backpack keeps the Cars view for the backpack_equip_car* clicks below.
+for _, tab in { "Misc", "Trails", "Auras", "Cars" } do
 	table.insert(UiSpec.Clicks, {
 		Id = "backpack_" .. string.lower(tab),
 		Gui = "RacerBackpack",
 		Path = "Panel/Tabs/" .. tab .. "Tab",
 		Prepare = only("RacerBackpack/Panel"),
-		Expect = { Panels = { ["RacerBackpack/Panel"] = true }, Remote = false },
+		Expect = {
+			Panels = { ["RacerBackpack/Panel"] = true },
+			Remote = false,
+			After = tab == "Cars" and { "backpack_cars_grid" } or nil,
+		},
 	})
 end
+-- Backpack Cars tiles (owner 2026-10-20): a non-equipped tile fires EquipCar with THAT tile's car id and the
+-- server's EquippedCar follows; the equipped tile fires nothing. Both start from the Cars view (click backpack_cars).
+table.insert(UiSpec.Clicks, {
+	Id = "backpack_equip_car",
+	Gui = "RacerBackpack",
+	Path = "Panel/Items/{discovered_unequipped}",
+	Prepare = {
+		Open = { "RacerBackpack/Panel" },
+		Closed = only("RacerBackpack/Panel").Closed,
+		Showcase = false,
+		ScrollIntoView = true,
+	},
+	NeedSetup = { "spy", "index_states" },
+	Expect = {
+		Remote = { Name = "EquipCar", Arg = "tile_id" },
+		After = { "equipped_is_tile", "backpack_tile_shows_equipped", "backpack_cars_grid" },
+	},
+})
+table.insert(UiSpec.Clicks, {
+	Id = "backpack_equipped_car",
+	Gui = "RacerBackpack",
+	Path = "Panel/Items/{equipped}",
+	Prepare = {
+		Open = { "RacerBackpack/Panel" },
+		Closed = only("RacerBackpack/Panel").Closed,
+		Showcase = false,
+		ScrollIntoView = true,
+	},
+	NeedSetup = { "spy", "index_states" },
+	Expect = { Remote = false, After = { "backpack_tile_shows_equipped", "backpack_cars_grid" } },
+})
 table.insert(UiSpec.Clicks, {
 	Id = "close_daily_modal",
 	Gui = "DailyBoosts",
@@ -2572,4 +2650,181 @@ for _, panel in { "PickPanel", "InvitePanel" } do
 		Expect = { Panels = { ["DuelUi/" .. panel] = false }, Remote = false },
 	})
 end
+-- Owner-approved 2026-10-20 contracts. Existing limits and click contracts above stay intact.
+-- Backpack (docs/HUD_LAYOUT_SPEC.md section 3, owner 2026-10-20) and car icons (docs/CAR_EXPANSION_SPEC.md "Car icons
+-- and model detail"). Checked by ui_backpack_cars and ui_car_icons (UiContracts) and the backpack_* clicks.
+-- ui_backpack_cars measures the live engine rects and tags its geometry checks with the live variant (_desktop, or
+-- _phone at ViewportSize.Y <= PhoneMaxHeight): ui-tester runs it at a desktop size AND at phone landscape
+-- (UiSpec.LegacyControls.ResizeProtocol sizes); both sets of check names must appear and pass.
+UiSpec.Backpack = {
+	Panel = "RacerBackpack/Panel",
+	Tabs = "RacerBackpack/Panel/Tabs",
+	Items = "RacerBackpack/Panel/Items",
+	Empty = "RacerBackpack/Panel/Empty",
+	TabOrder = { "Misc", "Trails", "Auras", "Cars" }, -- top to bottom; button <Name>Tab, label text <Name>
+	CarsTab = "RacerBackpack/Panel/Tabs/CarsTab",
+	-- Least rare first (the spec's list, not read from GachaConfig), then catalog Order.
+	RarityOrder = { "Common", "Uncommon", "Rare", "Epic", "Legendary", "Mythic", "Secret" },
+	PhoneMaxHeight = 500,
+	MaxDecimals = 6, -- digits after the point in a tile's "x<SpeedMulti>" (no float noise)
+	ModelWait = 5, -- s for a tile's ViewportFrame to receive its Car model (CarModels replicate late)
+	-- Tile border (the tile's UIStroke): green on the equipped car, never green on the others.
+	Green = function(c)
+		return c.G > c.R + 0.25 and c.G > c.B + 0.25
+	end,
+	IndexGallery = "RacerIndex/Panel/Face/GridHost/Gallery",
+}
+
+UiSpec.Expansion = {
+	Module = "CarExpansionManifest",
+	Count = 100,
+	Rarities = { Uncommon = 18, Rare = 24, Epic = 22, Legendary = 17, Mythic = 11, Secret = 8 },
+	Families = { "city_utility", "offroad_rally", "track_hyper", "futuristic_hover", "fantasy_novelty" },
+	PerFamily = 20,
+	Fields = { "Id", "Name", "Rarity", "Chance", "SpeedMulti", "Order", "Model" },
+}
+
+UiSpec.Guis.CheckpointUi = {
+	Source = "Client/CheckpointUi",
+	Panels = { "Panel" },
+	Buttons = {
+		{ Path = "Panel/Header/Close", Does = "close_panel", Panel = "CheckpointUi/Panel", Text = "X" },
+		{
+			Path = "Panel/Cards/*",
+			Does = "remote",
+			Remote = "SetCheckpoint",
+			Arg = "track_number",
+			Count = "tracks",
+			DisabledWhen = "locked_or_selected",
+		},
+	},
+}
+UiSpec.Checkpoints = {
+	Panel = "CheckpointUi/Panel",
+	Cards = "CheckpointUi/Panel/Cards",
+	LockTransparency = 0.4,
+	Prompt = "OpenCheckpoints",
+	PanelTheme = "Checkpoints", -- PanelFrame.Attach theme (owner 2026-10-20)
+}
+table.insert(CLOSED, UiSpec.Checkpoints.Panel)
+for _, fixture in
+	{
+		{ Id = "checkpoint_locked", What = "Unsaved Checkpoint=1, BestTrack=0; Track 2 locked. Pause racing/rolls." },
+		{ Id = "checkpoint_open", What = "Unsaved Checkpoint=1, BestTrack=2; Track 2 selectable. Pause racing/rolls." },
+	}
+do
+	fixture.When = "After snapshot; restore all attributes afterwards. Owned by server fixture writer."
+	table.insert(UiSpec.ServerSetup, fixture)
+end
+for _, case in
+	{
+		{ Id = "checkpoint_selected_no_remote", Track = 1, Best = 0, Setup = "checkpoint_locked", Remote = false },
+		{ Id = "checkpoint_locked_no_remote", Track = 2, Best = 0, Setup = "checkpoint_locked", Remote = false },
+		{
+			Id = "checkpoint_select_track",
+			Track = 2,
+			Best = 2,
+			Setup = "checkpoint_open",
+			Remote = { Name = "SetCheckpoint", Args = { 2 } },
+		},
+	}
+do
+	table.insert(UiSpec.Clicks, {
+		Id = case.Id,
+		Gui = "CheckpointUi",
+		Path = "Panel/Cards/Track_" .. case.Track,
+		Prepare = {
+			Open = { UiSpec.Checkpoints.Panel },
+			Showcase = false,
+			AttrIs = { Checkpoint = 1, BestTrack = case.Best },
+			Intercept = "SetCheckpoint", -- refuse the click unless the server logging proxy is installed
+			ScrollIntoView = true,
+		},
+		NeedSetup = { case.Setup, "spy", "progression_spy" },
+		Expect = {
+			Panels = { [UiSpec.Checkpoints.Panel] = true },
+			Remote = case.Remote,
+			After = { "checkpoint_not_optimistic" },
+		},
+	})
+end
+table.insert(UiSpec.Clicks, {
+	Id = "checkpoint_close",
+	Gui = "CheckpointUi",
+	Path = "Panel/Header/Close",
+	Prepare = only(UiSpec.Checkpoints.Panel),
+	NeedSetup = { "spy" },
+	Expect = { Panels = { [UiSpec.Checkpoints.Panel] = false }, Remote = false },
+})
+table.insert(UiSpec.Clicks, {
+	Id = "checkpoint_switch_to_index",
+	Gui = "HudChrome",
+	Path = "Grid/Index",
+	Prepare = only(UiSpec.Checkpoints.Panel),
+	NeedSetup = { "spy" },
+	Expect = { Panels = { [UiSpec.Checkpoints.Panel] = false, ["RacerIndex/Panel"] = true }, Remote = false },
+})
+table.insert(UiSpec.Clicks, {
+	Id = "checkpoint_escape",
+	Key = "Escape",
+	Manual = ESCAPE_MANUAL,
+	Prepare = only(UiSpec.Checkpoints.Panel),
+	NeedSetup = { "spy" },
+	Expect = { Panels = { [UiSpec.Checkpoints.Panel] = false }, Remote = false },
+})
+
+-- Header/Icon/Title and a single Close. Daily/Quests and Shop keep their public Close path.
+-- Daily/Quests share the same modal, so both actions must be inspected, not just whichever opened last.
+UiSpec.SharedFrames = {
+	{
+		Action = "Daily",
+		Panel = "DailyBoosts/ModalBackdrop/Modal",
+		Close = "Close",
+		Title = "DAILY REWARDS",
+		Colour = "red",
+	},
+	{
+		Action = "Quests",
+		Panel = "DailyBoosts/ModalBackdrop/Modal",
+		Close = "Close",
+		Title = "QUESTS",
+		Colour = "blue",
+	},
+	{ Action = "Shop", Panel = "ShopUi/Backdrop/Panel", Close = "Close", Title = "Shop", Colour = "purple" },
+	{
+		Action = "Market",
+		Panel = "MarketUi/Backdrop/Panel",
+		Close = "Header/Close",
+		Title = "Market",
+		Colour = "orange",
+	},
+}
+
+-- Potion cards and Bundle use separate gift product IDs. Account-bound/server-wide cards still explain why
+-- gifting is disabled. The scenario counts one Gift per card, independently of the wildcard inventory.
+table.insert(UiSpec.Guis.ShopUi.Buttons, {
+	Path = "Backdrop/Panel/Items/**/Gift",
+	Does = "local",
+	Effect = "gift_recipient_picker_or_disabled_reason",
+	Count = "dynamic",
+})
+UiSpec.Gifts = {
+	Button = "Gift",
+	Reasons = { Account = "account", Server = "server", Unavailable = "unavailable" },
+}
+table.insert(UiSpec.Clicks, {
+	Id = "gift_account_bound_disabled",
+	Gui = "ShopUi",
+	Path = "Backdrop/Panel/Items/Featured/**/ember_wyvern/Gift",
+	Prepare = {
+		Open = { "ShopUi/Backdrop" },
+		Showcase = false,
+		TargetActive = false,
+		ScrollIntoView = true,
+		Intercept = "PrepareGift",
+	},
+	NeedSetup = { "spy", "progression_spy" },
+	Expect = { Remote = false, After = { "shop_no_purchase_prompt" } },
+})
+
 return UiSpec

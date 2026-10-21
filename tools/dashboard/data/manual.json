@@ -430,6 +430,23 @@
       "status": "done",
       "done": "2026-10-20",
       "note": "Owner confirmed 2026-10-20: Allow Mesh / Image APIs was already on. Live-server mesh check happens after the biome branch is merged and published."
+    },
+    {
+      "id": "car-redesign-upload-key",
+      "title": "Open Cloud API key for the car mesh uploads",
+      "why": "The redesigned cars are Blender MeshParts (docs/CAR_REDESIGN_SPEC.md). Each car's FBX has to be uploaded to Roblox to get mesh ids; doing 111 by hand in Studio's 3D Importer is very slow.",
+      "blocks": "car-redesign: every wave (the Go-Kart pilot FBX is ready in drafts/cars/go_kart/redesign/)",
+      "when": "Before wave 1",
+      "steps": [
+        "Open create.roblox.com > Dashboard > Open Cloud > API Keys > Create API Key.",
+        "Name it \"car-redesign-upload\". Add the API system \"Assets\" with Read and Write. Under Accepted IP Addresses add 0.0.0.0/0 (or your IP).",
+        "Save, copy the key and keep it private. Do not paste it in chat or commit it.",
+        "In a terminal: echo 'export ROBLOX_OPEN_CLOUD_KEY=<key>' >> ~/.zshrc and echo 'export ROBLOX_CREATOR_ID=<your user id or group id>' >> ~/.zshrc, then open a new terminal.",
+        "Tell Claude \"upload key set\"; Claude pilots the Go-Kart upload. If Open Cloud does not work, the fallback is importing each FBX with Studio's 3D Importer."
+      ],
+      "status": "done",
+      "done": "2026-10-20",
+      "note": "Verified 2026-10-20: Go-Kart pilot uploaded (Model 90296948247442) with /usr/bin/python3 (python.org 3.14 lacks CA certs)."
     }
   ]
 }

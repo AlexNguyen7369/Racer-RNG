@@ -42,5 +42,10 @@ return {
 		"pass_cars",
 		"shop_purchases",
 		"environment",
+		"car_expansion",
+		"car_redesign",
+		"gifting",
+		"gift_mailbox",
+		"vehicle_effects",
 	},
 }

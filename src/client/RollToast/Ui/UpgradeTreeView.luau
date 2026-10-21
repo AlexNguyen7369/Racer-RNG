@@ -18,22 +18,17 @@ local function make(class, name, props, parent)
 	return object
 end
 local function label(parent, name, text, pos, size, textSize)
-	local object = make(
-		"TextLabel",
-		name,
-		{
-			BackgroundTransparency = 1,
-			Position = pos,
-			Size = size,
-			Text = text,
-			Font = Enum.Font.FredokaOne,
-			TextSize = textSize,
-			TextColor3 = WHITE,
-			TextWrapped = true,
-			ZIndex = 7,
-		},
-		parent
-	)
+	local object = make("TextLabel", name, {
+		BackgroundTransparency = 1,
+		Position = pos,
+		Size = size,
+		Text = text,
+		Font = Enum.Font.FredokaOne,
+		TextSize = textSize,
+		TextColor3 = WHITE,
+		TextWrapped = true,
+		ZIndex = 7,
+	}, parent)
 	make(
 		"UIStroke",
 		"GlyphOutline",
@@ -45,20 +40,15 @@ end
 local function hex(parent, name, width, color, z, yOffset)
 	local pieces = {}
 	for i, rotation in { 0, 60, -60 } do
-		pieces[i] = make(
-			"Frame",
-			name .. i,
-			{
-				AnchorPoint = Vector2.new(0.5, 0.5),
-				Position = UDim2.new(0.5, 0, 0.5, yOffset or 0),
-				Size = UDim2.fromOffset(width, width / math.sqrt(3)),
-				Rotation = rotation,
-				BackgroundColor3 = color,
-				BorderSizePixel = 0,
-				ZIndex = z,
-			},
-			parent
-		)
+		pieces[i] = make("Frame", name .. i, {
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.new(0.5, 0, 0.5, yOffset or 0),
+			Size = UDim2.fromOffset(width, width / math.sqrt(3)),
+			Rotation = rotation,
+			BackgroundColor3 = color,
+			BorderSizePixel = 0,
+			ZIndex = z,
+		}, parent)
 	end
 	return pieces
 end
@@ -76,36 +66,26 @@ function View.Create(gui, Tree, Format)
 	local refs = chrome.Bind(gui)
 	local screen = refs.Gui
 	screen.DisplayOrder = 8
-	local panel = make(
-		"Frame",
-		"Panel",
-		{
-			Size = UDim2.fromScale(1, 1),
-			BackgroundColor3 = Color3.fromRGB(7, 15, 24),
-			BackgroundTransparency = 0.38,
-			BorderSizePixel = 0,
-			Visible = false,
-			ZIndex = 0,
-			Active = true,
-		},
-		screen
-	)
-	local canvas = make(
-		"ScrollingFrame",
-		"Canvas",
-		{
-			Position = UDim2.fromOffset(0, 0),
-			Size = UDim2.fromScale(1, 1),
-			BackgroundTransparency = 1,
-			BorderSizePixel = 0,
-			ScrollBarThickness = 0,
-			ClipsDescendants = true,
-			ScrollingEnabled = false,
-			CanvasSize = UDim2.fromOffset(WORLD, WORLD),
-			ZIndex = 1,
-		},
-		panel
-	)
+	local panel = make("Frame", "Panel", {
+		Size = UDim2.fromScale(1, 1),
+		BackgroundColor3 = Color3.fromRGB(7, 15, 24),
+		BackgroundTransparency = 0.38,
+		BorderSizePixel = 0,
+		Visible = false,
+		ZIndex = 0,
+		Active = true,
+	}, screen)
+	local canvas = make("ScrollingFrame", "Canvas", {
+		Position = UDim2.fromOffset(0, 0),
+		Size = UDim2.fromScale(1, 1),
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		ScrollBarThickness = 0,
+		ClipsDescendants = true,
+		ScrollingEnabled = false,
+		CanvasSize = UDim2.fromOffset(WORLD, WORLD),
+		ZIndex = 1,
+	}, panel)
 	local world = make(
 		"Frame",
 		"TreeWorld",
@@ -141,20 +121,15 @@ function View.Create(gui, Tree, Format)
 		refs.DetailStatus.Text = entry.Status or "Select a tile"
 	end
 	local function node(id, name, q, r, icon)
-		local button = make(
-			"TextButton",
-			id,
-			{
-				AnchorPoint = Vector2.new(0.5, 0.5),
-				Position = UDim2.fromOffset(WORLD / 2 + STEP_X * (q + r / 2), WORLD / 2 + STEP_Y * r),
-				Size = UDim2.fromOffset(NODE_WIDTH, NODE_HEIGHT),
-				Text = "",
-				BackgroundTransparency = 1,
-				AutoButtonColor = false,
-				ZIndex = 3,
-			},
-			world
-		)
+		local button = make("TextButton", id, {
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.fromOffset(WORLD / 2 + STEP_X * (q + r / 2), WORLD / 2 + STEP_Y * r),
+			Size = UDim2.fromOffset(NODE_WIDTH, NODE_HEIGHT),
+			Text = "",
+			BackgroundTransparency = 1,
+			AutoButtonColor = false,
+			ZIndex = 3,
+		}, world)
 		hex(button, "Shadow", NODE_WIDTH + 5, Color3.fromRGB(10, 19, 38), 3, 5)
 		local outline = hex(button, "HexEdge", NODE_WIDTH + 3, WHITE, 4)
 		local fills = hex(button, "HexFace", NODE_WIDTH - 3, CYAN, 5)

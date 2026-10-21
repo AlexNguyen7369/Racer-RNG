@@ -16,9 +16,9 @@ LeaderboardConfig.Boards = {
 }
 
 -- Signs: local (x, z) of each board's centre in the spawn area (along the hub's near edge, facing the spawn).
-LeaderboardConfig.SIGN_SIZE = Vector3.new(16, 12, 1)
+LeaderboardConfig.SIGN_SIZE = Vector3.new(32, 20, 1)
 LeaderboardConfig.SIGN_Z = 40
-LeaderboardConfig.SIGN_X = { 152, 128, 104, 80 } -- read left to right from the spawn
+LeaderboardConfig.SIGN_X = { 168, 136, 104, 72 } -- read left to right; edge-to-edge so RarestCar clears StartPad
 
 -- Best Roll Ever pedestal (docs/LEADERBOARD_SPEC.md 3a): local (X, Z) of its centre, where the
 -- spawn-area upgrade pad stood (owner, 2026-10-13).

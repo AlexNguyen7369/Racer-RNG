@@ -95,6 +95,10 @@ function ShopService.Snapshot(player)
 end
 
 function ShopService.ProcessReceipt(info)
+	local giftDecision = require(script.Parent.GiftService).ProcessReceipt(info)
+	if giftDecision then
+		return giftDecision
+	end
 	local product = ShopService.Product(info.ProductId)
 	local player = Players:GetPlayerByUserId(info.PlayerId)
 	if not product or not product.Grants or not player or not loaded(player) then
@@ -168,6 +172,7 @@ function ShopService.Start()
 	redeem.Parent = remotes
 	redeem.OnServerInvoke = ShopService.Redeem
 	MarketplaceService.ProcessReceipt = ShopService.ProcessReceipt
+	require(script.Parent.GiftService).Start(remotes)
 	Players.PlayerRemoving:Connect(function(player)
 		lastRedeem[player] = nil
 		-- shortcut: the leave save reads this state, so drop it later instead of racing PlayerData's handler.

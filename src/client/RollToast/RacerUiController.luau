@@ -60,7 +60,8 @@ local rebirthConfig = require(Shared.RebirthConfig)
 -- Catalog additions extend the saved gallery without waiting forever for an old seven-car bake.
 local gallery = index.GridHost:FindFirstChild("Gallery")
 for _, spec in catalog.All() do
-	if not gallery or not gallery:FindFirstChild(spec.Id) then
+	local baked = gallery and gallery:FindFirstChild(spec.Id)
+	if not (baked and baked:FindFirstChild("Art") and baked.Art:IsA("ViewportFrame")) then
 		if gallery then
 			gallery:Destroy()
 		end
