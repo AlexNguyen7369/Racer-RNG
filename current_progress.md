@@ -44,8 +44,9 @@
 41. 2026-10-20 — Alex Nguyen — Recorded the biome world-tester check (green) and the Baseplate-hides-ground bug, and rewrote the biome handoff with goal state, verified results, blockers and resume steps.
 42. 2026-10-20 — Alex Nguyen — Lowered the Baseplate to top y=-2 so the themed track grounds show on tracks 1-5 (bug 4b68c6d9, Studio check pending).
 43. 2026-10-20 — Alex Nguyen — Merged the biome scenery into main, grounded the floating biome meshes, fixed the washed-out Kenney colours (20 textures re-uploaded), skipped props off their track's ground, and made the Baseplate and spawn floor sit flush (full CarTest 46/0).
+44. 2026-10-21 — Alex Nguyen — Redesigned all 111 referenced cars as bevelled Blender MeshPart skins (sport kit, bright neon, Singularity black hole, hand-built Zero G Zipper, lower novelty cars) synced via RedesignCarModels, and committed and pushed `3675a6d` to main with all pending expansion, Singularity, UI, NPC and VFX work.
 
 ## What's next
-**Run the UI suite and a phone-landscape check on the merged main, then fix its open failures (last run: pass 14, fail 15).**
+**Run the CarTest suite in Studio (car_redesign, gacha, weather, car_size, index, race, npc first, then the full suite) on the pushed main and fix any failures.**
 
-**Why this is next:** the harness is green after the merge, but the UI suite run in this session was red, and Codex's catalog, gifting and checkpoint UI work has to build on a passing UI baseline before it can be committed.
+**Why this is next:** `3675a6d` put the car redesign, the 100-car expansion and Codex's NPC tuning on main without a harness run, so every later feature and the UI suite fixes need a verified green baseline first.
