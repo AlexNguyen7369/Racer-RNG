@@ -3,7 +3,6 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
-local GuiService = game:GetService("GuiService")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local NpcRacer = require(Shared.NpcRacer)
 local CarConfig = require(Shared.CarConfig)
@@ -253,14 +252,10 @@ function Controller.Attach(hud, player, remote)
 		if not camera then
 			return
 		end
-		local chrome = gui and gui:FindFirstChild("HudChrome")
-		local shop = chrome and chrome:FindFirstChild("ShopColumn")
-		local inset = GuiService:GetGuiInset().Y
 		local right = camera.ViewportSize.Y <= 500 and 10 or 20
 		local y = camera.ViewportSize.Y <= 500 and 64 or 68
-		if shop and y + card.AbsoluteSize.Y + 8 > shop.AbsolutePosition.Y + inset then
-			right = camera.ViewportSize.X - shop.AbsolutePosition.X + 8
-		end
+		-- The map has a fixed authored anchor. It must not push the persistent HUD
+		-- (especially the Backpack/Items entry) when a race starts.
 		card.Position = UDim2.new(1, -right, 0, y)
 	end
 	function self.Destroy()

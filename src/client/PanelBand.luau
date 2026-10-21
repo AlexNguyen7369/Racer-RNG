@@ -34,10 +34,9 @@ function Band.Rect()
 	-- Both edges use the wider margin so the panel stays centred.
 	local margin = math.max(gridRight, viewport.X - shop.AbsolutePosition.X) + GAP
 	local right = viewport.X - margin
-	local raceMap = hud:FindFirstChild("RaceMap")
-	if raceMap and raceMap.Visible and hud.Enabled then
-		right = math.min(right, raceMap.AbsolutePosition.X - GAP)
-	end
+	-- RaceMap is presentation-only and has a fixed anchor. Do not reserve space
+	-- for it here: doing so re-centres the open Backpack/Shop panels whenever a
+	-- race starts, which makes the persistent HUD appear to move.
 	-- The bottom stops above the TURBO LUCK bar and above the Money readout in the bottom-left corner.
 	local bottom = turbo.AbsolutePosition.Y
 	local money = hud:FindFirstChild("Money")
