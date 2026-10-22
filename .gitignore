@@ -26,5 +26,5 @@ references/biome_packs/**
 drafts/cars/Roblox_Car_Redesign_References.zip
 references/car_redesign/
 
-# screen recordings are too large for GitHub (100 MB limit)
-images/*.mov
+# local screenshots and recordings (recordings exceed GitHub's 100 MB limit)
+images/

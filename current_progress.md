@@ -47,6 +47,7 @@
 44. 2026-10-21 — Alex Nguyen — Redesigned all 111 referenced cars as bevelled Blender MeshPart skins (sport kit, bright neon, Singularity black hole, hand-built Zero G Zipper, lower novelty cars) synced via RedesignCarModels, and committed and pushed `3675a6d` to main with all pending expansion, Singularity, UI, NPC and VFX work.
 45. 2026-10-21 — Alex Nguyen — Implemented and verified the transparent enlarged dynamic NPC race map with heading-up player-centred zoom, edge-clamped NPC marker, private VERSION 11 personal bests, focused tests (197/197 offline plus Studio server/client passes), and the refreshed StarterGui bake.
 46. 2026-10-22 — Alex Nguyen — Added the Workshop car Showcase (duplicates kept as copies, 3 picked cars on workshop pedestals boost workshop Speed gain, save VERSION 12), fixed the auto-race rail at max speed, applied the owner's speed-curve and roll-speed rules, got the full harness green (50/0) and pushed `74a9a73` with Codex's pending work.
+47. 2026-10-22 — Alex Nguyen — Git-ignored the local `images/` folder (screenshots and recordings; recordings exceed GitHub's 100 MB limit) and stopped the in-progress UI compat run.
 
 ## What's next
 **Finish the compatibility check on `74a9a73`: run the UI suite (with the Workshop Showcase clicks), world, multiplayer and the final regression pass with Studio updated and the screen unlocked, and triage the remaining UI reds.**
