@@ -50,7 +50,8 @@ function MoneyService.Award(player, amount)
 	return money.Value
 end
 
--- What the pad is worth to the player (its Cash times the Money multi), without paying it: NPC races bank this.
+-- What the pad is worth to the player (its Cash times the Money multi), without paying it. NPC race wins award
+-- this quote immediately at the track finish; callers may also use it for previews/tests.
 -- 0 for anything that is not a winnings pad with a positive Cash.
 function MoneyService.Quote(player, pad)
 	if typeof(pad) ~= "Instance" or not CollectionService:HasTag(pad, "WinPad") then

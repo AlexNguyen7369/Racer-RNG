@@ -48,5 +48,6 @@ return {
 		"gift_mailbox",
 		"vehicle_effects",
 		"race_progress_map",
+		"showcase",
 	},
 }

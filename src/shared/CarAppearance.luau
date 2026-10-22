@@ -60,6 +60,33 @@ function CarAppearance.Apply(car, id, config)
 	end
 	if skin then
 		skin.Parent = car
+		-- The authored skin hides the physics wheels, so give its four visible wheels
+		-- the same animated weld contract as the procedural wheels.  A WeldConstraint
+		-- cannot expose a changing spin angle; CarPhysics updates these Welds every step.
+		local staticSpringLen = config.SuspensionRest * (1 - config.StaticCompression)
+		for _, wheel in config.Wheels do
+			local part = skin:FindFirstChild("Wheel_" .. wheel.Name, true)
+			if part and part:IsA("BasePart") then
+				local skinWeld = part:FindFirstChild("SkinWeld")
+				if skinWeld then
+					skinWeld:Destroy()
+				end
+				-- Keep the authored wheel orientation, but snap its centre to the
+				-- shared physics mount. Imported bodies use different art scales;
+				-- retaining their authored position leaves the tire out of line with
+				-- the car's interior hub/wheel design.
+				local authoredLocal = chassis.CFrame:ToObjectSpace(part.CFrame)
+				local localCf = CFrame.new(wheel.Mount - Vector3.new(0, staticSpringLen, 0)) * authoredLocal.Rotation
+				local weld = Instance.new("Weld")
+				weld.Name = "SkinWeld"
+				weld.Part0 = chassis
+				weld.Part1 = part
+				weld.C0 = localCf
+				weld:SetAttribute("StaticSpringLen", staticSpringLen)
+				weld:SetAttribute("AnimatedWheel", true)
+				weld.Parent = part
+			end
+		end
 	end
 	car:SetAttribute("EquippedCar", spec and id or CarCatalog.STARTER_ID)
 	car:SetAttribute("VisualCarId", skin and visualId or CarCatalog.STARTER_ID)

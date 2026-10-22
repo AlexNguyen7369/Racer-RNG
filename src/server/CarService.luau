@@ -4,7 +4,7 @@
 -- is the only thing anyone sees.
 -- Players join and respawn ON FOOT in the spawn area (Shared/SpawnArea, docs/SPAWN_AND_ROLLS_SPEC.md). The
 -- "Auto Race" button (Client/AutoRaceButton, Remotes.SetAutoRace) or walking onto the StartPad spawns a fresh car at
--- the start; "Stop Auto" cashes out the run's banked winnings, removes the car and puts the visible avatar back in
+-- the start; "Stop Auto" ends the run, removes the car and puts the visible avatar back in
 -- the spawn area (WalkSpawnCFrame). The player attribute AutoRacing is the state the button shows. The Speed stat
 -- lives in leaderstats, so it is kept across both.
 
@@ -450,7 +450,7 @@ function CarService.SetAutoRace(player, enabled, duel)
 	if enabled then
 		spawnCar(player, character, gen, duel)
 	else
-		standUp(player, gen) -- removing the car destroys its run, which cashes out the banked winnings
+		standUp(player, gen) -- removing the car destroys its run; NPC wins were already paid at each finish
 	end
 	return CarService.IsAutoRacing(player)
 end

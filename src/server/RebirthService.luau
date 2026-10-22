@@ -61,9 +61,6 @@ function RebirthService.Rebirth(player)
 	end
 	local level = Config.CleanLevel(player:GetAttribute("RebirthLevel"))
 	local playerLevel = math.max(1, math.floor(tonumber(player:GetAttribute("Level")) or 1))
-	if level >= Config.MAX_LEVEL then
-		return false, "Maximum rebirth"
-	end
 	if not Config.CanRebirth(level, playerLevel) then
 		local required = Config.Requirements(level)
 		return false, string.format("Reach Level %d", required.Level)
@@ -76,6 +73,14 @@ function RebirthService.Rebirth(player)
 	LevelService.Reset(player)
 	player:SetAttribute("RebirthLevel", nextLevel)
 	refreshStatPoints(player) -- each rebirth adds RebirthConfig.POINTS_PER_REBIRTH free stat points
+	local gacha = require(script.Parent.GachaService)
+	if type(gacha.RefreshMultipliers) == "function" then
+		gacha.RefreshMultipliers(player)
+	end
+	local workshop = require(script.Parent.WorkshopService)
+	if type(workshop.RefreshRate) == "function" then
+		workshop.RefreshRate(player)
+	end
 	local rebirth = folder:FindFirstChild("Rebirth")
 	if rebirth then
 		rebirth.Value = nextLevel

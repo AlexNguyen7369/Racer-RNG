@@ -157,10 +157,18 @@ function UpgradeTree.Bonuses(owned)
 	return sums
 end
 
--- Seconds between auto-rolls: BASE_ROLL_INTERVAL / (1 + RollSpeed bonus), never below MIN_ROLL_INTERVAL.
+-- Seconds between auto-rolls: BASE_ROLL_INTERVAL divided by (1 + bonus) of EACH owned Roll Speed tier, compounding
+-- (owner 2026-10-22: 2.61, 2.27, ... s), never below MIN_ROLL_INTERVAL.
 function UpgradeTree.RollInterval(owned)
-	local bonus = UpgradeTree.Bonuses(owned).RollSpeed
-	return math.max(UpgradeConfig.MIN_ROLL_INTERVAL, UpgradeConfig.BASE_ROLL_INTERVAL / (1 + bonus))
+	local divisor = 1
+	for id, has in type(owned) == "table" and owned or {} do
+		local tile = has == true and byId[id]
+		local branch = tile and branchById[tile.Branch]
+		if branch and branch.Effect == "RollSpeed" then
+			divisor *= 1 + branch.Bonus[tile.Tier]
+		end
+	end
+	return math.max(UpgradeConfig.MIN_ROLL_INTERVAL, UpgradeConfig.BASE_ROLL_INTERVAL / divisor)
 end
 
 -- { Multi, Every } of the highest owned Turbo tier (BASE_TURBO when none).

@@ -395,5 +395,17 @@
     "why": "Cosmetic trails must look right in motion without touching physics, controls or the server-owned equip attributes.",
     "limits": "docs/PANEL_ART_GIFTING_SPEC.md; GAME_DESIGN_REQUIREMENTS.md cosmetic profiles; PhysicsTargets.lap.MinUpYStrict",
     "files": "VehicleEffects, CarService, MarketService, CarAppearance"
+  },
+  "showcase": {
+    "checks": "GachaConfig: SHOWCASE_SLOTS 3, SHOWCASE_SCALE 0.25, COPY_BONUS 0.1, MAX_COPIES 50, integer MAX_SAVED_COPIES >= 1e6, SHOWCASE_COOLDOWN > 0; SCRAP_MONEY / ScrapMoney / GachaService.ScrapValue gone; Remotes.SetShowcase is a RemoteFunction. SlotBonus = 0.25 x log10(SpeedMulti) x (1 + 0.1 x min(copies, 50)) for every rollable car (bad copies = 0, nil spec = 0), ShowcaseMulti = 1 + sum. A duplicate Grant returns false and adds 1 to GachaData.<id> Copies; 25 duplicate Rolls all return isNew false, scrapMoney 0, +25 copies, Money and MoneyEarned unchanged. SetShowcase accepts up to 3 distinct owned rollable ids and sets Showcase/ShowcaseMulti; nil, non-tables, 4 cars, duplicates, non-strings, unowned, unknown, starter, sparse/dictionary tables and gamepass cars return false and change nothing. ShowcaseMulti follows new copies; WorkshopMulti = Workshop points x ShowcaseMulti; WorkshopService.Rate scales by exactly the showcase multi. Snapshot/Apply: Copies only n >= 1 and owned, cleaned (floored, >= 0, capped), showcase deduped/owned/<= 3, junk fields safe, old saves 0 copies / empty. PlayerData VERSION 12: offline Speed credit scales by the showcase multi, save round trip, old v11 save upgraded. World: the owner's Workshop has anchored non-colliding ShowcasePedestal_1..3; showcased cars with a CarModels template appear as Model \"Car\" (anchored) with finite-MaxDistance labels, on assign, on change and cleared.",
+    "why": "Duplicates are no longer sold for Money; they are kept as copies and power workshop Speed gain through the 3 showcased cars. The server must decide the multi, validate the remote and save it.",
+    "limits": "docs/WORKSHOP_SPEC.md 5b Showcase; docs/SAVE_SPEC.md VERSION 12; GAME_DESIGN_REQUIREMENTS.md owner 2026-10-22 (duplicates never sold, race cash-outs the only Money source)",
+    "files": "GachaConfig, GachaService, WorkshopService, Workshop, PlayerData, CarTest/ShowcaseTests"
+  },
+  "ui_workshop_showcase": {
+    "checks": "Workshop Showcase panel: Multi shows ShowcaseMulti (2 decimals, matches GachaConfig formula), 3 slots show the shown cars or EMPTY with CLEAR only on filled slots, list has one row per owned rollable car sorted by slot bonus with SHOW/SHOWN and disabled when 3 are shown; no overlap with Buy/Close at every viewport, hitboxes inside parents; clicks showcase_* check BEST 3 / SHOW / CLEAR send the right SetShowcase ids and the labels follow the server.",
+    "why": "Players pick 3 cars whose duplicates raise workshop Speed gain (docs/WORKSHOP_SPEC.md 5b); the panel must show and send exactly the server's showcase.",
+    "limits": "UiSpec.WorkshopShowcase, GachaConfig.SlotBonus / ShowcaseMulti, fixtures showcase_owned / showcase_filled / showcase_spy",
+    "files": "Client/ProgressionUi, UiTest/UiProgression, UiTest/UiSpec"
   }
 }

@@ -3,13 +3,47 @@
 PROJECT CONTEXT - Idle Vehicle Simulator (read me first)
 Shown in Studio at: ServerScriptService > ProjectContext   (source file: context/ProjectContext.luau)
 Do NOT edit this in Studio: edit the file on disk, Rojo syncs it. Claude updates it at the end of every loop.
-Last updated: 2026-10-21 (Claude: gate signs, multiplied Speed rule)
+Last updated: 2026-10-22 (Codex: stronger Speed damping, defensive car physics, staged rebirth multipliers)
+
+OWNER REQUEST - STAGED REBIRTH MULTIPLIERS - 2026-10-22 (Codex, uncommitted)
+- Rebirth Speed Gain and Luck factors now compound as x5.00, x7.50, x7.50, x10.00, x10.00, then x7.50 repeating.
+  The rebirth panel reads the next factor from `RebirthConfig`; level 0 starts at x5.00. A `1e100` safety ceiling
+  keeps extreme rebirth counts finite without affecting normal progression.
+
+TEST RESULTS - 2026-10-22 compat check (Claude, took over from Codex; fingerprint a855483bd887)
+- harness: GREEN, [CARTEST] END pass=50 fail=0 (round 5; showcase, data, race, npc, all 10 tracks pass).
+- ui: RED/BLOCKED. Mac screen locked -> client 0 fps, no clicks; Showcase UI label/Buy/phone layout fixed after
+  that run but not re-verified. Other UI reds to triage on a rendered run: rebirth captions x7.50 vs x5.00,
+  RacerUpgrades tiles missing, shop ember_wyvern x2000 text, market detail action, roll anim timing.
+- world, multiplayer, regression: NOT RUN (Studio closed / usage limit).
+- Fixed this loop: PlayerData saves Copies/Showcase; RaceService rail (shallow sink lifted by velocity, path-turn
+  feed-forward, one-step chord lookahead, deviation grace by distance) -> 0 rail snaps at MAX_STAT; tests updated
+  to owner-confirmed rules; fake DataStore isolates the real player's autosave (flaky data lock checks).
+- Owner decisions 2026-10-22 (docs updated): cruise tail adds HALF range per doubling (196 at 1M, ~545 at MAX_STAT);
+  100K kink kept; car multi scales the stat; Roll Speed compounds (3 / 1.15^n).
+- Known flaky: bug 4c8bf3c0 track:Hill never_tilted 0.847 once (0.94+ on reruns).
+
+- Duplicate rolls are no longer sold: GachaService.Grant adds 1 to the GachaData entry's Copies attribute;
+  RollResult scrapMoney is always 0 and the roll card badge reads "+1 COPY". GachaConfig.SCRAP_MONEY/ScrapMoney
+  and GachaService.ScrapValue are removed. Race cash-outs are the only Money source.
+- Player picks 3 owned rollable cars (Remotes.SetShowcase, attribute Showcase; Workshop panel right column, BEST 3).
+  GachaConfig.SlotBonus = 0.25 x log10(SpeedMulti) x (1 + 0.1 x min(copies, 50)) (placeholders);
+  GachaService.WorkshopMulti = Workshop points x ShowcaseMulti, so zone and offline gain include it.
+- WorkshopBuilder ShowcasePedestal_1..3 (back of the zone, non-colliding); WorkshopService places
+  CarAppearance.Display copies + a name/copies label. PlayerData VERSION 12 saves Copies + Showcase.
+- Docs: design doc (owner exception to 'workshop gain independent of car model'), WORKSHOP_SPEC 5b, SAVE_SPEC.
+- Unverified: Studio harness `showcase` scenario and UI suite not run yet; pedestal placement not visually checked.
+
+OWNER BALANCE CHANGE - 2026-10-21 (Codex)
+- Stat-0/base player cruise speed is now 10 studs/s (was 12). Track 1 NPC remains 15 studs/s,
+  so the stat-0 starter still loses; live gate recommendations recalculate from the shared formula.
 
 GATE SIGNS + MULTIPLIED SPEED RULE - 2026-10-21 (Claude, uncommitted)
 - Owner: every track gate shows the biome and a recommended Speed. BiomeDressing gate: dark GateSign (8 studs tall,
   under the beam, +Z face toward the oncoming car) with SurfaceGui GateSignGui (Biome, RecSpeed labels).
   RaceConfig.StatFor(speed) inverts SpeedFor (no multi); HudFormat.Short formats with K M B T Qd Qt Sx Sp Oc No Dc.
-- Retuned (owner): MAX_SPEED 22, NPC BASE_SPEED 15, SPEED_GROWTH 1.37. Live gate rec. Speed: T1 2,578, T2 11,358,
+- Retuned again (owner): MAX_SPEED 109, NPC SPEED_GROWTH 1.75, race gain flat GAIN_PER_SECOND 1 x gain multis.
+  Rec. Speed T1 219 ... T10 904Qd. Earlier retune (superseded): MAX_SPEED 22, NPC BASE_SPEED 15, SPEED_GROWTH 1.37. Live gate rec. Speed: T1 2,578, T2 11,358,
   T3 41,936, T4 193,912, T5 1.43M, T6 21.6M, T7 886M, T8 143.5B, T9 152.6T, T10 2.14Qt.
 - Shown Speed (owner 2026-10-21, implemented): GachaService.ShownSpeedMulti = car SpeedMulti x aura, published as
   player attribute ShownSpeedMulti; HUD Speed + profile Speed show leaderstats.Speed x it (leaderstats, saves and
@@ -216,12 +250,11 @@ BEST ROLL EVER PEDESTAL - 2026-10-13 (Claude, branch feature/alex/global-leaderb
 - INCIDENT: the Studio test save was wiped while Codex and Claude shared one Play session; an older DataStore version
   (Speed 311,220) exists. Owner decides on a restore. See handoff.md.
 
-SPEED GAIN MATHS - 2026-10-13 (Claude, branch feature/alex/global-leaderboards, uncommitted)
-- Rule (owner 2026-10-13, design doc "Core stat model"): the Speed number climbs at an increasing rate; its effect on
-  cruise speed has diminishing returns that never flatten, no cap.
-- RaceConfig.GainPerSecond(stat, speed) = GAIN_PER_STUD * speed. Workshop.Rate = BASE_RATE * SpeedMulti * LevelMulti
-  * Workshop points. Workshop.OfflineGain = Rate * OFFLINE_FRACTION * capped time. RaceConfig.GAIN_SOFT and every
-  "/ (1 + stat / GAIN_SOFT)" term are removed. RaceConfig.SpeedFor is unchanged (logarithmic).
+SPEED GAIN MATHS - historical 2026-10-13 entry, superseded by the current 2026-10-22 rule
+- Current: `RaceConfig.GainPerSecond` is flat `GAIN_PER_SECOND` (currently 2) times permanent Speed Gain multipliers.
+  `RaceConfig.SpeedFor` is linear through `HALF_STAT=100,000`, then logarithmically diminishing with no cap.
+  Workshop gain remains separate and uses its live rate/multipliers.
+- The older GAIN_PER_STUD/increasing-rate rule below is retained only as historical test evidence; it is not current gameplay.
 - Tests (test-writer): economy, race, workshop, workshop_offline, workshop_phase2 moved to the new rule.
 - VERIFIED LIVE 2026-10-13 (Rojo connected, Studio Racer RNG): full harness [CARTEST] END pass=35 fail=0 on this
   code, incl. economy, race (high_stat_gain_per_stud_not_reduced_in_8s, faster_car_gains_more_in_8s), workshop,
@@ -914,6 +947,13 @@ CHANGE LOG (newest last)
    under them: the backdrop ignores presses inside the card).
 
 TEST RESULTS (latest first; update after every full run)
+- 2026-10-22 (Codex, current uncommitted tree): Speed is linear through 100K then logarithmically diminishing;
+  base race gain is 2/s; rebirth Speed Gain/Luck snapshots and WorkshopRate refresh immediately after rebirth.
+  Static checks passed: StyLua, Selene (0 errors, existing `okb` shadow warning), diff check, and Rojo build.
+  Live rebirth/physics verification remains blocked by Roblox Studio computer-use permission denial.
+- 2026-10-22 (Codex, current uncommitted tree): staged rebirth multipliers, stronger Speed damping, and defensive
+  physics changes are statically checked below; live rebirth/physics harness is still BLOCKED by Roblox Studio
+  computer-use permission denial. No `[CARTEST] END` line is evidence for this tree.
 - 2026-10-13 (fingerprint 225cec42d0c7): harness `[CARTEST] END pass=35 fail=0`.
   UI isolation: HUD/index/turbo/billboard green; emphasized geometry and loser hit-test
   remain red under MCP viewport coordinates. Multiplayer/world/regression standalone

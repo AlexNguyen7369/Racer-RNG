@@ -7,8 +7,8 @@ if script.Parent:FindFirstChild("RollToast") then
 end
 
 -- Stats panel on the left of the screen. It shows the Speed stat (leaderstats.Speed, grown by the server
--- while the car drives) with Money (leaderstats.Money) under it and the run's banked winnings (player attribute
--- Unbanked, paid into Money when auto racing stops) under that; all count smoothly as they change.
+-- while the car drives) with Money (leaderstats.Money) under it and the legacy zero-valued Unbanked row under that;
+-- NPC race wins are paid immediately at each track finish.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -68,6 +68,10 @@ local unbankedValue =
 local stats = player:WaitForChild("leaderstats")
 local speedStat = stats:WaitForChild("Speed")
 local moneyStat = stats:WaitForChild("Money")
+local function cruiseMulti()
+	local multi = player:GetAttribute("ShownSpeedMulti")
+	return type(multi) == "number" and multi > 0 and multi < math.huge and multi or 1
+end
 
 local shown = speedStat.Value
 local shownMoney = moneyStat.Value
@@ -80,7 +84,7 @@ local shownUnbanked = unbanked()
 RunService.Heartbeat:Connect(function(dt)
 	shown = HudFormat.Approach(shown, speedStat.Value, dt)
 	value.Text = HudFormat.SpeedText(shown)
-	rate.Text = HudFormat.RateText(shown)
+	rate.Text = HudFormat.RateText(shown, cruiseMulti())
 	shownMoney = HudFormat.Approach(shownMoney, moneyStat.Value, dt)
 	moneyValue.Text = HudFormat.MoneyText(shownMoney)
 	shownUnbanked = HudFormat.Approach(shownUnbanked, unbanked(), dt)

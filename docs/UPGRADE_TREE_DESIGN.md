@@ -1,4 +1,4 @@
-# Upgrade tree: implementation design
+# Upgrade tree: implementation design (implemented)
 
 Companion to `docs/UPGRADE_TREE_SPEC.md` (the owner's confirmed rules and numbers). This file is HOW it is built:
 modules, data, remotes, layout, tests and build phases. Started 2026-10-05.
@@ -7,7 +7,7 @@ modules, data, remotes, layout, tests and build phases. Started 2026-10-05.
 | Game | What it does | What we take |
 |---|---|---|
 | RNG Heroes (`references/upgrade_tree/`) | Hex-tile tree from a central Start. Branches snake outward (Money, Luck, Sell, Unit Storage, Damage, Walkspeed). Roll Speed hangs off the Luck branch. Roman-numeral tiers, price under the next buyable tile (green = affordable, red = not), locked "?" tiles beyond. Big red Close at the bottom. UPGRADES button next to ROLL with a red count badge. | The whole look: hex tiles, Start, roman numerals, price colours, "?" tiles, Close, the badge. A side branch hanging off another branch (our Turbo off Roll Speed). |
-| Anime Dice | Same kind of tree (Money, Luck, Unit Storage, Roll Speed, Damage, Walkspeed). Players are told to buy Money and Luck first because they feed each other; Roll Speed comes later. Rebirths reset progress. | Money and Luck are the cheap, obvious first buys (weight 1 / 1.2); Roll Speed and Turbo cost more (1.5 / 2). Rebirth is NOT part of this build (it is a dashboard suggestion). |
+| Anime Dice | Same kind of tree (Money, Luck, Unit Storage, Roll Speed, Damage, Walkspeed). Players are told to buy Money and Luck first because they feed each other; Roll Speed comes later. Rebirths reset progress. | Money and Luck are the cheap, obvious first buys (weight 1 / 1.2); Roll Speed and Turbo cost more (1.5 / 2). Rebirth is integrated separately through `RebirthService`. |
 
 ## Architecture
 ```
@@ -16,7 +16,7 @@ Shared/UpgradeTree      pure maths on an owned-set (no Instances): tiles, Price,
                         Turbo, WalkSpeed, BuyableCount. Used by the server (truth) and the client (display only)
 Server/UpgradeService   owns player.Upgrades (StringValue per owned tile id) and BestTrack; Buy (validated,
                         rate-limited), effects getters, Snapshot/Apply for PlayerData, Remotes.BuyUpgrade
-Client/UpgradeUi        UPGRADES button + badge, the hex panel (a PanelSwitch panel), the world pad opener
+Client/UpgradeUi        UPGRADES button + badge, the hex panel (a PanelSwitch panel)
 ```
 The server decides everything. The client sends only a tile id; it never sends a price or an amount.
 
@@ -31,7 +31,7 @@ The server decides everything. The client sends only a tile id; it never sends a
 | Walkspeed | Humanoid default 16 | `CarService` sets `Humanoid.WalkSpeed = UpgradeService.WalkSpeed(player)` on spawn, Stop and after each purchase |
 | Gate | (none) | `BestTrack`: highest track number the player has won. `RaceService` raises it on a won track (NPC mode) or a finished one (no NPC) |
 
-### Data and save (`PlayerData` VERSION 4)
+### Data and save (`PlayerData` VERSION 11; VERSION 4 is historical)
 - `Upgrades = { tileId, ... }` (sorted). Unknown ids are kept, like car ids. Tile ids are permanent save keys.
 - `BestTrack = n` (0 for new players).
 - `TurboCount = n`. Missing in a version-3 save: derived from `Rolls % 10`.
@@ -67,17 +67,19 @@ walkspeed_3         speed_3 ...
 (Sketch only: the real positions come from `UpgradeConfig.Branches[*].Direction` / `Origin`.)
 
 ## Prices
-`price = NiceRound(150 * 2.2 ^ (PriceDepth - 1) * BranchWeight)`, `NiceRound` = 2 significant figures, halves rounded up (225 -> 230, 165 -> 170, 495 -> 500).
+`price = NiceRound(150 * 50 ^ (PriceDepth - 1) * BranchWeight)`, `NiceRound` = 2 significant figures, halves rounded up (225 -> 230, 7,500 -> 7,500, 375,000 -> 380,000).
 `PriceDepth` is the tile's depth from Start, except Turbo, whose tiers I-IV are priced at depths 2, 4, 6, 7 (spec
 table: Turbo III at depth 6, IV at depth 7). Weights: Walkspeed 0.5, Money 1, Speed 1, Luck 1.2, Roll Speed 1.5, Turbo 2.
 
 | Tier | Money / Speed | Luck | Roll Speed | Walkspeed | Turbo |
 |---|---|---|---|---|---|
-| I | $150 | $180 | $230 | $75 | $660 |
-| II | $330 | $400 | $500 | $170 | $3.2k (III/IV: $15k, $34k) |
-| III | $730 | $870 | $1.1k | $360 | |
-| IV | $1.6k | $1.9k | $2.4k | $800 | |
-| V | $3.5k | $4.2k | $5.3k | $1.8k | |
+| I | $150 | $180 | $230 | $75 | $15k |
+| II | $7.5k | $9k | $11k | $3.8k | $38m (III/IV: $94b, $4.7t) |
+| III | $380k | $450k | $560k | $190k | |
+| IV | $19m | $23m | $28m | $9.4m | |
+| V | $940m | $1.1b | $1.4b | $470m | |
+
+The prior 2.2x, 3x, and 5x comparisons below are historical; the live configuration uses 50x price growth.
 
 (2 significant figures gives $730 / $7.7k where the spec's table said "about $750 / $7.8k".)
 
@@ -91,18 +93,18 @@ tests that the server refuses a gated tile.
 - **Panel:** a `PanelSwitch` panel (exclusive with Index / Stats), below the Auto Race button and the compact roll,
   above the turbo bar. A `ScrollingFrame` (drag to pan on phones) holds the hex tiles; Close button at the bottom.
 - **Tile states:** owned = blue with icon + name; buyable = name + price (green if affordable, red if not), click to buy;
-  gated = grey "Reach Track N"; further out = dark "?". Hover/tap shows the effect ("Roll Speed II: +20 % (2.50 s)").
+  gated = grey "Reach Track N"; further out = dark "?". Hover/tap shows the effect ("Roll Speed II: +15 % (2.27 s)").
 - **Feedback:** a buy plays a pop + coin sound; a rejected buy shakes the tile and shows the server's reason.
 - **World pad:** removed (owner, 2026-10-13; spec section 5). The panel opens only from the UPGRADES button.
 
 ## Tests (written first, by test-writer / ui-test-writer)
 Harness `upgrades` (pure + server, no physics): tile list and ids; prerequisite order; Turbo forks off Roll Speed I;
-every price matches the formula; gate per tier and track count; Bonuses / RollInterval (2.73, 2.50, 2.31, 2.14, 2.00,
+every price matches the formula; gate per tier and track count; Bonuses / RollInterval (2.61, 2.27, 2.00, 2.00, 2.00,
 never below 2) / Turbo table / WalkSpeed table; BuyableCount; `UpgradeService.Buy`: money taken exactly once, every
 reject reason leaves Money and tiles unchanged, rate limit, non-string ids; effects reach `GachaService.Luck`,
 `MoneyMulti`, `SpeedMulti` (added, not multiplied, with stat points), the auto-roll interval, turbo every N with
 progress kept and capped on a tier buy, WalkSpeed on spawn and after Stop; BestTrack raised by a won track.
-Harness `data`: VERSION 4 round trip, version-3 saves load (TurboCount from Rolls), unknown tile ids kept.
+Harness `data`: VERSION 11 round trip, with VERSION 4/3 migration history (TurboCount from Rolls), unknown tile ids kept.
 UI (`ui_upgrades`): button + badge, panel inside its area at every viewport, no overlap with Index / Stats / the
 compact roll / turbo bar, Close works, buy click calls the remote, gated and "?" tiles not clickable, world pad opens it.
 Unchanged: every stability test (the tree never touches cruise speed or physics).
@@ -112,22 +114,22 @@ Unchanged: every stability test (the tree never touches cruise speed or physics)
    pure-logic checks (red) -> implement `UpgradeTree` -> green.
 2. **Server:** `UpgradeService` (stubs now), effects in GachaService / CarService / RaceService, TurboCount, PlayerData
    v4 -> test-writer extends `upgrades` + `data` first -> implement -> full harness green.
-3. **UI:** ui-test-writer writes `ui_upgrades` first -> `Client/UpgradeUi`, world pad in `SpawnArea` -> UI suite green.
+3. **UI:** ui-test-writer writes `ui_upgrades` first -> HUD `UpgradeUi`; the removed world pad is not part of the active contract.
 4. `/compat-check` ALL GREEN, update ProjectContext, dashboard TODO, progress log.
 
 ## Phase 2 plan (drafted 2026-10-06)
 Server side only; the UI (phase 3) and `Client/RollUi` reading `TurboCount` / `TurboEvery` come after. Built in the
-same round as workshop phase 1 (`docs/WORKSHOP_SPEC.md`) because both bump `PlayerData` to VERSION 4.
+same round as workshop phase 1 (`docs/WORKSHOP_SPEC.md`); VERSION 4 is historical and the current save schema is VERSION 11.
 
 | Step | File | Change |
 |---|---|---|
-| 1 | `CarTest/Scenarios.luau` (test-writer) | extend `upgrades` with the server checks listed under Tests; extend `data` for VERSION 4 (`Upgrades`, `BestTrack`, `TurboCount`, `WorkshopLevel`); must be red against the stubs |
+| 1 | `CarTest/Scenarios.luau` (test-writer) | extend `upgrades` with the server checks listed under Tests; extend `data` for the current VERSION 11 schema (`Upgrades`, `BestTrack`, `TurboCount`, `WorkshopLevel`); must be red against the stubs |
 | 2 | `Server/UpgradeService` | implement every stub: `player.Upgrades` folder, attributes, `Buy` (rate limit, `UpgradeTree.CanBuy` with the real track count from `RaceService.GetRoute()`, Money taken once from `leaderstats.Money`), `Bonuses` / `RollInterval` / `Turbo` / `WalkSpeed`, `ReachTrack`, `Snapshot` / `Apply`, `Start` (remote + badge refresh on Money / tiles / BestTrack change) |
 | 3 | `Shared/GachaConfig` | `Multis(alloc, bonuses)`: optional second table of added tree bonuses (Money, Luck, Speed); one-argument calls unchanged |
 | 4 | `Server/GachaService` | `SpeedMulti` / `MoneyMulti` / `Luck` pass `UpgradeService.Bonuses`; `Roll` uses `TurboCount` and the player's Turbo tier instead of `IsTurbo(Rolls)`; `StartAutoRoll` / `WaitAfter` use `UpgradeService.RollInterval(player)` read every roll |
 | 5 | `Server/CarService` | on-foot `Humanoid.WalkSpeed = UpgradeService.WalkSpeed(player)` on spawn, Stop (showCharacter) and after a Walkspeed buy |
 | 6 | `Server/RaceService` | `UpgradeService.ReachTrack(player, n)` on a won track (NPC mode) or a finished one (no NPC) |
-| 7 | `Server/PlayerData` | VERSION 4: save/load `UpgradeService.Snapshot` fields (and `WorkshopLevel`); a version-3 save loads with `TurboCount = Rolls % 10`, `BestTrack = 0`, no tiles |
+| 7 | `Server/PlayerData` | Current VERSION 11: save/load `UpgradeService.Snapshot` fields (and `WorkshopLevel`); older saves load with `TurboCount = Rolls % 10`, `BestTrack = 0`, no tiles |
 | 8 | `Server/Main` | `UpgradeService.Start()` after `GachaService.Start()` |
 | 9 | docs / context | ProjectContext, todo.json, tests_explained.json, README features after the full harness is green |
 

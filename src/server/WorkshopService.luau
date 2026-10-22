@@ -9,6 +9,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
+local CarAppearance = require(Shared.CarAppearance)
+local CarCatalog = require(Shared.CarCatalog)
 local Workshop = require(Shared.Workshop)
 local WorkshopBuilder = require(Shared.WorkshopBuilder)
 local WorkshopConfig = require(Shared.WorkshopConfig)
@@ -118,6 +120,65 @@ local function setRate(player, inZone, rate)
 	player:SetAttribute("WorkshopRate", rate)
 end
 
+-- Puts a static copy of each showcased car on the workshop's pedestals, with a name / copies label.
+local function placeShowcase(player, workshop)
+	local ids = GachaService.ShowcaseList(player)
+	for i = 1, 3 do
+		local pedestal = workshop:FindFirstChild("ShowcasePedestal_" .. i)
+		if pedestal then
+			for _, child in pedestal:GetChildren() do
+				child:Destroy()
+			end
+			local spec = ids[i] and CarCatalog.Get(ids[i])
+			local car = spec
+				and CarAppearance.Display(
+					spec,
+					pedestal.CFrame * CFrame.new(0, pedestal.Size.Y / 2, 0),
+					WorkshopConfig.SHOWCASE_CAR_SCALE
+				)
+			if car then
+				car.Parent = pedestal
+			end
+			if spec then
+				local gui = Instance.new("BillboardGui")
+				gui.Name = "ShowcaseLabel"
+				gui.Size = UDim2.fromOffset(160, 40)
+				gui.StudsOffsetWorldSpace = Vector3.new(0, 7, 0)
+				gui.MaxDistance = WorkshopConfig.SHOWCASE_LABEL_DISTANCE
+				gui.Parent = pedestal
+				local label = Instance.new("TextLabel")
+				label.Size = UDim2.fromScale(1, 1)
+				label.BackgroundTransparency = 1
+				label.Font = Enum.Font.GothamBlack
+				label.TextScaled = true
+				label.TextColor3 = Color3.new(1, 1, 1)
+				label.TextStrokeTransparency = 0.3
+				label.Text = spec.Name .. "\nx" .. GachaService.Copies(player, spec.Id) .. " copies"
+				label.Parent = gui
+			end
+		end
+	end
+end
+
+local showcaseWatch = setmetatable({}, { __mode = "k" }) -- player -> connection
+
+local function watchShowcase(player)
+	if showcaseWatch[player] then
+		return
+	end
+	showcaseWatch[player] = player.AttributeChanged:Connect(function(name)
+		if name ~= "Showcase" and name ~= "ShowcaseMulti" then
+			return
+		end
+		local index = plotOf[player]
+		local workshop = index and plots[index] and plots[index]:FindFirstChild("Workshop")
+		if workshop then
+			placeShowcase(player, workshop)
+		end
+		setRate(player, player:GetAttribute("InWorkshop") == true, WorkshopService.Rate(player))
+	end)
+end
+
 -- Gives the player the lowest free plot and builds their workshop. Returns the plot index (0 = none free).
 function WorkshopService.Assign(player)
 	if plotOf[player] then
@@ -158,6 +219,8 @@ function WorkshopService.Assign(player)
 	)
 	workshop.Parent = plot
 	bindUpgrade(player, workshop)
+	placeShowcase(player, workshop)
+	watchShowcase(player)
 	setRate(player, false, WorkshopService.Rate(player))
 	return index
 end
@@ -166,6 +229,10 @@ end
 function WorkshopService.Release(player)
 	local index = plotOf[player]
 	plotOf[player] = nil
+	if showcaseWatch[player] then
+		showcaseWatch[player]:Disconnect()
+		showcaseWatch[player] = nil
+	end
 	player:SetAttribute("Plot", 0)
 	player:SetAttribute("InWorkshop", false)
 	player:SetAttribute("WorkshopRate", 0)
@@ -219,6 +286,7 @@ function WorkshopService.BuyUpgrade(player)
 	end
 	replacement.Parent = plots[index]
 	bindUpgrade(player, replacement)
+	placeShowcase(player, replacement)
 	setRate(player, false, WorkshopService.Rate(player))
 	return true, "Upgraded to level " .. (level + 1)
 end
@@ -231,6 +299,15 @@ function WorkshopService.Rate(player)
 		Workshop.CleanLevel(player:GetAttribute("WorkshopLevel")),
 		GachaService.WorkshopMulti(player)
 	)
+end
+
+-- Rebirth changes the live gain multiplier while the player may still be standing in the zone.
+-- Refresh the replicated rate immediately instead of waiting for the next zone tick.
+function WorkshopService.RefreshRate(player)
+	local index = plotOf[player]
+	if index then
+		setRate(player, player:GetAttribute("InWorkshop") == true, WorkshopService.Rate(player))
+	end
 end
 
 local function inZone(player, index, character)

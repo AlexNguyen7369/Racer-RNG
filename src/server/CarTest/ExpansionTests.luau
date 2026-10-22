@@ -145,6 +145,10 @@ function Tests.car_expansion()
 					for _, part in skin:GetDescendants() do
 						if part:IsA("BasePart") then
 							local weld = part:FindFirstChild("SkinWeld")
+							local animatedWheel = part.Name == "Wheel_FL"
+								or part.Name == "Wheel_FR"
+								or part.Name == "Wheel_RL"
+								or part.Name == "Wheel_RR"
 							safe = safe
 								and not part.CanCollide
 								and not part.CanTouch
@@ -153,7 +157,9 @@ function Tests.car_expansion()
 								and not part.Anchored
 								and part.CollisionGroup == chassis.CollisionGroup
 								and weld ~= nil
-								and weld:IsA("WeldConstraint")
+								and ((not animatedWheel and weld:IsA("WeldConstraint")) or (animatedWheel and weld:IsA(
+									"Weld"
+								)))
 								and weld.Part0 == chassis
 								and weld.Part1 == part
 						end
@@ -256,7 +262,7 @@ function Tests.car_expansion()
 		flag("expansion_discovery_points", gacha.EarnedPoints(player) == 33, gacha.EarnedPoints(player), 33)
 		flag("expansion_save", data.Save(player, uid, true) == true)
 		local record = store.data[data.KeyFor(uid)]
-		flag("expansion_saved_v11", record.Version == 11, record.Version, 11)
+		flag("expansion_saved_v11", record.Version == 12, record.Version, 12) -- name kept; current VERSION is 12
 		local restored = H.player(cleanup, uid)
 		flag("expansion_reload", data.Load(restored, uid) == true)
 		for _, spec in manifest.Cars do

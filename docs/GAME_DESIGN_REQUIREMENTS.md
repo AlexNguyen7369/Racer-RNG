@@ -18,7 +18,7 @@ Idle Vehicle Simulator — Game Design Requirements
        Speed is the score. Every system either raises Speed gain or is unlocked by it.
        Progress while idle. The workshop and auto-rolling keep paying out while the player is
        AFK.
-       Push your luck. After each race win, players bank the money or risk it on a harder race.
+       Push your luck. Race outcomes are deterministic speed comparisons; a win pays the current track immediately.
        Resets that feel huge. Each rebirth wipes Money and Speed but makes the next run
        dramatically faster.
 
@@ -97,8 +97,12 @@ Idle Vehicle Simulator — Game Design Requirements
 
 
   Core stat model
-  Proposed: every source is a multiplier, and Speed gain per second is all of them multiplied
-  together. The brainstorm doesn't say how they stack, so this is a starting point to confirm.
+  Historical proposal: every source is a multiplier, and Speed gain per second is all of them
+  multiplied together. The current owner rule below narrows this to permanent Speed Gain upgrades
+  and rebirths; equipped car models and temporary cruise boosts never affect Speed gain.
+  Owner exception, 2026-10-22 (Workshop Showcase): the three cars a player shows in their
+  workshop add a Showcase multi to WORKSHOP Speed gain only (docs/WORKSHOP_SPEC.md "Showcase").
+  The equipped car still never affects any Speed gain.
 
 
                                                                                                       Page 2 of 14
@@ -149,15 +153,20 @@ Idle Vehicle Simulator — Game Design Requirements
        out and never reaches zero; a higher Speed must always give a cruise speed the player
        can tell apart. There is no hard cap on cruise speed.
        Maths (same date; the constants are placeholders, the shapes are fixed):
-       Race Speed gain per second = GAIN_PER_STUD x actual car speed x the gain multipliers.
-       Nothing divides it by the Speed stat. A higher Speed gives a faster car, a faster car
-       gives more gain, so the number climbs faster and faster.
+       Race Speed gain per second = GAIN_PER_SECOND x the permanent Speed Gain multipliers.
+       It is independent of Speed, equipped car, cruise multipliers, temporary boosts and actual speed.
        Workshop Speed gain per second = BASE_RATE x Speed multi x workshop level x Workshop
-       points. Nothing divides it by the Speed stat; it rises with the workshop level and the
+       points x Showcase multi (owner 2026-10-22). Nothing divides it by the Speed stat; it rises with the workshop level and the
        multipliers. Offline earnings are that rate x the offline share x the capped time.
-       Cruise speed = BASE_SPEED + (MAX_SPEED - BASE_SPEED) x log2(1 + Speed / HALF_STAT) / 2,
-       x the car's speed multi. Every doubling of Speed (well above HALF_STAT) adds the same
-       (MAX_SPEED - BASE_SPEED) / 2 studs per second: diminishing per point, never flat, no cap.
+       Cruise speed uses a friendly early segment followed by diminishing returns: for effective Speed up to HALF_STAT,
+       BASE_SPEED + (MAX_SPEED - BASE_SPEED) x Speed / HALF_STAT; above HALF_STAT,
+       MAX_SPEED + (MAX_SPEED - BASE_SPEED) / 2 x log2(1 + (Speed - HALF_STAT) / HALF_STAT)
+       (owner 2026-10-22: each doubling above HALF_STAT adds HALF the range, so 196 studs/s at 1M).
+       "Speed" here is the effective Speed: the stat multiplied by the damped car/aura cruise multi, capped at
+       1.5x, before the curve (owner 2026-10-22: the multi scales the stat, not the cruise result). The active
+       placeholder HALF_STAT is 100,000, so the first 100K Speed is easier to feel (linear). The join at 100K is
+       a kink (owner 2026-10-22: kept, not smoothed); past it every later point adds less.
+       The tail never flattens and has no hard cap.
        Owner decision, 2026-10-20: the Speed stat itself has no cap either (only infinity and
        non-numbers are rejected, since they can not be saved).
        Owner decision, 2026-10-20 (one steady speed): the auto-racing car drives at exactly its
@@ -165,7 +174,7 @@ Idle Vehicle Simulator — Game Design Requirements
        starting a run, a checkpoint or a restart is at its cruise speed at once, so every car
        races at its own speed everywhere on the chain. This must stay stable (no flips, no tilt,
        on the path) up to the test reference stat MAX_STAT. The NPC opponents are unchanged.
-       Owner decision, 2026-10-20 (slower, harder balancing): cruise speed is much slower
+       Historical decision, 2026-10-20 (superseded by the 2026-10-21 active rule below): cruise speed is much slower
        (placeholders BASE_SPEED 12, MAX_SPEED 18: +3 studs/s per doubling of Speed, still no
        cap). The car's speed multi has diminishing returns: a multi m above 1 counts as 1 + log2(m)
        in the cruise formula (2x stays 2x); the multi shown on the car is unchanged. Each
@@ -173,41 +182,51 @@ Idle Vehicle Simulator — Game Design Requirements
        one before (placeholders: Track 1 = 9 studs/s, x2 per track). A car that leaves the road
        (more than 2 studs under it or 8 studs over it) is put back on it, so no speed drops a
        car out of the map.
-       Owner decision, 2026-10-20 (later the same day: much harsher, MUCH slower progression):
+       Historical decision, 2026-10-20 (superseded by the 2026-10-21 active rule below):
        placeholders MAX_SPEED 22 (+5 studs/s per doubling of Speed), HALF_STAT 5000,
        GAIN_PER_STUD 0.01 (was 0.05) and workshop BASE_RATE 0.2 (was 1): Speed is earned 5x
        slower and each point buys less cruise speed. Shapes unchanged: diminishing, no cap.
-       Owner decision, 2026-10-21 (harder NPCs, revised): every NPC, Track 1 included, is much harder.
+       Historical decision, 2026-10-21 (superseded later the same day): every NPC, Track 1 included, is much harder.
        Beginners are expected to lose Track 1 until they build Speed or roll a faster car.
        Placeholders: Track 1 NPC = 45 studs/s (was 30, formerly 9), x2.5 per track. NPCs on tracks 1-10
        drive imported car models, and their label shows from 200 studs.
-       Owner decision, 2026-10-21 (multiplied Speed; replaces the 1 + log2(m) car multi rule above):
-       The player has a base Speed (the number they earn and save) and a shown Speed:
-       shown Speed = base Speed x Speed multi, where the Speed multi is the full multi of the
-       equipped car (and any shop boost that changes cruise speed), with no diminishing returns.
-       Every place a player sees Speed shows the shown Speed (owner 2026-10-21, later the same
-       day): the HUD, the Stats panel, the Roblox player list, the global Speed leaderboard,
-       and Speed amounts such as the workshop gain per second and offline earnings (base
-       amount x Speed multi). Equipping a different car changes them at once, often
-       dramatically. The car's own multi is still shown on the car unchanged.
-       Cruise speed comes only from the shown Speed: cruise speed = the cruise formula above
-       applied to the shown Speed, with no separate car multiplier after it. The same shown Speed
-       always gives the same cruise speed, whatever car produced it.
+       Owner decision, 2026-10-21 (multiplied Speed; revised 2026-10-21 to damp rare-car speed):
+       The player has a base Speed (the number they earn, see and save). The equipped car (and
+       any shop effect that changes cruise speed) has a separate cruise multi. It is used only when
+       calculating movement speed; it never changes the displayed Speed stat or its gain rate. The
+       HUD, Stats panel, Roblox player list, and global Speed leaderboard therefore all show base
+       Speed. The car's own multi is still shown on the car.
+       Before the cruise formula, the raw cruise multi is damped to `1 + log10(raw cruise multi)`
+       and capped at effective 1.5x (minimum 0.1 for valid positive values). This keeps rare cars
+       faster without allowing a 350x/1000x car to create hundreds or thousands of studs/s. The same base Speed can therefore
+       produce different cruise speeds with different cars, while the Speed gain rate remains identical.
        Saving, rebirth resets and Speed gain still use the base Speed. The gain rules above are
        unchanged.
        Large Speed numbers are abbreviated with suffixes (K, M, B, T, Qd = quadrillion,
        Qt = quintillion, and onward) instead of growing endless digits. The exact point where
        the HUD switches from full digits to suffixes is a placeholder.
-       Owner decision, 2026-10-21 (lower track requirements): Track 1 must not need ~10M Speed.
+       Historical decision, 2026-10-21 (superseded later the same day): Track 1 must not need ~10M Speed.
        Placeholders: MAX_SPEED 22 (was 18; +5 studs/s per Speed doubling), Track 1 NPC 15 studs/s
        (was 45), x1.37 per track (was x2.5). Recommended Speed: Track 1 ~2.6K, Track 5 ~1.4M,
-       Track 10 ~2.1Qt. A stat-0 starter car (12 studs/s) still loses Track 1.
+       Track 10 ~2.1Qt. A stat-0 starter car (10 studs/s) still loses Track 1.
+       Owner decision, 2026-10-21 (later again; replaces the speed-proportional race gain and the
+       "increasing rate" shape of 2026-10-13 for racing): race Speed gain per second is a flat
+       GAIN_PER_SECOND (placeholder 2) x the permanent Speed Gain multipliers (the Speed Gain
+       stat/upgrade and rebirth). It does not depend on the player's Speed stat, equipped car,
+       car/aura cruise multi, temporary boosts, or how fast the car drives.
+       Cruise speed is buffed: placeholder MAX_SPEED 109 (+48.5 studs/s per doubling of shown
+       Speed; same log shape, no cap). Each next track's NPC is 1.75x faster (placeholder Track 1
+       = 15 studs/s). Recommended Speed: Track 1 ~363, Track 5 ~26.2K, Track 10 ~479Qd.
+       Owner decision, 2026-10-22 (speed feel): make the first 100K Speed easier to gain and begin
+       the stronger diminishing-return tail only after 100K. Placeholders MAX_SPEED 80 and HALF_STAT 100K.
+       With raw multi 1 this gives about 17 studs/s at 10K, 45 at 50K, 80 at 100K, and 196 at 1M;
+       above 100K every later point adds less cruise speed, with no cap.
        Track gates show a recommended Speed: the shown Speed at which the car's cruise speed
        matches that track's NPC. Players compare their own shown Speed with it, whatever car
        they drive (see Track environments).
 
-  In races, Speed gain uses the same formula without W (proposed). Confirm whether
-  races should get every other multiplier or only a flat base rate.
+  In races, Speed gain uses the flat permanent Speed Gain formula above. Workshop gain is separate and does not use
+  the equipped car or a Speed-stat diminishing term.
 
   Balance tip: with nine multipliers stacked, a small change to one moves everything. Model
   the numbers in a spreadsheet before building. Stat points are easier to tune if each point
@@ -251,17 +270,15 @@ Idle Vehicle Simulator — Game Design Requirements
 
 
   Racing (core game loop)
-  Racing turns Speed into Money: climb a ladder of NPC races, then bank the pot or risk it
-  on a harder race.
+  Racing turns Speed into Money: climb a deterministic ladder of NPC races and receive the current track's payout.
 
   Requirements
 
        Several environments (placeholder names: City, Desert, Snow, Volcano, Space). Each
        one is a ladder of tracks, like levels.
        Each track has an NPC with a fixed speed. Every next track's NPC is much faster.
-       After a win, the player picks Cash out (take the money, go home) or Continue (race the
-       next track).
-       A loss wipes all unbanked money from that run.
+       A win pays the current/last track immediately. There is no banked pot or Continue-risk mechanic.
+       A loss pays nothing for that track; earlier payouts remain.
        The payout grows with the difficulty of the track beaten.
        The player keeps earning Speed during races (see Core stat model).
 
@@ -293,15 +310,10 @@ Idle Vehicle Simulator — Game Design Requirements
 
      stateDiagram-v2
        [*] --> Race
-       Race --> Won: beat the NPC
-       Race --> Lost: NPC wins
-       Won --> CashOut: bank the pot
-       Won --> Race: continue, harder NPC
-       Lost --> Home: pot lost
-       CashOut --> Home
-
-
-  Each win raises the pot; each Continue puts the whole pot at risk.
+       Race --> Won: deterministic speed comparison
+       Race --> Lost: deterministic speed comparison
+       Won --> Race: next sequential track
+       Lost --> Race: restart at checkpoint
 
   Sample ladder for one environment (placeholder numbers)
 
@@ -387,13 +399,17 @@ Idle Vehicle Simulator — Game Design Requirements
 
        Rebirth unlocks at level milestones: 10, 25, 50, 75, 100, then every 25 after (proposed).
        Rebirthing resets Money, Speed, Level and XP. Level returns to 1 and XP returns to 0.
-       Each rebirth gives a large automatic boost to Speed multi (R) and Luck multi.
+       Each rebirth compounds the automatic Speed Gain and Luck multipliers. The next-rebirth factors
+       are x5.00, x7.50, x7.50, x10.00, x10.00, then x7.50 repeating; level n contributes the product
+       of its factors (with a numeric-safety ceiling far beyond normal play). Rebirths do not multiply
+       race payout Money; Money upgrades and temporary Money effects remain separate.
        Each rebirth also gives Rebirth Points to spend on four stats.
        Rebirth Points per rebirth: 1 (placeholder; owner 2026-10-15). They join the same free stat
        point pool as the car index (StatPoints) and are spent on the same four stats; they are derived
        from the rebirth count, never saved separately.
 
-  Proposed milestone rule: if level resets on rebirth, each rebirth needs the next milestone.
+       Active milestone rule: if level resets on rebirth, each rebirth needs the next milestone; after level 100,
+       milestones continue at 125, 150, 175 and so on without a cap.
   Rebirth 1 at level 10, rebirth 2 at level 25, and so on. That gives rebirths a rising cost.
 
   Stats (bought with Rebirth Points)
@@ -459,14 +475,18 @@ Idle Vehicle Simulator — Game Design Requirements
   Money comes from one place, race cash-outs, and gets spent on permanent Speed
   boosts.
 
-Money can also be made from auto selling duplicate cars (already discovered cars) Cars should be relativley cheap when sold (about 5 dollars for starter car and scale up but small)
+Superseded by the owner, 2026-10-22 (Workshop Showcase): duplicate cars are NO LONGER sold. Every
+duplicate roll is kept as a saved copy of that car, and copies of the three cars shown in the
+player's workshop raise workshop Speed gain (docs/WORKSHOP_SPEC.md "Showcase"). (Old rule: Money
+could also be made from auto selling duplicate cars, about 5 dollars for the starter car.)
 
-  Owner decision, 2026-10-12: these two are the ONLY sources of Money. Nothing else pays Money:
+  Owner decision, 2026-10-22: race cash-outs are now the ONLY source of Money (duplicate sales
+  were removed). Earlier wording, 2026-10-12: these two are the ONLY sources of Money. Nothing else pays Money:
   not the workshop, not offline earnings (Speed only), not daily login rewards (potions and a
   guaranteed rare car only), not duels. A weather event's Money multiplier scales a race payout;
   it is not a new source.
 
-  Source: race cash-outs, multiplied by the Base Money Multi stat and the 2x Money
+  Source: race payouts, multiplied by the Base Money Multi stat and the 2x Money
   gamepass. Idle players earn Speed but no Money, which pushes everyone to race
   (confirmed by the owner, 2026-10-12).
 
@@ -721,7 +741,8 @@ Idle Vehicle Simulator — Game Design Requirements
        purchase prompt. Server-owned product definitions determine every grant.
        A durable recipient mailbox and purchase-id deduplication protect offline delivery
        and retries. A receipt is acknowledged only after its mailbox grant is durable.
-       Gift state is additive VERSION 10 data; older saves default to empty gift state.
+       Gift state was introduced as additive VERSION 10 data; it is part of the current VERSION 11 schema and older
+       saves default to empty gift state.
 
   Implementation notes
 
@@ -886,7 +907,8 @@ Idle Vehicle Simulator — Game Design Requirements
          Is fuel a one-time unlock or used up over time?
          Are workshop money upgrades and the Gold/Diamond/Void passes one track or two?
          Does "open gacha" mean free rolls with public odds?
-         Inventory: size cap, duplicates, auto-delete below a chosen rarity?
+         Inventory: size cap, auto-delete below a chosen rarity? (Duplicates DECIDED 2026-10-22:
+         kept as copies, never sold; they power the Workshop Showcase.)
          Jett Fuel upgrades: DECIDED 2026-10-12. Each tier raises both the roll count and the
          multiplier: 10/10x, 50/50x, 200/200x, 500/500x, 1,000/1,000x.
 

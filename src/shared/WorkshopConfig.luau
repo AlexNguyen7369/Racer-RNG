@@ -48,6 +48,11 @@ function WorkshopConfig.LuckMulti(level)
 	return 1 + (level - 1) * WorkshopConfig.LUCK_PER_LEVEL
 end
 
+-- Showcase pedestals (docs/WORKSHOP_SPEC.md "Showcase"): plot-local z of their centres and the display car scale.
+WorkshopConfig.SHOWCASE_Z = 11
+WorkshopConfig.SHOWCASE_CAR_SCALE = 1
+WorkshopConfig.SHOWCASE_LABEL_DISTANCE = 60 -- MaxDistance of the name / copies label over each showcased car
+
 WorkshopConfig.SIGN_DISTANCE = 120 -- MaxDistance of the plot signs
 WorkshopConfig.EMPTY_TEXT = "EMPTY PLOT"
 WorkshopConfig.TAG = "WorkshopPlot"

@@ -30,7 +30,7 @@ local RaceTimeService = require(script.Parent.RaceTimeService)
 local PlayerData = {}
 
 local STORE_NAME = "PlayerStats_v1"
-local VERSION = 11 -- 11: per-track NPC race personal bests
+local VERSION = 12 -- 12: car Copies and the workshop Showcase (GachaService); 11: per-track NPC race personal bests
 -- 8: session lock, MoneyEarned, DuelWins; 9: Receipts, Codes (docs/SAVE_SPEC.md)
 local MAX_MONEY = 1e12
 local MAX_ADD = 1e6 -- most a single AddSpeed call may add
@@ -115,11 +115,10 @@ local function cleanStat(value)
 	return RaceConfig.CleanStat(value) or 0
 end
 
-local shownWired = setmetatable({}, { __mode = "k" }) -- players whose leaderstats.Speed follows BaseSpeed
+local speedWired = setmetatable({}, { __mode = "k" }) -- players whose leaderstats.Speed follows BaseSpeed
 
--- The base Speed (earned, saved, reset by rebirth) is player.BaseSpeed. leaderstats.Speed is display only: base x
--- the ShownSpeedMulti attribute (equipped car x aura), so the HUD and player list show Speed after what the player
--- equips (design doc Core stat model, owner 2026-10-21).
+-- The base Speed (earned, saved, reset by rebirth) is player.BaseSpeed. leaderstats.Speed mirrors it so the
+-- visible stat and its gain rate stay independent of the equipped car. ShownSpeedMulti is used only for cruise speed.
 local function speedValue(player)
 	local base = player:FindFirstChild("BaseSpeed")
 	if not base then
@@ -140,14 +139,12 @@ local function speedValue(player)
 		shown.Name = "Speed"
 		shown.Parent = stats
 	end
-	if not shownWired[player] then
-		shownWired[player] = true
+	if not speedWired[player] then
+		speedWired[player] = true
 		local function refresh()
-			local multi = player:GetAttribute("ShownSpeedMulti")
-			shown.Value = base.Value * (type(multi) == "number" and multi > 0 and multi < math.huge and multi or 1)
+			shown.Value = base.Value
 		end
 		base.Changed:Connect(refresh)
-		player:GetAttributeChangedSignal("ShownSpeedMulti"):Connect(refresh)
 		refresh()
 	end
 	return base
@@ -326,6 +323,8 @@ local function save(player, userId, release)
 		Money = cleanInt(money.Value, 0, MAX_MONEY, 0),
 		Speed = cleanStat(speed.Value),
 		Cars = gacha.Cars,
+		Copies = gacha.Copies,
+		Showcase = gacha.Showcase,
 		Equipped = gacha.Equipped,
 		Rolls = gacha.Rolls,
 		StatAlloc = gacha.StatAlloc,

@@ -18,10 +18,16 @@ function CarPhysics.new(model, config)
 
 	local wheels = {}
 	for _, w in config.Wheels do
+		local visual = model:FindFirstChild("EquippedVisual")
+		local visualPart = visual and visual:FindFirstChild("Wheel_" .. w.Name, true)
+		local visualWeld = visualPart and visualPart:FindFirstChild("SkinWeld")
 		table.insert(wheels, {
 			Cfg = w,
 			Part = model:FindFirstChild("Wheel_" .. w.Name),
 			Weld = chassis:FindFirstChild("WheelWeld_" .. w.Name),
+			VisualWeld = visualWeld,
+			VisualBase = visualWeld and visualWeld.C0 or nil,
+			VisualStaticSpringLen = visualWeld and visualWeld:GetAttribute("StaticSpringLen") or nil,
 			Spin = 0,
 			SpringLen = config.SuspensionRest,
 			Grounded = false,
@@ -68,7 +74,14 @@ function CarPhysics.new(model, config)
 end
 
 function CarPhysics:Step(input, dt)
-	dt = math.min(dt, 1 / 30)
+	-- PreSimulation should always provide a positive dt, but Studio/server hitches and
+	-- test doubles can produce zero or invalid values. Keep every force/velocity solve
+	-- finite; a zero dt otherwise divides the brake impulse by zero and destabilises wheels.
+	if type(dt) ~= "number" or dt ~= dt or dt <= 0 then
+		dt = 1 / 60
+	else
+		dt = math.clamp(dt, 1 / 240, 1 / 30)
+	end
 	local cfg = self.Config
 	local chassis = self.Chassis
 	local cf = chassis.CFrame
@@ -116,6 +129,18 @@ function CarPhysics:Step(input, dt)
 	local grounded = 0
 	local lateralSpeedSum = 0
 	local loopAssist = false
+	for _, w in wheels do
+		-- Equipping a skin can replace the visible wheel weld while a run is
+		-- already active. Rebind on the next physics frame so the new skin keeps
+		-- spinning without requiring a respawn.
+		if not w.VisualWeld or not w.VisualWeld.Parent then
+			local visual = self.Model:FindFirstChild("EquippedVisual")
+			local visualPart = visual and visual:FindFirstChild("Wheel_" .. w.Cfg.Name, true)
+			w.VisualWeld = visualPart and visualPart:FindFirstChild("SkinWeld")
+			w.VisualBase = w.VisualWeld and w.VisualWeld.C0 or nil
+			w.VisualStaticSpringLen = w.VisualWeld and w.VisualWeld:GetAttribute("StaticSpringLen") or nil
+		end
+	end
 
 	-- Pass 1: suspension rays. Spring load (with a bump stop near full compression) per grounded wheel.
 	local down = -up
@@ -198,8 +223,15 @@ function CarPhysics:Step(input, dt)
 			local normal = hit.Normal
 			local steer = w.Cfg.Front and self.SteerAngle or 0
 			local wheelLook = (cf * CFrame.Angles(0, steer, 0)).LookVector
-			local fwd = (wheelLook - normal * wheelLook:Dot(normal)).Unit
+			local projected = wheelLook - normal * wheelLook:Dot(normal)
+			local fwd = projected.Magnitude > 1e-5 and projected.Unit or cf.LookVector
 			local right = fwd:Cross(normal)
+			if right.Magnitude > 1e-5 then
+				right = right.Unit
+			else
+				local projectedRight = cf.RightVector - normal * cf.RightVector:Dot(normal)
+				right = projectedRight.Magnitude > 1e-5 and projectedRight.Unit or Vector3.xAxis
+			end
 
 			local contact = hit.Position
 			local cv = chassis:GetVelocityAtPosition(contact)
@@ -257,6 +289,15 @@ function CarPhysics:Step(input, dt)
 		if w.Weld then
 			w.Weld.C0 = CFrame.new(mount - Vector3.new(0, w.SpringLen, 0))
 				* CFrame.Angles(0, w.Cfg.Front and self.SteerAngle or 0, 0)
+				* CFrame.Angles(w.Spin, 0, 0)
+		end
+		if w.VisualWeld and w.VisualBase then
+			local base = w.VisualBase
+			local staticSpringLen = w.VisualStaticSpringLen or rest * (1 - cfg.StaticCompression)
+			local visualPosition = base.Position + Vector3.new(0, staticSpringLen - w.SpringLen, 0)
+			w.VisualWeld.C0 = CFrame.new(visualPosition)
+				* CFrame.Angles(0, w.Cfg.Front and self.SteerAngle or 0, 0)
+				* base.Rotation
 				* CFrame.Angles(w.Spin, 0, 0)
 		end
 	end

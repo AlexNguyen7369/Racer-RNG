@@ -1,4 +1,4 @@
-# Saves: session lock and VERSION 11 (contract for tests and implementation)
+# Saves: session lock and VERSION 12 (contract for tests and implementation)
 
 Design rule (`docs/GAME_DESIGN_REQUIREMENTS.md`, "Technical and data requirements"): DataStores with session locking
 so data can not duplicate across servers; save on leave, on an interval and on server shutdown. Owner decision
@@ -33,21 +33,22 @@ last confirmed it (`PlayerData` clock, seconds).
 - The fake store used by tests must provide `UpdateAsync(key, transform)` (returning the new value, and writing
   nothing when the transform returns `nil`) as well as `GetAsync` / `SetAsync`.
 
-## 2. VERSION 8 fields
+## 2. Historical field introductions
 
-- `Version = 8`. Older versions load unchanged and are upgraded by the next save.
+- VERSION 8 introduced session-lock metadata, `MoneyEarned`, and `DuelWins`. Older versions load unchanged and are
+  upgraded by the next save.
 - `MoneyEarned` (integer >= 0, capped like Money): lifetime Money earned. `MoneyService.Award(player, amount)` adds
   the amount it actually paid to the player attribute `MoneyEarned`. Spending and admin commands do not change it.
   Missing = 0.
 - `DuelWins` (integer >= 0), player attribute `DuelWins`. Missing = 0. (`docs/DUEL_SPEC.md`.)
 - A rebirth keeps both.
 
-## 2a. VERSION 9 fields (owner, 2026-10-16)
+### VERSION 9 fields (owner, 2026-10-16)
 
 - `Version = 9`. `Receipts` (developer-product purchase ids already granted, last 100) and `Codes` (redeemed codes).
   Missing = empty. Owned by `Server/ShopService` (`docs/SHOP_PURCHASES_SPEC.md`). A rebirth keeps both.
 
-## 2b. Checkpoint (owner, 2026-10-16)
+### Checkpoint field introduction (owner, 2026-10-16)
 
 - Still `Version = 9` (additive field, older saves load with the default). `Checkpoint` (integer >= 1), player attribute `Checkpoint`: the track the player's runs start on
   (`docs/CHECKPOINT_SPEC.md`). Missing = 1. A rebirth keeps it.
@@ -59,7 +60,14 @@ to empty for all older saves. Mailbox entries and delivered receipt ids persist 
 rebirth. Pending sender routes live in the dedicated server-only gifting store.
 `PANEL_ART_GIFTING_SPEC.md` defines atomic claiming, serialized saves and deduplication.
 
-## 2b. VERSION 11 fields (race progress map)
+## 3. Current VERSION 12 schema
+
+Every save written today has `Version = 12`; VERSION 8-11 below are field-introduction history, not current schema
+versions.
+
+VERSION 12 (owner 2026-10-22, `docs/WORKSHOP_SPEC.md` "Showcase") adds `Copies` (`{ [carId] = n }`, integer
+>= 1 only for owned cars; missing = 0) and `Showcase` (array of at most 3 owned rollable car ids). Older saves
+load with no copies and an empty showcase; unowned or unknown showcase ids are dropped. A rebirth keeps both.
 
 VERSION 11 adds additive `RaceBestTimes`, keyed by string track number. Each value is
 a positive finite NPC-race completion time in seconds. Missing or invalid entries

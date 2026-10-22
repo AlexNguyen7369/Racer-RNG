@@ -207,6 +207,22 @@ function WorkshopBuilder.BuildWorkshop(level, plotCFrame)
 	upgradeSign.Text = "UPGRADE"
 	upgradeSign.TextColor3 = UPGRADE_COLOR
 
+	-- Showcase pedestals (docs/WORKSHOP_SPEC.md "Showcase"): low, non-colliding, along the back of the zone, so the
+	-- player still walks and stands anywhere in it. WorkshopService puts the showcased cars on them.
+	for i, x in { -10, 0, 10 } do
+		local pedestal = part(
+			model,
+			"ShowcasePedestal_" .. i,
+			Vector3.new(7, 0.4, 9),
+			at(x, 0.4, WorkshopConfig.SHOWCASE_Z),
+			TRIM_COLOR,
+			Enum.Material.DiamondPlate
+		)
+		pedestal.CanCollide = false
+		pedestal.CanTouch = false
+		pedestal.CanQuery = false
+	end
+
 	model.PrimaryPart = floor
 	return model
 end

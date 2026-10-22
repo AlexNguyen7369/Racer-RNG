@@ -33,20 +33,36 @@ GachaConfig.RARITY_COLORS = {
 	Secret = Color3.fromRGB(20, 20, 20),
 }
 
--- Duplicate rolls auto-sell into direct Money rewards. Cars are intentionally
--- cheap: the common/start-model tier begins at $5 and rises modestly by model.
-GachaConfig.SCRAP_MONEY = {
-	Common = 5,
-	Uncommon = 10,
-	Rare = 25,
-	Epic = 50,
-	Legendary = 100,
-	Mythic = 250,
-	Secret = 500,
-}
+-- Workshop Showcase (docs/WORKSHOP_SPEC.md "Showcase", owner 2026-10-22): duplicates are never sold, they add a
+-- copy; the 3 cars the player shows in their workshop multiply workshop Speed gain. Numbers are placeholders.
+GachaConfig.SHOWCASE_SLOTS = 3
+GachaConfig.SHOWCASE_SCALE = 0.25
+GachaConfig.COPY_BONUS = 0.1 -- each copy adds 10% of the car's base slot bonus
+GachaConfig.MAX_COPIES = 50 -- copies above this still save but add nothing
+GachaConfig.MAX_SAVED_COPIES = 1e9
+GachaConfig.SHOWCASE_COOLDOWN = 0.5 -- seconds between accepted SetShowcase requests
 
-function GachaConfig.ScrapMoney(spec)
-	return math.max(0, math.floor(GachaConfig.SCRAP_MONEY[spec and spec.Rarity] or 0))
+-- One showcased car's bonus: SHOWCASE_SCALE x log10(SpeedMulti) x (1 + COPY_BONUS x min(copies, MAX_COPIES)).
+-- The log keeps cars with huge multis (up to x2800) in range.
+function GachaConfig.SlotBonus(spec, copies)
+	local multi = spec and spec.SpeedMulti
+	if type(multi) ~= "number" or multi ~= multi or multi <= 1 or multi == math.huge then
+		return 0
+	end
+	if type(copies) ~= "number" or copies ~= copies or copies < 0 then
+		copies = 0
+	end
+	copies = math.min(math.floor(copies), GachaConfig.MAX_COPIES)
+	return GachaConfig.SHOWCASE_SCALE * math.log10(multi) * (1 + GachaConfig.COPY_BONUS * copies)
+end
+
+-- 1 + the slot bonuses of `list` ({ { Spec = spec, Copies = n }, ... }).
+function GachaConfig.ShowcaseMulti(list)
+	local multi = 1
+	for _, slot in list do
+		multi += GachaConfig.SlotBonus(slot.Spec, slot.Copies)
+	end
+	return multi
 end
 
 local function count(n)

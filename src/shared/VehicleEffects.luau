@@ -57,7 +57,10 @@ end
 -- Void Trail: a dark ground-flat wake between the rear wheels, flickering neon edges, void smoke and motes.
 -- Tuned from Studio captures (2026-10-20); y sits just above the wheel bottoms of the shared chassis.
 local function voidTrail(folder, chassis, item, profile)
-	local y, z, half = -1.15, 3.1, profile.HalfWidth
+	-- Keep the wake above the road when the suspension compresses or the rail makes
+	-- a small vertical correction.  It is still below the chassis, but has margin
+	-- above the wheel contact plane instead of being allowed to clip through it.
+	local y, z, half = -0.82, 3.1, profile.HalfWidth
 	local function ribbon(name, x0, x1, props)
 		local a = attachment(chassis, item.Id .. name .. "A", Vector3.new(x0, y, z))
 		local b = attachment(chassis, item.Id .. name .. "B", Vector3.new(x1, y, z))

@@ -25,3 +25,6 @@ references/biome_packs/**
 # Car redesign concept renders: modelling references only, never shipped (docs/CAR_REDESIGN_SPEC.md)
 drafts/cars/Roblox_Car_Redesign_References.zip
 references/car_redesign/
+
+# screen recordings are too large for GitHub (100 MB limit)
+images/*.mov

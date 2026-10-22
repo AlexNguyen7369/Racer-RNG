@@ -10,6 +10,8 @@ local Tracks = require(Shared.TrackRegistry)
 local WorkshopConfig = require(Shared.WorkshopConfig)
 local Format = require(Shared.HudFormat)
 local WeatherConfig = require(Shared.WeatherConfig)
+local CarCatalog = require(Shared.CarCatalog)
+local GachaConfig = require(Shared.GachaConfig)
 local Spec = require(script.Parent.UiSpec)
 local Responsive = require(script.Parent.UiResponsive)
 local Progression = {}
@@ -287,6 +289,454 @@ function Progression.Build(h)
 		end
 		restore()
 	end
+	-- Workshop Showcase (UiSpec.WorkshopShowcase; docs/WORKSHOP_SPEC.md "5b. Showcase"). Truth: player attributes
+	-- Showcase / ShowcaseMulti and player.GachaData (Copies attribute per car); bonuses from GachaConfig.SlotBonus.
+	local SC = Spec.WorkshopShowcase
+	local function copiesOf(id)
+		local data = h.player:FindFirstChild("GachaData")
+		local entry = data and data:FindFirstChild(id)
+		local n = entry and entry:GetAttribute("Copies")
+		return type(n) == "number" and n or 0
+	end
+	local function bonusOf(id)
+		local spec = CarCatalog.Get(id)
+		return spec and GachaConfig.SlotBonus(spec, copiesOf(id)) or -math.huge
+	end
+	-- Owned rollable cars { Id, Spec, Bonus }, highest slot bonus first (ties by id)
+	local function ownedRollable()
+		local list = {}
+		local data = h.player:FindFirstChild("GachaData")
+		for _, entry in data and data:GetChildren() or {} do
+			local spec = CarCatalog.Get(entry.Name)
+			if spec and spec.Rollable then
+				table.insert(list, { Id = entry.Name, Spec = spec, Bonus = bonusOf(entry.Name) })
+			end
+		end
+		table.sort(list, function(a, b)
+			if a.Bonus ~= b.Bonus then
+				return a.Bonus > b.Bonus
+			end
+			return a.Id < b.Id
+		end)
+		return list
+	end
+	local function shownIds(value)
+		local ids = {}
+		if type(value) == "string" then
+			for id in string.gmatch(value, "[^,]+") do
+				table.insert(ids, id)
+			end
+		end
+		return ids
+	end
+	local function asSet(list)
+		local set, n = {}, 0
+		for _, id in type(list) == "table" and list or {} do
+			if type(id) == "string" and not set[id] then
+				set[id] = true
+				n += 1
+			end
+		end
+		return set, n
+	end
+	-- The id list a showcase click must send, from the Showcase attribute before the click (RunClick)
+	function Progression.ShowcaseWant(argSpec, preShowcase, rowId)
+		local before = shownIds(preShowcase)
+		if argSpec == "showcase_best3" then
+			local best = {}
+			for i, car in ownedRollable() do
+				if i <= SC.Slots then
+					table.insert(best, car.Id)
+				end
+			end
+			return best
+		end
+		local drop = argSpec == "showcase_hide" and rowId or nil
+		local slot = tonumber(string.match(argSpec, "^showcase_clear:(%d+)$"))
+		if slot then
+			drop = before[slot] or "?"
+		end
+		local want = {}
+		for _, id in before do
+			if id ~= drop then
+				table.insert(want, id)
+			end
+		end
+		if argSpec == "showcase_show" and rowId and not table.find(want, rowId) then
+			table.insert(want, rowId)
+		end
+		return want
+	end
+	-- Whether `got` (the ids sent or now shown) is `want`: the same set, no duplicates. BEST 3 accepts any equal-bonus
+	-- swap: as many distinct owned rollable ids, none with a lower bonus than the weakest wanted one.
+	function Progression.SameShowcase(argSpec, got, want)
+		if type(got) ~= "table" or #got ~= #want then
+			return false
+		end
+		local gotSet, n = asSet(got)
+		if n ~= #got then
+			return false
+		end
+		if argSpec == "showcase_best3" then
+			local owned = {}
+			for _, car in ownedRollable() do
+				owned[car.Id] = true
+			end
+			local floor = #want > 0 and bonusOf(want[#want]) or math.huge
+			for id in gotSet do
+				if not owned[id] or bonusOf(id) < floor - 1e-9 then
+					return false
+				end
+			end
+			return true
+		end
+		local wantSet = asSet(want)
+		for id in gotSet do
+			if not wantSet[id] then
+				return false
+			end
+		end
+		return true
+	end
+	-- RunClick row tokens: the first shown id, or the highest-bonus owned rollable car not shown
+	function Progression.ShowcaseTarget(shown)
+		local ids = shownIds(h.player:GetAttribute("Showcase"))
+		if shown then
+			return ids[1]
+		end
+		for _, car in ownedRollable() do
+			if not table.find(ids, car.Id) then
+				return car.Id
+			end
+		end
+		return nil
+	end
+	local function present(res, name, obj, class)
+		local ok = obj ~= nil and obj:IsA(class)
+		h.check(res, name, obj and obj.ClassName or "missing", class, ok)
+		return ok
+	end
+	-- What the panel shows against the server's truth (the panel must be open)
+	local function showcaseContent(res)
+		local root = h.find(SC.Root)
+		if not present(res, "showcase_frame_present", root, "Frame") then
+			return
+		end
+		local ids = shownIds(h.player:GetAttribute("Showcase"))
+		local multi = h.player:GetAttribute("ShowcaseMulti")
+		h.check(res, "showcase_multi_replicated", multi or "missing", "number", type(multi) == "number")
+		local slots = {}
+		for _, id in ids do
+			local spec = CarCatalog.Get(id)
+			if spec then
+				table.insert(slots, { Spec = spec, Copies = copiesOf(id) })
+			end
+		end
+		local formula = GachaConfig.ShowcaseMulti(slots)
+		h.check(
+			res,
+			"showcase_multi_matches_formula",
+			multi or "missing",
+			formula,
+			type(multi) == "number" and math.abs(multi - formula) <= SC.MultiTolerance
+		)
+		h.check(res, "showcase_at_most_slots", #ids, "<= " .. SC.Slots, #ids <= SC.Slots)
+		local multiLabel = root:FindFirstChild("Multi")
+		if present(res, "showcase_multi_label_present", multiLabel, "TextLabel") then
+			local want = SC.MultiFormat:format(type(multi) == "number" and multi or 1)
+			local text = h.text(multiLabel)
+			h.check(res, "showcase_multi_text", text, want, string.find(text, want, 1, true) ~= nil)
+		end
+		present(res, "showcase_best3_present", root:FindFirstChild("Best3"), "TextButton")
+		for i = 1, SC.Slots do
+			local slot = root:FindFirstChild("Slot" .. i)
+			local tag = "showcase_slot" .. i
+			if present(res, tag .. "_present", slot, "Frame") then
+				local nameLabel, clear = slot:FindFirstChild("Name"), slot:FindFirstChild("Clear")
+				local spec = ids[i] and CarCatalog.Get(ids[i])
+				local wantName = spec and spec.Name or SC.EmptyText
+				if present(res, tag .. "_name_present", nameLabel, "TextLabel") then
+					expect(res, tag .. "_name", nameLabel.Text, wantName)
+				end
+				if present(res, tag .. "_clear_present", clear, "TextButton") then
+					expect(res, tag .. "_clear_shown_only_with_car", h.visible(clear), ids[i] ~= nil)
+				end
+			end
+		end
+		local list = root:FindFirstChild("List")
+		if not present(res, "showcase_list_present", list, "ScrollingFrame") then
+			return
+		end
+		local owned = ownedRollable()
+		local rows, extra = {}, {}
+		for _, row in list:GetChildren() do
+			if row:IsA("GuiObject") and string.sub(row.Name, 1, #SC.RowPrefix) == SC.RowPrefix then
+				local id = string.sub(row.Name, #SC.RowPrefix + 1)
+				local spec = CarCatalog.Get(id)
+				local data = h.player:FindFirstChild("GachaData")
+				if not (spec and spec.Rollable and data and data:FindFirstChild(id)) then
+					table.insert(extra, row.Name)
+				end
+				table.insert(rows, row)
+			end
+		end
+		h.check(
+			res,
+			"showcase_list_only_owned_rollable",
+			#extra > 0 and table.concat(extra, ", ") or "none",
+			"none",
+			#extra == 0
+		)
+		expect(res, "showcase_list_row_count", #rows, #owned)
+		local full = #ids >= SC.Slots
+		local problems = {}
+		for _, car in owned do
+			local row = list:FindFirstChild(SC.RowPrefix .. car.Id)
+			local nameLabel = row and row:FindFirstChild("Name")
+			local show = row and row:FindFirstChild("Show")
+			local isShown = table.find(ids, car.Id) ~= nil
+			if not row then
+				table.insert(problems, car.Id .. ": no row")
+			elseif not (nameLabel and nameLabel:IsA("TextLabel") and nameLabel.Text == car.Spec.Name) then
+				table.insert(
+					problems,
+					car.Id .. (": Name %q want %q"):format(nameLabel and nameLabel.Text or "nil", car.Spec.Name)
+				)
+			end
+			if row and not (show and show:IsA("TextButton")) then
+				table.insert(problems, car.Id .. ": no Show TextButton")
+			elseif show then
+				local want = isShown and SC.ShownText or SC.ShowText
+				if h.text(show) ~= want then
+					table.insert(problems, car.Id .. (": Show %q want %q"):format(h.text(show), want))
+				end
+				local enabled = isShown or not full
+				if show.Active ~= enabled then
+					table.insert(
+						problems,
+						car.Id .. (": Show Active %s want %s"):format(tostring(show.Active), tostring(enabled))
+					)
+				end
+			end
+		end
+		h.check(
+			res,
+			"showcase_rows_show_server_truth",
+			#problems > 0 and table.concat(problems, "; ") or "none",
+			"none",
+			#problems == 0
+		)
+		-- Sorted by slot bonus, highest first (screen order of the rows)
+		table.sort(rows, function(a, b)
+			if math.abs(a.AbsolutePosition.Y - b.AbsolutePosition.Y) > Spec.Tolerance then
+				return a.AbsolutePosition.Y < b.AbsolutePosition.Y
+			end
+			return a.AbsolutePosition.X < b.AbsolutePosition.X
+		end)
+		local unsorted = {}
+		for i = 2, #rows do
+			local a = bonusOf(string.sub(rows[i - 1].Name, #SC.RowPrefix + 1))
+			local b = bonusOf(string.sub(rows[i].Name, #SC.RowPrefix + 1))
+			if b > a + 1e-9 then
+				table.insert(unsorted, rows[i - 1].Name .. " < " .. rows[i].Name)
+			end
+		end
+		h.check(
+			res,
+			"showcase_list_sorted_by_bonus",
+			#unsorted > 0 and table.concat(unsorted, "; ") or "sorted",
+			"sorted",
+			#unsorted == 0
+		)
+	end
+	-- Placement at every tested viewport (solver for the fixed controls) and hit tests at the live one
+	local function showcaseGeometry(res)
+		local panel, root = h.find(SC.Panel), h.find(SC.Root)
+		if not (panel and root) then
+			expect(res, "showcase_geometry_dependencies", false, true)
+			return
+		end
+		local function child(parent, name)
+			local o = parent and parent:FindFirstChild(name)
+			return o and o:IsA("GuiObject") and o or nil
+		end
+		local best3, list = child(root, "Best3"), child(root, "List")
+		local slots, clears = {}, {}
+		for i = 1, SC.Slots do
+			slots[i] = child(root, "Slot" .. i)
+			local clear = child(slots[i], "Clear")
+			clears[i] = clear and h.visible(clear) and clear or nil
+		end
+		for _, vpSpec in Spec.Viewports do
+			local rect, _, ctx = h.provider(vpSpec)
+			local tag = vpSpec.Name
+			local P, S = rect(panel), rect(root)
+			h.check(res, "showcase_inside_panel_" .. tag, { S, P }, "Showcase inside the panel", h.contains(P, S))
+			h.check(
+				res,
+				"showcase_right_part_" .. tag,
+				S.x - P.x,
+				">= " .. SC.ShowcaseMinStart .. " x panel width",
+				S.x >= P.x + SC.ShowcaseMinStart * P.w - Spec.Tolerance
+			)
+			for _, name in SC.LeftControls do
+				local o = child(panel, name)
+				local r = o and rect(o)
+				h.check(
+					res,
+					"showcase_left_control_" .. string.lower(name) .. "_" .. tag,
+					r or "missing",
+					"right edge <= " .. SC.LeftShare .. " x panel width, off the Showcase",
+					r ~= nil and r.x + r.w <= P.x + SC.LeftShare * P.w + Spec.Tolerance and not h.intersects(r, S)
+				)
+			end
+			-- Each control inside its parent
+			local parented = {
+				{ "multi", child(root, "Multi"), S },
+				{ "best3", best3, S },
+				{ "list", list, S },
+			}
+			for i = 1, SC.Slots do
+				table.insert(parented, { "slot" .. i, slots[i], S })
+				if clears[i] and slots[i] then
+					table.insert(parented, { "slot" .. i .. "_clear", clears[i], rect(slots[i]) })
+				end
+			end
+			for _, item in parented do
+				local r = item[2] and rect(item[2])
+				h.check(
+					res,
+					"showcase_inside_parent_" .. item[1] .. "_" .. tag,
+					r or "missing",
+					"inside its parent",
+					r ~= nil and h.contains(item[3], r)
+				)
+			end
+			-- No two of the panel's controls overlap: Buy, Close, BEST 3, the slots (and shown CLEAR buttons), the list
+			local controls = {
+				{ "buy", child(panel, "Buy") },
+				{ "close", child(panel, "Close") },
+				{ "best3", best3 },
+				{ "list", list },
+			}
+			for i = 1, SC.Slots do
+				table.insert(controls, { "slot" .. i, slots[i] })
+			end
+			local rects = {}
+			for _, c in controls do
+				rects[c[1]] = c[2] and rect(c[2])
+			end
+			for i = 1, SC.Slots do
+				if clears[i] then
+					rects["slot" .. i .. "_clear"] = rect(clears[i])
+				end
+			end
+			local overlaps = {}
+			local names = {}
+			for name in rects do
+				table.insert(names, name)
+			end
+			table.sort(names)
+			for i = 1, #names do
+				for j = i + 1, #names do
+					local a, b = names[i], names[j]
+					-- a CLEAR sits inside its own slot by design
+					local own = (a .. "_clear" == b) or (b .. "_clear" == a)
+					if not own and h.intersects(rects[a], rects[b]) then
+						table.insert(overlaps, a .. " x " .. b)
+					end
+				end
+			end
+			for _, c in controls do
+				if not c[2] then
+					table.insert(overlaps, c[1] .. " missing")
+				end
+			end
+			h.check(
+				res,
+				"showcase_no_overlap_" .. tag,
+				#overlaps > 0 and table.concat(overlaps, ", ") or "none",
+				"none",
+				#overlaps == 0
+			)
+			local unsolved = {}
+			for path, why in ctx.unsupported do
+				if string.sub(path, 1, #SC.Root) == SC.Root then
+					table.insert(unsolved, path .. ": " .. tostring(why))
+				end
+			end
+			h.check(
+				res,
+				"showcase_layout_solvable_" .. tag,
+				#unsolved > 0 and table.concat(unsolved, "; ") or "none",
+				"none",
+				#unsolved == 0
+			)
+		end
+		-- Live viewport: each row inside the list's width, Show inside its row, and every fully visible button is
+		-- the topmost clickable object at its centre
+		local hits = { { "best3", best3 } }
+		for i = 1, SC.Slots do
+			table.insert(hits, { "slot" .. i .. "_clear", clears[i] })
+		end
+		if list then
+			local L = h.rect(list)
+			local bad = {}
+			for _, row in list:GetChildren() do
+				if row:IsA("GuiObject") and string.sub(row.Name, 1, #SC.RowPrefix) == SC.RowPrefix then
+					local R = h.rect(row)
+					local show = row:FindFirstChild("Show")
+					if R.x < L.x - Spec.Tolerance or R.x + R.w > L.x + L.w + Spec.Tolerance then
+						table.insert(bad, row.Name .. " wider than the list")
+					end
+					if show and show:IsA("GuiObject") then
+						if not h.contains(R, h.rect(show)) then
+							table.insert(bad, row.Name .. "/Show outside its row")
+						elseif h.contains(L, h.rect(show)) then
+							table.insert(hits, { row.Name .. "_show", show })
+						end
+					end
+				end
+			end
+			h.check(res, "showcase_rows_inside_list", #bad > 0 and table.concat(bad, "; ") or "none", "none", #bad == 0)
+		end
+		for _, item in hits do
+			local b = item[2]
+			if b and h.visible(b) then
+				local top = h.top(h.centre(h.rect(b)))
+				h.check(
+					res,
+					"showcase_hit_" .. string.lower(item[1]),
+					top and top.Name or "nothing",
+					b.Name,
+					top ~= nil and (top == b or b:IsAncestorOf(top))
+				)
+			end
+		end
+	end
+	function scenarios.ui_workshop_showcase(res)
+		local restore = h.setPanels({ SC.Panel })
+		local panel = h.find(SC.Panel)
+		local deadline = os.clock() + Spec.HiddenWhilePanelOpenWait
+		while panel and not h.visible(panel) and os.clock() < deadline do
+			h.frames(1)
+		end
+		expect(res, "showcase_panel_open", panel ~= nil and h.visible(panel), true)
+		h.frames(2)
+		showcaseContent(res)
+		showcaseGeometry(res)
+		restore()
+	end
+	-- Waits until the Showcase attribute holds `want` (SameShowcase), up to SC.AnswerWait
+	local function waitShowcase(argSpec, want)
+		local deadline = os.clock() + SC.AnswerWait
+		local ids = shownIds(h.player:GetAttribute("Showcase"))
+		while not Progression.SameShowcase(argSpec, ids, want) and os.clock() < deadline do
+			h.frames(1)
+			ids = shownIds(h.player:GetAttribute("Showcase"))
+		end
+		return ids
+	end
 	function scenarios.ui_offline_welcome(res)
 		local speed, seconds = h.player:GetAttribute("OfflineSpeed"), h.player:GetAttribute("OfflineSeconds")
 		h.check(
@@ -536,6 +986,46 @@ function Progression.Build(h)
 		end,
 		weather_icon_shown_after_showcase = function(res)
 			expect(res, "weather_icon_shown_after_showcase", iconShown(true), true)
+		end,
+		-- Workshop Showcase clicks (UiSpec.WorkshopShowcase): the server's Showcase attribute after the click
+		showcase_attr_follows = function(res, ctx)
+			local want = ctx and ctx.wantArg
+			if type(want) ~= "table" then
+				expect(res, "showcase_attr_follows_server", "no wanted id list", "SetShowcase click")
+				return
+			end
+			local ids = waitShowcase(ctx.argSpec, want)
+			h.check(
+				res,
+				"showcase_attr_follows_server",
+				table.concat(ids, ","),
+				table.concat(want, ","),
+				Progression.SameShowcase(ctx.argSpec, ids, want)
+			)
+			if ctx.argSpec == "showcase_best3" then
+				local owned = #ownedRollable()
+				expect(res, "showcase_best3_fills_slots", #ids, math.min(SC.Slots, owned))
+				h.check(res, "showcase_best3_fixture_owns_3", owned, ">= " .. SC.Slots, owned >= SC.Slots)
+			end
+		end,
+		showcase_unchanged = function(res, ctx)
+			local now = h.player:GetAttribute("Showcase")
+			local before = ctx and ctx.pre and ctx.pre.Showcase
+			h.check(res, "showcase_attr_unchanged", now, before, now == before)
+			expect(res, "showcase_full_before_disabled_click", #shownIds(before), SC.Slots)
+		end,
+		-- The panel follows the server (labels from attributes, not the click)
+		showcase_ui_follows = function(res)
+			local restore = h.setPanels({ SC.Panel })
+			local ids = shownIds(h.player:GetAttribute("Showcase"))
+			local slot1 = h.find(SC.Root .. "/Slot1/Name")
+			local want = ids[1] and CarCatalog.Get(ids[1]) and CarCatalog.Get(ids[1]).Name or SC.EmptyText
+			local deadline = os.clock() + SC.AnswerWait
+			while slot1 and slot1.Text ~= want and os.clock() < deadline do
+				h.frames(1)
+			end
+			showcaseContent(res)
+			restore()
 		end,
 	}
 	return scenarios

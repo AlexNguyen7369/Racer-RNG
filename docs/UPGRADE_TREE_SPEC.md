@@ -1,7 +1,7 @@
-# Upgrade tree (QUEUED, not started)
+# Upgrade tree (implemented)
 
-Status: queued by the owner on 2026-10-02; design answers given the same day (below). Nothing is implemented. Build it
-test-first like the spawn area (test-writer + ui-test-writer first, red run, implement, `/compat-check` ALL GREEN).
+Status: implemented in the HUD through `UpgradeService`; purchases persist and affect gameplay. The historical design
+answers below are retained only where they describe the active tree contract.
 All design points confirmed by the owner on 2026-10-02 (incl. the turbo roll counts in section 4).
 
 References (RNG Heroes): `references/upgrade_tree/rng_heroes_upgrades_button.png` (UPGRADES button with a red count
@@ -28,36 +28,35 @@ Room is left at the ends of branches and between them for future tiles (more tie
 
 | Branch | Tiers | Per tier (added) | Total | Effect |
 |---|---|---|---|---|
-| Money | I-V | +10, +10, +15, +15, +20 % | +70 % | Money multi: track winnings (`MoneyService.Quote` / `Collect`) |
-| Luck | I-V | +10, +15, +20, +25, +30 % | +100 % | Luck multi in every roll (`GachaService.Luck`) |
-| Speed | I-V | +10, +10, +15, +15, +20 % | +70 % | Speed-stat GAIN multi (`GachaService.SpeedMulti`), alongside rebirths. Car models affect cruise/base speed only |
-| Roll Speed | I-V | +10 % each | +50 % | roll interval = 3 s / (1 + bonus): 2.73, 2.50, 2.31, 2.14, **2.00 s** (the cap) |
-| Walkspeed | I-V | 16 -> 18, 20, 23, 26, 30 | +14 | on-foot WalkSpeed (each step about +12 %, noticeable) |
+| Money | I-V | +50 % each | +250 % | Money multi: track winnings (`MoneyService.Quote` / `Collect`) |
+| Luck | I-V | +50 % each | +250 % | Luck multi in every roll (`GachaService.Luck`) |
+| Speed Gain | I-V | +50 % each | +250 % | Speed-gain multi (`GachaService.SpeedMulti`), alongside rebirths. Car models affect cruise/base speed only |
+| Roll Speed | I-V | +15 % each | +75 % | roll interval = 3 s / 1.15^tiers (compounding, owner 2026-10-22): 2.61, 2.27, **2.00 s** (the cap) |
+| Walkspeed | I-V | 16 -> 20, 25, 31, 39, 49 | +33 | on-foot WalkSpeed (each step noticeable) |
 | Turbo | I-IV | see section 4 | | turbo multi and rolls needed per turbo |
 
 Added percentages: every multi = 1 + (stat-point bonus) + (tree bonus). Example: 2 Luck points (+10 %) and Luck I-II
 (+25 %) give Luck x1.35.
 
 ## 2. Prices (scale with progression)
-Income today: winning Track N pays `N * 100` (`TrackBuilder.CashFor`), banked until Stop. Early game a Track 1 win
-(~30-40 s) is $100; a full 2-track lap is $300. With more tracks, a lap of K tracks pays `100 * K(K+1)/2`, so income
-grows about with the square of the tracks reached. Prices therefore grow exponentially with how deep a tile is:
+Income today: winning Track N pays `N * 100` (`TrackBuilder.CashFor`) immediately in NPC mode. Early game a Track 1
+win (~30-40 s) is $100; a full 2-track sequence is $300. Prices therefore grow exponentially with how deep a tile is:
 
-`price(tile) = round_nice(150 * 2.2 ^ (depth - 1) * branchWeight)` (depth 1 = next to Start)
+`price(tile) = round_nice(150 * 50 ^ (depth - 1) * branchWeight)` (depth 1 = next to Start; owner 2026-10-21)
 
 | Depth | Base price | About how long at that point |
 |---|---|---|
 | 1 | $150 | 1-2 Track 1 wins (first minute or two) |
-| 2 | $330 | a couple of laps |
-| 3 | $750 | |
-| 4 | $1.6k | |
-| 5 | $3.5k | ~10-15 min of 2-track laps |
-| 6 (Turbo III) | $7.8k | |
-| 7 (Turbo IV) | $17k | |
+| 2 | $7.5k | early progression checkpoint |
+| 3 | $380k | |
+| 4 | $19m | |
+| 5 | $940m | late multi-track progression |
+| 6 (Turbo III) | $47b | |
+| 7 (Turbo IV) | $2.3t | |
 
 `branchWeight`: Walkspeed 0.5 (cheap, quality of life), Money 1, Speed 1, Luck 1.2, Roll Speed 1.5, Turbo 2.
 Turbo tiers start at depth 2 so the first turbo upgrade is never the first purchase. Rounded to "nice" numbers
-($150, $330, $750, $1.6k...). All numbers live in one config so they can be re-tuned.
+($150, $7.5k, $380k, $19m, $940m, $47b, $2.3t...). All numbers live in one config so they can be re-tuned.
 
 **Progression gate** (so it can not go too fast even with lucky money): tiers III+ also need the player's best track
 won so far (`BestTrack`, a new saved number): tier III needs Track 2, tier IV Track 3, tier V Track 4, ... The gate is
@@ -65,7 +64,7 @@ won so far (`BestTrack`, a new saved number): tier III needs Track 2, tier IV Tr
 and it tightens by itself as tracks are added. A gated tile shows "Reach Track N".
 
 ## 3. Roll speed
-Shown as a percentage on the tile ("Roll Speed II: +20 % (2.50 s)"). Interval = `3 / (1 + bonus)`, never below 2 s.
+Shown as a percentage on the tile ("Roll Speed II: +15 % (2.27 s)"). Interval = `3 / product(1 + tier bonus)` (compounding, owner 2026-10-22), never below 2 s.
 `GachaService.StartAutoRoll` reads the player's interval every roll (no restart needed after a purchase).
 
 ## 4. Turbo luck (owner, 2026-10-12; replaces the 2026-10-02 table)

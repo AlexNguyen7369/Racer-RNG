@@ -681,6 +681,73 @@ local function progressionSpy()
 	folder:SetAttribute("ProgressionIntercepted", true)
 end
 
+-- Workshop Showcase fixtures (UiSpec.WorkshopShowcase): unsaved, 'restore' puts the snapshot's cars back.
+function setups.showcase_owned(player)
+	assert(snapshots[player], "snapshot required before showcase fixtures")
+	local G = live("GachaService")
+	local CarCatalog = require(Shared.CarCatalog)
+	local copies = { 0, 3, 7, 1, 12 }
+	for i, spec in CarCatalog.Rollable() do
+		if i > #copies then
+			break
+		end
+		G.Grant(player, spec.Id)
+		player.GachaData[spec.Id]:SetAttribute("Copies", copies[i])
+	end
+	player:SetAttribute("Showcase", "")
+	G.RefreshShowcase(player)
+end
+
+function setups.showcase_filled(player)
+	setups.showcase_owned(player)
+	local G = live("GachaService")
+	local CarCatalog = require(Shared.CarCatalog)
+	local GachaConfig = require(Shared.GachaConfig)
+	local owned = {}
+	for _, entry in player.GachaData:GetChildren() do
+		local spec = CarCatalog.Get(entry.Name)
+		if spec and spec.Rollable and not spec.GamepassId then
+			table.insert(owned, { Id = spec.Id, Bonus = GachaConfig.SlotBonus(spec, G.Copies(player, spec.Id)) })
+		end
+	end
+	table.sort(owned, function(a, b)
+		if a.Bonus ~= b.Bonus then
+			return a.Bonus < b.Bonus
+		end
+		return a.Id < b.Id
+	end)
+	local ids = {}
+	for i = 1, math.min(3, #owned) do
+		ids[i] = owned[i].Id
+	end
+	player:SetAttribute("Showcase", table.concat(ids, ","))
+	G.RefreshShowcase(player)
+end
+
+-- A same-name proxy for Remotes.SetShowcase that logs every call and then runs the REAL GachaService.SetShowcase.
+local function showcaseSpy()
+	local folder = assert(ReplicatedStorage:FindFirstChild("UiTestSpy"), "spy setup required first")
+	local remotes = ReplicatedStorage:WaitForChild("Remotes")
+	local target = remotes:FindFirstChild("SetShowcase")
+	assert(target and target:IsA("RemoteFunction"), "SetShowcase RemoteFunction required")
+	folder:SetAttribute("SetShowcase", "[]")
+	if target:GetAttribute("UiTestSpied") == true then
+		return
+	end
+	target.Name = "UiTestOriginal_SetShowcase"
+	local proxy = Instance.new("RemoteFunction")
+	proxy.Name = "SetShowcase"
+	proxy:SetAttribute("UiTestSpied", true)
+	functionSpies[target] = { name = "SetShowcase", proxy = proxy }
+	proxy.OnServerInvoke = function(player, ...)
+		local log = HttpService:JSONDecode(folder:GetAttribute("SetShowcase") or "[]")
+		table.insert(log, { user = player.UserId, args = { ... } })
+		folder:SetAttribute("SetShowcase", HttpService:JSONEncode(log))
+		return live("GachaService").SetShowcase(player, ...)
+	end
+	proxy.Parent = remotes
+end
+
 local function runSetup(request)
 	local id = string.match(request, "^([^:]+):")
 	ReplicatedStorage:SetAttribute("UiTestSetupError", nil)
@@ -691,6 +758,10 @@ local function runSetup(request)
 		end
 		if id == "progression_spy" then
 			progressionSpy()
+			return
+		end
+		if id == "showcase_spy" then
+			showcaseSpy()
 			return
 		end
 		local fn = id and setups[id]

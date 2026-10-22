@@ -239,7 +239,7 @@ UiSpec.Guis = {
 			},
 			{
 				-- Asks the server (RemoteFunction Rebirth, no argument: the server decides everything). Disabled
-				-- (Active false, fires nothing) below the level milestone and at RebirthConfig.MAX_LEVEL.
+				-- (Active false, fires nothing) below the level milestone. Rebirth milestones continue indefinitely.
 				Path = "Panel/Face/RebirthButton/Face",
 				Does = "remote",
 				Remote = "Rebirth",
@@ -338,8 +338,8 @@ UiSpec.Settings = {
 	ProbeVolume = 0.5, -- the test's own Sound (created and destroyed by the sound clicks) must follow the toggle
 }
 -- The Rebirth panel (ui_rebirth, clicks rebirth_*), rebuilt from the owner's reference image (2026-10-15,
--- docs/REBIRTH_SPEC.md "Panel"). Numbers come from Shared/RebirthConfig (LUCK_GAIN_PER_LEVEL, GAIN_PER_LEVEL,
--- POINTS_PER_REBIRTH, MAX_LEVEL), Shared/LevelConfig.RebirthLevelRequirement(RebirthLevel) and the player's Level /
+-- docs/REBIRTH_SPEC.md "Panel"). Numbers come from Shared/RebirthConfig (LUCK_MULTIPLIER, SPEED_GAIN_MULTIPLIER,
+-- POINTS_PER_REBIRTH), Shared/LevelConfig.RebirthLevelRequirement(RebirthLevel) and the player's Level /
 -- RebirthLevel attributes, never from the panel's pixels.
 -- Nodes are found BY NAME under the panel (the generator decides where the Face frames go): each must exist exactly
 -- once below its Parent node (Parent "Panel" = RacerRebirth/Panel), be shown while the panel is open, lie inside its
@@ -394,10 +394,10 @@ UiSpec.Rebirth = {
 	},
 	-- Each reward tile <Name> holds <Name>Icon (ImageLabel with a non-empty Image) and <Name>Caption (TextLabel), not
 	-- overlapping (node ids are unique in the generator, so the tile name is the prefix; both are listed in Nodes).
-	-- Caption = Format with the RebirthConfig number (Percent: the fraction as a whole percent): the NEXT rebirth's gain.
+	-- Caption = Format with the RebirthConfig multiplier: the NEXT rebirth's gain.
 	Tiles = {
-		{ Name = "LuckReward", Config = "LUCK_GAIN_PER_LEVEL", Percent = true, Format = "+%d%% Luck" },
-		{ Name = "SpeedReward", Config = "GAIN_PER_LEVEL", Percent = true, Format = "+%d%% Speed Gain" },
+		{ Name = "LuckReward", Config = "LUCK_MULTIPLIER", Multiplier = true, Format = "x%.2f Luck" },
+		{ Name = "SpeedReward", Config = "SPEED_GAIN_MULTIPLIER", Multiplier = true, Format = "x%.2f Speed Gain" },
 		{ Name = "PointReward", Config = "POINTS_PER_REBIRTH", Format = "+%d Stat Point", Plural = "+%d Stat Points" },
 	},
 	-- The panel's sections, shown together: no two may overlap (at every viewport).
@@ -424,7 +424,6 @@ UiSpec.Rebirth = {
 	ButtonReplies = {
 		"Reach Level %d",
 		"Stop Auto before rebirthing",
-		"Maximum rebirth",
 		"Please wait",
 		"Data not loaded",
 		"Stats not ready",
@@ -812,9 +811,23 @@ UiSpec.Showcase = {
 		"RollHeader",
 	},
 	-- ...and the content parts that must lie inside the card while shown (effects such as Burst may spill out)
-	ContentParts = { "Viewport", "ResultName", "ResultSpeed", "ResultRarity", "ResultOdds", "NewBadge", "TurboBadge" },
+	ContentParts = {
+		"Viewport",
+		"ResultName",
+		"ResultSpeed",
+		"ResultRarity",
+		"ResultOdds",
+		"NewBadge",
+		"TurboBadge",
+		"ScrapBadge",
+	},
 	SpeedText = "x%s SPEED MULTIPLIER", -- %s = the car's SpeedMulti (Racer UI; the old contract said "25x Speed")
 	TurboBadgeText = "TURBO x%s", -- %s = the roll's turbo multi
+	-- Duplicates are kept as copies and pay $0 (docs/WORKSHOP_SPEC.md "5b. Showcase", owner 2026-10-22): the card's
+	-- ScrapBadge shows this on a duplicate roll (never a Money amount), and is hidden on a new car. RollResult's
+	-- 5th argument (scrapMoney) must be 0.
+	CopyBadge = "ScrapBadge",
+	CopyBadgeText = "+1 COPY",
 	GoldOdds = Color3.fromRGB(255, 200, 60), -- contract: Legendary and rarer show gold odds
 	SecretMinLuminance = 0.5, -- Secret's colour is near-black: its Rarity / Odds text must still read (light)
 	NameStrokeMaxLuminance = 0.3, -- ResultName: a DARK UIStroke outline
@@ -2070,6 +2083,162 @@ table.insert(UiSpec.Clicks, {
 		After = { "progression_not_optimistic", "workshop_rejection_shown" },
 	},
 })
+
+-- Workshop Showcase (docs/WORKSHOP_SPEC.md "5b. Showcase", owner 2026-10-22). Client/ProgressionUi keeps Level,
+-- Price, Rate, Result and Buy in the LEFT part of RacerWorkshop/Panel and adds the frame Panel/Showcase on the right:
+--   Multi (TextLabel): contains MultiFormat of the player attribute ShowcaseMulti ("SHOWCASE x1.37 Speed gain");
+--   Best3 (TextButton): invokes SetShowcase({ the min(3, owned) owned rollable ids with the highest
+--     GachaConfig.SlotBonus(spec, copies) }), copies = attribute Copies on player.GachaData.<id> (missing = 0);
+--   Slot1..Slot3 (Frame): Name (TextLabel: the car's name, or EmptyText) and Clear (TextButton, shown only while the
+--     slot holds a car; invokes SetShowcase(the shown ids without that car));
+--   List (ScrollingFrame): one row Car_<id> per owned rollable car (never the starter or gamepass cars), sorted by
+--     slot bonus, highest first; each row has Name (TextLabel) and Show (TextButton: ShowText when not shown,
+--     ShownText when shown; a click invokes SetShowcase with the id added / removed; Active false and fires nothing
+--     when 3 cars are shown and this one is not one of them).
+-- Shown ids: player attribute Showcase (ids joined by ","); slot i shows the i-th id. The labels follow the server's
+-- attributes, never the click. ProgressionUi must look Remotes.SetShowcase up when clicked (as WorkshopUpgrade), so
+-- the showcase_spy proxy sees the call. Checks: ui_workshop_showcase (UiProgression) and the showcase_* clicks.
+UiSpec.WorkshopShowcase = {
+	Panel = "RacerWorkshop/Panel",
+	Root = "RacerWorkshop/Panel/Showcase",
+	Slots = 3, -- GachaConfig.SHOWCASE_SLOTS
+	EmptyText = "EMPTY",
+	ShowText = "SHOW",
+	ShownText = "SHOWN",
+	MultiFormat = "x%.2f", -- ShowcaseMulti, 2 decimals, somewhere in the Multi text
+	RowPrefix = "Car_",
+	-- The old controls: in the left part of the panel (right edge <= LeftShare of its width; brief "~42%", bound
+	-- 45%) and never on the Showcase frame. Close keeps its own place but may not touch any showcase control.
+	LeftControls = { "Level", "Price", "Rate", "Result", "Buy" },
+	LeftShare = 0.45,
+	ShowcaseMinStart = 0.4, -- the Showcase frame starts at >= 40% of the panel width
+	MultiTolerance = 0.005, -- ShowcaseMulti vs GachaConfig.ShowcaseMulti of the shown cars
+	AnswerWait = 3, -- s: the server's Showcase attribute and the panel follow a click within this
+	Remote = "SetShowcase", -- RemoteFunction(ids) -> ok, reason
+}
+table.insert(UiSpec.Remotes, "SetShowcase")
+for _, button in
+	{
+		{ Path = "Panel/Showcase/Best3", Does = "remote", Remote = "SetShowcase", Arg = "showcase_best3" },
+		{ Path = "Panel/Showcase/Slot1/Clear", Does = "remote", Remote = "SetShowcase", Arg = "showcase_clear:1" },
+		-- Slot2 / Slot3 run the same handler as Slot1 (clicked); their state is checked by ui_workshop_showcase
+		{
+			Path = "Panel/Showcase/Slot2/Clear",
+			Does = "remote",
+			Remote = "SetShowcase",
+			Arg = "showcase_clear:2",
+			ClickCoverage = "ui_workshop_showcase",
+		},
+		{
+			Path = "Panel/Showcase/Slot3/Clear",
+			Does = "remote",
+			Remote = "SetShowcase",
+			Arg = "showcase_clear:3",
+			ClickCoverage = "ui_workshop_showcase",
+		},
+		{
+			Path = "Panel/Showcase/List/*/Show",
+			Does = "remote",
+			Remote = "SetShowcase",
+			Arg = "showcase_show|showcase_hide",
+			Count = "dynamic", -- one per owned rollable car (ui_workshop_showcase counts them)
+		},
+	}
+do
+	table.insert(UiSpec.Guis.RacerWorkshop.Buttons, button)
+end
+for _, item in
+	{
+		{
+			Id = "showcase_owned",
+			What = "Snapshot required (GachaService.Snapshot keeps Cars, Copies, Showcase). Unsaved: the player owns "
+				.. "every car it owned plus the first 5 of CarCatalog.Rollable(); those 5 get Copies 0, 3, 7, 1, 12 in "
+				.. "that order (slot bonuses differ, so BEST 3 is not just the rarest 3); Showcase '' and ShowcaseMulti "
+				.. "1 set through GachaService (no SetShowcase cooldown left).",
+		},
+		{
+			Id = "showcase_filled",
+			What = "showcase_owned, then shows the 3 owned rollable cars with the LOWEST slot bonus (Showcase / "
+				.. "ShowcaseMulti through GachaService); run ui_workshop_showcase (3 shown: other rows' Show disabled).",
+		},
+		{
+			Id = "showcase_spy",
+			What = "Needs spy. Renames Remotes.SetShowcase to UiTestOriginal_SetShowcase and adds a same-name "
+				.. "RemoteFunction proxy (attribute UiTestSpied = true) that logs { user, args } into the UiTestSpy attribute "
+				.. "SetShowcase, then returns "
+				.. "GachaService.SetShowcase(player, ...) (the REAL validation and cooldown; it only changes state the "
+				.. "snapshot restores). restore removes the proxy.",
+		},
+	}
+do
+	item.When = "before the showcase_* clicks / the ui_workshop_showcase fixture run; restore afterwards"
+	table.insert(UiSpec.ServerSetup, item)
+end
+local function showcaseOpen(extra)
+	local prep = only("RacerWorkshop/Panel")
+	for key, value in extra do
+		prep[key] = value
+	end
+	return prep
+end
+-- Run in this order (each starts from the state the one before left). WaitSeconds > GachaConfig.SHOWCASE_COOLDOWN.
+for _, click in
+	{
+		{
+			Id = "showcase_best3",
+			Path = "Panel/Showcase/Best3",
+			Prepare = showcaseOpen({ AttrIs = { Showcase = "" } }),
+			NeedSetup = { "showcase_owned", "spy", "showcase_spy" },
+			Expect = {
+				Remote = { Name = "SetShowcase", Arg = "showcase_best3" },
+				After = { "showcase_attr_follows", "showcase_ui_follows" },
+			},
+		},
+		{
+			Id = "showcase_clear_slot1",
+			Path = "Panel/Showcase/Slot1/Clear",
+			Prepare = showcaseOpen({ AttrNot = { Showcase = "" }, WaitSeconds = 1 }),
+			NeedSetup = { "spy", "showcase_spy" },
+			Expect = {
+				Remote = { Name = "SetShowcase", Arg = "showcase_clear:1" },
+				After = { "showcase_attr_follows", "showcase_ui_follows" },
+			},
+		},
+		{
+			-- {showcase_unshown}: the highest-bonus owned rollable car that is not shown (resolved by RunClick)
+			Id = "showcase_show_row",
+			Path = "Panel/Showcase/List/{showcase_unshown}/Show",
+			Prepare = showcaseOpen({ ScrollIntoView = true, LabelIs = "SHOW", WaitSeconds = 1 }),
+			NeedSetup = { "spy", "showcase_spy" },
+			Expect = {
+				Remote = { Name = "SetShowcase", Arg = "showcase_show" },
+				After = { "showcase_attr_follows", "showcase_ui_follows" },
+			},
+		},
+		{
+			-- 3 shown now (showcase_owned gives >= 5 cars): another car's Show is disabled and fires nothing
+			Id = "showcase_show_full_disabled",
+			Path = "Panel/Showcase/List/{showcase_unshown}/Show",
+			Prepare = showcaseOpen({ ScrollIntoView = true, LabelIs = "SHOW", WaitSeconds = 1 }),
+			NeedSetup = { "spy", "showcase_spy" },
+			Expect = { Remote = false, After = { "showcase_unchanged", "showcase_ui_follows" } },
+		},
+		{
+			-- {showcase_shown}: the first id of the Showcase attribute; its Show button (SHOWN) removes it
+			Id = "showcase_unshow_row",
+			Path = "Panel/Showcase/List/{showcase_shown}/Show",
+			Prepare = showcaseOpen({ ScrollIntoView = true, LabelIs = "SHOWN", WaitSeconds = 1 }),
+			NeedSetup = { "spy", "showcase_spy" },
+			Expect = {
+				Remote = { Name = "SetShowcase", Arg = "showcase_hide" },
+				After = { "showcase_attr_follows", "showcase_ui_follows" },
+			},
+		},
+	}
+do
+	click.Gui = "RacerWorkshop"
+	table.insert(UiSpec.Clicks, click)
+end
 for _, item in
 	{
 		{
@@ -2162,6 +2331,7 @@ UiSpec.Progression.FixtureChecks = {
 	{ Setup = "roll_odds_luck1", Scenario = "ui_roll_odds" },
 	{ Setup = "roll_odds_no_luck", Scenario = "ui_roll_odds" },
 	{ Setup = "roll_odds_catchall", Scenario = "ui_roll_odds" },
+	{ Setup = "showcase_filled", Scenario = "ui_workshop_showcase" },
 }
 
 --[[

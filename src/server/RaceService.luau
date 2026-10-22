@@ -1,17 +1,17 @@
 --!nonstrict
 -- Auto race. The server drives every player's car with the real CarPhysics, steered by PathDriver along
 -- the chain of tracks, and the rail holds it at exactly its cruise speed everywhere (no acceleration, no corner
--- slowing; design doc, owner 2026-10-20). While it drives, the player's Speed stat grows with the car's ACTUAL speed (with
--- diminishing returns, see RaceConfig) and the cruise speed follows the stat. When the car passes a
+-- slowing; design doc, owner 2026-10-20). While it drives, the player's Speed stat grows at a flat base rate
+-- multiplied only by permanent Speed Gain upgrades and rebirths; the equipped car and actual car speed do not affect gain.
+-- The cruise speed follows the stat. When the car passes a
 -- winnings pad the pad pays the player (MoneyService.Collect); the car never has to touch the pad. After
 -- the last finish the car is put back at the start of Track 1 and keeps racing.
 --
 -- NPC races (options.Npc, on for players): every track is a race against that track's NPC (Shared/NpcConfig,
 -- Shared/NpcRacer). If the NPC reaches a checkpoint first, the player loses at that checkpoint and is immediately
 -- teleported back to the start of Track 1; the client is told which checkpoint was lost.
--- Banked winnings (docs/SPAWN_AND_ROLLS_SPEC.md): winning a track adds its pad's value (MoneyService.Quote) to the
--- run's bank (run.Unbanked, mirrored in the player attribute Unbanked) instead of paying; a loss empties the bank;
--- run:CashOut() (also done by run:Destroy, so Stop, death and leaving) pays it into leaderstats.Money.
+-- NPC winnings use the current/last-track payout model: a won track pays immediately and a loss pays nothing for
+-- that track. There is no growing bank or continue-risk contract; Unbanked remains a zero compatibility attribute.
 -- Race events go to the owning player only (Remotes.NpcRace:FireClient), whose client draws the NPC.
 
 local PhysicsService = game:GetService("PhysicsService")
@@ -44,10 +44,13 @@ RaceService.FLIP_SECONDS = 0.4 -- ...after this long, and the car is put back up
 RaceService.START_AHEAD = 5 -- studs along the path from the road's first edge: all four wheels start on the road
 RaceService.RAIL_POS_GAIN = 20 -- 1/s: the rail steers the car back onto the path with velocity, not a teleport
 RaceService.RAIL_ROT_GAIN = 20 -- 1/s: same for heading (a teleport replicates as a jump and the client sees a stutter)
+RaceService.RAIL_MAX_ANGULAR_SPEED = 12 -- rad/s: prevent a large correction from violently spinning the chassis/wheels
 RaceService.RAIL_SNAP_DISTANCE = 3 -- studs off the rail before it falls back to a teleport (counted in run.RailSnaps)
-RaceService.RAIL_FALL_HEIGHT = 8 -- studs below / above the road before the car is put back on it (fast cars
--- left the road over crests or sank through it and fell out of the map: the rail only corrected sideways)
+RaceService.RAIL_FALL_HEIGHT = 8 -- studs above the road before the car is put back on it (fast cars can crest
+-- hills and leave the rail; the low side uses the ride-height margin below)
+RaceService.RAIL_LOW_MARGIN = 0.45 -- the chassis may settle below ride height by this much before a safe resnap
 local DEVIATION_GRACE = 3 -- seconds after the start before path deviation is measured (the car starts on the centre line)
+local DEVIATION_GRACE_STUDS = 30 -- ...or this far along it: a MAX_STAT car finishes the route in under 3 s
 
 local CAR_GROUP = "Cars"
 
@@ -130,8 +133,8 @@ function RaceService.NewRun(car, raceRoute, player, options)
 		Finished = false,
 		Payouts = 0,
 		PaidTotal = 0,
-		Unbanked = 0, -- NPC mode: won, not yet paid (paid by CashOut)
-		BankedTotal = 0, -- NPC mode: everything wins added to the bank
+		Unbanked = 0, -- deprecated compatibility field; NPC mode never banks winnings
+		BankedTotal = 0, -- deprecated compatibility field; retained for old callers and always zero
 		Gained = 0,
 		MinUpY = 1,
 		MaxPathDeviation = 0,
@@ -177,10 +180,10 @@ function RaceService.NewRun(car, raceRoute, player, options)
 	local startCF = CFrame.lookAt(startPos, startPos + Vector3.new(firstDir.X, 0, firstDir.Z))
 	physics:Reset(startCF)
 
-	local function setUnbanked(amount)
-		run.Unbanked = amount
+	local function setUnbanked(_amount)
+		run.Unbanked = 0
 		if typeof(player) == "Instance" then
-			player:SetAttribute("Unbanked", amount)
+			player:SetAttribute("Unbanked", 0)
 		end
 	end
 	if npcMode then
@@ -247,13 +250,18 @@ function RaceService.NewRun(car, raceRoute, player, options)
 		if win then
 			bestTime, newBest = RaceTimeService.Record(player, track.Number, playerTime)
 			QuestService.Progress(player, "Races")
-			amount = track.Pad and MoneyService.Quote(player, track.Pad) or 0
-			run.BankedTotal += amount
-			setUnbanked(run.Unbanked + amount)
+			local quote = track.Pad and MoneyService.Quote(player, track.Pad) or 0
+			amount = 0
+			if quote > 0 and MoneyService.Award(player, quote) ~= nil then
+				amount = quote
+				run.Payouts += 1
+				run.PaidTotal += amount
+			end
+			setUnbanked(0)
 			reachTrack(player, track.Number)
 			rewardTrackWin(track.Number)
 		else
-			setUnbanked(0) -- a lost race loses what was not banked yet
+			setUnbanked(0)
 		end
 		local event = {
 			Type = "Result",
@@ -261,8 +269,9 @@ function RaceService.NewRun(car, raceRoute, player, options)
 			Result = win and "Win" or "Lose",
 			PlayerTime = playerTime,
 			NpcTime = race.NpcTime,
-			Banked = amount,
-			Unbanked = run.Unbanked,
+			Paid = amount,
+			Banked = 0,
+			Unbanked = 0,
 			BestTime = bestTime,
 			NewBest = newBest,
 		}
@@ -330,7 +339,21 @@ function RaceService.NewRun(car, raceRoute, player, options)
 	local function tangentAt(k)
 		return (wps[math.min(k + 1, #wps)] - wps[math.max(k - 1, 1)]).Unit
 	end
-	local function constrainToPath()
+	-- The point `dist` studs further along the waypoint polyline from segment k at fraction t.
+	local function pointAhead(k, t, dist)
+		local p = wps[k] + (wps[k + 1] - wps[k]) * t
+		while k < #wps do
+			local step = wps[k + 1] - p
+			if step.Magnitude >= dist then
+				return p + step.Unit * dist
+			end
+			dist -= step.Magnitude
+			p = wps[k + 1]
+			k += 1
+		end
+		return p
+	end
+	local function constrainToPath(dt)
 		local index = math.clamp(driver.Index, 1, #wps - 1)
 		local first = math.max(1, index - 2)
 		local last = math.min(#wps - 1, index + 2)
@@ -358,10 +381,12 @@ function RaceService.NewRun(car, raceRoute, player, options)
 			+ tb * (3 * t2 - 2 * t)
 		).Unit
 		local height = chassis.Position.Y - bestPoint.Y
-		local fell = not physics.LoopAssist
-			and not run.Finished
-			and (height < -2 or height > RaceService.RAIL_FALL_HEIGHT)
-		local position = bestPoint + Vector3.new(0, fell and CarConfig.RestHeight + 0.5 or height, 0)
+		local railed = not physics.LoopAssist and not run.Finished
+		local fell = railed and (height < -2 or height > RaceService.RAIL_FALL_HEIGHT)
+		-- A shallow sink is lifted back to ride height with velocity (a teleport is a visible jump on the client)
+		local sunk = railed and not fell and height < CarConfig.RestHeight - RaceService.RAIL_LOW_MARGIN
+		local position = bestPoint
+			+ Vector3.new(0, fell and CarConfig.RestHeight + 0.5 or sunk and CarConfig.RestHeight or height, 0)
 		-- One steady speed (design doc, owner 2026-10-20): the rail holds the cruise speed everywhere, from the first
 		-- frame, with no acceleration or corner slowing. Past the last finish the car rolls out on its physics.
 		local forwardSpeed = run.Finished and math.max(0, chassis.AssemblyLinearVelocity:Dot(bestDir))
@@ -387,8 +412,30 @@ function RaceService.NewRun(car, raceRoute, player, options)
 		end
 		-- Steer onto the rail with velocity: physics moves the car, so the client interpolates it smoothly
 		local axis, angle = (target.Rotation * chassis.CFrame.Rotation:Inverse()):ToAxisAngle()
-		chassis.AssemblyLinearVelocity = bestDir * forwardSpeed + offset * RaceService.RAIL_POS_GAIN
-		chassis.AssemblyAngularVelocity = axis * angle * RaceService.RAIL_ROT_GAIN
+		-- Travel along the chord to where the path is one step ahead: a fast car moving along the tangent would
+		-- leave a corner by speed^2 * dt^2 / 2R every step and need a snap back (RailSnaps at MAX_STAT speed)
+		local moveDir = bestDir
+		local lead = forwardSpeed * (dt or 0)
+		if lead > 1 then
+			local chord = pointAhead(bestK, bestT, lead) - (a + (b - a) * bestT)
+			if chord.Magnitude > 1e-3 then
+				moveDir = chord.Unit
+			end
+		end
+		chassis.AssemblyLinearVelocity = moveDir * forwardSpeed + offset * RaceService.RAIL_POS_GAIN
+		-- Feed-forward: turn at the path's own rate (speed x curvature), so the capped correction only handles the
+		-- remaining heading error and a fast car never lags behind a corner
+		local ua, ub = tangentAt(bestK), tangentAt(bestK + 1)
+		local turnAxis = ua:Cross(ub)
+		local pathSpin = Vector3.zero
+		if turnAxis.Magnitude > 1e-6 then
+			pathSpin = turnAxis.Unit
+				* forwardSpeed
+				* math.acos(math.clamp(ua:Dot(ub), -1, 1))
+				/ math.max((b - a).Magnitude, 1e-3)
+		end
+		chassis.AssemblyAngularVelocity = pathSpin
+			+ axis * math.min(angle * RaceService.RAIL_ROT_GAIN, RaceService.RAIL_MAX_ANGULAR_SPEED)
 	end
 
 	-- A flipped car is put back upright on the path, facing along it
@@ -517,14 +564,15 @@ function RaceService.NewRun(car, raceRoute, player, options)
 			payPads()
 		end
 		recoverIfFlipped(dt)
-		if runTime > DEVIATION_GRACE and not run.Finished then -- past the last finish there is no path to follow
+		if (runTime > DEVIATION_GRACE or runTime * run.TargetSpeed > DEVIATION_GRACE_STUDS) and not run.Finished then -- past the last finish there is no path to follow
 			run.MaxPathDeviation = math.max(run.MaxPathDeviation, pathDeviation())
 		end
 
-		-- Passive gain uses stat/tree SpeedMulti only; the car model changes cruise speed.
+		-- Passive gain is a flat rate x permanent Speed-gain upgrades and rebirths; neither the car,
+		-- cruise speed, Speed stat, nor temporary boosts changes it.
 		pending += RaceConfig.GainPerSecond(stat, chassis.AssemblyLinearVelocity.Magnitude) * GachaService.SpeedMulti(
 			player
-		) * require(script.Parent.BoostService).Multiplier(player, "Speed") * dt
+		) * dt
 		LevelService.Tick(player, dt)
 		sinceCommit += dt
 		if sinceCommit >= RaceService.COMMIT_INTERVAL then
@@ -546,33 +594,24 @@ function RaceService.NewRun(car, raceRoute, player, options)
 
 	-- The rail is applied AFTER the physics step, so the pose that replicates is always on the rail (applied
 	-- before it, every frame would show one step of free steering/tyre yaw that the next frame snaps back).
-	run.RailConnection = RunService.PostSimulation:Connect(function()
+	run.RailConnection = RunService.PostSimulation:Connect(function(dt)
 		if car.Parent then
-			constrainToPath()
+			constrainToPath(dt)
 		end
 	end)
 
-	-- Pays the bank into leaderstats.Money and empties it. Returns the amount paid (0 if none).
+	-- Deprecated compatibility API. NPC rewards are paid at the current track finish, so there is no bank to cash out.
 	function run:CashOut()
-		local amount = run.Unbanked
-		if amount <= 0 then
-			return 0
-		end
 		setUnbanked(0)
-		if MoneyService.Award(player, amount) == nil then
-			return 0
-		end
-		run.Payouts += 1
-		run.PaidTotal += amount
-		return amount
+		return 0
 	end
 
 	-- Stops the run. The Speed gained since the last commit is committed first, so stopping never loses stat, and
-	-- the bank is paid out, so stopping (or dying, or leaving) never loses won money.
+	-- NPC wins have already been paid at each track finish; stopping never creates an additional payout.
 	function run:Destroy()
 		if alive then
 			alive = false
-			self:CashOut()
+			setUnbanked(0)
 			if npcMode then
 				emit({ Type = "Stop" })
 			end

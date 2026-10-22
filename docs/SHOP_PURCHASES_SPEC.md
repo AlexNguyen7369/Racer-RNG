@@ -43,6 +43,6 @@ Returns an `Enum.ProductPurchaseDecision`:
 
 ## 4. Save
 
-`PlayerData` VERSION 9 (`docs/SAVE_SPEC.md`): `Receipts` (array of purchase id strings) and `Codes` (array of
+`PlayerData` VERSION 11 schema (`docs/SAVE_SPEC.md`; fields introduced in VERSION 9): `Receipts` (array of purchase id strings) and `Codes` (array of
 upper-case code strings). `ShopService.Apply(player, data)` loads them (missing or bad entries = empty / skipped),
 `ShopService.Snapshot(player)` returns `{ Receipts = {...}, Codes = {...} }`. A rebirth keeps both.

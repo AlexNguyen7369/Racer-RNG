@@ -90,7 +90,7 @@ local tiles = Components.BindIndex(index, catalog)
 local rows = Components.BindStats(stats, config)
 local data = player:WaitForChild("GachaData")
 local leaderstats = player:WaitForChild("leaderstats")
-local speed = leaderstats:WaitForChild("Speed") -- shown Speed: base x equipped multis, set by the server
+local speed = leaderstats:WaitForChild("Speed") -- base Speed, set by the server; car multis affect cruise only
 local money = leaderstats:WaitForChild("Money")
 local GREEN = Color3.fromRGB(60, 255, 60)
 local RED = Color3.fromRGB(255, 77, 94)
@@ -383,11 +383,9 @@ end)
 
 -- Rebirth panel (docs/REBIRTH_SPEC.md): the generated layout shows the reset warning, the next rebirth's rewards
 -- and the level requirement; the server decides the rebirth, this only displays its numbers and replies.
-local function percent(fraction)
-	return math.floor(fraction * 100 + 0.5)
+local function multiplierText(value)
+	return string.format("x%.2f", value)
 end
-rebirth.LuckRewardCaption.Text = string.format("+%d%% Luck", percent(rebirthConfig.LUCK_GAIN_PER_LEVEL))
-rebirth.SpeedRewardCaption.Text = string.format("+%d%% Speed Gain", percent(rebirthConfig.GAIN_PER_LEVEL))
 rebirth.PointRewardCaption.Text = string.format(
 	rebirthConfig.POINTS_PER_REBIRTH == 1 and "+%d Stat Point" or "+%d Stat Points",
 	rebirthConfig.POINTS_PER_REBIRTH
@@ -395,12 +393,15 @@ rebirth.PointRewardCaption.Text = string.format(
 local rebirthBusy, rebirthReply = false, nil
 local function refreshRebirth()
 	local level = player:GetAttribute("RebirthLevel") or 0
+	local nextMultiplier = rebirthConfig.NextMultiplier(level)
+	rebirth.LuckRewardCaption.Text = multiplierText(nextMultiplier) .. " Luck"
+	rebirth.SpeedRewardCaption.Text = multiplierText(nextMultiplier) .. " Speed Gain"
 	local required = rebirthConfig.Requirements(level).Level
 	local playerLevel = player:GetAttribute("Level") or 1
 	local eligible = playerLevel >= required
 	rebirth.BarText.Text = string.format("%d / %d Level", playerLevel, required)
 	rebirth.Fill.Size = UDim2.fromScale(math.clamp(playerLevel / required, 0, 1), 1)
-	local active = eligible and not rebirthBusy and level < rebirthConfig.MAX_LEVEL
+	local active = eligible and not rebirthBusy
 	rebirth.RebirthButton.Active = active
 	label(rebirth.RebirthButton, rebirthReply or "REBIRTH")
 	Components.Tint(rebirth.RebirthButton, active and GREEN or GRAY)

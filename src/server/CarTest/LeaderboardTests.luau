@@ -629,7 +629,8 @@ function Tests.leaderboard()
 		service.Write(p)
 		local raised = stores.Value("LB_Speed_v1", id)
 		flag("leaderboard_higher_speed_overwrites", raised == 400, tonumber(raised) or -1, 400)
-		-- Owner 2026-10-21 (design doc Core stat model): the Speed board shows the shown Speed, base x ShownSpeedMulti
+		-- Owner 2026-10-21 (design doc Core stat model, "multiplied Speed"): the global Speed leaderboard shows BASE
+		-- Speed; the car's cruise multi never changes it
 		local shownP = player(7, true)
 		shownP.BaseSpeed.Value = 100
 		gacha.Grant(shownP, "go_kart")
@@ -640,9 +641,9 @@ function Tests.leaderboard()
 		local shownScore = type(shownScores) == "table" and shownScores.Speed
 		flag(
 			"leaderboard_scores_speed_is_shown_speed",
-			shownScore == math.floor(100 * kartMulti) and kartMulti > 1,
+			shownScore == 100 and kartMulti > 1,
 			tonumber(shownScore) or -1,
-			math.floor(100 * kartMulti)
+			100
 		)
 
 		-- Never for a failed or unloaded save

@@ -41,7 +41,7 @@ recipient's existing PlayerStats key, preserving every field including session L
 Receipt returns PurchaseGranted only once the mailbox entry is durable; all failures
 return NotProcessedYet. Recipient may leave after selection.
 
-`PlayerData` VERSION 10 persists `GiftMailbox` and `GiftReceipts`. Saves are serialized per
+`PlayerData` VERSION 11 schema (fields introduced in VERSION 10) persists `GiftMailbox` and `GiftReceipts`. Saves are serialized per
 player. Mailbox grants are merged into the saved Boosts and receipt markers together in
 one UpdateAsync; live potion counts change only after success. Claim retries and duplicate
 enqueue cannot grant the same PurchaseId twice. Old VERSION 9 saves default to empty.

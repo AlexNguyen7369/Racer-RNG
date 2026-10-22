@@ -1,8 +1,10 @@
 --!nonstrict
 -- Car gacha, index and stat allocation. The server owns all of it; clients only see:
---   player.GachaData: one StringValue per owned car Id (discovering a car = owning it; no duplicate counts)
+--   player.GachaData: one StringValue per owned car Id (discovering a car = owning it); attribute Copies = the
+--   duplicates rolled since (docs/WORKSHOP_SPEC.md "Showcase": never sold, they power the workshop Showcase)
 --   player attributes: EquippedCar, Rolls, StatPoints (free points), Alloc_<Stat> for each GachaConfig.STATS,
---   AutoRoll (the AUTO toggle of the roll view, true on join, not saved)
+--   AutoRoll (the AUTO toggle of the roll view, true on join, not saved), Showcase (shown car ids joined by ","),
+--   ShowcaseMulti, SpeedGainMulti, LuckMulti (live permanent multiplier snapshots)
 -- Every unique car in the index counts towards stat points (GachaConfig.EarnedPoints); earned points are
 -- never stored, only what was allocated, so the two can not drift apart. Saved by PlayerData (Snapshot/Apply).
 
@@ -76,13 +78,25 @@ function GachaService.Setup(player)
 	if player:GetAttribute("StatPoints") == nil then
 		player:SetAttribute("StatPoints", 0)
 	end
+	if player:GetAttribute("Showcase") == nil then
+		player:SetAttribute("Showcase", "")
+		player:SetAttribute("ShowcaseMulti", 1)
+	end
 	if not watched[player] then
 		watched[player] = true
 		local function refresh()
 			player:SetAttribute("ShownSpeedMulti", GachaService.ShownSpeedMulti(player))
+			player:SetAttribute("SpeedGainMulti", GachaService.SpeedGainMulti(player))
+			player:SetAttribute("LuckMulti", RebirthConfig.LuckMulti(player:GetAttribute("RebirthLevel")))
 		end
 		player.AttributeChanged:Connect(function(name)
-			if name == "EquippedCar" or name == "EquippedAura" or string.sub(name, 1, 5) == "Pass_" then
+			if
+				name == "EquippedCar"
+				or name == "EquippedAura"
+				or name == "RebirthLevel"
+				or string.sub(name, 1, 5) == "Pass_"
+				or string.sub(name, 1, 6) == "Alloc_"
+			then
 				refresh()
 			end
 		end)
@@ -139,8 +153,18 @@ local function refreshPoints(player)
 end
 GachaService.RefreshPoints = refreshPoints -- RebirthService calls it when RebirthLevel changes
 
-function GachaService.ScrapValue(id)
-	return GachaConfig.ScrapMoney(CarCatalog.Get(id))
+local function cleanCopies(n)
+	if type(n) ~= "number" or n ~= n or n < 0 then
+		return 0
+	end
+	return math.floor(math.min(n, GachaConfig.MAX_SAVED_COPIES))
+end
+
+-- Duplicates of an owned car rolled after discovering it (0 when not owned).
+function GachaService.Copies(player, id)
+	local data = player:FindFirstChild("GachaData")
+	local entry = data and type(id) == "string" and data:FindFirstChild(id)
+	return entry and cleanCopies(entry:GetAttribute("Copies")) or 0
 end
 
 local function owns(player, id)
@@ -166,7 +190,12 @@ function GachaService.Grant(player, id)
 		return nil
 	end
 	local data = GachaService.Setup(player)
-	if data:FindFirstChild(id) then
+	local entry = data:FindFirstChild(id)
+	if entry then
+		entry:SetAttribute("Copies", cleanCopies(cleanCopies(entry:GetAttribute("Copies")) + 1))
+		if GachaService.ShowcaseIds(player)[id] then
+			GachaService.RefreshShowcase(player)
+		end
 		return false
 	end
 	addEntry(data, id)
@@ -196,7 +225,8 @@ end
 -- One roll at the player's luck, times the Turbo tier's Multi on every turbo roll (UpgradeService.AdvanceTurbo: the
 -- player's TurboCount reaches the tier's Every; x5 every 10th roll with no Turbo tier). Returns the car Id,
 -- whether it was new, the turbo multi (1 on a normal roll), whether it is emphasized (GachaConfig.IsEmphasized:
--- played enlarged and announced to the whole server), the scrap Money of a duplicate and the roll's luck without
+-- played enlarged and announced to the whole server), 0 (duplicates used to pay scrap Money; they now add a copy,
+-- owner 2026-10-22) and the roll's luck without
 -- the turbo multi (the client divides the displayed odds by it, docs/WEATHER_EVENTS_SPEC.md).
 function GachaService.Roll(player, roller)
 	GachaService.Setup(player)
@@ -213,12 +243,6 @@ function GachaService.Roll(player, roller)
 		QuestService.Progress(player, "Discoveries")
 	end
 	local scrapMoney = 0
-	if isNew == false then
-		-- MoneyService requires GachaService for payout multis, so load it lazily.
-		local MoneyService = require(script.Parent.MoneyService)
-		scrapMoney = GachaService.ScrapValue(id)
-		MoneyService.Award(player, scrapMoney)
-	end
 	if rollRemote and player:IsA("Player") then
 		rollRemote:FireClient(player, id, isNew, turboMulti, emphasized, scrapMoney, luck)
 	end
@@ -262,24 +286,31 @@ function GachaService.Allocate(player, stat)
 	return true
 end
 
--- Cruise speed and Speed-stat gain are separate progression paths. The car
--- affects gain through SpeedMulti, while CarSpeedMulti remains cruise-only.
+-- Cruise speed and Speed-gain are separate progression paths. The equipped car
+-- and shop cruise effects never enter the Speed-gain multiplier.
 function GachaService.CarSpeedMulti(player)
 	local spec = CarCatalog.Get(player:GetAttribute("EquippedCar"))
 	local carMulti = spec and owns(player, spec.Id) and spec.SpeedMulti or 1
 	return carMulti
 end
 
--- Multiplies the base Speed into the Speed players see and race at: equipped car x aura (design doc Core stat
--- model, owner 2026-10-21). Published as the player attribute ShownSpeedMulti.
+-- Cruise-only multiplier: equipped car x aura. Published as the player attribute ShownSpeedMulti;
+-- it never changes the saved/displayed Speed stat or its gain rate.
 function GachaService.ShownSpeedMulti(player)
 	return GachaService.CarSpeedMulti(player) * MarketConfig.SpeedMulti(player)
 end
 
 function GachaService.SpeedGainMulti(player)
 	local multis = GachaConfig.Multis(alloc(player), UpgradeService.Bonuses(player))
-	-- Car models affect cruise/base speed only, never passive Speed gain.
+	-- Only the permanent Speed-gain stat/tree upgrade and rebirth bonus apply here.
 	return multis.Speed * RebirthConfig.SpeedGainMulti(player:GetAttribute("RebirthLevel"))
+end
+
+-- Refresh the replicated permanent multiplier snapshots immediately after a rebirth or allocation change.
+-- Gameplay callers still calculate from source attributes, so these are observability/UI values rather than a cache.
+function GachaService.RefreshMultipliers(player)
+	player:SetAttribute("SpeedGainMulti", GachaService.SpeedGainMulti(player))
+	player:SetAttribute("LuckMulti", RebirthConfig.LuckMulti(player:GetAttribute("RebirthLevel")))
 end
 
 function GachaService.SpeedMulti(player)
@@ -309,12 +340,83 @@ function GachaService.Luck(player)
 	return luck
 end
 
--- The Workshop multi: Workshop stat points (the tree has no Workshop branch). Used by WorkshopService.
-function GachaService.WorkshopMulti(player)
-	return GachaConfig.Multis(alloc(player)).Workshop
+-- The showcased ids as a set, read from the Showcase attribute.
+function GachaService.ShowcaseIds(player)
+	local set = {}
+	local value = player:GetAttribute("Showcase")
+	if type(value) == "string" then
+		for id in string.gmatch(value, "[^,]+") do
+			set[id] = true
+		end
+	end
+	return set
 end
 
--- The save format: { Cars = { id, ... } (sorted), Equipped = id, Rolls = n, StatAlloc = { [stat] = n } }.
+-- The showcased ids in slot order.
+function GachaService.ShowcaseList(player)
+	local list = {}
+	local value = player:GetAttribute("Showcase")
+	if type(value) == "string" then
+		for id in string.gmatch(value, "[^,]+") do
+			table.insert(list, id)
+		end
+	end
+	return list
+end
+
+-- 1 + the slot bonuses of the showcased cars (GachaConfig.SlotBonus).
+function GachaService.ShowcaseMulti(player)
+	local slots = {}
+	for _, id in GachaService.ShowcaseList(player) do
+		table.insert(slots, { Spec = CarCatalog.Get(id), Copies = GachaService.Copies(player, id) })
+	end
+	return GachaConfig.ShowcaseMulti(slots)
+end
+
+function GachaService.RefreshShowcase(player)
+	player:SetAttribute("ShowcaseMulti", GachaService.ShowcaseMulti(player))
+end
+
+local function showcaseable(player, id)
+	local spec = type(id) == "string" and CarCatalog.Get(id) or nil
+	local data = player:FindFirstChild("GachaData")
+	return spec ~= nil
+		and spec.Rollable == true
+		and not spec.GamepassId
+		and data ~= nil
+		and data:FindFirstChild(id) ~= nil
+end
+
+-- Sets the showcased cars: an array of at most SHOWCASE_SLOTS distinct owned rollable car ids. Anything else changes
+-- nothing. Returns ok, reason.
+function GachaService.SetShowcase(player, ids)
+	if type(ids) ~= "table" or #ids > GachaConfig.SHOWCASE_SLOTS then
+		return false, "Pick up to " .. GachaConfig.SHOWCASE_SLOTS .. " cars"
+	end
+	local seen, count = {}, 0
+	for key, id in ids do
+		count += 1
+		if type(key) ~= "number" or not showcaseable(player, id) or seen[id] then
+			return false, "Not a car you own"
+		end
+		seen[id] = true
+	end
+	if count ~= #ids then
+		return false, "Not a car you own"
+	end
+	player:SetAttribute("Showcase", table.concat(ids, ","))
+	GachaService.RefreshShowcase(player)
+	return true, "Showcase updated"
+end
+
+-- The Workshop multi: Workshop stat points (the tree has no Workshop branch) x the Showcase multi. Used by
+-- WorkshopService and the offline Speed credit.
+function GachaService.WorkshopMulti(player)
+	return GachaConfig.Multis(alloc(player)).Workshop * GachaService.ShowcaseMulti(player)
+end
+
+-- The save format: { Cars = { id, ... } (sorted), Copies = { [id] = n }, Showcase = { id, ... }, Equipped = id,
+-- Rolls = n, StatAlloc = { [stat] = n } }.
 function GachaService.Snapshot(player)
 	local cars = {}
 	local data = player:FindFirstChild("GachaData")
@@ -324,9 +426,18 @@ function GachaService.Snapshot(player)
 		end
 		table.sort(cars)
 	end
+	local copies = {}
+	for _, id in cars do
+		local n = GachaService.Copies(player, id)
+		if n > 0 then
+			copies[id] = n
+		end
+	end
 	local equipped = player:GetAttribute("EquippedCar")
 	return {
 		Cars = cars,
+		Copies = copies,
+		Showcase = GachaService.ShowcaseList(player),
 		Equipped = type(equipped) == "string" and equipped or STARTER,
 		Rolls = cleanCount(player:GetAttribute("Rolls")),
 		StatAlloc = alloc(player),
@@ -359,6 +470,24 @@ function GachaService.Apply(player, saved)
 			end
 		end
 	end
+	if type(saved.Copies) == "table" then
+		for id, n in saved.Copies do
+			local entry = type(id) == "string" and data:FindFirstChild(id)
+			if entry and cleanCopies(n) > 0 then
+				entry:SetAttribute("Copies", cleanCopies(n))
+			end
+		end
+	end
+	local showcase = {}
+	if type(saved.Showcase) == "table" then
+		for _, id in saved.Showcase do
+			if #showcase < GachaConfig.SHOWCASE_SLOTS and showcaseable(player, id) and not table.find(showcase, id) then
+				table.insert(showcase, id)
+			end
+		end
+	end
+	player:SetAttribute("Showcase", table.concat(showcase, ","))
+	GachaService.RefreshShowcase(player)
 	player:SetAttribute("Rolls", cleanCount(saved.Rolls))
 
 	local a = {}
@@ -474,6 +603,19 @@ function GachaService.Start()
 			GachaService.Allocate(player, stat)
 		end
 	end)
+
+	local showcaseRemote = remotes:FindFirstChild("SetShowcase") or Instance.new("RemoteFunction")
+	showcaseRemote.Name = "SetShowcase"
+	showcaseRemote.Parent = remotes
+	local lastShowcase = setmetatable({}, { __mode = "k" })
+	showcaseRemote.OnServerInvoke = function(player, ids)
+		local now = os.clock()
+		if lastShowcase[player] and now - lastShowcase[player] < GachaConfig.SHOWCASE_COOLDOWN then
+			return false, "Please wait"
+		end
+		lastShowcase[player] = now
+		return GachaService.SetShowcase(player, ids)
+	end
 
 	local function onPlayer(player)
 		GachaService.Setup(player)

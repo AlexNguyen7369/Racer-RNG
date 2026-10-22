@@ -46,6 +46,6 @@ pills; the phone icon is approximately 250x184 px and uses the HUD's responsive
 layout. The route itself has no card, fill, shadow, or border; the title, status,
 timer, and PB are transparent text overlays around the enlarged route. The icon is
 presentation-only and must not overlap existing controls or panels.
-The panel band reserves room for the visible map. On short screens the map shifts
-left of the Shop tile if necessary. A roll showcase temporarily suppresses the
-icon; closing it restores the active track with its continuing server-clock timer.
+The map stays at its authored HUD position; the panel band does not reserve space for it and panels do not shift the
+map. A roll showcase temporarily suppresses the icon; closing it restores the active track with its continuing
+server-clock timer.

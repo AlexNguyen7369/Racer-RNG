@@ -810,10 +810,9 @@ local function fillResult(b, roll)
 		b.Rarity.TextStrokeTransparency = spec.Rarity == "Secret" and 0 or 0.4
 		b.NewBadge.Visible = roll.IsNew
 		if b.ScrapBadge then
-			b.ScrapBadge.Visible = not roll.IsNew and (roll.ScrapMoney or 0) > 0
-			if b.ScrapBadge.Visible then
-				b.ScrapBadge.Text = "+" .. HudFormat.MoneyText(roll.ScrapMoney)
-			end
+			-- A duplicate is kept as a copy for the workshop Showcase, never sold (owner 2026-10-22).
+			b.ScrapBadge.Visible = not roll.IsNew
+			b.ScrapBadge.Text = "+1 COPY"
 		end
 		b.Aliases.Name.Text = spec.Name
 		b.Aliases.Speed.Text = tostring(spec.SpeedMulti or 1) .. "x Speed"

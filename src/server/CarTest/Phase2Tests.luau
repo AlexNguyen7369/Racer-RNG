@@ -382,7 +382,7 @@ function Tests.workshop_phase2()
 		flag("offline_save_succeeds", data.Save(p, 74002) == true)
 		flag(
 			"offline_at_saved_unix_timestamp",
-			saved ~= nil and type(saved.OfflineAt) == "number" and saved.OfflineAt == clock and saved.Version == 11
+			saved ~= nil and type(saved.OfflineAt) == "number" and saved.OfflineAt == clock and saved.Version == 12
 		)
 		local afterSave = player("ReconnectAfterSave")
 		data.Load(afterSave, 74002)
@@ -1277,6 +1277,15 @@ function Tests.rebirth()
 	-- design doc "Rebirth system": "Rebirth Points per rebirth: 1" (placeholder, owner 2026-10-15)
 	local perRebirth = config.POINTS_PER_REBIRTH
 	flag("rebirth_points_per_rebirth_is_1", perRebirth == 1, perRebirth, 1)
+	local factors = config.REBIRTH_MULTIPLIERS or {}
+	local stagedFactors = factors[1] == 5
+		and factors[2] == 7.5
+		and factors[3] == 7.5
+		and factors[4] == 10
+		and factors[5] == 10
+		and factors[6] == 7.5
+	flag("rebirth_staged_speed_luck_factors", stagedFactors)
+	flag("rebirth_speed_luck_compound", config.SpeedGainMulti(2) == 37.5 and config.LuckMulti(2) == 37.5)
 	local players = {}
 	local oldCooldown = service.REMOTE_COOLDOWN
 	local ok, err = pcall(function()
@@ -1346,6 +1355,9 @@ function Tests.rebirth()
 		local pointsBefore = p:GetAttribute("StatPoints")
 		local carsBefore = gacha.Snapshot(p)
 		local upgradesBefore = upgrades.Snapshot(p)
+		-- docs/WORKSHOP_SPEC.md 5b (owner 2026-10-22): a rebirth keeps cars, so it keeps copies and the showcase
+		gacha.Grant(p, "go_kart") -- a duplicate: 1 copy, no Money
+		local showcaseSet = type(gacha.SetShowcase) == "function" and gacha.SetShowcase(p, { "go_kart", "wooden_car" })
 		local accepted, newLevel = service.Rebirth(p)
 		flag("rebirth_accepted_at_required_level", accepted == true and newLevel == 1)
 		flag("rebirth_level_raised", p:GetAttribute("RebirthLevel") == 1, p:GetAttribute("RebirthLevel"), 1)
@@ -1354,6 +1366,10 @@ function Tests.rebirth()
 		task.wait() -- the shown Speed follows BaseSpeed on its Changed signal (may be deferred)
 		-- Owner 2026-10-21: leaderstats.Speed shows base x ShownSpeedMulti, so it is 0 too (go_kart stays equipped)
 		flag("rebirth_resets_shown_speed", p.leaderstats.Speed.Value == 0, p.leaderstats.Speed.Value, 0)
+		flag(
+			"rebirth_multiplier_refreshes_immediately",
+			p:GetAttribute("SpeedGainMulti") == 5 and p:GetAttribute("LuckMulti") == 5
+		)
 		flag("rebirth_speed_stat_is_0", data.SpeedStat(p) == 0, data.SpeedStat(p), 0)
 		local carsAfter = gacha.Snapshot(p)
 		flag(
@@ -1363,6 +1379,13 @@ function Tests.rebirth()
 				and table.find(carsAfter.Cars, "go_kart") ~= nil
 				and carsAfter.Equipped == "go_kart"
 				and p:GetAttribute("EquippedCar") == "go_kart"
+		)
+		flag(
+			"rebirth_keeps_copies_and_showcase",
+			showcaseSet == true
+				and type(gacha.Copies) == "function"
+				and gacha.Copies(p, "go_kart") == 1
+				and p:GetAttribute("Showcase") == "go_kart,wooden_car"
 		)
 		local upgradesAfter = upgrades.Snapshot(p)
 		flag(
@@ -1404,6 +1427,12 @@ function Tests.rebirth()
 			gacha.EarnedPoints(p),
 			wantEarned
 		)
+		-- Milestones 10, 25, 50, 75, 100 (rebirth levels 0-4), then every 25: rebirth level 5 requires level 125.
+		local high = ready("Beyond100", 125)
+		high:SetAttribute("RebirthLevel", 5)
+		local highOk, highNext = service.Rebirth(high)
+		flag("rebirth_level_125_requirement", config.Requirements(5).Level == 125, config.Requirements(5).Level, 125)
+		flag("rebirth_level_125_accepted", highOk == true and highNext == 6, highNext, 6)
 		local luckBefore = p:GetAttribute("Alloc_Luck") or 0
 		local spent = gacha.Allocate(p, "Luck")
 		flag(
@@ -1481,7 +1510,7 @@ function Tests.rebirth()
 end
 
 -- BRIEF (owner, 2026-10-12; docs/GAME_DESIGN_REQUIREMENTS.md "Economy (Money)", docs/SAVE_SPEC.md section 3): Money
--- comes ONLY from race cash-outs and duplicate car sales. "Daily login rewards contain no Money (no Money field on
+-- comes ONLY from race cash-outs (owner 2026-10-22: duplicate cars are no longer sold, they add a copy). "Daily login rewards contain no Money (no Money field on
 -- any day; every day grants a potion or the guaranteed rare car). DailyLoginService.Claim never changes
 -- leaderstats.Money." Seven days.
 function Tests.daily_login()

@@ -1191,6 +1191,30 @@
       "foundBy": "physics-tester",
       "foundAt": "2026-10-21T00:06:50-07:00",
       "loggedBy": "Alex Nguyen"
+    },
+    {
+      "id": "4c8bf3c0",
+      "name": "Hill lap tilt dips below 0.9 intermittently",
+      "kind": "failure",
+      "status": "open",
+      "file": "src/shared/CarPhysics.luau",
+      "line": 1,
+      "endLine": 1,
+      "snippet": {
+        "from": 1,
+        "lines": [
+          "--!nonstrict",
+          "-- Raycast-suspension vehicle model. One implementation shared by the player's client",
+          "-- (CarController) and the server-side test harness (CarTest), so what we test is what ships.",
+          "--",
+          "-- Input: { Throttle = -1..1, Steer = -1..1 (+1 = right), Brake = 0..1, Handbrake = boolean }"
+        ]
+      },
+      "summary": "track:Hill never_tilted was 0.847 (limit 0.9) in one full-harness run (2026-10-22, round 3, max_dt 0.052) but 0.942 on an immediate rerun; an occasional tilt spike on the Hill crests breaks the never-tilt rule and makes the compat check flaky. Likely interacts with the uncommitted CarPhysics wheel/ride-height changes.",
+      "error": "",
+      "foundBy": "physics-tester",
+      "foundAt": "2026-10-22T03:16:23-07:00",
+      "loggedBy": "Alex Nguyen"
     }
   ]
 }

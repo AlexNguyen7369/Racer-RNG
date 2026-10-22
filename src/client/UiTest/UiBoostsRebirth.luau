@@ -97,8 +97,13 @@ function Extras.Build(h)
 			if type(value) ~= "number" then
 				table.insert(captions, ("%s: RebirthConfig.%s is %s"):format(tile.Name, tile.Config, typeof(value)))
 			else
-				local n = tile.Percent and math.floor(value * 100 + 0.5) or value
-				local want = (tile.Plural and n ~= 1) and tile.Plural:format(n) or tile.Format:format(n)
+				local want
+				if tile.Multiplier then
+					want = tile.Format:format(value)
+				else
+					local n = tile.Percent and math.floor(value * 100 + 0.5) or value
+					want = (tile.Plural and n ~= 1) and tile.Plural:format(n) or tile.Format:format(n)
+				end
 				if text ~= want then
 					table.insert(captions, ("%sCaption %q, want %q"):format(tile.Name, tostring(text), want))
 				end
@@ -140,8 +145,7 @@ function Extras.Build(h)
 		local isButton = button ~= nil and button:IsA("TextButton")
 		h.check(res, "rebirth_button_present", button and button.ClassName or "missing", "TextButton", isButton)
 		if isButton then
-			local rebirthLevel = attr("RebirthLevel") or 0
-			local eligible = met and rebirthLevel < RebirthConfig.MAX_LEVEL
+			local eligible = met
 			h.check(res, "rebirth_button_enabled_matches_server", button.Active, eligible, button.Active == eligible)
 			local label = button:FindFirstChild(RB.ButtonLabel, true)
 			local text = label and label:IsA("TextLabel") and label.Text or "missing"

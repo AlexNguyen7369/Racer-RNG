@@ -447,6 +447,21 @@
       "status": "done",
       "done": "2026-10-20",
       "note": "Verified 2026-10-20: Go-Kart pilot uploaded (Model 90296948247442) with /usr/bin/python3 (python.org 3.14 lacks CA certs)."
+    },
+    {
+      "id": "studio-update-unlock-2026-10-22",
+      "title": "Finish Studio update and unlock screen for the compat check",
+      "why": "Roblox Studio keeps quitting a few minutes into test runs (log ends at InstallerInfo.log: pending auto-update), and the locked Mac screen stops the client rendering, so the UI suite cannot click.",
+      "blocks": "Compat check UI, world, multiplayer and regression suites (harness already green at a855483bd887)",
+      "when": "2026-10-22",
+      "status": "open",
+      "steps": [
+        "Quit Roblox Studio and reopen it so the pending update installs.",
+        "Open the Racer RNG place (placeId 126725530984268).",
+        "Make sure `rojo serve` runs in the project root and click Connect in the Rojo plugin.",
+        "Unlock the Mac and keep Studio's game view visible (no device emulation).",
+        "Tell Claude it is ready."
+      ]
     }
   ]
 }

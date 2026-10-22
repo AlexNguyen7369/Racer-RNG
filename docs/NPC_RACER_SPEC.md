@@ -16,8 +16,9 @@ User brief (2026-10-01):
   plays out (the player's car keeps driving to the finish), then the player sees a loser screen and is sent back
   to the start of the run's start track (Track 1, or the player's checkpoint, owner 2026-10-16,
   `docs/CHECKPOINT_SPEC.md`) where that track's race starts again.
-- Money: a track's checkpoint money (its WinPad `Cash`) is paid only when the player WINS that track. Losing a
-  track pays nothing for it; money from checkpoints already won is kept.
+- Money: the current track's WinPad value (`MoneyService.Quote`) is paid immediately when the player WINS that
+  track. Losing a track pays nothing for it. There is no banked pot or continue-risk state; earlier wins remain in
+  `leaderstats.Money`.
 - Floating text above each NPC, proximity based (finite `MaxDistance`), editable. Default `track01_NPC`,
   `track02_NPC`, ...
 - Players pass through each other on the track.
@@ -26,9 +27,9 @@ User brief (2026-10-01):
 
 ### `src/shared/NpcConfig.luau` (editable knobs)
 - `BASE_SPEED` (studs/s, Track 1, above `RaceConfig.BASE_SPEED` so a stat-0 starter car loses): 15 (owner
-  2026-10-21, later the same day: 45 needed ~10M recommended Speed on Track 1; now ~2.6K)
-- `SPEED_GROWTH` (each track's NPC is this many times faster than the previous one): 1.37 (owner 2026-10-21,
-  later the same day: x2.5 made Track 6+ need more Speed than a number can hold; Track 10 now ~2.1Qt)
+  2026-10-21, later the same day: 45 needed ~10M recommended Speed on Track 1; now ~219)
+- `SPEED_GROWTH` (each track's NPC is this many times faster than the previous one): 1.75 (owner 2026-10-21,
+  later the same day: was 2.5, then 1.37; with RaceConfig.MAX_SPEED 109 Track 10 needs ~904Qd)
 - `LABEL_DISTANCE` (studs, BillboardGui `MaxDistance`): 200 (owner 2026-10-20: wider, was 60)
 - `LOSE_SCREEN_SECONDS`: 3
 - `LABEL_FORMAT`: `"track%02d_NPC"`
@@ -89,8 +90,8 @@ Also returns `StartIndices[i]` and `FinishIndices[i]` (route waypoint index of e
     screen duration is presentation-only and must not delay the authoritative reset.
 - Run fields: `run.RaceTrack` (current track number), `run.Results` (list of Result events), `run.Wins`,
   `run.Losses`, `run.Resets`, plus all existing fields (`PaidTotal`, `Payouts`, `MinUpY`, `MaxPathDeviation`, ...).
-- Money in NPC mode: track n's pad pays (`MoneyService.Collect`) exactly once, at its finish, only on a Win.
-  A Lose pays nothing for that track; earlier wins stay paid.
+- Money in NPC mode: track n's pad quote is awarded exactly once, at its finish, only on a Win. A Lose pays
+  nothing for that track. `Unbanked`, `Banked`, and `CashOut` are deprecated compatibility fields and stay zero.
 - After winning the LAST track the car loops back to the start track (Track 1 or the checkpoint) and its race starts.
 - The run's stability rules are unchanged: no flips/tilt past `MinUpYStrict`, stays on the path.
 

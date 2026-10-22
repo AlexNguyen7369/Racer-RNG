@@ -1,5 +1,206 @@
 # Agent handoff
 
+## Full compatibility gate — 2026-10-22 (Codex, blocked)
+
+- Goal: run all five compatibility suites on the current shared tree, then commit and push only after an ALL GREEN result.
+- Static checks: Rojo build passed; race-progress offline suite passed 197/197; UI tooling verification passed; `git diff --check` passed. `selene` reports 0 errors and 929 warnings. `stylua --check src` is currently red on generated `src/client/RollToast/Ui/RacerHud.luau` formatting, which overlaps Claude's active showcase work.
+- Fingerprint before live testing: `d8e4b50bdfda0d639fa72a554a7d051318fb6e9f54d3197b0f36dd6a25a4d9ca`; unchanged after checks. No source edits made in this session.
+- Blocker: Roblox Studio is running, but CUA binding now reports `Computer Use was not approved to use Roblox Studio`; no Play session, harness, UI, multiplayer, world, or regression evidence was collected. Do not record compat green or commit/push.
+- Resume: grant Roblox Studio computer-use access; verify the tree is stable with Claude; bind Studio, sync current Rojo source, run the full harness and UI/multiplayer/world suites, then regression in the same Play session. Record exact suite lines, recheck the fingerprint, run `python3 tools/compat.py record .compat/results.json`, then commit and push only if the hook permits it.
+
+## Compat check — 2026-10-22 (Claude, taken over from Codex on owner request; uncommitted)
+
+- Harness GREEN at fingerprint a855483bd887 (END pass=50 fail=0). UI suite blocked by a locked Mac screen (0 fps);
+  showcase UI fixes since then are unverified. World suite was interrupted by the usage limit; multiplayer and
+  regression not run. Studio later closed (no place open).
+- Next: open the place + `rojo serve` + Connect, unlock the screen, keep Studio visible; restart Play; confirm the
+  fingerprint is still a855483bd887 (else rerun the harness); run ui-tester (with showcase clicks), world-tester,
+  multiplayer-tester, then regression-tester; write .compat/results.json and `python3 tools/compat.py record`.
+- See ProjectContext TEST RESULTS 2026-10-22 for fixes and owner decisions made in this loop.
+
+## Workshop car Showcase — 2026-10-22 (Claude, uncommitted)
+
+- Owner request + decisions (2026-10-22): duplicates are never sold (kept as `Copies`), player picks 3 cars, bonus from
+  `SpeedMulti` x copies, owner exception to "workshop gain independent of car model". Rules written first in the design
+  doc, `docs/WORKSHOP_SPEC.md` 5b, `docs/SAVE_SPEC.md` (VERSION 12), `CLAUDE.md`.
+- Code: `GachaConfig` (SlotBonus/ShowcaseMulti, scrap table removed), `GachaService` (Copies, SetShowcase + remote,
+  ShowcaseMulti folded into WorkshopMulti, Snapshot/Apply), `PlayerData` VERSION 12, `WorkshopBuilder` pedestals,
+  `WorkshopService` display cars + labels, `ProgressionUi` Workshop panel showcase column, RollToast "+1 COPY".
+- Tests: `CarTest/ShowcaseTests.luau` (`showcase`), version bumps in existing tests, UI checks `ui_workshop_showcase` +
+  showcase_* clicks, fixtures `showcase_owned/filled/spy` in `UiTestSetup.server.luau`.
+- Results: partial run: `showcase` 3 red, now fixed (showcaseable boolean index bug; test gamepass lookup used
+  `All()` instead of `Passes()`), not re-run. data/gacha pass. Studio quit twice during `npc`; the full suite never
+  finished. Non-showcase failures (economy GAIN_PER_STUD, race max-speed lane, flip_recovery, index cruise,
+  rebirth_level_125, auto_toggle) are from Codex's RaceConfig/rebirth edits and were reported to Codex.
+- Next: reopen the place + Rojo; run `npc` alone, then the full harness, then the UI suite (ui-tester mouse clicks for
+  showcase_*); visually check pedestal cars in the garage (SHOWCASE_Z = 11, SHOWCASE_CAR_SCALE = 1 are guesses).
+  Not on a feature branch: the tree is shared with Codex's uncommitted work.
+
+## Immediate rebirth effects + post-100K Speed curve — 2026-10-22 (Codex, uncommitted)
+
+- Owner follow-up: rebirth stats must apply immediately; make diminishing returns begin past 100,000 Speed; make early Speed easier.
+- `RaceConfig.SpeedFor` now uses a linear early segment through `HALF_STAT=100,000`, then a logarithmic no-cap tail.
+  `StatFor` was updated to the matching inverse. `GAIN_PER_SECOND` is now 2 (was 1), so base race progression is friendlier.
+- `GachaService` now replicates live `SpeedGainMulti` and rebirth `LuckMulti` snapshots and refreshes them on `RebirthLevel`
+  and stat-allocation changes. `RebirthService` explicitly refreshes them after a successful rebirth; `WorkshopService.RefreshRate`
+  updates the current workshop rate immediately.
+- Updated the economy/rebirth harness expectations, design requirements, and context. Static verification: StyLua, Selene
+  (0 errors; existing `okb` shadow warning), `git diff --check`, and Rojo build passed.
+- Live Studio verification remains blocked by computer-use permissions; the rebirth and full physics harness still need a
+  real Studio run after Rojo sync. Confirm Speed at 0/50K/100K/1M and rebirth multipliers immediately after levels 1–6.
+
+## Staged rebirth multipliers — 2026-10-22 (Codex, uncommitted)
+
+- Owner follow-up: make Speed/Luck rebirth scaling `5x, 7.5x, 7.5x, 10x, 10x, 7.5x` and let high-rebirth
+  players rocket through early levels without making speed physics unsafe.
+- Updated `src/shared/RebirthConfig.luau`: those factors compound per rebirth; 7.5x repeats after the sixth
+  rebirth. Both Speed Gain and Luck use the same product. A `1e100` effective ceiling prevents numeric overflow
+  at absurd rebirth counts; normal progression is unaffected. `NextMultiplier` exposes the upcoming factor.
+- Updated the rebirth client panel to show the next factor dynamically (the baked fallback now starts at x5.00),
+  plus `REBIRTH_SPEC` and `GAME_DESIGN_REQUIREMENTS`.
+- Prior session's stronger Speed damping remains: `HALF_STAT=25,000`; defensive dt/wheel-vector handling and
+  capped extreme rail angular correction remain in the shared physics changes.
+- Resume verification: run the rebirth harness scenario and the full CarTest physics suite in Studio after Rojo sync;
+  inspect the panel at rebirth levels 0, 1, 2, 5, and 6. Studio computer-use permissions were denied this session,
+  so no live `[CARTEST] END` result is available.
+
+## Smooth mini-map track — 2026-10-22 (Codex, uncommitted)
+
+- Owner request: make the NPC race mini-map track smoother because the route looked dotted, and widen it slightly.
+- Updated `src/client/RaceProgressMap.luau`: route segments now use a dark 13 px shadow and 6 px cyan core, with
+  rounded shadow/core join caps at every waypoint so turns read as one continuous track instead of separated dots.
+  Existing map behavior and authored HUD layout are unchanged.
+- Verification: StyLua check, Selene (0 warnings), `git diff --check`, and `lune run tools/tests/race_progress_map.luau`
+  passed; offline suite result 197/197.
+- `python3 ui/tooling/verify.py` also passed. The requested full `[UITEST]` desktop + phone-landscape run is blocked:
+  Roblox Studio is running, but Computer Use permissions were not granted, so Play/device emulation cannot be
+  controlled from this session. Do not commit or push until that live suite is run.
+- A follow-up attempt after the owner granted access still timed out while binding Studio, before any UI state or
+  screenshot was available. Do not treat the permission change as verified by the tool. Resume by restoring the
+  Studio Computer Use connection, then run the full UI suite at desktop and phone landscape and visually confirm
+  the wider continuous route in an NPC race at both sizes.
+- A third consecutive binding attempt also timed out before exposing Studio. The live suite remains blocked at the
+  tool connection layer; the mini-map change is intentionally still uncommitted and unpushed.
+
+## Complete game spec audit — 2026-10-21 (Codex, uncommitted)
+
+- Implemented the two direct canonical gameplay corrections: rebirth progression has no hard cap (milestones continue
+  through 125, 150, ...), and NPC race wins pay the current/last track immediately. `Unbanked`/`CashOut` remain
+  zero/no-op compatibility surfaces so old UI callers do not break; non-NPC pad collection is unchanged.
+- Updated focused rebirth, NPC, multiplayer and payout scenario expectations for level 125+ and immediate payouts.
+- Reconciled active docs: GAME_DESIGN_REQUIREMENTS, REBIRTH, NPC_RACER, SPAWN_AND_ROLLS, WORKSHOP, UPGRADE_TREE,
+  RACE_PROGRESS_MAP, ROLL_ANIMATION, BIOME_DRESSING, SAVE, CHECKPOINT, DUEL, SHOP_PURCHASES and PANEL_ART_GIFTING.
+  VERSION 11 is now stated as current; older versions are field-introduction history. Superseded roll/map/banking
+  rules are marked historical or replaced.
+- Checks: Stylua clean; Selene 0 errors (one pre-existing `okb` shadow warning in Scenarios); `rojo build` passed;
+  offline race-progress tests passed 197/197. Full Studio runtime/compatibility, DataStore and UI verification remain
+  blocked by the known environment gaps.
+- Resume: re-read the race/rebirth diffs, run the live CarTest `rebirth`, `npc`, `bank`, `multiplayer` scenarios in
+  Studio after Rojo sync, then run the full compatibility suites. Review the remaining stale historical prose in the
+  design appendix and unresolved acceptance gaps from the audit before claiming the spec is fully clean.
+
+## Further cruise-speed cap — 2026-10-21 (Codex, uncommitted)
+
+- Owner report: high-tier-car cruise speed was still about 118 studs/s at 20k Speed after logarithmic damping.
+- Capped the damped car/market cruise contribution at effective 1.5x. At 20k Speed this is about 80 studs/s; the raw saved/displayed Speed and Speed gain remain unchanged.
+- Updated the economy scenario and design requirement. Runtime Studio scenario not run yet.
+
+## Damp rare-car cruise speed — 2026-10-21 (Codex, uncommitted)
+
+- Owner report: 16k Speed was moving at about 353 studs/s, which was too fast.
+- Cause: the full equipped-car plus market cruise multiplier was multiplied directly into the Speed stat before the logarithmic cruise curve; a high car can therefore create an enormous effective stat.
+- Added logarithmic cruise-multi damping in `RaceConfig`: `1 + log10(raw cruise multi)`, minimum 0.1. Speed gain and displayed/saved Speed remain unchanged. With raw multi 525, 16k Speed is about 108 studs/s instead of about 353.
+- Updated the design requirement. Runtime Studio scenario not run yet.
+
+## Trillion-scale upgrade pricing — 2026-10-21 (Codex, uncommitted)
+
+- Owner request: make upgrade prices even more exponential so the late tree can reach trillions.
+- Increased `UpgradeConfig.PRICE_GROWTH` from 5x to 50x per depth. Money/Speed now cost $150, $7.5k, $380k, $19m, $940m; Turbo IV costs about $4.7t.
+- Updated the price tables, scenario expectations, and design/spec documentation. Runtime Studio scenarios have not been run.
+
+## Stronger upgrade bonuses and exponential prices — 2026-10-21 (Codex, uncommitted)
+
+- Owner request: make upgrade gains much stronger while making the tree exponentially more expensive.
+- Updated Money, Luck, and Speed Gain tiles to +50% per tier (+250% through tier V); Roll Speed is +15% per tier and Walkspeed now reaches 49.
+- Increased `UpgradeConfig.PRICE_GROWTH` from 3x to 5x. Tier-V Money/Speed is now $94k; Turbo reaches $4.7m at tier IV. Existing owned tiles and save keys are unchanged.
+- Updated upgrade specs, design tables, scenario constants, and interval expectations. Runtime Studio scenarios have not been run.
+
+## Upgrade tree pricing and compounding rebirth bonuses — 2026-10-21 (Codex, uncommitted)
+
+- Owner request: make upgrade-tree purchases persist and affect gameplay, increase prices between upgrades, and make rebirth bonuses much stronger and incremental.
+- Existing persistence/effect path was verified: `PlayerData` snapshots/applies `UpgradeService` tiles; `GachaService`, `WorkshopService`, auto-roll, turbo, walk speed, and money read the owned-tree effects.
+- Raised `UpgradeConfig.PRICE_GROWTH` from 2.2x to 3x per price depth. Future tier prices now include Money/Speed $150/$450/$1.4k/$4.1k/$12k and Turbo $900/$8.1k/$73k/$220k; existing owned tiles are unchanged.
+- Reworked `RebirthConfig`: Speed Gain and Luck compound at 3x per rebirth (`multiplier ^ RebirthLevel`); rebirths do not multiply Money. Updated rebirth UI/specs to show x3.00 multiplier semantics.
+- Updated upgrade/rebirth specs and scenario expectations. `git diff --check`, StyLua, and Rojo build pass; Selene reports 0 errors and only the two existing unrelated warnings in `ProgressionUi.client.luau` and `CarTest/Scenarios.luau`. No Studio runtime scenario run yet.
+
+## Static HUD anchors during race map — 2026-10-21 (Codex, uncommitted)
+
+- Owner request: run the UI suite and keep every HUD entry static when the race progress map is visible; the Backpack/Items HUD must not be pushed left during a race.
+- Root cause: `src/client/RaceProgressMap.luau` moved the map left when it overlapped the Shop column, and `src/client/PanelBand.luau` reduced/re-centered the panel band around the map. Both behaviors changed HUD positions when a race started.
+- Updated both files so the race map keeps its fixed authored right/top anchor and the panel band does not reserve map space. Persistent HUD/panel positions therefore remain unchanged when the map appears.
+- Verification: `python3 ui/tooling/verify.py` passed; `lune run tools/compile-ui.luau src/client/RaceProgressMap.luau src/client/PanelBand.luau` passed; `stylua --check` and `selene` passed with 0 warnings; `rojo build default.project.json` passed; `lune run tools/tests/race_progress_map.luau` passed 197/197; `git diff --check` passed.
+- Live UI suite status: not run because Roblox Studio computer-use permissions were unavailable in this session. Resume by refreshing Rojo/Studio, starting Play, running the `[UITEST]` suite at desktop and phone landscape, and checking that `RaceMap`, `HudChrome/ItemsSlot`, and open Backpack/Shop panels keep the same authored positions before/after race start.
+
+## Authored wheel mount alignment — 2026-10-21 (Codex, uncommitted)
+
+- Owner request: sync visible car wheel models with the car's interior wheel/hub design so the models sit flush.
+- Updated `src/shared/CarAppearance.luau` so each visible `Wheel_*` keeps its authored orientation but is welded at the shared physics wheel mount and parked suspension height. This removes the imported-model position mismatch (for example, authored ±1.23/±1.54 versus the shared ±1.65/±2.10 mounts).
+- Verification: temporary live Server car applied with `rusty_hatchback`; all four visible wheel local positions matched their configured mounts within floating-point tolerance and used animated `Weld`s. StyLua, Selene, `git diff --check`, and Rojo build passed. Studio was refreshed and restarted in Play.
+- Resume: if visual QA is needed, inspect the refreshed Play car from side/front views; do not revert the mount alignment when reviewing the existing wheel spin/ride-height changes.
+
+## Static Speed gain independent of cars — 2026-10-21 (Codex, uncommitted)
+
+- Owner rule: Speed gain is independent of the equipped car model and is upgradeable only through permanent Speed Gain/stat upgrades and rebirth bonuses.
+- Updated `src/server/RaceService.luau` to remove the temporary Speed boost multiplier from race gain; race gain now uses only `GAIN_PER_SECOND * GachaService.SpeedMulti`.
+- Confirmed `GachaService.SpeedGainMulti` and `WorkshopService.Rate` already exclude equipped-car and cruise multipliers. Renamed the upgrade-tree display branch to `Speed Gain` while preserving the permanent `speed` save key/effect.
+- Fixed the visible persistence bug: `leaderstats.Speed`, workshop gain, offline gain, and their HUD displays were multiplying by the equipped car's cruise multi. They now show/add base Speed; the car multi remains cruise-only.
+- Updated the design and upgrade specs, persistence scenario expectations, and comments. `git diff --check` and StyLua checks pass; no Studio scenario run yet.
+
+## Cruise-speed scaling nerf — 2026-10-21 (Codex, uncommitted)
+
+- Owner request: 10K shown Speed already feels too fast; reduce cruise scaling and strengthen diminishing returns around 1M.
+- Updated `src/shared/RaceConfig.luau`: `MAX_SPEED` 109 -> 80 and `HALF_STAT` 5,000 -> 10,000, preserving the logarithmic no-cap curve.
+  Approximate cruise speeds are now 45 studs/s at 10K, 243 at 1M, and 270 at 1.7M; high-speed doublings add about 35 studs/s.
+- Updated the matching balance constants/comments in `src/server/CarTest/Scenarios.luau` and recorded the owner decision in `docs/GAME_DESIGN_REQUIREMENTS.md`.
+- `git diff --check`, StyLua check, and `rojo build default.project.json --output /tmp/rojo-speed-build.rbxlx` passed.
+- Full economy scenarios were not run; the existing uncommitted scenario still has stale `GAIN_PER_STUD` expectations from the flat-gain migration.
+
+## Wheel animation and race ride-height guard — 2026-10-21 (Codex, uncommitted)
+
+- Owner request: make wheels visibly spin during driving, prevent the race car from dipping into the floor,
+  and keep trails from clipping below the road.
+- Updated `src/shared/CarAppearance.luau` to replace visible skin wheel `WeldConstraint`s with named animated
+  welds, `src/shared/CarPhysics.luau` to spin/rebind those visible wheels and carry suspension/steering, and
+  `src/server/RaceService.luau` to resnap auto-race cars when their chassis falls below ride height instead of
+  waiting until it is two studs under the path. Raised the Void trail anchor in `src/shared/VehicleEffects.luau`.
+- Static verification passed: StyLua, Selene, `rojo build default.project.json`, and `git diff --check`.
+- Roblox Studio runtime inspection was attempted but Computer Use permissions were unavailable; no Studio physics
+  scenario was run in this session. Resume by refreshing Rojo/Studio and checking an authored car with a visible
+  `Wheel_*` skin plus a Void Trail, then run the targeted vehicle-effects/race scenarios.
+
+### Verification continuation — 2026-10-21
+
+- Restarted Play after Rojo refresh; Edit-mode source confirmed the live `CarPhysics` module contained the visible
+  wheel binding code. A live authored-skin probe passed: `Wheel_FL` has an animated `SkinWeld`, physics spin changed,
+  and the visible wheel weld CFrame changed.
+- Current focused runtime checks: `static_settle` passed, `car_expansion` passed after its wheel-specific weld
+  expectation was updated, and the direct physics checks (`accel`, `brake`, `skidpad`, `car_size`, `chain`,
+  `flip_recovery`) passed in the Studio harness. Direct `vehicle_effects` invocation reports `effects_racing_car`
+  false because it is run outside the harness's live CarService module context; the full harness is the valid path
+  for that scenario.
+- Refreshed full harness completed `43` pass / `6` fail. The failures were `race_api_exists` (stale GAIN_PER_STUD
+  expectation), `auto_toggle rapid_progresses` (intermittent), `economy` nil arithmetic, `workshop_rate_formula`,
+  `index race_cruise_scales_with_car` (base speed now 10), and the pre-update `car_expansion` static-weld expectation.
+  The last one is fixed and its focused rerun is green. Static checks remain green.
+
+## Base cruise speed lowered — 2026-10-21 (Codex, uncommitted)
+
+- Owner request: lower the stat-0/player base cruise speed from 12 to 10 studs/s.
+- Updated `src/shared/RaceConfig.luau` (`BASE_SPEED`), matching NPC commentary, design-doc current
+  balance text, project context, and related scenario constants. Track 1 NPC remains 15 studs/s.
+- Because the NPC speed is unchanged, the computed Track 1 recommended shown Speed rises to about 363.
+- `git diff --check` passes. No Studio run performed yet; Rojo/Studio should be refreshed before live verification.
+
 ## NPC race progress map + personal best — 2026-10-21 (Codex, committed e9a91d9 and pushed)
 
 - Owner: Codex. The map is now a transparent, enlarged route icon rather than a

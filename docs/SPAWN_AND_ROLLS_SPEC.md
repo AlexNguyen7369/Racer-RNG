@@ -1,10 +1,10 @@
-# Spawn area, banked winnings, turbo luck and the roll feed
+# Spawn area, race payouts, turbo luck and the roll feed
 
 Owner's brief (2026-10-01):
 - Create a spawn area, relatively large and purple for now, close to Track 1 and connected to its start, so players
   can walk onto the start platform to start auto racing.
 - It is the spawn point (join and respawn) and where Stop always sends the player, out of the race.
-- Stopping pays the winnings of the checkpoints cleared in this run (banked, see below).
+- Each won track pays its current/last-track reward immediately; stopping does not cash out a growing pot.
 - An "Unbanked" HUD line.
 - A turbo luck bar: every X auto rolls one roll gets multiplied luck. The bar fills one step per roll and plays a short
   animation on every turbo roll.
@@ -12,7 +12,8 @@ Owner's brief (2026-10-01):
   the car (model when it has one, "?" until then), odds, name, rarity and speed multiplier; clicking anywhere off the
   card closes it. (First draft had a ROLLS button + card feed; the owner removed it.)
 
-Owner's answers: join/respawn = on foot in the spawn area; stop payout = **bank, pay on stop**.
+Owner's current answer (2026-10-21): join/respawn = on foot in the spawn area; NPC race payout = **pay the
+current/last track immediately**. The earlier bank/pay-on-stop proposal is historical.
 
 ## 1. Spawn area (`Shared/SpawnArea`, built by `Server/Main` after the chain)
 
@@ -69,20 +70,16 @@ longer spans the road centre or touches Track 1's Start: walking onto it starts 
   Player attribute `RaceEvent`: `"Teleporting"` (steps 1-2), `"Racing"` (from 3), `"Off"` on foot. No run exists
   before step 3. Not seated within `SEAT_TIMEOUT` (3 s) or dead: no race, the player is put back on foot.
   A newer request (Stop) during steps 1-2 cancels the start: no run is ever created for it.
-- **Stop:** the car's run cashes out (section 3), the car is removed and the avatar stands at the walk spawn.
-- Death while racing: the run is destroyed (cashes out), the respawn is on foot in the area.
+- **Stop:** the run ends with no additional payout, the car is removed and the avatar stands at the walk spawn.
+- Death while racing: the run is destroyed with no additional payout, and the respawn is on foot in the area.
 
-## 3. Banked winnings (`Server/RaceService`, NPC mode)
+## 3. Race payout (`Server/RaceService`, NPC mode)
 
-- Winning a track no longer pays at its finish. It adds `MoneyService.Quote(player, pad)`
-  (`floor(Cash * MoneyMulti)`, no cooldown) to the run's bank: `run.Unbanked`, mirrored in the player attribute
-  `Unbanked` (number, server-set, 0 when not racing).
-- Losing a track clears the bank at the moment of the loss (`Result = "Lose"`): `Unbanked = 0`.
-- `run:CashOut()` awards the bank to `leaderstats.Money` (`MoneyService.Award`), sets it to 0 and returns the amount.
-  `run:Destroy()` cashes out first, so Stop, death and leaving all bank it (leaving: before the leave save).
-- Laps keep adding to the bank. Admin `/tp` does not change the bank.
-- `Result` events carry `Banked` (amount added, 0 on a loss) and `Unbanked` (bank after the result) instead of `Paid`.
-  run counters: `run.Payouts` / `run.PaidTotal` count cash-outs; `run.BankedTotal` sums what wins added.
+- Winning track `n` awards `MoneyService.Quote(player, pad)` (`floor(Cash * MoneyMulti)`, no cooldown) at the
+  finish, exactly once. Losing track `n` awards nothing for that track; earlier awards remain in `leaderstats.Money`.
+- `run:CashOut()` is retained as a deprecated no-op for old callers and returns 0. `run:Destroy()` never adds a
+  second payout. The `Unbanked` attribute and `Banked`/`Unbanked` result fields remain zero for compatibility.
+- Result events use `Paid` for the current track's award. `run.Payouts` / `run.PaidTotal` count awards.
 - Runs without NPC mode (the `race` test, CLAUDE.md track rule 8) still pay the pad directly, unchanged.
 
 ## 4. Turbo luck (`Shared/GachaConfig`, `Server/GachaService`)
@@ -102,8 +99,8 @@ longer spans the road centre or touches Track 1's Start: walking onto it starts 
 
 ## 5. UI (client only displays)
 
-- `SpeedHud/Panel` gains `UnbankedTitle` ("UNBANKED") and `UnbankedValue` (`HudFormat.MoneyText`, smoothed) under
-  Money, reading the player attribute `Unbanked`. The panel stays non-interactive and on the left.
+- The legacy `UNBANKED` HUD row may remain for compatibility, but it is always zero and is not an active economy
+  mechanic.
 - **Owner's revision (2026-10-01): no roll feed / ROLLS button.** The roll toast itself is the way in:
   - ScreenGui **`RollUi`** (`Client/RollUi`) keeps only the **`TurboBar`** (Frame, AlwaysOn, non-interactive) at the
     bottom centre (bottom edge 10 px above the screen bottom, 240 x 16): `Fill` (width = TurboProgress / TURBO_EVERY),

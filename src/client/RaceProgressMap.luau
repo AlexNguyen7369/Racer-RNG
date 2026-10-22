@@ -71,12 +71,18 @@ function Controller.Attach(hud, player, remote)
 	-- visibility target also works with saved HUDs generated before this change.
 	local card = hud.RaceMap
 	local canvas = hud.RaceMapCanvas
-	local state, routeFrames, dots, finish = nil, {}, {}, nil
+	local state, routeFrames, routeJoints, dots, finish, start = nil, {}, {}, {}, nil, nil
 	local connections = {}
 	local destroyed = false
 	local self = {}
 	card.Active, card.Selectable = false, false
 	canvas.ClipsDescendants = true
+	-- Keep the metadata compact and edge-aligned like a kart-racing tactical HUD;
+	-- the route itself remains the visual focus and stays completely transparent.
+	hud.RaceMapTitle.TextXAlignment = Enum.TextXAlignment.Left
+	hud.RaceMapStatus.TextXAlignment = Enum.TextXAlignment.Right
+	hud.RaceMapTime.TextXAlignment = Enum.TextXAlignment.Left
+	hud.RaceMapPB.TextXAlignment = Enum.TextXAlignment.Right
 	for _, object in card:GetDescendants() do
 		if object:IsA("GuiObject") then
 			object.Active, object.Selectable = false, false
@@ -87,32 +93,48 @@ function Controller.Attach(hud, player, remote)
 		for _, object in canvas:GetChildren() do
 			object:Destroy()
 		end
-		routeFrames, dots, finish = {}, {}, nil
+		routeFrames, routeJoints, dots, finish, start = {}, {}, {}, nil, nil
 	end
 
 	local function marker(name, caption, color)
 		local dot = make("ImageLabel", name, canvas, {
-			Size = UDim2.fromOffset(16, 16),
+			Size = UDim2.fromOffset(caption == "YOU" and 20 or 17, caption == "YOU" and 20 or 17),
 			AnchorPoint = Vector2.new(0.5, 0.5),
 			BackgroundColor3 = color,
 			BorderSizePixel = 0,
 			Image = "",
+			ScaleType = Enum.ScaleType.Crop,
 			ZIndex = 6,
 		})
 		make("UICorner", "Circle", dot, { CornerRadius = UDim.new(1, 0) })
+		make("UIStroke", "Halo", dot, { Color = Color3.new(1, 1, 1), Transparency = 0.1, Thickness = 3 })
 		make("UIStroke", "Ring", dot, { Color = color, Thickness = 2 })
 		make("TextLabel", "Label", dot, {
 			AnchorPoint = Vector2.new(0.5, 0),
 			Position = UDim2.new(0.5, 0, 0, caption == "YOU" and -13 or 17),
-			Size = UDim2.fromOffset(30, 11),
+			Size = UDim2.fromOffset(42, 13),
 			BackgroundTransparency = 1,
 			Text = caption,
 			Font = Enum.Font.GothamBold,
-			TextSize = 9,
+			TextSize = 10,
 			TextColor3 = Color3.new(1, 1, 1),
 			TextStrokeTransparency = 0,
 			ZIndex = 7,
 		})
+		if caption == "NPC" then
+			make("TextLabel", "Arrow", dot, {
+				AnchorPoint = Vector2.new(0.5, 0.5),
+				Position = UDim2.fromScale(0.5, 0.5),
+				Size = UDim2.fromScale(1, 1),
+				BackgroundTransparency = 1,
+				Text = "◆",
+				Font = Enum.Font.GothamBold,
+				TextSize = 10,
+				TextColor3 = Color3.new(1, 1, 1),
+				TextStrokeTransparency = 0.2,
+				ZIndex = 7,
+			})
+		end
 		return dot
 	end
 
@@ -136,12 +158,29 @@ function Controller.Attach(hud, player, remote)
 			local a = point(state.Track.Route.Points[i], center, heading)
 			local b = point(state.Track.Route.Points[i + 1], center, heading)
 			local delta = Vector2.new((b.X - a.X) * size.X, (b.Y - a.Y) * size.Y)
-			segment.Position = UDim2.fromScale((a.X + b.X) / 2, (a.Y + b.Y) / 2)
-			segment.Size = UDim2.fromOffset(math.max(delta.Magnitude, 1), 3)
-			segment.Rotation = math.deg(math.atan2(delta.Y, delta.X))
+			local position = UDim2.fromScale((a.X + b.X) / 2, (a.Y + b.Y) / 2)
+			local length = math.max(delta.Magnitude, 1)
+			for _, layer in { segment.Base, segment.Core } do
+				layer.Position = position
+				layer.Size = UDim2.fromOffset(length, layer:GetAttribute("TrackWidth"))
+				layer.Rotation = math.deg(math.atan2(delta.Y, delta.X))
+			end
+			-- A soft violet wake marks completed road while the cyan road ahead stays bright.
+			segment.Core.BackgroundColor3 = segment.Progress <= state.You and Color3.fromRGB(164, 107, 255)
+				or Color3.fromRGB(61, 224, 255)
+		end
+		for i, joint in routeJoints do
+			local position = point(state.Track.Route.Points[i], center, heading)
+			joint.Base.Position = UDim2.fromScale(position.X, position.Y)
+			joint.Core.Position = UDim2.fromScale(position.X, position.Y)
+			local progress = state.Track.Route.Lengths[i] / math.max(state.Track.Route.Total, 1)
+			joint.Core.BackgroundColor3 = progress <= state.You and Color3.fromRGB(164, 107, 255)
+				or Color3.fromRGB(61, 224, 255)
 		end
 		local endPoint = point(RouteMath.Point(state.Track.Route, 1), center, heading)
 		finish.Position = UDim2.fromScale(endPoint.X, endPoint.Y)
+		local startPoint = point(RouteMath.Point(state.Track.Route, 0), center, heading)
+		start.Position = UDim2.fromScale(startPoint.X, startPoint.Y)
 	end
 
 	local function visible()
@@ -176,26 +215,73 @@ function Controller.Attach(hud, player, remote)
 			ViewPosition = RouteMath.Point(track.PlayerRoute, 0),
 			Heading = RouteMath.Point(track.PlayerRoute, 0.01) - RouteMath.Point(track.PlayerRoute, 0),
 		}
-		for _ = 1, #track.Route.Points - 1 do
-			table.insert(
-				routeFrames,
-				make("Frame", "RouteSegment", canvas, {
-					AnchorPoint = Vector2.new(0.5, 0.5),
-					BackgroundColor3 = Color3.fromRGB(100, 183, 235),
-					BorderSizePixel = 0,
-					ZIndex = 2,
-				})
-			)
+		for i = 1, #track.Route.Points - 1 do
+			local progress = (track.Route.Lengths[i] + track.Route.Lengths[i + 1])
+				/ (2 * math.max(track.Route.Total, 1))
+			local base = make("Frame", "RouteShadow", canvas, {
+				AnchorPoint = Vector2.new(0.5, 0.5),
+				BackgroundColor3 = Color3.fromRGB(12, 20, 48),
+				BackgroundTransparency = 0.18,
+				BorderSizePixel = 0,
+				ZIndex = 1,
+			})
+			base:SetAttribute("TrackWidth", 13)
+			make("UICorner", "Round", base, { CornerRadius = UDim.new(1, 0) })
+			local core = make("Frame", "RouteCore", canvas, {
+				AnchorPoint = Vector2.new(0.5, 0.5),
+				BackgroundColor3 = Color3.fromRGB(61, 224, 255),
+				BackgroundTransparency = 0.04,
+				BorderSizePixel = 0,
+				ZIndex = 2,
+			})
+			core:SetAttribute("TrackWidth", 6)
+			make("UICorner", "Round", core, { CornerRadius = UDim.new(1, 0) })
+			table.insert(routeFrames, { Base = base, Core = core, Progress = progress })
+		end
+		-- Each segment is a separate rotated Frame. Round waypoint joins hide the
+		-- tiny gaps at turns and make the route read as one continuous track.
+		for i in track.Route.Points do
+			local routePoint = track.Route.Points[i]
+			local base = make("Frame", "RouteJoinShadow", canvas, {
+				AnchorPoint = Vector2.new(0.5, 0.5),
+				BackgroundColor3 = Color3.fromRGB(12, 20, 48),
+				BackgroundTransparency = 0.18,
+				BorderSizePixel = 0,
+				Size = UDim2.fromOffset(13, 13),
+				ZIndex = 1,
+			})
+			make("UICorner", "Round", base, { CornerRadius = UDim.new(1, 0) })
+			local core = make("Frame", "RouteJoinCore", canvas, {
+				AnchorPoint = Vector2.new(0.5, 0.5),
+				BackgroundColor3 = Color3.fromRGB(61, 224, 255),
+				BackgroundTransparency = 0.04,
+				BorderSizePixel = 0,
+				Size = UDim2.fromOffset(6, 6),
+				ZIndex = 2,
+			})
+			make("UICorner", "Round", core, { CornerRadius = UDim.new(1, 0) })
+			table.insert(routeJoints, { Base = base, Core = core, Point = routePoint })
 		end
 		dots.You = marker("YouDot", "YOU", Color3.fromRGB(64, 255, 144))
 		dots.Npc = marker("NpcDot", "NPC", Color3.fromRGB(255, 102, 117))
+		start = make("TextLabel", "Start", canvas, {
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Size = UDim2.fromOffset(25, 16),
+			BackgroundTransparency = 1,
+			Text = "START",
+			Font = Enum.Font.GothamBold,
+			TextSize = 8,
+			TextColor3 = Color3.fromRGB(220, 255, 255),
+			TextStrokeTransparency = 0.2,
+			ZIndex = 4,
+		})
 		finish = make("TextLabel", "Finish", canvas, {
 			AnchorPoint = Vector2.new(0.5, 0.5),
-			Size = UDim2.fromOffset(16, 14),
-			Text = "▥",
+			Size = UDim2.fromOffset(24, 18),
+			Text = "▦",
 			BackgroundTransparency = 1,
 			TextColor3 = Color3.fromRGB(255, 231, 105),
-			TextSize = 16,
+			TextSize = 19,
 			Font = Enum.Font.GothamBold,
 			ZIndex = 4,
 		})

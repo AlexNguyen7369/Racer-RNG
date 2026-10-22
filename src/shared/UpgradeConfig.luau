@@ -9,20 +9,20 @@ UpgradeConfig.START_ID = "start" -- owned by everyone, never saved
 
 -- price = NiceRound(BASE_PRICE * PRICE_GROWTH ^ (PriceDepth - 1) * Weight), NiceRound = 2 significant figures, halves up
 UpgradeConfig.BASE_PRICE = 150
-UpgradeConfig.PRICE_GROWTH = 2.2
+UpgradeConfig.PRICE_GROWTH = 50 -- owner 2026-10-21: trillion-scale late-game pricing
 
 -- Tiers at or above GATE_FROM_TIER need BestTrack >= min(tier - 1, number of tracks in the game).
 UpgradeConfig.GATE_FROM_TIER = 3
 
 UpgradeConfig.BASE_ROLL_INTERVAL = 3 -- seconds (GachaConfig.ROLL_INTERVAL today)
-UpgradeConfig.MIN_ROLL_INTERVAL = 2 -- the fastest roll speed ever: interval = BASE / (1 + bonus), never below this
+UpgradeConfig.MIN_ROLL_INTERVAL = 2 -- the fastest roll speed ever: interval = BASE / product(1 + tier bonus), never below this
 
 UpgradeConfig.BASE_WALKSPEED = 16
 UpgradeConfig.BASE_TURBO = { Multi = 10, Every = 10 } -- no Turbo tier owned
 
 -- Hex grid: axial (q, r), Start at (0, 0). A branch's tier I sits at Origin + Direction, tier n at
 -- Origin + n * Direction. `Parent` is the tile tier I needs (Start, or a fork off another branch).
--- `Bonus` per tier is ADDED (0.10 = +10 %); Walkspeed and Turbo use their own tables instead.
+-- `Bonus` per tier is ADDED (0.50 = +50 %); Walkspeed and Turbo use their own tables instead.
 UpgradeConfig.Branches = {
 	{
 		Id = "money",
@@ -32,7 +32,7 @@ UpgradeConfig.Branches = {
 		Parent = "start",
 		Origin = { 0, 0 },
 		Direction = { -1, 0 },
-		Bonus = { 0.10, 0.10, 0.15, 0.15, 0.20 },
+		Bonus = { 0.50, 0.50, 0.50, 0.50, 0.50 },
 	},
 	{
 		Id = "luck",
@@ -42,17 +42,17 @@ UpgradeConfig.Branches = {
 		Parent = "start",
 		Origin = { 0, 0 },
 		Direction = { 0, -1 },
-		Bonus = { 0.10, 0.15, 0.20, 0.25, 0.30 },
+		Bonus = { 0.50, 0.50, 0.50, 0.50, 0.50 },
 	},
 	{
 		Id = "rollspeed",
 		Name = "Roll Speed",
-		Effect = "RollSpeed", -- interval = BASE_ROLL_INTERVAL / (1 + total bonus)
+		Effect = "RollSpeed", -- interval = BASE_ROLL_INTERVAL / product(1 + each owned tier bonus), compounding
 		Weight = 1.5,
 		Parent = "start",
 		Origin = { 0, 0 },
 		Direction = { 1, -1 },
-		Bonus = { 0.10, 0.10, 0.10, 0.10, 0.10 },
+		Bonus = { 0.15, 0.15, 0.15, 0.15, 0.15 },
 	},
 	{
 		Id = "turbo",
@@ -72,13 +72,13 @@ UpgradeConfig.Branches = {
 	},
 	{
 		Id = "speed",
-		Name = "Speed",
+		Name = "Speed Gain",
 		Effect = "Speed", -- added to the Speed-stat GAIN multi; never cruise speed or car physics
 		Weight = 1,
 		Parent = "start",
 		Origin = { 0, 0 },
 		Direction = { 0, 1 },
-		Bonus = { 0.10, 0.10, 0.15, 0.15, 0.20 },
+		Bonus = { 0.50, 0.50, 0.50, 0.50, 0.50 },
 	},
 	{
 		Id = "walkspeed",
@@ -88,7 +88,7 @@ UpgradeConfig.Branches = {
 		Parent = "start",
 		Origin = { 0, 0 },
 		Direction = { -1, 1 },
-		WalkSpeed = { 18, 20, 23, 26, 30 },
+		WalkSpeed = { 20, 25, 31, 39, 49 },
 	},
 	-- Direction { 1, 0 } from Start is free for a future branch.
 }

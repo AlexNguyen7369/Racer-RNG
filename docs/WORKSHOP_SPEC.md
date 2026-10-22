@@ -86,10 +86,8 @@ Every `WorkshopConfig.TICK` (0.5 s) for each player with a plot:
     because car models affect cruise/base speed only
   - `LevelMulti` = W of the workshop level (level 1 = 1)
   - `WorkshopPointsMulti` = `GachaConfig.Multis(alloc).Workshop` (1 + 0.2 per point)
-  - divided by the same diminishing-returns term racing uses, so idling and racing climb the same curve and cruise speed
-    (`RaceConfig.SpeedFor`) uses `MAX_SPEED` as the scale reference while
-    preserving the midpoint at `HALF_STAT`; higher stats continue increasing
-    with logarithmic diminishing returns
+  - no car multiplier and no Speed-stat diminishing term: workshop earnings are Speed-only and are determined by
+    the workshop level, Speed Gain sources, and Workshop stat allocation
 - Player attribute `WorkshopRate` = the current rate (shown in the Workshop upgrade panel when it is open).
 - While `InWorkshop` is true, Luck also receives `WorkshopConfig.LuckMulti(level)`; level 1 is 1x and each
   additional workshop level adds 0.1x. The server zone check owns this state, so merely owning a workshop does not
@@ -99,10 +97,41 @@ Every `WorkshopConfig.TICK` (0.5 s) for each player with a plot:
 ## 5. Levels and purchases
 `WorkshopConfig.Levels`: level 1 = `{ Multi = 1, Price = 0 }` (starter), with ten configurable levels.
 Level 2 costs $500; each later price is 5x the previous price and W doubles at each level. These defaults are not
-approved balancing. Saved as `WorkshopLevel` (PlayerData VERSION 4, shared with the upgrade tree's fields).
+approved balancing. Saved as `WorkshopLevel` (PlayerData VERSION 11; VERSION 4 is historical, shared with the upgrade tree's fields).
 An owned workshop has an `UPGRADE` slab and E prompt. Its modal requests the next level only; the server validates
 loaded data, ownership, a living on-foot character within 12 studs, available level and Money, and rate-limits
 remote requests. Invalid numbers (including NaN and infinities) load as level 1; finite levels floor and clamp to 1..10.
+
+## 5b. Showcase (owner, 2026-10-22)
+Owner request: players show 3 cars of their choice in their workshop; duplicate rolls of those cars raise workshop
+Speed gain, so rolling dupes of good cars is worth it. Owner decisions: duplicates are never sold (kept as copies),
+the player picks the 3 cars (with a BEST 3 shortcut), and the bonus comes from the car's `SpeedMulti` x its copies.
+This is an owner exception to "workshop gain is independent of car models" (design doc "Core stat model"); the
+equipped car still affects cruise speed only.
+
+- **Copies:** a roll of an already-owned rollable car adds 1 to that car's copy count (entry attribute `Copies` on
+  `player.GachaData.<id>`, capped at `GachaConfig.MAX_SAVED_COPIES`). No Money is paid (`RollResult` scrapMoney = 0).
+  The discovering roll does not count; a fresh car has 0 copies.
+- **Slots:** `GachaConfig.SHOWCASE_SLOTS` = 3. Player attribute `Showcase` = the showcased ids joined by ",".
+  Only owned, rollable cars may be shown (never the starter or gamepass cars), each at most once.
+- **Formula** (*placeholder* numbers in `Shared/GachaConfig`):
+  `SlotBonus = SHOWCASE_SCALE x log10(SpeedMulti) x (1 + COPY_BONUS x min(copies, MAX_COPIES))`,
+  `ShowcaseMulti = 1 + sum of SlotBonus over the showcased cars`; `SHOWCASE_SCALE` 0.25, `COPY_BONUS` 0.1,
+  `MAX_COPIES` 50. The log keeps cars with huge multis (up to 2800) in range.
+- **Effect:** `GachaService.WorkshopMulti` = Workshop points multi x `ShowcaseMulti`, so the live zone rate and the
+  offline Speed both include it. Player attribute `ShowcaseMulti` mirrors it for the UI.
+- **Remote:** `Remotes.SetShowcase(ids)` (RemoteFunction) -> `ok, reason`. The server accepts an array of at most 3
+  distinct strings, each an owned rollable car, rate-limited by `GachaConfig.SHOWCASE_COOLDOWN`; anything else
+  changes nothing.
+- **World:** the workshop has 3 low `ShowcasePedestal_1..3` parts (non-colliding, anchored) along the back of the
+  zone; `WorkshopService` puts a static `CarAppearance.Display` copy of each showcased car on them (scale
+  `WorkshopConfig.SHOWCASE_CAR_SCALE`) with a name / copies label (finite `MaxDistance`). Everyone can see them.
+- **UI:** the Workshop panel shows the Showcase multi, the 3 slots (CLEAR each), a BEST 3 button and a list of
+  owned cars sorted by slot bonus with a SHOW toggle.
+- **Save** (`docs/SAVE_SPEC.md` VERSION 12): `Copies = { [id] = n }`, `Showcase = { id, ... }`. Old saves load
+  with 0 copies and an empty showcase. A rebirth keeps cars, so it keeps copies and the showcase.
+- **Tests:** `showcase` scenario (copy count, no Money, remote validation, formula + cap, rate and offline include it,
+  save round trip and old-save load, pedestal cars on the owner's plot).
 
 ## 6. Manual step
 Studio: Game Settings > Places > Server Size (Max Players) = **7** (Rojo can not set it). Listed on the dashboard
@@ -114,8 +143,8 @@ Studio: Game Settings > Places > Server Size (Max Players) = **7** (Rojo can not
 - `workshop` (new): 7 plots with the table's rects, no overlaps (plots, hub, spawn, StartPad, tracks), plot opens toward
   the hub; assignment (lowest free, freed on leave, one plot each, 8th player gets 0); the `Workshop` model and signs
   ("EMPTY PLOT" / owner name); zone gain on the server (in zone gains `rate x dt`, out of zone / auto-racing / dead
-  gains 0); the rate formula with car, Speed points, Workshop points and the diminishing term; `WorkshopLevel` save.
-- `data`: VERSION 4 round trip including `WorkshopLevel` (missing = 1, out of range clamped).
+  gains 0); the Speed-only rate formula with Speed Gain, Workshop points and workshop level; `WorkshopLevel` save.
+- `data`: VERSION 11 round trip including `WorkshopLevel` (missing = 1, out of range clamped).
 - World (`world-tester`): plots and workshop parts anchored, nothing blocks walking from the spawn to a plot.
 
 ## 8. Phases
@@ -129,7 +158,11 @@ Studio: Game Settings > Places > Server Size (Max Players) = **7** (Rojo can not
 
 Ten levels are configured, with level 2 costing $500 and subsequent prices growing ×5. Every level doubles W. These are configurable defaults pending owner feedback, rather than a record of approved balancing. The E prompt on an owned plot opens the upgrade modal; the server checks load state, ownership, life, racing state, distance and Money before buying the next level. No client price or requested level is accepted.
 
-The HUD shows the server's current workshop rate, and Workshop stat allocation is enabled. Offline earnings are `rate x OFFLINE_FRACTION (25%) x min(seconds, OFFLINE_CAP (eight hours))`, with no stat cap (owner 2026-10-20; was never above `MAX_STAT - stat`) (owner, 2026-10-13: no diminishing term); Money is credited at 10% of that Speed result. **Owner decision 2026-10-12 (design doc, "Economy"): offline earnings are Speed only. The 10% Money credit was removed on 2026-10-12 (`docs/SAVE_SPEC.md` section 3); any Money wording in this section is history.** Saves include `OfflineAt`; an atomic DataStore claim persists the credited Speed, Money, and new timestamp before exposing rewards. Missing or invalid legacy timestamps grant no offline reward. Repeated loads do not replay rewards or reset live progress. The welcome panel reports both credited rewards and the capped duration. Workshop harness scenarios passed on the synced sources; UI diagnostics, full compatibility and real-store verification remain pending.
+The HUD shows the server's current workshop rate, and Workshop stat allocation is enabled. Offline earnings are
+`rate x OFFLINE_FRACTION (25%) x min(seconds, OFFLINE_CAP (eight hours))`, with no stat cap. Offline earnings are
+Speed only; no Money is credited. Saves include `OfflineAt`; an atomic DataStore claim persists the credited Speed
+and new timestamp before exposing rewards. Missing or invalid legacy timestamps grant no offline reward. Repeated
+loads do not replay rewards or reset live progress. The welcome panel reports the credited Speed and capped duration.
 
 ## Open questions for the owner
 - `BASE_RATE` (1 Speed/s now; driving at base speed gains ~1.5/s): should idling beat racing for Speed?
@@ -160,7 +193,7 @@ Validation for the visual revision: Rojo build, focused StyLua and diff checks p
 Studio server workshop regression passed 56/56 checks, including zone gain/exit,
 layout, assignment, ownership, anchoring and pad contracts. Upgrade purchase and
 rejection checks passed; complete phase2 was 17/18 because the existing test at
-line 281 accesses undefined global `Workshop.OfflineMoney`. Real client navigation
+line 281 is historical documentation for the removed `Workshop.OfflineMoney` field. Real client navigation
 and the E/purchase UI could not be verified because client execution timed out.
 
 ### Reference completion and player lifecycle

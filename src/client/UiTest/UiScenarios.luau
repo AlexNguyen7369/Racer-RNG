@@ -112,6 +112,8 @@ UiScenarios.Names = {
 	"ui_workshop_modal",
 	"ui_progression_layout",
 	"ui_progression_hud",
+	-- Workshop Showcase (docs/WORKSHOP_SPEC.md "5b. Showcase"); also after showcase_filled (UiSpec.Progression.FixtureChecks)
+	"ui_workshop_showcase",
 	"ui_rebirth",
 	"ui_daily_boosts",
 	"ui_shop",
@@ -1264,10 +1266,11 @@ function UiScenarios.Init()
 		task.spawn(function()
 			local roll = remotes:WaitForChild("RollResult", 30)
 			if roll then
-				roll.OnClientEvent:Connect(function(id, isNew, turboMulti, emphasized, _scrapMoney, luck)
+				roll.OnClientEvent:Connect(function(id, isNew, turboMulti, emphasized, scrapMoney, luck)
 					local ev = {
 						id = id,
 						isNew = isNew,
+						scrapMoney = scrapMoney, -- duplicates pay $0 now (UiSpec.Showcase.CopyBadgeText)
 						turboMulti = type(turboMulti) == "number" and turboMulti or 1,
 						emphasized = emphasized == true,
 						luck = luck, -- as sent (6th argument, docs/ROLL_ANIMATION_CONTRACT.md); nil when not sent
@@ -1587,6 +1590,37 @@ local function cardProblems(card, ev, skipGeometry)
 		table.insert(bad, "no NewBadge")
 	elseif effectivelyVisible(newBadge) ~= isNew then
 		table.insert(bad, ("NewBadge shown=%s want %s"):format(tostring(effectivelyVisible(newBadge)), tostring(isNew)))
+	end
+	-- Duplicates are kept as copies (docs/WORKSHOP_SPEC.md "5b. Showcase", owner 2026-10-22): the server pays $0 and
+	-- the copy badge says "+1 COPY" on a duplicate (never a Money amount); hidden on a new car.
+	if ev.scrapMoney ~= nil and ev.scrapMoney ~= 0 then
+		table.insert(bad, ("RollResult scrapMoney %s want 0"):format(tostring(ev.scrapMoney)))
+	end
+	local copyBadge = part(UiSpec.Showcase.CopyBadge)
+	local copyText = UiSpec.Showcase.CopyBadgeText
+	if not copyBadge then
+		table.insert(bad, "no " .. UiSpec.Showcase.CopyBadge)
+	elseif isNew then
+		if effectivelyVisible(copyBadge) then
+			table.insert(bad, UiSpec.Showcase.CopyBadge .. " shown on a new car")
+		end
+	else
+		local text = allText(copyBadge)
+		if
+			not effectivelyVisible(copyBadge)
+			or not string.find(text, copyText, 1, true)
+			or string.find(text, "$", 1, true)
+		then
+			table.insert(
+				bad,
+				("%s shown=%s %q want %q on a duplicate"):format(
+					UiSpec.Showcase.CopyBadge,
+					tostring(effectivelyVisible(copyBadge)),
+					text,
+					copyText
+				)
+			)
+		end
 	end
 	local turbo = part("TurboBadge")
 	local isTurbo = ev.turboMulti > 1
@@ -5852,6 +5886,7 @@ local function attrSnapshot()
 		EquippedCar = attr("EquippedCar"),
 		StatPoints = attr("StatPoints") or 0,
 		WorkshopLevel = attr("WorkshopLevel"),
+		Showcase = attr("Showcase"), -- Workshop Showcase ids joined by "," (showcase_* clicks)
 		ProgressionMoney = player:FindFirstChild("leaderstats") and player.leaderstats.Money.Value,
 		ProgressionOwned = player:FindFirstChild("Upgrades") and #player.Upgrades:GetChildren() or 0,
 	}
@@ -6115,6 +6150,19 @@ function UiScenarios.RunClick(id)
 		tileId = equipped
 		path = string.gsub(path, "{equipped}", tileId)
 	end
+	-- Workshop Showcase rows (UiSpec.WorkshopShowcase): {showcase_unshown} = the highest-bonus owned rollable car not
+	-- shown, {showcase_shown} = the first shown id. Kept apart from tileId (that one scrolls the Index grid).
+	local showcaseId = nil
+	for _, token in { "{showcase_unshown}", "{showcase_shown}" } do
+		if string.find(path, token, 1, true) then
+			showcaseId = Progression.ShowcaseTarget(token == "{showcase_shown}")
+			if not showcaseId then
+				stateMissing(res, "target_row", "showcase_owned", "no " .. token .. " car")
+				return res
+			end
+			path = string.gsub(path, token, UiSpec.WorkshopShowcase.RowPrefix .. showcaseId)
+		end
+	end
 	local rowStat = spec.Gui == "RacerStats" and splitPath(path)[5] or nil
 	local upgradeId = spec.Gui == "RacerUpgrades" and splitPath(path)[3] or nil
 	local button = findPath(spec.Gui .. "/" .. path)
@@ -6269,6 +6317,16 @@ function UiScenarios.RunClick(id)
 			ready == true
 		)
 		if not ready then
+			restore()
+			return res
+		end
+	end
+	-- Showcase clicks: Remotes.SetShowcase must be the showcase_spy pass-through proxy (logs, then the real handler)
+	if spec.Gui == "RacerWorkshop" and string.find(spec.Path, "^Panel/Showcase/") then
+		local proxy = ReplicatedStorage.Remotes:FindFirstChild(UiSpec.WorkshopShowcase.Remote)
+		local spied = proxy ~= nil and proxy:GetAttribute("UiTestSpied") == true
+		check(res, "showcase_spy_before_click", spied, true, spied)
+		if not spied then
 			restore()
 			return res
 		end
@@ -6506,6 +6564,8 @@ function UiScenarios.RunClick(id)
 			wantArg = rowStat
 		elseif argSpec == "upgrade_id" then
 			wantArg = upgradeId
+		elseif type(argSpec) == "string" and string.sub(argSpec, 1, 9) == "showcase_" then
+			wantArg = Progression.ShowcaseWant(argSpec, pre.Showcase, showcaseId) -- the id list SetShowcase gets
 		end
 		local names = {}
 		for _, f in fired do
@@ -6533,6 +6593,22 @@ function UiScenarios.RunClick(id)
 			for i, v in wantArgs do
 				ok = ok and fired[1].args[i] == v
 			end
+		end
+		if type(wantArg) == "table" then
+			-- SetShowcase(ids): exactly one argument, the promised id list (Progression.SameShowcase)
+			names = {}
+			for _, f in fired do
+				local a = f.args[1]
+				table.insert(
+					names,
+					f.name .. "(" .. (type(a) == "table" and table.concat(a, ",") or tostring(a)) .. ")"
+				)
+			end
+			want = expect.Remote.Name .. "(" .. table.concat(wantArg, ",") .. ")"
+			ok = #fired == 1
+				and fired[1].name == expect.Remote.Name
+				and #fired[1].args == 1
+				and Progression.SameShowcase(expect.Remote.Arg, fired[1].args[1], wantArg)
 		end
 		if ok and (expect.Remote.Arg == "upgrade_id" or expect.Remote.Arg == "none") then
 			ok = #fired[1].args == (expect.Remote.Arg == "none" and 0 or 1)
@@ -7017,7 +7093,11 @@ function UiScenarios.RunClick(id)
 		elseif shopMarket.After[cond] then
 			shopMarket.After[cond](res, { pre = pre, spec = spec, path = path })
 		elseif Progression.After[cond] then
-			Progression.After[cond](res) -- weather icon / card (UiSpec.Weather)
+			-- weather icon / card (UiSpec.Weather), Workshop Showcase (UiSpec.WorkshopShowcase)
+			Progression.After[cond](
+				res,
+				{ pre = pre, wantArg = wantArg, argSpec = expect.Remote and expect.Remote.Arg }
+			)
 		else
 			check(res, "unknown_condition_" .. tostring(cond), cond, "known", false)
 		end

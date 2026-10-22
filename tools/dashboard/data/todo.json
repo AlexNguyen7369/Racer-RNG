@@ -991,6 +991,19 @@
       "updated": "2026-10-21T01:34:09-07:00",
       "updatedBy": "Alex Nguyen",
       "done": "2026-10-21T01:34:09-07:00"
+    },
+    {
+      "id": "34e8f817",
+      "title": "Workshop car Showcase (dupes kept as copies)",
+      "detail": "Owner 2026-10-22: duplicates are never sold; 3 player-picked cars stand in the workshop and multiply workshop Speed gain by SpeedMulti x copies (docs/WORKSHOP_SPEC.md 5b). Code + docs done; Studio harness/UI runs and balance pending.",
+      "status": "doing",
+      "source": "owner request",
+      "by": "Alex Nguyen",
+      "added": "2026-10-22T09:00:00-07:00",
+      "owner": "Alex Nguyen",
+      "ownerGithub": "AlexNguyen7369",
+      "updated": "2026-10-22T09:00:00-07:00",
+      "updatedBy": "Claude"
     }
   ]
 }

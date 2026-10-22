@@ -1383,15 +1383,21 @@ local function checkStability(checks, prefix, st)
 		R.MaxRailSnaps ~= nil and snaps <= R.MaxRailSnaps
 	)
 	check(checks, pre .. "flips_limit", st.flips, R.MaxFlips or 0, R.MaxFlips ~= nil and st.flips <= R.MaxFlips)
-	check(checks, pre .. "sticks_to_path", st.dev, maxDev, R.MaxPathDeviation ~= nil and st.dev <= maxDev)
-	check(checks, pre .. "sticks_to_path_track1", st.dev1, maxDev, R.MaxPathDeviation ~= nil and st.dev1 <= maxDev)
-	check(checks, pre .. "sticks_to_path_track2", st.dev2, maxDev, R.MaxPathDeviation ~= nil and st.dev2 <= maxDev)
+	-- every route check needs RACE_MIN_SAMPLES measured frames, so an unmeasured drive can never pass
+	local function devOk(dev, nSamples)
+		return R.MaxPathDeviation ~= nil and dev <= maxDev and (nSamples or 0) >= RACE_MIN_SAMPLES
+	end
+	check(checks, pre .. "sticks_to_path", st.dev, maxDev, devOk(st.dev, st.devN))
+	check(checks, pre .. "sticks_to_path_track1", st.dev1, maxDev, devOk(st.dev1, st.dev1N))
+	check(checks, pre .. "sticks_to_path_track2", st.dev2, maxDev, devOk(st.dev2, st.dev2N))
 	check(
 		checks,
 		pre .. "always_faces_forward",
 		st.minForwardAlignment,
 		0.95,
-		type(st.minForwardAlignment) == "number" and st.minForwardAlignment >= 0.95
+		type(st.minForwardAlignment) == "number"
+			and st.minForwardAlignment >= 0.95
+			and (st.devN or 0) >= RACE_MIN_SAMPLES
 	)
 	-- heading must turn continuously along the rail, never snap from one waypoint segment to the next
 	local yps = type(st.maxYawPerStud) == "number" and st.maxYawPerStud or -1
@@ -1439,7 +1445,7 @@ function Scenarios.race()
 		and type(RaceConfig.SpeedFor) == "function"
 		and type(RaceConfig.GainPerSecond) == "function"
 		and type(RaceConfig.HALF_STAT) == "number"
-		and type(RaceConfig.GAIN_PER_STUD) == "number"
+		and type(RaceConfig.GAIN_PER_SECOND) == "number"
 		and type(PlayerData.Setup) == "function"
 		and type(PlayerData.SpeedStat) == "function"
 		and type(PlayerData.AddSpeed) == "function"
@@ -1453,7 +1459,7 @@ function Scenarios.race()
 	end
 
 	local HALF = RaceConfig.HALF_STAT
-	local BIG = 20 * HALF -- 100000 with HALF_STAT 5000 (owner 2026-10-20; was 20000 at HALF_STAT 1000)
+	local BIG = 20 * HALF -- high-stat economy probe; HALF_STAT is a tunable balance constant
 	local targetHalf = RaceConfig.SpeedFor(HALF)
 	if type(targetHalf) ~= "number" then
 		check(checks, "race_speed_for_number", 0, 1, false)
@@ -1581,6 +1587,9 @@ function Scenarios.race()
 			dev = 0,
 			dev1 = 0,
 			dev2 = 0,
+			devN = 0,
+			dev1N = 0,
+			dev2N = 0,
 			laneSum = 0,
 			laneN = 0,
 			minSigned = math.huge,
@@ -1688,14 +1697,19 @@ function Scenarios.race()
 				cD, ci, q, dir = nearestOnPolyline(centre, pos, 1, #centre - 1)
 			end
 			cIdx = ci
-			if t > 3 then
+			-- Route samples start after 3 s OR 30 studs of travel (about 3 s at BASE_SPEED): the run is at cruise at
+			-- once, and at MAX_STAT the whole chain takes under 3 s, so a time-only gate would measure nothing.
+			if t > 3 or st.dist >= 30 then
 				-- how far the car is from the route (to the nearest SEGMENT, not just the nearest waypoint)
 				local dist, seg = nearestOnPolyline(wps, pos, math.max(idx - 3, 1), math.min(idx + 3, n - 1))
 				st.dev = math.max(st.dev, dist)
+				st.devN += 1
 				if seg < splitIdx then
 					st.dev1 = math.max(st.dev1, dist)
+					st.dev1N += 1
 				else
 					st.dev2 = math.max(st.dev2, dist)
+					st.dev2N += 1
 				end
 				local look = flatV(chassis.CFrame.LookVector)
 				local tangent = flatV(dir)
@@ -1919,29 +1933,26 @@ function Scenarios.race()
 		local g0 = slow.gainAt8 or -1
 		check(checks, "fresh_player_gains", g0, 0, g0 > 0)
 
-		-- Owner, 2026-10-13 (design doc "Core stat model"): the stat never reduces the gain. End to end: a player
-		-- with a far larger stat gains the same GAIN_PER_STUD per stud driven (band as gain_matches_speed_integral),
-		-- so the car that covers more ground in 8 s gains MORE. (Was diminishing_gain_in_8s: it gained less.)
+		-- Owner, 2026-10-22: race gain is a flat base rate, independent of stat and actual car speed.
 		local big = drive(BIG, 8, false)
 		check(checks, "big_run_started", big.ok and 1 or 0, 1, big.ok)
 		if big.ok then
 			local gb = big.gainAt8 or -1
-			local dB, d0 = big.distAt8 or 0, slow.distAt8 or 0
-			local per = RaceConfig.GAIN_PER_STUD
-			local perStud = dB > 0 and gb / dB or -1
+			local per = RaceConfig.GAIN_PER_SECOND
+			local perSecond = gb / 8
 			check(
 				checks,
-				"high_stat_gain_per_stud_not_reduced_in_8s",
-				perStud,
+				"high_stat_gain_rate_is_flat_in_8s",
+				perSecond,
 				per,
-				big.gainAt8 ~= nil and dB > 0 and perStud >= 0.8 * per and perStud <= 1.2 * per
+				big.gainAt8 ~= nil and perSecond >= 0.8 * per and perSecond <= 1.2 * per
 			)
 			check(
 				checks,
-				"faster_car_gains_more_in_8s",
+				"faster_car_does_not_change_gain_rate",
 				gb,
 				g0,
-				slow.gainAt8 ~= nil and big.gainAt8 ~= nil and d0 > 0 and (dB <= d0 or gb > g0)
+				slow.gainAt8 ~= nil and big.gainAt8 ~= nil and math.abs(gb - g0) <= 0.2 * math.max(1, g0)
 			)
 		end
 	end
@@ -2203,9 +2214,8 @@ function Scenarios.flip_recovery()
 	fallTest("launched_above", 40)
 
 	-- High car multi: the fastest catalog car (SpeedMulti 2800) at a high stat drives the whole track on its path,
-	-- upright, never below the map. The stat is 200 x HALF_STAT (1e6 at HALF_STAT 5000). Owner 2026-10-21 (design
-	-- doc Core stat model, "multiplied Speed"): the full multi multiplies the stat (shown Speed = 2.8e9) and the
-	-- cruise formula runs on that, with no separate car multiplier after it (was 1 + log2(m) on the cruise speed).
+	-- upright, never below the map. The stat is MAX_STAT. The raw car multi is logarithmically damped and capped
+	-- before entering the cruise formula so rare cars remain faster without runaway speed.
 	local GachaService = serverModule("GachaService")
 	local CarCatalog = sharedModule("CarCatalog")
 	local fastApiOk = GachaService ~= nil
@@ -2224,7 +2234,9 @@ function Scenarios.flip_recovery()
 		end
 		local multi = best and best.SpeedMulti or 0
 		check(checks, "high_multi_car_found", multi, 2800, multi >= 2800)
-		local BIG_STAT = 200 * RaceConfig.HALF_STAT
+		-- The raw multi is damped and capped at 1.5x (design doc "Core stat model", owner 2026-10-21), so the stat
+		-- itself must be MAX_STAT for this run to stay faster than the max-stat stability race.
+		local BIG_STAT = RaceConfig.MAX_STAT
 		local car = CarFactory.build(CarConfig)
 		car.Name = "CarTestHighMultiCar"
 		car:PivotTo(railStart)
@@ -2260,15 +2272,17 @@ function Scenarios.flip_recovery()
 				multi,
 				type(shown) == "number" and math.abs(shown - multi) <= 1e-9 * multi
 			)
+			-- Owner 2026-10-22: the multi scales the stat before the curve, damped to 1 + log10(multi) and capped at
+			-- 1.5x; the 2800x car is far past the cap, so its cruise is exactly SpeedFor(stat x 1.5).
+			local capped = RaceConfig.SpeedFor(BIG_STAT * 1.5)
 			check(
 				checks,
 				"high_multi_target_is_shown_speed_cruise",
 				ts,
-				want,
-				math.abs(ts - want) <= 1e-6 * want
-					and math.abs(want - RaceConfig.SpeedFor(BIG_STAT * multi)) <= 1e-6 * want
+				capped,
+				math.abs(ts - want) <= 1e-6 * want and math.abs(want - capped) <= 1e-6 * capped
 			)
-			-- 2.8e9 shown Speed is past MAX_STAT, so this run is faster than the max-stat stability race
+			-- MAX_STAT x the car multi is past MAX_STAT, so this run is faster than the max-stat stability race
 			local maxStatSpeed = RaceConfig.SpeedFor(RaceConfig.MAX_STAT)
 			check(checks, "high_multi_target_above_max_stat_speed", want, maxStatSpeed, want > maxStatSpeed)
 			local len = 0
@@ -2978,7 +2992,8 @@ function Scenarios.auto_toggle()
 		end
 		frames(2)
 		local car3, run3 = checkRacingState("rapid", nil, nil)
-		checkDrive("rapid", car3, run3, 3, speedRaw())
+		-- 8 s: at BASE_SPEED 10 (owner 2026-10-21) the car covers ~80 studs, >= 6 waypoints 12 studs apart
+		checkDrive("rapid", car3, run3, 8, speedRaw())
 
 		-- 8. Bad input while racing changes nothing (same car, same run)
 		local badRaceOk = true
@@ -3534,10 +3549,11 @@ function Scenarios.economy()
 		return type(x) == "number" and x == x
 	end
 	local consts = {
-		BASE_SPEED = 12, -- owner 2026-10-20 (slower, harder balancing): was 30
-		MAX_SPEED = 22, -- owner 2026-10-21 ("lower track requirements"): back to 22, +5 studs/s per doubling
-		HALF_STAT = 5000, -- owner 2026-10-20 (much harsher progression): was 1000
-		GAIN_PER_STUD = 0.01, -- owner 2026-10-20 (much harsher progression): was 0.05
+		BASE_SPEED = 10, -- owner 2026-10-21: lowered from 12
+		MAX_SPEED = 80, -- owner 2026-10-21: nerfed from 109, +35 studs/s per high-speed doubling
+		HALF_STAT = 100000, -- owner 2026-10-22: friendly linear start, diminishing tail after 100K
+		MAX_CRUISE_CAR_MULTI = 1.5,
+		GAIN_PER_SECOND = 2, -- owner 2026-10-22: friendlier early Speed progression
 		MAX_STAT = 1e9,
 	}
 	for name, want in consts do
@@ -3566,13 +3582,7 @@ function Scenarios.economy()
 	check(checks, "race_config_below_top_speed", top, CarConfig.TopSpeed, top < CarConfig.TopSpeed)
 	check(checks, "speed_for_zero_is_base", sf(0) or -1, base, sf(0) == base)
 	local mid = sf(half)
-	check(
-		checks,
-		"speed_for_half_stat_is_midpoint",
-		mid or -1,
-		(base + top) / 2,
-		num(mid) and math.abs(mid - (base + top) / 2) <= 0.01
-	)
+	check(checks, "speed_for_threshold_is_max_reference", mid or -1, top, num(mid) and math.abs(mid - top) <= 0.01)
 	local bad = { "nan", -5, "9", true, {} }
 	local badOk = sf(nil) == base and sf(0 / 0) == base
 	for _, b in bad do
@@ -3601,14 +3611,25 @@ function Scenarios.economy()
 	check(checks, "speed_for_high_stat_exceeds_car_baseline", unbounded and 1 or 0, 1, unbounded)
 	local atMax = sf(maxStat)
 	check(checks, "speed_for_max_stat_above_reference", atMax or -1, top, num(atMax) and atMax > top)
-	local d1, d2 = (sf(2000) or 0) - (sf(1000) or 0), (sf(1000) or 0) - (sf(0) or 0)
-	check(checks, "speed_for_diminishing", d1, d2, d1 > 0 and d1 < d2)
-	-- Owner, 2026-10-13 (design doc "Core stat model"): diminishing per point, never flat, no cap.
-	-- +1000 at a high stat still adds speed, but less than +1000 at a low stat.
+	-- Owner 2026-10-22 (design doc "Core stat model"): linear up to HALF_STAT (every point adds the same), then
+	-- "above 100K every later point adds less". The join at HALF_STAT is a kink, so no comparison crosses it.
+	local d2 = (sf(1000) or 0) - (sf(0) or 0)
+	local d2Late = (sf(half - 1000) or 0) - (sf(half - 2000) or 0)
+	local d1 = (sf(half + 1000) or 0) - (sf(half) or 0)
+	local dMid = (sf(2 * half + 1000) or 0) - (sf(2 * half) or 0)
+	check(
+		checks,
+		"speed_for_diminishing",
+		dMid,
+		d1,
+		d2 > 0 and math.abs(d2Late - d2) <= 1e-9 * math.max(1, d2) and dMid > 0 and dMid < d1
+	)
+	-- +1000 at a high stat still adds speed (never flat), but less than +1000 just above HALF_STAT.
 	local dHigh = (sf(1e6 + 1000) or 0) - (sf(1e6) or 0)
-	check(checks, "speed_for_diminishing_at_high_stat", dHigh, d2, dHigh > 0 and dHigh < d1 and d1 < d2)
-	-- Every doubling well above HALF_STAT (here >= 100 x HALF_STAT, where the exact step is within 0.17 of the
-	-- limit) adds (MAX_SPEED - BASE_SPEED) / 2 studs/s, and always more than 1 stud/s ("can tell it apart").
+	check(checks, "speed_for_diminishing_at_high_stat", dHigh, d1, dHigh > 0 and dHigh < dMid and dMid < d1)
+	-- Owner 2026-10-22 (design doc "Core stat model"): above HALF_STAT cruise = MAX_SPEED + (MAX_SPEED - BASE_SPEED)
+	-- / 2 x log2(1 + (Speed - HALF_STAT) / HALF_STAT) = MAX_SPEED + range / 2 x log2(Speed / HALF_STAT), so every
+	-- doubling above HALF_STAT adds exactly half the range, and always more than 1 stud/s ("can tell it apart").
 	local step = (top - base) / 2
 	local doubleOk, tellOk, worst, least = true, true, 0, math.huge
 	for _, s in { 100 * half, 1e7, maxStat / 2 } do
@@ -3625,9 +3646,8 @@ function Scenarios.economy()
 	check(checks, "speed_for_doubling_adds_half_range", worst, 0.25, doubleOk)
 	check(checks, "speed_for_doubling_tellable", least == math.huge and -1 or least, 1, tellOk)
 
-	-- Owner, 2026-10-13: GainPerSecond(stat, speed) = GAIN_PER_STUD * speed for every valid stat (also above
-	-- MAX_STAT). Nothing divides it by the stat. (Was: / (1 + stat / GAIN_SOFT).)
-	local per = RaceConfig.GAIN_PER_STUD
+	-- Owner, 2026-10-22: GainPerSecond is a flat early-friendly base rate for every valid stat and speed.
+	local per = RaceConfig.GAIN_PER_SECOND
 	local formulaOk = true
 	for _, pair in
 		{
@@ -3641,7 +3661,7 @@ function Scenarios.economy()
 		}
 	do
 		local g = gp(pair[1], pair[2])
-		local want = per * pair[2]
+		local want = per
 		if not num(g) or math.abs(g - want) > 1e-9 * math.max(1, want) then
 			formulaOk = false
 		end
@@ -3672,11 +3692,11 @@ function Scenarios.economy()
 	local propOk = true
 	for _, s in { 0, 500, 5000 } do
 		local a, b = gp(s, 20), gp(s, 40)
-		if not (num(a) and num(b) and a > 0 and math.abs(b - 2 * a) <= 1e-9 * b) then
+		if not (num(a) and num(b) and a == per and b == per) then
 			propOk = false
 		end
 	end
-	check(checks, "gain_proportional_to_speed", propOk and 1 or 0, 1, propOk)
+	check(checks, "gain_same_at_every_speed", propOk and 1 or 0, 1, propOk)
 	-- The stat never reduces the gain: the same speed gains the same at every stat (was
 	-- gain_strictly_decreasing_in_stat).
 	local same, atZero = true, gp(0, 50)
@@ -3687,21 +3707,18 @@ function Scenarios.economy()
 		end
 	end
 	check(checks, "gain_same_at_every_stat", same and 1 or 0, 1, same)
-	-- Increasing rate (was gain_diminishes_strongly, the opposite): at its own cruise speed a larger stat gains
-	-- strictly more per second.
-	local inc, p = true, 0
+	-- The current rule is flat: higher Speed changes cruise movement, not the base race gain.
+	local inc, p = true, per
 	for _, s in { 0, 1000, 1e5, 1e7 } do
 		local g = gp(s, sf(s))
-		if not (num(g) and g > p) then
+		if not (num(g) and g == p) then
 			inc = false
 		end
-		p = num(g) and g or p
 	end
-	check(checks, "gain_at_cruise_increases_with_stat", inc and 1 or 0, 1, inc)
+	check(checks, "gain_at_cruise_is_stat_independent", inc and 1 or 0, 1, inc)
 
-	-- Owner 2026-10-21 (design doc Core stat model, "multiplied Speed"; replaces the 1 + log2(m) cruise multi):
-	-- shown Speed = base Speed x the full Speed multi (no damping), and the cruise formula runs on the shown Speed
-	-- with no separate multiplier after it. Bad, <= 0 or infinite multis count as 1.
+	-- Owner 2026-10-21 (design doc Core stat model, revised for high-speed feel): the raw car/market multi is
+	-- damped to 1 + log10(m) before the cruise formula. Bad, <= 0 or infinite multis count as 1.
 	local function sfm(x, m)
 		local ok, v = pcall(RaceConfig.SpeedFor, x, m)
 		return ok and v or nil
@@ -3709,35 +3726,39 @@ function Scenarios.economy()
 	local function rel(a, b)
 		return num(a) and num(b) and math.abs(a - b) <= 1e-9 * math.max(1, math.abs(b))
 	end
-	local function formula(shown)
-		return base + (top - base) * math.log(1 + shown / half) / (2 * math.log(2))
+	-- Design doc "Core stat model" (owner 2026-10-22), written out here, not read from RaceConfig: the multi is
+	-- damped to 1 + log10(m), clamped to 0.1 .. 1.5, and scales the stat; linear to HALF_STAT, then each doubling
+	-- adds HALF the range.
+	local function formula(stat, multi)
+		local damped = math.clamp(1 + math.log10(multi), 0.1, 1.5)
+		local effective = stat * damped
+		if effective <= half then
+			return base + (top - base) * effective / half
+		end
+		return top + (top - base) / 2 * math.log(1 + (effective - half) / half) / math.log(2)
 	end
 	local shownOk, shownWorst = true, 0
 	local multiFormulaOk = true
 	for _, x in { 0, 1, half, 1e6, maxStat } do
 		for _, m in { 0.25, 0.5, 0.9, 1, 1.01, 1.5, 2, 3, 10, 100, 2400, 2800, 1e6 } do
 			local v = sfm(x, m)
-			if not rel(v, sf(x * m)) then
-				shownOk = false
-			end
-			if not rel(v, formula(x * m)) then
+			if not rel(v, formula(x, m)) then
 				multiFormulaOk = false
 			end
-			shownWorst = math.max(shownWorst, num(v) and num(sf(x * m)) and math.abs(v - sf(x * m)) or math.huge)
+			if m >= 1 and not (num(v) and v >= sf(x)) then
+				shownOk = false
+			end
+			shownWorst =
+				math.max(shownWorst, num(v) and num(formula(x, m)) and math.abs(v - formula(x, m)) or math.huge)
 		end
 	end
-	check(checks, "speed_for_multi_is_shown_speed", shownWorst, 1e-9, shownOk)
+	check(checks, "speed_for_multi_is_damped_and_monotonic", shownWorst, 1e-9, shownOk)
 	check(checks, "speed_for_multi_formula", multiFormulaOk and 1 or 0, 1, multiFormulaOk)
-	-- Same shown Speed -> same cruise speed, whatever (stat, multi) produced it (all products are 2e6)
-	local samePairs = { { 2e6, 1 }, { 1e6, 2 }, { 5e5, 4 }, { 1000, 2000 }, { 4e6, 0.5 } }
-	local sameShown = true
-	local ref = sfm(samePairs[1][1], samePairs[1][2])
-	for _, pair in samePairs do
-		if not rel(sfm(pair[1], pair[2]), ref) then
-			sameShown = false
-		end
-	end
-	check(checks, "speed_for_same_shown_speed_same_cruise", sameShown and 1 or 0, 1, sameShown)
+	-- Damping means a high car is faster, but nowhere near as fast as the raw multiplier would imply.
+	local dampedHigh = sfm(half, 2800)
+	local rawHigh = sf(half * 2800)
+	local dampedHighOk = num(dampedHigh) and num(rawHigh) and dampedHigh < rawHigh and dampedHigh > sf(half)
+	check(checks, "speed_for_high_multi_is_damped", dampedHigh or -1, "< raw", dampedHighOk)
 	-- The multi multiplies the stat, so at stat 0 no multi adds speed (was: x2 at stat 0 gave 24)
 	local zeroStatOk = true
 	for _, m in { 2, 2800, 1e6 } do
@@ -3746,8 +3767,9 @@ function Scenarios.economy()
 		end
 	end
 	check(checks, "speed_for_multi_at_zero_stat_is_base", sfm(0, 2800) or -1, base, zeroStatOk)
-	-- No damping: SpeedMulti 2800 at HALF_STAT is shown Speed 2800 x HALF_STAT
-	local want2800 = formula(2800 * half)
+	-- SpeedMulti 2800 at the threshold: damped past the 1.5 cap, so SpeedFor(HALF_STAT x 1.5) =
+	-- MAX_SPEED + (MAX_SPEED - BASE_SPEED) / 2 x log2(1.5) (100.47 studs/s at the 2026-10-22 placeholders).
+	local want2800 = top + (top - base) / 2 * math.log(1.5) / math.log(2)
 	check(checks, "speed_for_multi_2800_at_half_stat", sfm(half, 2800) or -1, want2800, rel(sfm(half, 2800), want2800))
 	local multis = { 1, 1.0001, 1.01, 1.5, 2, 3, 10, 100, 1000, 2600, 2800, 1e6, 1e12 }
 	local multiInc = true
@@ -3755,13 +3777,15 @@ function Scenarios.economy()
 		local prevM = -1
 		for _, m in multis do
 			local v = sfm(x, m)
-			if not num(v) or v <= prevM then
+			if not num(v) or v < prevM then
 				multiInc = false
 			end
 			prevM = num(v) and v or prevM
 		end
 	end
 	check(checks, "speed_for_multi_strictly_increasing", multiInc and 1 or 0, 1, multiInc)
+	local capOk = RaceConfig.CruiseStatMulti(2800) == RaceConfig.MAX_CRUISE_CAR_MULTI
+	check(checks, "speed_for_car_multi_cap", capOk and 1 or 0, 1, capOk)
 	-- A multi below 1 lowers the shown Speed, so it slows the car, but never below BASE_SPEED
 	local lowOk = true
 	for _, x in { half, 1e6 } do
@@ -3812,13 +3836,17 @@ function Scenarios.economy()
 			end
 		end
 		check(checks, "speed_for_inverts_stat_for", backOk and 1 or 0, 1, backOk)
+		-- Owner 2026-10-22 (design doc "Core stat model"): linear through HALF_STAT, so MAX_SPEED is reached at
+		-- HALF_STAT and the halfway speed at HALF_STAT / 2 ("45 at 50K, 80 at 100K"); "196 at 1M" in the tail.
 		check(
 			checks,
 			"stat_for_half_point_is_half_stat",
-			stf((base + top) / 2) or -1,
+			stf(top) or -1,
 			half,
-			close(stf((base + top) / 2), half)
+			close(stf(top), half) and close(stf((base + top) / 2), half / 2)
 		)
+		local at1M = sf(1e6)
+		check(checks, "speed_for_1m_is_196", at1M or -1, 196, num(at1M) and math.abs(at1M - 196) <= 0.5)
 		local lowStatOk = stf(base) == 0 and stf(base - 5) == 0 and stf(0) == 0
 		for _, b in { "x", 0 / 0, true, {} } do
 			if stf(b) ~= 0 then
@@ -3873,7 +3901,7 @@ end
 -- The current save version is 11 (docs/SAVE_SPEC.md: RaceBestTimes; 10 was GiftMailbox/GiftReceipts; 9 was Receipts/Codes; 8 was session lock,
 -- MoneyEarned, DuelWins; 7 was market, rebirth/boosts/daily login, and level/XP); older versions still load.
 function Scenarios.data()
-	local DATA_VERSION = 11 -- docs/SAVE_SPEC.md: VERSION 11 adds RaceBestTimes (NPC race personal bests)
+	local DATA_VERSION = 12 -- docs/SAVE_SPEC.md: VERSION 12 adds Copies and Showcase; 11 added RaceBestTimes
 	local checks = {}
 	local PlayerData = serverModule("PlayerData")
 	local RaceConfig = sharedModule("RaceConfig")
@@ -3950,13 +3978,30 @@ function Scenarios.data()
 	end
 	-- `sets` counts every write (SetAsync or an UpdateAsync whose transform returned a value), `plainSets` only
 	-- SetAsync, `updates` every UpdateAsync call (written or not).
+	-- A real Studio player's key (its 60 s autosave can hit the fake store while it is installed) goes to a separate
+	-- `foreign` table: it never touches `data`, the counters or `onUpdate`, so the checks see only the test's keys.
+	local function isRealPlayerKey(key)
+		for _, plr in game:GetService("Players"):GetPlayers() do
+			if key == PlayerData.KeyFor(plr.UserId) then
+				return true
+			end
+		end
+		return false
+	end
 	local function makeStore(initial)
-		local store = { data = initial or {}, sets = 0, gets = 0, updates = 0, plainSets = 0 }
+		local store = { data = initial or {}, sets = 0, gets = 0, updates = 0, plainSets = 0, foreign = {} }
 		function store:GetAsync(key)
+			if isRealPlayerKey(key) then
+				return self.foreign[key]
+			end
 			self.gets += 1
 			return self.data[key]
 		end
 		function store:SetAsync(key, value)
+			if isRealPlayerKey(key) then
+				self.foreign[key] = value
+				return
+			end
 			self.sets += 1
 			self.plainSets += 1
 			self.data[key] = value
@@ -3964,6 +4009,13 @@ function Scenarios.data()
 		-- docs/SAVE_SPEC.md section 1: returns the new value; a transform that returns nil writes nothing (and, like
 		-- the real DataStore, the call then returns nil). The transform gets a copy, as a real store would hand out.
 		function store:UpdateAsync(key, transform)
+			if isRealPlayerKey(key) then
+				local v = transform(deepCopy(self.foreign[key]))
+				if v ~= nil then
+					self.foreign[key] = v
+				end
+				return v
+			end
 			self.updates += 1
 			if self.onUpdate then
 				self.onUpdate(self.updates, key)
@@ -4070,8 +4122,8 @@ function Scenarios.data()
 	PlayerData.Load(p3, 9002) -- a different user does not see it
 	check(checks, "other_user_isolated", val(p3, "Money") or -1, 0, val(p3, "Money") == 0 and val(p3, "Speed") == 0)
 
-	-- Owner 2026-10-21 (design doc Core stat model, "multiplied Speed"): leaderstats.Speed shows base Speed x
-	-- ShownSpeedMulti and follows AddSpeed and Equip; writing it never changes the stat; the save keeps the base.
+	-- Owner 2026-10-21: leaderstats.Speed mirrors the base Speed and stays independent of EquippedCar;
+	-- ShownSpeedMulti affects cruise speed only; writing leaderstats.Speed never changes the saved base.
 	local GachaForData = serverModule("GachaService")
 	local CatalogForData = sharedModule("CarCatalog")
 	local kartSpec = CatalogForData and CatalogForData.Get("go_kart")
@@ -4102,19 +4154,19 @@ function Scenarios.data()
 		task.wait()
 		check(
 			checks,
-			"shown_speed_after_equip",
+			"base_speed_after_equip",
 			sv and sv.Value or -1,
-			100 * kartM,
-			shownIs(100 * kartM) and near(val(pm, "Speed"), 100) and near(PlayerData.SpeedStat(pm), 100)
+			100,
+			shownIs(100) and near(val(pm, "Speed"), 100) and near(PlayerData.SpeedStat(pm), 100)
 		)
 		PlayerData.AddSpeed(pm, 50)
 		task.wait()
 		check(
 			checks,
-			"shown_speed_follows_base",
+			"base_speed_follows_gain",
 			sv and sv.Value or -1,
-			150 * kartM,
-			shownIs(150 * kartM) and near(val(pm, "Speed"), 150)
+			150,
+			shownIs(150) and near(val(pm, "Speed"), 150)
 		)
 		if sv then
 			sv.Value = 999999 -- a display write: never the stat
@@ -4129,7 +4181,7 @@ function Scenarios.data()
 		)
 		PlayerData.AddSpeed(pm, 10)
 		task.wait()
-		check(checks, "shown_speed_rewritten_on_change", sv and sv.Value or -1, 160 * kartM, shownIs(160 * kartM))
+		check(checks, "base_speed_rewritten_on_change", sv and sv.Value or -1, 160, shownIs(160))
 		PlayerData.Save(pm, 9050)
 		local mrec = shownStore.data["Player_9050"]
 		check(
@@ -6455,6 +6507,7 @@ end
 
 -- Index: discoveries -> stat points, allocation, equip, multipliers, and their effect on race gain and pad pay.
 function Scenarios.index()
+	local INDEX_STAT = 10000 -- start Speed of both index racers (linear segment: cruise 17 studs/s with multi 1)
 	local checks = {}
 	local CarCatalog, GachaConfig, GachaService = gachaModules()
 	local RaceService = serverModule("RaceService")
@@ -6821,6 +6874,7 @@ function Scenarios.index()
 			Money.Setup(player)
 			PlayerData.Setup(player)
 			GachaService.Setup(player)
+			player.BaseSpeed.Value = INDEX_STAT -- non-zero, so the car's stat multi shows in the cruise speed
 			if k == 2 then
 				GachaService.Grant(player, "go_kart")
 				GachaService.Equip(player, "go_kart")
@@ -6855,22 +6909,30 @@ function Scenarios.index()
 		runs = {}
 		local ratios = {}
 		for k, r in results do
-			ratios[k] = r.integral > 0 and r.speedValue.Value / r.integral or 0
+			ratios[k] = r.integral > 0 and (r.speedValue.Value - INDEX_STAT) / r.integral or 0
 		end
-		metrics.gain1 = round(results[1].speedValue.Value)
-		metrics.gain2 = round(results[2].speedValue.Value)
+		metrics.gain1 = round(results[1].speedValue.Value - INDEX_STAT)
+		metrics.gain2 = round(results[2].speedValue.Value - INDEX_STAT)
 		metrics.ratio1 = round(ratios[1])
 		metrics.ratio2 = round(ratios[2])
 		check(checks, "race_gain_baseline_unchanged", ratios[1], "1 +- 15%", ratios[1] >= 0.85 and ratios[1] <= 1.15)
 		local scale = ratios[1] > 0 and ratios[2] / ratios[1] or 0
 		check(checks, "race_gain_ignores_car_multi", scale, "1 +- 15%", scale >= 0.85 and scale <= 1.15)
+		-- Owner 2026-10-22 (design doc "Core stat model"): the car multi scales the Speed stat before the curve,
+		-- damped to 1 + log10(multi) and capped at 1.5x. The start stat moves by under 0.1 % while driving.
+		local kartSpec = CarCatalog.Get("go_kart")
+		local damped = math.clamp(1 + math.log10(kartSpec and kartSpec.SpeedMulti or 1), 0.1, 1.5)
+		local want1, want2 = RaceConfig.SpeedFor(INDEX_STAT), RaceConfig.SpeedFor(INDEX_STAT * damped)
 		check(
 			checks,
 			"race_cruise_scales_with_car",
 			results[2].target or -1,
-			(results[1].target or -1) * 2,
+			want2,
 			type(results[1].target) == "number"
-				and math.abs((results[2].target or 0) - results[1].target * 2) <= results[1].target * 0.15
+				and type(results[2].target) == "number"
+				and damped > 1
+				and math.abs(results[1].target - want1) <= 0.01 * want1
+				and math.abs(results[2].target - want2) <= 0.01 * want2
 		)
 	end)
 	for _, conn in connections do
@@ -6930,7 +6992,7 @@ end
 local NPC_ORIGIN = Vector3.new(40000, 0, 0)
 local MULTI_ORIGIN = Vector3.new(-40000, 0, 0)
 local NPC_LOSE_SCREEN = 1 -- s: LoseScreenSeconds used by the test runs
-local NPC_SLOW = 6 -- studs/s: an NPC every player beats (half of RaceConfig.BASE_SPEED 12; was 15 = half of 30)
+local NPC_SLOW = 5 -- studs/s: an NPC every player beats (half of RaceConfig.BASE_SPEED 10; was 6 = half of 12)
 local NPC_FAST = 60 -- studs/s: an NPC a stat-0 player (RaceConfig.BASE_SPEED) can not beat
 local NPC_RESET_RADIUS = 15 -- studs (horizontal) from Track 1's race start after a reset
 local NPC_FINISH_RADIUS = 25 -- studs (horizontal) from the track's finish pose when its Result arrives
@@ -7132,7 +7194,7 @@ local function endNpcRacer(r)
 			RaceTrack = run.RaceTrack,
 			Results = type(run.Results) == "table" and #run.Results or -1,
 			FlipRecoveries = run.FlipRecoveries,
-			-- banked winnings (SPAWN_AND_ROLLS_SPEC section 3), read before Destroy cashes the bank out
+			-- compatibility payout fields, read before Destroy (NPC wins are already paid at each finish)
 			Unbanked = run.Unbanked,
 			BankedTotal = run.BankedTotal,
 			UnbankedAttr = r.Player:GetAttribute("Unbanked"),
@@ -7835,30 +7897,28 @@ function Scenarios.npc()
 				r1 and starts[1] and r1.T - starts[1].T or -1,
 				timeMatches(r1, starts[1])
 			)
-			-- SPAWN_AND_ROLLS_SPEC section 3: a win banks the pad's cash (no payout at the finish); Destroy cashes out
-			local bankedEach = r1 ~= nil
+			-- NPC wins pay the current track immediately; there is no growing bank.
+			local paidEach = r1 ~= nil
 				and r2 ~= nil
-				and r1.Event.Banked == C1
-				and r2.Event.Banked == C2
-				and r1.Event.Unbanked == C1
-				and r2.Event.Unbanked == C1 + C2
-			check(checks, "npc_win_banked_each_track_once", bankedEach and 1 or 0, 1, bankedEach)
-			local notPaid = r1 ~= nil
+				and r1.Event.Paid == C1
+				and r2.Event.Paid == C2
+				and r1.Event.Unbanked == 0
+				and r2.Event.Unbanked == 0
+			check(checks, "npc_win_paid_each_track_once", paidEach and 1 or 0, 1, paidEach)
+			local paidAtFinish = r1 ~= nil
 				and r2 ~= nil
-				and r1.Money == 0
-				and r2.Money == 0
-				and a.snap.BalanceBeforeDestroy == 0
-				and a.snap.PaidTotal == 0
-				and a.snap.Payouts == 0
-			check(checks, "npc_win_not_paid_at_finish", num(a.snap.BalanceBeforeDestroy), 0, notPaid)
-			local bankOk = a.snap.Unbanked == C1 + C2
-				and a.snap.BankedTotal == C1 + C2
-				and a.snap.UnbankedAttr == C1 + C2
-			check(checks, "npc_win_bank_before_stop", num(a.snap.Unbanked), C1 + C2, bankOk)
+				and r1.Money == C1
+				and r2.Money == C1 + C2
+				and a.snap.BalanceBeforeDestroy == C1 + C2
+				and a.snap.PaidTotal == C1 + C2
+				and a.snap.Payouts == 2
+			check(checks, "npc_win_paid_at_finish", num(a.snap.BalanceBeforeDestroy), C1 + C2, paidAtFinish)
+			local noBank = a.snap.Unbanked == 0 and a.snap.BankedTotal == 0 and a.snap.UnbankedAttr == 0
+			check(checks, "npc_win_no_bank", num(a.snap.Unbanked), 0, noBank)
 			local pt = a.snap.PaidTotalAfter
 			local totalOk = pt == C1 + C2
 				and a.balance == C1 + C2
-				and a.snap.PayoutsAfter == 1
+				and a.snap.PayoutsAfter == 2
 				and a.snap.UnbankedAttrAfter == 0
 			check(checks, "npc_win_paid_total", type(pt) == "number" and pt or -1, C1 + C2, totalOk)
 			local noLoss = a.snap.Losses == 0 and a.snap.Resets == 0 and #npcAll(a, "Reset") == 0
@@ -7945,8 +8005,7 @@ function Scenarios.npc()
 			check(checks, "npc_lose_not_in_server_workspace", b.npcSeen and 1 or 0, 0, not b.npcSeen)
 		end
 
-		-- (c) WIN THEN LOSE: stat 0 player, slow NPC on Track 1, fast NPC on Track 2: Track 1's win is banked, and
-		-- the loss on Track 2 clears the bank (SPAWN_AND_ROLLS_SPEC section 3; replaces "Track 1's money is kept")
+		-- (c) WIN THEN LOSE: Track 1 is paid immediately; Track 2 loses and pays nothing.
 		local c = race(
 			"WinLose",
 			0,
@@ -7986,18 +8045,18 @@ function Scenarios.npc()
 				isFiniteNumber(nT) and nT or -1,
 				slower
 			)
-			local bankedWin = r1 ~= nil and r1.Event.Banked == C1 and r1.Event.Unbanked == C1 and r1.Money == 0
-			check(checks, "npc_win_lose_track1_banked", num(r1 and r1.Event.Unbanked), C1, bankedWin)
+			local paidWin = r1 ~= nil and r1.Event.Paid == C1 and r1.Event.Unbanked == 0 and r1.Money == C1
+			check(checks, "npc_win_lose_track1_paid", num(r1 and r1.Event.Paid), C1, paidWin)
 			local cleared = r2 ~= nil
-				and r2.Event.Banked == 0
+				and r2.Event.Paid == 0
 				and r2.Event.Unbanked == 0
 				and r2.RunUnbanked == 0
-				and r2.Money == 0
+				and r2.Money == C1
 				and c.snap.Unbanked == 0
 				and c.snap.UnbankedAttr == 0
-			check(checks, "npc_win_lose_loss_clears_bank", num(r2 and r2.Event.Unbanked), 0, cleared)
-			local nothing = c.balance == 0 and c.snap.PaidTotalAfter == 0 and c.snap.BankedTotal == C1
-			check(checks, "npc_win_lose_pays_nothing_on_stop", c.balance, 0, nothing)
+			check(checks, "npc_win_lose_loss_no_payout", num(r2 and r2.Event.Paid), 0, cleared)
+			local nothing = c.balance == C1 and c.snap.PaidTotalAfter == C1 and c.snap.BankedTotal == 0
+			check(checks, "npc_win_lose_keeps_prior_payout", c.balance, C1, nothing)
 			local counts = c.snap.Wins == 1 and c.snap.Losses == 1
 			check(checks, "npc_win_lose_counted", type(c.snap.Wins) == "number" and c.snap.Wins or -1, 1, counts)
 			checkNpcLoseReset(checks, "npc_win_lose", c, 2, wps)
@@ -8226,10 +8285,10 @@ function Scenarios.multiplayer()
 			NPC_RESET_RADIUS,
 			resetPose ~= nil and dB <= NPC_RESET_RADIUS
 		)
-		-- banked (SPAWN_AND_ROLLS_SPEC section 3): A's Track 1 win is in A's bank only, paid when A's run ends
+		-- Each player's current-track win is paid immediately; no bank is shared or cashed out on stop.
 		local money = A.balance == C1
-			and A.snap.BankedTotal == C1
-			and A.snap.PaidTotal == 0
+			and A.snap.BankedTotal == 0
+			and A.snap.PaidTotal == C1
 			and A.snap.PaidTotalAfter == C1
 			and B.balance == 0
 			and B.snap.BankedTotal == 0
@@ -9149,13 +9208,9 @@ function Scenarios.spawn_area()
 	return result("spawn_area", checks, metrics)
 end
 
--- Banked winnings (contract: docs/SPAWN_AND_ROLLS_SPEC.md, section 3).
--- BRIEF (owner, 2026-10-01): "Stopping pays the winnings of the checkpoints cleared in this run (banked)." Owner's
--- answer: stop payout = "bank, pay on stop".
--- NPC mode: a win adds MoneyService.Quote(player, pad) to run.Unbanked (mirrored in the player attribute
--- Unbanked) and pays NOTHING at the finish; run:CashOut() pays the bank once and zeroes it; run:Destroy() cashes
--- out. Losses clearing the bank are checked in `npc` (lose and win-then-lose runs); non-NPC runs paying pads
--- directly in `race`.
+-- Current/last-track payout (contract: docs/SPAWN_AND_ROLLS_SPEC.md, section 3).
+-- NPC mode awards MoneyService.Quote(player, pad) immediately on a win. There is no bank; CashOut is a deprecated
+-- no-op and Destroy never adds a second payout. Non-NPC runs still pay pads directly in `race`.
 local BANK_ORIGIN = Vector3.new(0, 0, 40000)
 local BANK_ATTR_WAIT = 0.2 -- s after a Result before the mirrored attribute is read
 
@@ -9275,34 +9330,34 @@ function Scenarios.bank()
 			return
 		end
 		local e1 = res1.Event
-		check(checks, "bank_result_banked_field", num(e1.Banked), C1, e1.Banked == C1)
-		check(checks, "bank_result_unbanked_field", num(e1.Unbanked), C1, e1.Unbanked == C1)
-		check(checks, "bank_result_has_no_paid_field", e1.Paid == nil and 0 or 1, 0, e1.Paid == nil)
-		check(checks, "bank_win_not_paid_at_finish", res1.Money, 0, res1.Money == 0)
+		check(checks, "bank_result_paid_field", num(e1.Paid), C1, e1.Paid == C1)
+		check(checks, "bank_result_banked_field_zero", num(e1.Banked), 0, e1.Banked == 0)
+		check(checks, "bank_result_unbanked_field_zero", num(e1.Unbanked), 0, e1.Unbanked == 0)
+		check(checks, "bank_win_paid_at_finish", res1.Money, C1, res1.Money == C1)
 		frames(BANK_ATTR_WAIT)
-		check(checks, "bank_run_unbanked_after_win", num(run.Unbanked), C1, run.Unbanked == C1)
-		check(checks, "bank_attribute_after_win", num(attr()), C1, attr() == C1)
-		check(checks, "bank_money_unchanged_after_win", money.Value, 0, money.Value == 0)
-		check(checks, "bank_banked_total_after_win", num(run.BankedTotal), C1, run.BankedTotal == C1)
-		local unpaid = run.Payouts == 0 and run.PaidTotal == 0
-		check(checks, "bank_no_payout_before_cash_out", num(run.Payouts), 0, unpaid)
+		check(checks, "bank_run_unbanked_after_win", num(run.Unbanked), 0, run.Unbanked == 0)
+		check(checks, "bank_attribute_after_win", num(attr()), 0, attr() == 0)
+		check(checks, "bank_money_paid_after_win", money.Value, C1, money.Value == C1)
+		check(checks, "bank_banked_total_after_win", num(run.BankedTotal), 0, run.BankedTotal == 0)
+		local paid = run.Payouts == 1 and run.PaidTotal == C1
+		check(checks, "bank_payout_at_finish", num(run.Payouts), 1, paid)
 
-		-- CashOut pays exactly the bank, once, and zeroes it
+		-- CashOut is retained for compatibility but cannot pay a second time.
 		if hasCashOut then
 			local okC, amount = pcall(run.CashOut, run)
-			check(checks, "cash_out_returns_bank", okC and num(amount) or -1, C1, okC and amount == C1)
-			check(checks, "cash_out_pays_money", money.Value, C1, money.Value == C1)
+			check(checks, "cash_out_returns_zero", okC and num(amount) or -1, 0, okC and amount == 0)
+			check(checks, "cash_out_does_not_pay_again", money.Value, C1, money.Value == C1)
 			check(checks, "cash_out_zeroes_bank", num(run.Unbanked), 0, run.Unbanked == 0)
 			RunService.Heartbeat:Wait()
 			check(checks, "cash_out_zeroes_attribute", num(attr()), 0, attr() == 0)
-			local counted = run.Payouts == 1 and run.PaidTotal == C1 and run.BankedTotal == C1
+			local counted = run.Payouts == 1 and run.PaidTotal == C1 and run.BankedTotal == 0
 			check(checks, "cash_out_counted", num(run.PaidTotal), C1, counted)
 			local okC2, again = pcall(run.CashOut, run)
 			local once = okC2 and again == 0 and money.Value == C1 and run.Payouts == 1 and run.PaidTotal == C1
 			check(checks, "cash_out_twice_pays_once", money.Value, C1, once)
 		end
 
-		-- Win Track 2: the bank fills again from 0, money untouched at the finish
+		-- Win Track 2: the current-track reward is paid immediately.
 		local money2 = money.Value
 		driveUntil(n2, cap)
 		local res2 = npcFind(r, "Result", n2)
@@ -9312,12 +9367,13 @@ function Scenarios.bank()
 			return
 		end
 		local e2 = res2.Event
-		check(checks, "bank_track2_banked", num(e2.Banked), C2, e2.Banked == C2)
-		check(checks, "bank_track2_unbanked_after_cash_out", num(e2.Unbanked), C2, e2.Unbanked == C2)
-		check(checks, "bank_track2_not_paid_at_finish", res2.Money, money2, res2.Money == money2)
+		check(checks, "bank_track2_paid", num(e2.Paid), C2, e2.Paid == C2)
+		check(checks, "bank_track2_banked_zero", num(e2.Banked), 0, e2.Banked == 0)
+		check(checks, "bank_track2_unbanked_zero", num(e2.Unbanked), 0, e2.Unbanked == 0)
+		check(checks, "bank_track2_paid_at_finish", res2.Money, money2 + C2, res2.Money == money2 + C2)
 		frames(BANK_ATTR_WAIT)
-		check(checks, "bank_attribute_after_track2", num(attr()), C2, attr() == C2)
-		check(checks, "bank_banked_total_sums_wins", num(run.BankedTotal), C1 + C2, run.BankedTotal == C1 + C2)
+		check(checks, "bank_attribute_after_track2", num(attr()), 0, attr() == 0)
+		check(checks, "bank_banked_total_zero", num(run.BankedTotal), 0, run.BankedTotal == 0)
 
 		-- Destroy cashes out (Stop, death and leaving all go through it), and only once
 		local before = money.Value
@@ -9326,11 +9382,11 @@ function Scenarios.bank()
 			run:Destroy()
 		end)
 		check(checks, "destroy_no_error", okD and 1 or 0, 1, okD)
-		check(checks, "destroy_cashes_out", money.Value - before, C2, money.Value - before == C2)
+		check(checks, "destroy_does_not_cash_out", money.Value - before, 0, money.Value - before == 0)
 		check(checks, "destroy_zeroes_bank", num(run.Unbanked), 0, run.Unbanked == 0)
 		check(checks, "destroy_zeroes_attribute", num(attr()), 0, attr() == 0)
-		local counted = run.Payouts == payoutsBefore + 1
-		check(checks, "destroy_payout_counted", num(run.Payouts), payoutsBefore + 1, counted)
+		local counted = run.Payouts == payoutsBefore
+		check(checks, "destroy_payout_not_counted", num(run.Payouts), payoutsBefore, counted)
 		local afterOnce = money.Value
 		pcall(function()
 			run:Destroy()
@@ -11033,23 +11089,23 @@ UPG.BRANCH_NAMES = {
 	luck = "Luck",
 	rollspeed = "Roll Speed",
 	turbo = "Turbo",
-	speed = "Speed",
+	speed = "Speed Gain",
 	walkspeed = "Walkspeed",
 }
 UPG.BRANCH_WEIGHTS = { money = 1, luck = 1.2, rollspeed = 1.5, turbo = 2, speed = 1, walkspeed = 0.5 }
 UPG.BONUS = {
-	money = { 0.10, 0.10, 0.15, 0.15, 0.20 },
-	luck = { 0.10, 0.15, 0.20, 0.25, 0.30 },
-	rollspeed = { 0.10, 0.10, 0.10, 0.10, 0.10 },
-	speed = { 0.10, 0.10, 0.15, 0.15, 0.20 },
+	money = { 0.50, 0.50, 0.50, 0.50, 0.50 },
+	luck = { 0.50, 0.50, 0.50, 0.50, 0.50 },
+	rollspeed = { 0.15, 0.15, 0.15, 0.15, 0.15 },
+	speed = { 0.50, 0.50, 0.50, 0.50, 0.50 },
 }
 UPG.PRICES = {
-	money = { 150, 330, 730, 1600, 3500 },
-	luck = { 180, 400, 870, 1900, 4200 },
-	rollspeed = { 230, 500, 1100, 2400, 5300 },
-	speed = { 150, 330, 730, 1600, 3500 },
-	walkspeed = { 75, 170, 360, 800, 1800 },
-	turbo = { 660, 3200, 15000, 34000 },
+	money = { 150, 7500, 380000, 19000000, 940000000 },
+	luck = { 180, 9000, 450000, 23000000, 1100000000 },
+	rollspeed = { 230, 11000, 560000, 28000000, 1400000000 },
+	speed = { 150, 7500, 380000, 19000000, 940000000 },
+	walkspeed = { 75, 3800, 190000, 9400000, 470000000 },
+	turbo = { 15000, 38000000, 94000000000, 4700000000000 },
 }
 -- Owner, 2026-10-12 (docs/UPGRADE_TREE_SPEC.md section 4; replaces x10/15, x50/25, x100/40, x1000/100)
 UPG.TURBO = {
@@ -11058,8 +11114,8 @@ UPG.TURBO = {
 	{ Multi = 500, Every = 500 },
 	{ Multi = 1000, Every = 1000 },
 }
-UPG.WALKSPEED = { 18, 20, 23, 26, 30 }
-UPG.ROLL_INTERVALS = { 2.727, 2.5, 2.308, 2.143, 2.0 }
+UPG.WALKSPEED = { 20, 25, 31, 39, 49 }
+UPG.ROLL_INTERVALS = { 2.609, 2.268, 2.0, 2.0, 2.0 }
 UPG.ROMAN = { "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X" }
 
 function UPG.hexDistance(q1, r1, q2, r2)
@@ -11316,16 +11372,16 @@ function UPG.upgradesServerChecks(checks, metrics, UpgradeTree)
 		flag("upgrades_owned_start_always", okO and type(owned0) == "table" and owned0.start == true and n0 == 1)
 
 		-- Buy: the price is taken from leaderstats.Money exactly once, the tile is granted
-		local pb = fake("Buy", 1000)
+		local pb = fake("Buy", 10000) -- spec section 2 (owner 2026-10-21): money_1 $150, money_2 $7.5k
 		local okB, r1 = svc("Buy", pb, "money_1")
 		flag("upgrades_buy_ok", okB and r1 == true)
-		check(checks, "upgrades_buy_takes_price_once", moneyOf(pb) or -1, 850, moneyOf(pb) == 850)
+		check(checks, "upgrades_buy_takes_price_once", moneyOf(pb) or -1, 9850, moneyOf(pb) == 9850)
 		flag("upgrades_buy_grants_tile", ownedSet(pb).money_1 == true and joined(folderIds(pb)) == "money_1")
 		pause()
 		local _, r2, why2 = svc("Buy", pb, "money_1")
 		flag(
 			"upgrades_buy_again_owned_no_charge",
-			r2 == false and why2 == "owned" and moneyOf(pb) == 850 and joined(folderIds(pb)) == "money_1"
+			r2 == false and why2 == "owned" and moneyOf(pb) == 9850 and joined(folderIds(pb)) == "money_1"
 		)
 		pause()
 		local _, r3 = svc("Buy", pb, "money_2")
@@ -11333,8 +11389,8 @@ function UPG.upgradesServerChecks(checks, metrics, UpgradeTree)
 			checks,
 			"upgrades_buy_next_tier",
 			moneyOf(pb) or -1,
-			520,
-			r3 == true and moneyOf(pb) == 520 and joined(folderIds(pb)) == "money_1,money_2"
+			2350,
+			r3 == true and moneyOf(pb) == 2350 and joined(folderIds(pb)) == "money_1,money_2"
 		)
 		local pExact = fake("BuyExact", 150)
 		local _, rE = svc("Buy", pExact, "money_1")
@@ -11386,8 +11442,8 @@ function UPG.upgradesServerChecks(checks, metrics, UpgradeTree)
 			checks,
 			"upgrades_buy_rejects_gated_until_best_track",
 			moneyOf(pg) or -1,
-			UPG.RICH - 730,
-			gatedOk and rG == true and moneyOf(pg) == UPG.RICH - 730 and ownedSet(pg).money_3 == true
+			UPG.RICH - UPG.PRICES.money[3],
+			gatedOk and rG == true and moneyOf(pg) == UPG.RICH - UPG.PRICES.money[3] and ownedSet(pg).money_3 == true
 		)
 		-- non-string ids: refused, no error, nothing changes
 		local pn = fake("RejectNonString", UPG.RICH)
@@ -11480,12 +11536,12 @@ function UPG.upgradesServerChecks(checks, metrics, UpgradeTree)
 		local _, ws4 = svc("WalkSpeed", players[5])
 		local specOk = near(ri5, 2.0, 0.01)
 			and type(b3s) == "table"
-			and near(b3s.Luck, 0.25)
-			and near(b3s.Money, 0.10)
+			and near(b3s.Luck, 1.00) -- spec table: +50 % per tier
+			and near(b3s.Money, 0.50)
 			and type(tu3) == "table"
 			and tu3.Multi == 500
 			and tu3.Every == 500
-			and ws4 == 26
+			and ws4 == 39
 		flag("upgrades_effects_spec_values", specOk)
 		local bare = Instance.new("Folder")
 		bare.Name = "CarTestUpgBare"
@@ -11537,7 +11593,8 @@ function UPG.upgradesServerChecks(checks, metrics, UpgradeTree)
 			and near(m0.Workshop, 1)
 		flag("upgrades_multis_one_arg_unchanged", oneOk)
 
-		-- Effects reach GachaService as ADDED percentages with stat points (spec example: 2 Luck points + Luck I-II = 1.35)
+		-- Effects reach GachaService as ADDED percentages with stat points (spec table, +50 % per tier: 2 Luck points
+		-- (+10 %) + Luck I-II (+100 %) = 2.10; the spec's "x1.35" example predates the 2026-10-21 table)
 		local function withCars(name)
 			local p = fake(name)
 			for _, id in UPG.SIX_CARS do
@@ -11553,24 +11610,24 @@ function UPG.upgradesServerChecks(checks, metrics, UpgradeTree)
 		local _, luckAfter = try("Luck", GachaService.Luck, pLuck)
 		check(
 			checks,
-			"upgrades_gacha_luck_added_1_35",
+			"upgrades_gacha_luck_added_2_10",
 			tonumber(luckAfter) or -1,
-			1.35,
-			near(luckBefore, 1.10) and near(luckAfter, 1.35)
+			2.10,
+			near(luckBefore, 1.10) and near(luckAfter, 2.10)
 		)
 		local pMoney = withCars("GachaMoney")
 		pcall(GachaService.Allocate, pMoney, "Money")
 		pcall(GachaService.Allocate, pMoney, "Money")
 		apply(pMoney, { Upgrades = { "money_1", "money_2" } })
 		local _, mm = try("MoneyMulti", GachaService.MoneyMulti, pMoney)
-		check(checks, "upgrades_gacha_money_multi_added", tonumber(mm) or -1, 1.4, near(mm, 1.4))
+		check(checks, "upgrades_gacha_money_multi_added", tonumber(mm) or -1, 2.2, near(mm, 2.2)) -- 1 + 0.2 + 1.0
 		local pSpeed = withCars("GachaSpeed")
 		pcall(GachaService.Equip, pSpeed, "go_kart") -- SpeedMulti 2 (catalog)
 		pcall(GachaService.Allocate, pSpeed, "Speed")
 		apply(pSpeed, { Upgrades = { "speed_1" } })
 		local _, sm = try("SpeedMulti", GachaService.SpeedMulti, pSpeed)
 		-- Car model is excluded: Speed gain = stat points + tree + rebirth only.
-		check(checks, "upgrades_gacha_speed_multi_excludes_car", tonumber(sm) or -1, 1.2, near(sm, 1.2))
+		check(checks, "upgrades_gacha_speed_multi_excludes_car", tonumber(sm) or -1, 1.6, near(sm, 1.6)) -- 1 + 0.1 + 0.5
 
 		-- Turbo through GachaService.Roll: TurboCount counts rolls since the last turbo roll; turbo when
 		-- TurboCount + 1 >= Every, then TurboCount = 0; the turbo multi is the tier's Multi
@@ -11665,7 +11722,7 @@ function UPG.upgradesServerChecks(checks, metrics, UpgradeTree)
 			"upgrades_wait_after_uses_roll_interval",
 			tonumber(w5) or -1,
 			2 + extra,
-			near(w5, 2 + extra, 0.01) and near(w2, 2.5 + extra, 0.01) and near(w0, 3 + extra, 0.01)
+			near(w5, 2 + extra, 0.01) and near(w2, UPG.ROLL_INTERVALS[2] + extra, 0.01) and near(w0, 3 + extra, 0.01)
 		)
 
 		-- UpgradesBuyable (the badge) = UpgradeTree.BuyableCount of the player's state, kept current when Money,
@@ -11844,10 +11901,10 @@ function UPG.upgradesServerChecks(checks, metrics, UpgradeTree)
 			try("OnCharacter", CarService.OnCharacter, pWalk, model)
 			task.wait(0.5)
 			local onSpawn = humanoid.WalkSpeed
-			check(checks, "upgrades_walkspeed_on_spawn", onSpawn, 23, onSpawn == 23)
+			check(checks, "upgrades_walkspeed_on_spawn", onSpawn, 31, onSpawn == 31) -- spec: 20, 25, 31, 39, 49
 			svc("Buy", pWalk, "walkspeed_4")
 			task.wait(0.3)
-			check(checks, "upgrades_walkspeed_after_buy", humanoid.WalkSpeed, 26, humanoid.WalkSpeed == 26)
+			check(checks, "upgrades_walkspeed_after_buy", humanoid.WalkSpeed, 39, humanoid.WalkSpeed == 39)
 		else
 			flag("upgrades_walkspeed_on_spawn", false)
 		end
@@ -11941,7 +11998,7 @@ function Scenarios.upgrades()
 	-- Config guard: the data still holds the owner's numbers (spec sections 1, 2, 4; design "Prices").
 	local cfgOk = UpgradeConfig.START_ID == "start"
 		and UpgradeConfig.BASE_PRICE == 150
-		and UpgradeConfig.PRICE_GROWTH == 2.2
+		and UpgradeConfig.PRICE_GROWTH == 50
 		and UpgradeConfig.GATE_FROM_TIER == 3
 		and UpgradeConfig.BASE_ROLL_INTERVAL == 3
 		and UpgradeConfig.MIN_ROLL_INTERVAL == 2
@@ -12220,8 +12277,8 @@ function Scenarios.upgrades()
 		and isReason(state({}, 149, 0, 2), "money_1", "money")
 		and isOk(state({}, 75, 0, 2), "walkspeed_1")
 		and isReason(state({}, 74, 0, 2), "walkspeed_1", "money")
-		and isOk(state({ "luck_1" }, 400, 0, 2), "luck_2")
-		and isReason(state({ "luck_1" }, 399, 0, 2), "luck_2", "money")
+		and isOk(state({ "luck_1" }, UPG.PRICES.luck[2], 0, 2), "luck_2")
+		and isReason(state({ "luck_1" }, UPG.PRICES.luck[2] - 1, 0, 2), "luck_2", "money")
 		and isReason(state({}, 0, 0, 2), "rollspeed_1", "money")
 	flag("upgrades_canbuy_money_boundary", boundaryOk)
 	-- Order of checks: unknown > owned > locked > gated > money.
@@ -12234,8 +12291,8 @@ function Scenarios.upgrades()
 	local turboLockOk = isReason(state({}, RICH, 10, 10), "turbo_1", "locked")
 		and isReason(state({ "money_1", "luck_1", "speed_1" }, RICH, 10, 10), "turbo_1", "locked")
 		and isOk(state({ "rollspeed_1" }, RICH, 0, 2), "turbo_1")
-		and isOk(state({ "rollspeed_1" }, 660, 0, 2), "turbo_1")
-		and isReason(state({ "rollspeed_1" }, 659, 0, 2), "turbo_1", "money")
+		and isOk(state({ "rollspeed_1" }, 15000, 0, 2), "turbo_1")
+		and isReason(state({ "rollspeed_1" }, 14999, 0, 2), "turbo_1", "money")
 		and isReason(state({ "rollspeed_1" }, RICH, 0, 2), "turbo_2", "locked")
 	flag("upgrades_canbuy_turbo_needs_rollspeed_1", turboLockOk)
 
@@ -12270,19 +12327,19 @@ function Scenarios.upgrades()
 		return true
 	end
 	flag("upgrades_bonuses_empty_zero", bonusIs(bonuses({}), {}) and bonusIs(bonuses({ "start" }), {}))
-	flag("upgrades_bonuses_luck_1_2_is_0_25", bonusIs(bonuses({ "luck_1", "luck_2" }), { Luck = 0.25 }))
-	local fullOk = bonusIs(bonuses(UPG.tierIds("money", 5)), { Money = 0.70 })
-		and bonusIs(bonuses(UPG.tierIds("luck", 5)), { Luck = 1.00 })
-		and bonusIs(bonuses(UPG.tierIds("speed", 5)), { Speed = 0.70 })
-		and bonusIs(bonuses(UPG.tierIds("rollspeed", 5)), { RollSpeed = 0.50 })
+	flag("upgrades_bonuses_luck_1_2_is_1_00", bonusIs(bonuses({ "luck_1", "luck_2" }), { Luck = 1.00 }))
+	local fullOk = bonusIs(bonuses(UPG.tierIds("money", 5)), { Money = 2.50 })
+		and bonusIs(bonuses(UPG.tierIds("luck", 5)), { Luck = 2.50 })
+		and bonusIs(bonuses(UPG.tierIds("speed", 5)), { Speed = 2.50 })
+		and bonusIs(bonuses(UPG.tierIds("rollspeed", 5)), { RollSpeed = 0.75 })
 	flag("upgrades_bonuses_added_full_branches", fullOk)
-	local sumOk = bonusIs(bonuses({ "luck_3" }), { Luck = 0.20 })
-		and bonusIs(bonuses({ "money_2", "money_5", "speed_4" }), { Money = 0.30, Speed = 0.15 })
+	local sumOk = bonusIs(bonuses({ "luck_3" }), { Luck = 0.50 })
+		and bonusIs(bonuses({ "money_2", "money_5", "speed_4" }), { Money = 1.00, Speed = 0.50 })
 	flag("upgrades_bonuses_pure_sum_of_owned", sumOk)
 	local otherOk = bonusIs(bonuses({ "walkspeed_1", "walkspeed_2", "turbo_1", "nope" }), {})
 	flag("upgrades_bonuses_ignore_walkspeed_turbo_unknown", otherOk)
 
-	-- RollInterval: 3 / (1 + bonus), never below 2.
+	-- RollInterval: 3 / product(1 + each owned tier's bonus) (compounding, owner 2026-10-22), never below 2.
 	local function interval(ids)
 		local okc, v = call("RollInterval", UPG.idSet(ids))
 		return okc and v or nil
@@ -12293,7 +12350,7 @@ function Scenarios.upgrades()
 	for k = 1, 5 do
 		riOk = near(interval(UPG.tierIds("rollspeed", k)), UPG.ROLL_INTERVALS[k], 0.01) and riOk
 	end
-	riOk = near(interval({ "rollspeed_3" }), 2.727, 0.01) and riOk
+	riOk = near(interval({ "rollspeed_3" }), 2.609, 0.01) and riOk
 	flag("upgrades_roll_interval_tiers", riOk)
 	local floorOk = true
 	local minSeen = math.huge
@@ -12345,7 +12402,7 @@ function Scenarios.upgrades()
 	flag("upgrades_walkspeed_tiers", walkTiersOk)
 	flag(
 		"upgrades_walkspeed_highest_owned_wins",
-		walkIs({ "walkspeed_5" }, 30) and walkIs({ "walkspeed_2", "walkspeed_4" }, 26) and walkIs({ "money_5" }, 16)
+		walkIs({ "walkspeed_5" }, 49) and walkIs({ "walkspeed_2", "walkspeed_4" }, 39) and walkIs({ "money_5" }, 16)
 	)
 
 	-- Purity: nothing mutates the owned set, the state or the config.
@@ -12754,7 +12811,7 @@ function Scenarios.workshop()
 			"workshop_rate_formula",
 			okBase and vBase or -1,
 			WSHOP.BASE_RATE,
-			rateOk and okBase and vBase == 1 and okHalf and vHalf == 1
+			rateOk and okBase and near(vBase, WSHOP.BASE_RATE, 1e-12) and okHalf and near(vHalf, WSHOP.BASE_RATE, 1e-12)
 		)
 		local statFree = true
 		local wantFree = WSHOP.BASE_RATE * 2.4 * levelMultiWant(MAXL) * 1.2
@@ -13183,7 +13240,7 @@ function Scenarios.workshop()
 			and pcall(UpgradeService.Apply, p2, { Upgrades = { "speed_1" } })
 		setSpeed(p2, WSHOP.STAT)
 		-- SpeedMulti = stat points + tree Speed; the equipped car only changes cruise speed.
-		local wantSpeedMulti = 1 + GACHA_PER_POINT.Speed + 0.10
+		local wantSpeedMulti = 1 + GACHA_PER_POINT.Speed + 0.50 -- Speed Gain I: +50 % (UPGRADE_TREE_SPEC section 1)
 		local wantWorkshopMulti = 1 + GACHA_PER_POINT.Workshop
 		local wantRate = WSHOP.BASE_RATE * wantSpeedMulti * levelMultiWant(1) * wantWorkshopMulti
 		metrics.want_rate = wantRate
@@ -13437,6 +13494,8 @@ Scenarios.car_redesign = require(script.Parent.RedesignTests).car_redesign -- do
 Scenarios.gifting = require(script.Parent.GiftTests).gifting
 Scenarios.gift_mailbox = require(script.Parent.GiftTests).gift_mailbox
 Scenarios.race_progress_map = require(script.Parent.RaceProgressTests).race_progress_map
+-- docs/WORKSHOP_SPEC.md "5b. Showcase": copies instead of scrap Money, showcase multi, VERSION 12 save, pedestals
+Scenarios.showcase = require(script.Parent.ShowcaseTests).showcase
 -- docs/PANEL_ART_GIFTING_SPEC.md: cosmetic effects on the chassis, no mass/controls change, equip preserved
 Scenarios.vehicle_effects = require(script.Parent.VehicleEffectTests).make({
 	newFakeCharacter = newFakeCharacter,

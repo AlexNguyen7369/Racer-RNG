@@ -22,7 +22,8 @@ last track goes back to the checkpoint.
    that track's start (`START_AHEAD` in, in the lane) and that track's NPC race starts. Earlier pads count as paid.
 4. **Loss and loop.** A loss resets the car to the start of the run's start track (Reset event `Track` = that
    track) and its race starts again. After winning the last track the car goes back to the start track too.
-5. **Saved.** `Checkpoint` is saved (PlayerData, still VERSION 9: an additive field, `docs/SAVE_SPEC.md` 2b). Missing = 1. A rebirth keeps it.
+5. **Saved.** `Checkpoint` is saved in the current PlayerData VERSION 11 schema (additive field; older saves default
+   to 1). A rebirth keeps it.
    A saved value above `Max` is still saved but Rule 3 clamps it.
 6. Duels and admin `/tp` are unchanged (duels pick their own track; `/tp` jumps inside the current run).
 

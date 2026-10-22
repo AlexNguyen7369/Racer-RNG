@@ -58,7 +58,7 @@ Live UI and multiplayer flow validation remain pending. This file remains the im
   payload is ignored. Rate limit: one message per 0.25 s per player.
 - `Client/DuelUi.client.luau`: ScreenGui `DuelUi` with the track-pick modal, the invite modal, the countdown and
   the result toast. It joins `Client/PanelSwitch` (opening it closes the Index / Stats / Settings / Rebirth panels).
-- Save (`PlayerData` VERSION 8): `DuelWins` (integer >= 0).
+- Save (`PlayerData` VERSION 11 schema; field introduced in VERSION 8): `DuelWins` (integer >= 0).
 
 ## 4. Tests
 

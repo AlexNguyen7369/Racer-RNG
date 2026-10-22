@@ -6,11 +6,7 @@ local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local player = Players.LocalPlayer
--- Speed amounts show in shown units: base x equipped multis (design doc Core stat model, owner 2026-10-21).
-local function shownMulti()
-	local multi = player:GetAttribute("ShownSpeedMulti")
-	return type(multi) == "number" and multi > 0 and multi < math.huge and multi or 1
-end
+-- Speed amounts and gain rates show the saved base Speed. Equipped cars affect cruise movement only.
 local gui = player:WaitForChild("PlayerGui")
 local shared = ReplicatedStorage:WaitForChild("Shared")
 local Tree = require(shared.UpgradeTree)
@@ -19,6 +15,8 @@ local Workshop = require(shared.Workshop)
 local Format = require(shared.HudFormat)
 local Weather = require(shared.WeatherConfig)
 local Boosts = require(shared.BoostConfig)
+local CarCatalog = require(shared.CarCatalog)
+local GachaConfig = require(shared.GachaConfig)
 local Switch = require(script.Parent.PanelSwitch)
 local Band = require(script.Parent.PanelBand)
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
@@ -300,19 +298,197 @@ if workshopTitle then
 	workshopTitle.Font = Enum.Font.Gotham
 	workshopTitle.TextSize = 14
 end
-local levelLabel = text("Level", workshopPanel, UDim2.new(0, 12, 0.22, 0), UDim2.new(1, -24, 0, 36), "")
-local priceLabel = text("Price", workshopPanel, UDim2.new(0, 12, 0.42, 0), UDim2.new(1, -24, 0, 36), "")
-local workshopRate = text("Rate", workshopPanel, UDim2.new(0, 12, 0.58, 0), UDim2.new(1, -24, 0, 26), "")
-local workshopResult = text("Result", workshopPanel, UDim2.new(0, 12, 0.72, 0), UDim2.new(1, -24, 0, 24), "")
+local levelLabel = text("Level", workshopPanel, UDim2.new(0, 12, 0.22, 0), UDim2.new(0.42, -24, 0, 36), "")
+local priceLabel = text("Price", workshopPanel, UDim2.new(0, 12, 0.42, 0), UDim2.new(0.42, -24, 0, 36), "")
+local workshopRate = text("Rate", workshopPanel, UDim2.new(0, 12, 0.58, 0), UDim2.new(0.42, -24, 0, 26), "")
+local workshopResult = text("Result", workshopPanel, UDim2.new(0, 12, 0.72, 0), UDim2.new(0.42, -24, 0, 24), "")
 for _, label in { levelLabel, priceLabel, workshopRate, workshopResult } do
 	label.Font = Enum.Font.Gotham
 	label.TextSize = 13
 	label.TextColor3 = Color3.fromRGB(218, 224, 235)
 end
 local buyWorkshop =
-	button("Buy", workshopPanel, UDim2.new(0.5, -90, 1, -48), UDim2.fromOffset(180, 36), "BUY NEXT LEVEL")
+	button("Buy", workshopPanel, UDim2.new(0, 12, 1, -48), UDim2.new(0.42, -24, 0, 36), "BUY NEXT LEVEL")
 buyWorkshop.Font = Enum.Font.Gotham
 buyWorkshop.TextSize = 12
+-- Showcase (docs/WORKSHOP_SPEC.md "Showcase"): the right part of the Workshop panel. The server validates every pick.
+local showcaseFrame = make("Frame", "Showcase", workshopPanel, {
+	Position = UDim2.new(0.44, 0, 0, 44),
+	Size = UDim2.new(0.56, -12, 1, -52),
+	BackgroundTransparency = 1,
+})
+local showcaseMulti = text("Multi", showcaseFrame, UDim2.new(), UDim2.new(1, -88, 0, 20), "")
+showcaseMulti.TextSize = 13
+showcaseMulti.TextXAlignment = Enum.TextXAlignment.Left
+local best3 = button("Best3", showcaseFrame, UDim2.new(1, -84, 0, 0), UDim2.fromOffset(84, 20), "BEST 3")
+best3.TextSize = 12
+local slots = {}
+for i = 1, GachaConfig.SHOWCASE_SLOTS do
+	local slot = make("Frame", "Slot" .. i, showcaseFrame, {
+		Position = UDim2.new((i - 1) / GachaConfig.SHOWCASE_SLOTS, 2, 0, 22),
+		Size = UDim2.new(1 / GachaConfig.SHOWCASE_SLOTS, -4, 0, 30),
+		BackgroundColor3 = Color3.fromRGB(42, 46, 74),
+	})
+	make("UICorner", "Corner", slot, { CornerRadius = UDim.new(0, 6) })
+	local name = text("Name", slot, UDim2.fromOffset(4, 0), UDim2.new(1, -30, 0.55, 0), "EMPTY")
+	local info = text("Info", slot, UDim2.new(0, 4, 0.55, 0), UDim2.new(1, -30, 0.45, 0), "")
+	info.TextSize = 10
+	info.TextColor3 = Color3.fromRGB(160, 174, 195)
+	name.TextSize = 11
+	local clear = button("Clear", slot, UDim2.new(1, -24, 0.5, -11), UDim2.fromOffset(22, 22), "×")
+	clear.BackgroundColor3 = RED
+	slots[i] = { Name = name, Info = info, Clear = clear }
+end
+local showcaseList = make("ScrollingFrame", "List", showcaseFrame, {
+	Position = UDim2.fromOffset(0, 56),
+	Size = UDim2.new(1, 0, 1, -56),
+	BackgroundTransparency = 1,
+	ScrollBarThickness = 4,
+	AutomaticCanvasSize = Enum.AutomaticSize.Y,
+	CanvasSize = UDim2.new(),
+})
+make("UIListLayout", "Layout", showcaseList, { Padding = UDim.new(0, 2), SortOrder = Enum.SortOrder.LayoutOrder })
+
+local function shownIds()
+	local ids = {}
+	for id in string.gmatch(player:GetAttribute("Showcase") or "", "[^,]+") do
+		table.insert(ids, id)
+	end
+	return ids
+end
+-- Owned rollable cars, highest slot bonus first: { Spec, Copies, Bonus }.
+local function showcaseCandidates()
+	local list = {}
+	local data = player:FindFirstChild("GachaData")
+	for _, entry in data and data:GetChildren() or {} do
+		local spec = CarCatalog.Get(entry.Name)
+		if spec and spec.Rollable and not spec.GamepassId then
+			local copies = entry:GetAttribute("Copies") or 0
+			table.insert(list, { Spec = spec, Copies = copies, Bonus = GachaConfig.SlotBonus(spec, copies) })
+		end
+	end
+	table.sort(list, function(a, b)
+		if a.Bonus ~= b.Bonus then
+			return a.Bonus > b.Bonus
+		end
+		return a.Spec.Id < b.Spec.Id
+	end)
+	return list
+end
+local showcaseBusy = false
+local function sendShowcase(ids)
+	if showcaseBusy then
+		return
+	end
+	showcaseBusy = true
+	local ok, applied, reason = pcall(function()
+		return remotes:WaitForChild("SetShowcase"):InvokeServer(ids)
+	end)
+	workshopResult.Text = ok and tostring(reason or (applied and "Showcase updated" or "Try again"))
+		or "Connection error; try again"
+	showcaseBusy = false
+end
+local function refreshShowcase()
+	local ids = shownIds()
+	local candidates = showcaseCandidates()
+	local copiesOf = {}
+	for _, c in candidates do
+		copiesOf[c.Spec.Id] = c.Copies
+	end
+	showcaseMulti.Text = string.format("SHOWCASE  x%.2f Speed gain", player:GetAttribute("ShowcaseMulti") or 1)
+	for i, slot in slots do
+		local spec = ids[i] and CarCatalog.Get(ids[i])
+		slot.Name.Text = spec and spec.Name or "EMPTY"
+		slot.Info.Text = spec and string.format("x%d copies", copiesOf[spec.Id] or 0) or ""
+		slot.Clear.Visible = spec ~= nil
+	end
+	for _, row in showcaseList:GetChildren() do
+		if row:IsA("Frame") then
+			row:Destroy()
+		end
+	end
+	local full = #ids >= GachaConfig.SHOWCASE_SLOTS
+	for order, c in candidates do
+		local row = make("Frame", "Car_" .. c.Spec.Id, showcaseList, {
+			Size = UDim2.new(1, -6, 0, 26),
+			BackgroundTransparency = 1,
+			LayoutOrder = order,
+		})
+		local label = text("Name", row, UDim2.new(), UDim2.new(0.55, -4, 1, 0), c.Spec.Name)
+		label.TextSize = 12
+		label.TextXAlignment = Enum.TextXAlignment.Left
+		local info = text(
+			"Info",
+			row,
+			UDim2.fromScale(0.55, 0),
+			UDim2.new(0.45, -70, 1, 0),
+			string.format("x%d  +%.2f", c.Copies, c.Bonus)
+		)
+		info.TextSize = 11
+		info.TextColor3 = Color3.fromRGB(160, 174, 195)
+		local shown = table.find(ids, c.Spec.Id) ~= nil
+		local show = button("Show", row, UDim2.new(1, -64, 0, 1), UDim2.fromOffset(62, 24), shown and "SHOWN" or "SHOW")
+		show.TextSize = 11
+		show.BackgroundColor3 = shown and GREEN or BLUE
+		setActive(show, shown or not full)
+		show.Activated:Connect(function()
+			if not show.Active then
+				return
+			end
+			local nextIds = shownIds()
+			local at = table.find(nextIds, c.Spec.Id)
+			if at then
+				table.remove(nextIds, at)
+			elseif #nextIds < GachaConfig.SHOWCASE_SLOTS then
+				table.insert(nextIds, c.Spec.Id)
+			end
+			sendShowcase(nextIds)
+		end)
+	end
+end
+for i, slot in slots do
+	slot.Clear.Activated:Connect(function()
+		local ids = shownIds()
+		if ids[i] then
+			table.remove(ids, i)
+			sendShowcase(ids)
+		end
+	end)
+end
+best3.Activated:Connect(function()
+	local ids = {}
+	for _, c in showcaseCandidates() do
+		if #ids >= GachaConfig.SHOWCASE_SLOTS then
+			break
+		end
+		table.insert(ids, c.Spec.Id)
+	end
+	sendShowcase(ids)
+end)
+local function refreshShowcaseIfOpen()
+	if workshopPanel.Visible then
+		refreshShowcase()
+	end
+end
+for _, attr in { "Showcase", "ShowcaseMulti" } do
+	player:GetAttributeChangedSignal(attr):Connect(refreshShowcaseIfOpen)
+end
+workshopPanel:GetPropertyChangedSignal("Visible"):Connect(refreshShowcaseIfOpen)
+task.spawn(function()
+	local data = player:WaitForChild("GachaData")
+	local function watch(entry)
+		entry:GetAttributeChangedSignal("Copies"):Connect(refreshShowcaseIfOpen)
+	end
+	for _, entry in data:GetChildren() do
+		watch(entry)
+	end
+	data.ChildAdded:Connect(function(entry)
+		watch(entry)
+		refreshShowcaseIfOpen()
+	end)
+	data.ChildRemoved:Connect(refreshShowcaseIfOpen)
+end)
+
 local welcome = panel("Welcome", "WELCOME BACK")
 local earnings = text("Earnings", welcome, UDim2.new(0, 12, 0.3, 0), UDim2.new(1, -24, 0, 40), "")
 local away = text("Away", welcome, UDim2.new(0, 12, 0.55, 0), UDim2.new(1, -24, 0, 40), "")
@@ -350,7 +526,7 @@ local function refresh()
 	buyWorkshop.Selectable = buyWorkshop.Active
 	buyWorkshop.BackgroundColor3 = buyWorkshop.Active and GREEN or DARK
 	local inWorkshop = player:GetAttribute("InWorkshop") == true
-	local rate = (player:GetAttribute("WorkshopRate") or 0) * shownMulti()
+	local rate = player:GetAttribute("WorkshopRate") or 0
 	workshopRate.Text = string.format(
 		"Current gain  +%s Speed/s%s",
 		rate >= 1000 and Format.SpeedText(rate) or string.format("%.1f", rate),
@@ -384,7 +560,7 @@ local function refreshWelcome()
 		Switch.Close("Welcome")
 		lastCredit = nil
 	end
-	earnings.Text = string.format("+%s Speed earned while away", Format.SpeedText(credit * shownMulti()))
+	earnings.Text = string.format("+%s Speed earned while away", Format.SpeedText(credit))
 	away.Text = string.format(
 		"Away %dh %dm %ds • 25%% gain • 8h maximum",
 		math.floor(seconds / 3600),
@@ -399,10 +575,10 @@ local function refreshWelcome()
 		end
 	end
 end
-for _, attr in { "BestTrack", "UpgradesBuyable", "WorkshopLevel", "InWorkshop", "WorkshopRate", "ShownSpeedMulti" } do
+for _, attr in { "BestTrack", "UpgradesBuyable", "WorkshopLevel", "InWorkshop", "WorkshopRate" } do
 	player:GetAttributeChangedSignal(attr):Connect(refresh)
 end
-for _, attr in { "OfflineSpeed", "OfflineSeconds", "ShownSpeedMulti" } do
+for _, attr in { "OfflineSpeed", "OfflineSeconds" } do
 	player:GetAttributeChangedSignal(attr):Connect(refreshWelcome)
 end
 task.spawn(function()

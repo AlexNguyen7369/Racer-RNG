@@ -1,9 +1,10 @@
-# Roll animation and roll UI (QUEUED, not started)
+# Roll animation and roll UI (implemented)
 
-Status: queued 2026-10-02. Source of truth for the look: the "Roll animation" section of the owner's design doc
+Status: implemented. Source of truth for the look: the "Roll animation" section of the owner's design doc
 "Idle Vehicle Simulator — Game Design Requirements" (Claude doc, https://claude.ai/artifact/8T7LeaMi4K41NNGhcACZYP).
 This file records the owner's decisions of 2026-10-02 and the conflicts with what is already built. Build it
-test-first like the spawn area (test-writer + ui-test-writer first, red run, implement, `/compat-check` ALL GREEN).
+The active compact-roll rule is the later 2026-10-08 owner decision: it hides while any panel is open. Earlier
+keep-visible/panel-reservation text below is historical and superseded.
 
 ## What the design doc asks for (summary)
 - **Two views.** Compact (default): just the car model and its "1 in N" at top-center, about 12% of screen width (no card, smaller and always shown, see decisions 4 and 6). Enlarged: a big
