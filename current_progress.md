@@ -46,8 +46,9 @@
 43. 2026-10-20 — Alex Nguyen — Merged the biome scenery into main, grounded the floating biome meshes, fixed the washed-out Kenney colours (20 textures re-uploaded), skipped props off their track's ground, and made the Baseplate and spawn floor sit flush (full CarTest 46/0).
 44. 2026-10-21 — Alex Nguyen — Redesigned all 111 referenced cars as bevelled Blender MeshPart skins (sport kit, bright neon, Singularity black hole, hand-built Zero G Zipper, lower novelty cars) synced via RedesignCarModels, and committed and pushed `3675a6d` to main with all pending expansion, Singularity, UI, NPC and VFX work.
 45. 2026-10-21 — Alex Nguyen — Implemented and verified the transparent enlarged dynamic NPC race map with heading-up player-centred zoom, edge-clamped NPC marker, private VERSION 11 personal bests, focused tests (197/197 offline plus Studio server/client passes), and the refreshed StarterGui bake.
+46. 2026-10-22 — Alex Nguyen — Added the Workshop car Showcase (duplicates kept as copies, 3 picked cars on workshop pedestals boost workshop Speed gain, save VERSION 12), fixed the auto-race rail at max speed, applied the owner's speed-curve and roll-speed rules, got the full harness green (50/0) and pushed `74a9a73` with Codex's pending work.
 
 ## What's next
-**Review and merge `feature/alex/race-progress-map-completion` into the target branch after the stale compatibility gate is refreshed.**
+**Finish the compatibility check on `74a9a73`: run the UI suite (with the Workshop Showcase clicks), world, multiplayer and the final regression pass with Studio updated and the screen unlocked, and triage the remaining UI reds.**
 
-**Why this is next:** the feature branch now contains the verified map/PB implementation, while `/compat-check` remains stale and the full physics suite was explicitly waived for this delivery.
+**Why this is next:** only the harness suite is green for this push; merging the branch and trusting the new Showcase UI depends on the UI, world, multiplayer and regression suites passing.
