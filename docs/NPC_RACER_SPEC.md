@@ -26,10 +26,10 @@ User brief (2026-10-01):
 ## Modules and API
 
 ### `src/shared/NpcConfig.luau` (editable knobs)
-- `BASE_SPEED` (studs/s, Track 1, above `RaceConfig.BASE_SPEED` so a stat-0 starter car loses): 15 (owner
-  2026-10-21, later the same day: 45 needed ~10M recommended Speed on Track 1; now ~219)
+- `BASE_SPEED` (studs/s, Track 1, above `RaceConfig.BASE_SPEED` so a stat-0 starter car loses): 16 (owner
+  2026-10-22, a small starter-track recommendation lift; current Track 1 recommendation ~7.7K)
 - `SPEED_GROWTH` (each track's NPC is this many times faster than the previous one): 1.75 (owner 2026-10-21,
-  later the same day: was 2.5, then 1.37; with RaceConfig.MAX_SPEED 109 Track 10 needs ~904Qd)
+  later the same day: was 2.5, then 1.37; with RaceConfig.MAX_SPEED 88 and Track 1 at 16, early recommendations are slightly higher)
 - `LABEL_DISTANCE` (studs, BillboardGui `MaxDistance`): 200 (owner 2026-10-20: wider, was 60)
 - `LOSE_SCREEN_SECONDS`: 3
 - `LABEL_FORMAT`: `"track%02d_NPC"`

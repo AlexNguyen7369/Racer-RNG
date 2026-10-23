@@ -216,10 +216,10 @@ Idle Vehicle Simulator — Game Design Requirements
        car/aura cruise multi, temporary boosts, or how fast the car drives.
        Cruise speed is buffed: placeholder MAX_SPEED 109 (+48.5 studs/s per doubling of shown
        Speed; same log shape, no cap). Each next track's NPC is 1.75x faster (placeholder Track 1
-       = 15 studs/s). Recommended Speed: Track 1 ~363, Track 5 ~26.2K, Track 10 ~479Qd.
+       = 16 studs/s). Recommended Speed: Track 1 ~7.7K, Track 5 ~301K, Track 10 ~2.15e23.
        Owner decision, 2026-10-22 (speed feel): make the first 100K Speed easier to gain and begin
-       the stronger diminishing-return tail only after 100K. Placeholders MAX_SPEED 80 and HALF_STAT 100K.
-       With raw multi 1 this gives about 17 studs/s at 10K, 45 at 50K, 80 at 100K, and 196 at 1M;
+       the stronger diminishing-return tail only after 100K. Placeholders MAX_SPEED 88 and HALF_STAT 100K.
+       With raw multi 1 this gives about 18 studs/s at 10K, 49 at 50K, 88 at 100K, and 205 at 1M;
        above 100K every later point adds less cruise speed, with no cap.
        Track gates show a recommended Speed: the shown Speed at which the car's cruise speed
        matches that track's NPC. Players compare their own shown Speed with it, whatever car

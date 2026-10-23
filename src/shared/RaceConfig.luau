@@ -7,7 +7,7 @@
 local RaceConfig = {}
 
 RaceConfig.BASE_SPEED = 10 -- cruise speed at Speed stat 0 (owner 2026-10-21: lowered from 12)
-RaceConfig.MAX_SPEED = 80 -- cruise reference at the point where post-100K diminishing returns begin
+RaceConfig.MAX_SPEED = 88 -- cruise reference at the point where post-100K diminishing returns begin; owner 2026-10-22 early-game lift
 RaceConfig.HALF_STAT = 100000 -- owner 2026-10-22: first 100K Speed is easier; diminishing returns begin after this threshold
 RaceConfig.MAX_CRUISE_CAR_MULTI = 1.5 -- high car/market multipliers cannot exceed this effective cruise contribution
 RaceConfig.GAIN_PER_SECOND = 2 -- (owner 2026-10-22, placeholder) friendlier early Speed progression

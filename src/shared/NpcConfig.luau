@@ -10,7 +10,7 @@
 
 local NpcConfig = {}
 
-NpcConfig.BASE_SPEED = 15 -- Track 1, studs/s: a stat-0 starter car (10) loses; rec. Speed ~363 (owner 2026-10-21, was 12)
+NpcConfig.BASE_SPEED = 16 -- Track 1, studs/s: a stat-0 starter car (10) loses; slightly higher starter-track recommendation
 NpcConfig.SPEED_GROWTH = 1.75 -- every later track's NPC is this many times faster (owner 2026-10-21, was 1.37)
 NpcConfig.LABEL_DISTANCE = 200 -- studs: the label only shows when the player is this close (owner 2026-10-20, was 60)
 NpcConfig.LOSE_SCREEN_SECONDS = 3 -- loser screen time before the player is sent back to the spawn
