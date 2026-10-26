@@ -625,6 +625,17 @@ Idle Vehicle Simulator — Game Design Requirements
        (front splitter with a neon lip, rear diffuser, low lip spoiler unless it has a wing,
        wider tyres, lower stance) while keeping its identity. Glowing details are bright neon.
        Singularity keeps its black hole: a dark core inside a tilted neon-gold ring.
+       Owner, 2026-10-26 (car finish + geometry pass): every car skin gets a showroom finish
+       (glossy paint, reflective metal and glass, glowing parts cast no shadow) and a geometry
+       pass in Blender (more bevels, panel lines and wheel detail) within the existing budget
+       and identity. Delivered in waves the owner approves (docs/CAR_REDESIGN_SPEC.md section 8).
+
+  Owner rendering pass, 2026-10-26 (docs/RENDERING_SPEC.md):
+       The world gets a richer lighting baseline (coloured ambient, colour grading, soft
+       shadows, light haze), real surface materials on roads and walls instead of flat
+       plastic, and level-of-detail rules so phones keep their frame rate. Weather events
+       still own the sky and restore this baseline when they end. Purely visual: nothing
+       here changes physics, payouts or race results.
 
   Jett Fuel (luck burst, shown in game as TURBO LUCK)
 

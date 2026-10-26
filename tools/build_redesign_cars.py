@@ -18,6 +18,21 @@ from mathutils import Euler, Matrix, Vector
 
 ROOT = Path('/Users/alexnguyen7369/Documents/RobloxGames')
 MAX_X, MAX_Y, MAX_TRIS = 1.95, 3.3, 6000
+# Geometry pass (owner 2026-10-26, CAR_REDESIGN_SPEC section 8): paint groups get rounder, wider bevels that catch the
+# glossy finish, tyres get more sides.
+PAINT = re.compile(r'(Body|Accent)\d*$')
+TYRE_SIDES = 24
+# Geometry level: 2 = strong (more rounded panels, door seams, arch flares, rim lips), 1 = light, 0 = pre-pass.
+# build() steps down a level while a car would pass MAX_TRIS.
+GEOM = 2
+ROUND_MIN = {1: 0.35, 2: 0.12}  # paint panels at least this thick in every axis get the rounder bevel (tri budget)
+
+
+def paint_segments(group, size):
+    """Bevel segments for a part (0 = not a rounded paint panel)."""
+    if not GEOM or PAINT.match(group) is None or min(size) < ROUND_MIN[GEOM]:
+        return 0
+    return 2
 
 ROBLOX_TO_BLENDER = Matrix(((1, 0, 0, 0), (0, 0, -1, 0), (0, 1, 0, 0), (0, 0, 0, 1)))
 
@@ -36,7 +51,8 @@ class Car:
         self.colors = colors  # group -> (r, g, b) 0..1
         self.pieces = {}  # group or wheel name -> [objects]
         self.scene = bpy.data.scenes.new('Redesign_' + car_id)
-        bpy.context.window.scene = self.scene
+        if bpy.context.window:  # None when Blender runs headless (-b)
+            bpy.context.window.scene = self.scene
 
     def _take(self, group, ob):
         self.scene.collection.objects.link(ob)
@@ -57,7 +73,10 @@ class Car:
                 if len(taper) > 2:
                     v.co.y += taper[2]  # shift the top face forward (+) or back (-)
         if bevel > 0:
-            bmesh.ops.bevel(bm, geom=bm.edges[:], offset=bevel, segments=self.seg, profile=0.5, affect='EDGES')
+            paint = paint_segments(group, size)
+            bmesh.ops.bevel(bm, geom=bm.edges[:], offset=bevel * (1.25 if paint else 1),
+                            segments=max(self.seg, paint) if paint else self.seg, profile=0.5, affect='EDGES',
+                            clamp_overlap=True)
         return self._finish(group, bm, center, rot)
 
     def cyl(self, group, center, radius, depth, axis='X', verts=16, bevel=0.03, rot=None):
@@ -65,7 +84,7 @@ class Car:
         bmesh.ops.create_cone(bm, cap_ends=True, segments=verts, radius1=radius, radius2=radius, depth=depth)
         if bevel > 0:
             rim = [e for e in bm.edges if abs(e.verts[0].co.z) > depth / 2 - 1e-4 and abs(e.verts[1].co.z) > depth / 2 - 1e-4]
-            bmesh.ops.bevel(bm, geom=rim, offset=bevel, segments=2, profile=0.5, affect='EDGES')
+            bmesh.ops.bevel(bm, geom=rim, offset=bevel, segments=1 if GEOM and group.startswith('Wheel_') else 2, profile=0.5, affect='EDGES')
         r = rot or {'X': (0, math.pi / 2, 0), 'Y': (math.pi / 2, 0, 0), 'Z': (0, 0, 0)}[axis]
         return self._finish(group, bm, center, r)
 
@@ -91,12 +110,13 @@ class Car:
         sx, sy, sz = size
         bm = bmesh.new()
         if shape == 'Cylinder':  # Roblox cylinders run along local X; size = (length, diameter, diameter)
-            bmesh.ops.create_cone(bm, cap_ends=True, segments=20 if group.startswith('Wheel_') else 12,
+            bmesh.ops.create_cone(bm, cap_ends=True, segments=(TYRE_SIDES if GEOM else 20) if group.startswith('Wheel_') else 12,
                                   radius1=sy / 2, radius2=sy / 2, depth=sx)
             rim = [e for e in bm.edges if all(abs(abs(v.co.z) - sx / 2) < 1e-4 for v in e.verts)]
             b = bevel if bevel is not None else min(0.1, sx * 0.2, sy * 0.15)
             if b > 0.01:
-                bmesh.ops.bevel(bm, geom=rim, offset=b, segments=1, profile=0.5, affect='EDGES')
+                bmesh.ops.bevel(bm, geom=rim, offset=b, segments=1, profile=0.5,
+                                affect='EDGES')
             bm.transform(Matrix.Rotation(math.pi / 2, 4, 'Y'))
         elif shape == 'Ball':
             bmesh.ops.create_uvsphere(bm, u_segments=12, v_segments=8, radius=sx / 2)
@@ -110,9 +130,11 @@ class Car:
             else:
                 bmesh.ops.create_cube(bm, size=1)
                 bm.transform(Matrix.Diagonal((sx, sy, sz, 1)))
-            b = bevel if bevel is not None else min(0.06, min(size) * 0.22)
+            paint = paint_segments(group, size)
+            b = bevel if bevel is not None else (min(0.12, min(size) * 0.3) if GEOM >= 2 else min(0.08, min(size) * 0.25)) if paint else min(0.06, min(size) * 0.22)
             if b > 0.008:
-                bmesh.ops.bevel(bm, geom=bm.edges[:], offset=b, segments=1, profile=0.5, affect='EDGES', clamp_overlap=True)
+                bmesh.ops.bevel(bm, geom=bm.edges[:], offset=b, segments=paint or 1, profile=0.5, affect='EDGES',
+                                clamp_overlap=True)
         rotation = Euler(tuple(math.radians(v) for v in rot), 'XYZ').to_matrix().to_4x4()
         bm.transform(ROBLOX_TO_BLENDER @ Matrix.Translation(pos) @ rotation)
         return self._finish(group, bm, (0, 0, 0), (0, 0, 0))
@@ -120,21 +142,33 @@ class Car:
     def wheel(self, name, center, radius, width, hub_color_group='Metal', hub_sides=8, cap_group='Trim', hub_scale=0.48):
         """Tyre (its own Wheel_* part, bevelled shoulders) plus an octagonal hub cap in the Metal group."""
         side = 1 if center[0] > 0 else -1
-        self.cyl(name, center, radius, width, verts=20, bevel=min(0.12, radius * 0.22))
+        self.cyl(name, center, radius, width, verts=TYRE_SIDES if GEOM else 20, bevel=min(0.12, radius * 0.22))
         cap = (center[0] + side * (width / 2 + 0.02), center[1], center[2])
         self.cyl(hub_color_group, cap, radius * hub_scale, 0.1, verts=hub_sides, bevel=0.02)
+        if not GEOM:
+            return
+        # Rim lip and five spokes on the tyre face (geometry pass): reads as a real wheel, not a disc.
+        self.torus('Metal', (cap[0] - side * 0.01, cap[1], cap[2]), radius * 0.74, 0.035, rot=(0, math.pi / 2, 0),
+                   segments=20, ring=4)
+        for k in range(5):
+            a = 2 * math.pi * k / 5
+            mid = radius * (hub_scale + 0.74) / 2
+            self.box('Metal', (cap[0], cap[1] + math.cos(a) * mid, cap[2] + math.sin(a) * mid),
+                     (0.06, 0.07, radius * (0.74 - hub_scale) + 0.04), bevel=0, rot=(a - math.pi / 2, 0, 0))
         self.cyl(cap_group, (cap[0] + side * 0.06, cap[1], cap[2]), radius * 0.16, 0.06, verts=hub_sides, bevel=0)
 
-    def torus(self, group, center, major, minor, rot=(0, 0, 0), segments=24, ring=6):
-        """A ring lying in the local XY plane (Saturn ring, halo)."""
+    def torus(self, group, center, major, minor, rot=(0, 0, 0), segments=24, ring=6, arc=None):
+        """A ring lying in the local XY plane (Saturn ring, halo). arc=(a0, a1) radians: an open part-ring (arch)."""
         bm = bmesh.new()
+        a0, a1 = arc or (0, 2 * math.pi)
+        rows = segments + (1 if arc else 0)
         grid = [[bm.verts.new(((major + minor * math.cos(b)) * math.cos(a), (major + minor * math.cos(b)) * math.sin(a),
                                minor * math.sin(b)))
                  for b in (2 * math.pi * j / ring for j in range(ring))]
-                for a in (2 * math.pi * i / segments for i in range(segments))]
+                for a in (a0 + (a1 - a0) * i / segments for i in range(rows))]
         for i in range(segments):
             for j in range(ring):
-                bm.faces.new((grid[i][j], grid[(i + 1) % segments][j], grid[(i + 1) % segments][(j + 1) % ring],
+                bm.faces.new((grid[i][j], grid[(i + 1) % rows][j], grid[(i + 1) % rows][(j + 1) % ring],
                               grid[i][(j + 1) % ring]))
         return self._finish(group, bm, center, rot)
 
@@ -557,6 +591,30 @@ def neon(color):
 RECIPE_GLASS, RECIPE_RUBBER = (0.18, 0.3, 0.39), (0.09, 0.1, 0.15)
 
 
+def strong_details(c, parts):
+    """Geometry level 2 on a recipe car (Roblox space): wheel-arch flares and rim lips, door seams on the Body."""
+    for p in parts:
+        if not re.fullmatch(r'Wheel_(FL|FR|RL|RR)', p['name']) or any(p['rotation']):
+            continue
+        (x, y, z), (w, d, _) = p['pos'], p['size']
+        side = 1 if x > 0 else -1
+        r = d / 2
+        face = x + side * w / 2  # outer tyre face
+        centre = (face, -z, y)  # Blender (x, y, z) = Roblox (x, -z, y)
+        # Arch flare over the top half of the tyre, a rim lip on its face.
+        c.torus('Trim', (face - side * 0.06, -z, y), r + 0.1, 0.06, rot=(0, math.pi / 2, 0), segments=8, ring=3,
+                arc=(math.pi / 2 + 0.25, 3 * math.pi / 2 - 0.25))
+        c.torus('Metal', (centre[0] + side * 0.01, centre[1], centre[2]), r * 0.72, 0.03, rot=(0, math.pi / 2, 0),
+                segments=12, ring=3)
+    body = next((p for p in parts if p['name'] == 'Body' and not any(p['rotation'])), None)
+    if body:
+        (x, y, z), (w, h, l) = body['pos'], body['size']
+        for sgn in (-1, 1):
+            for dz in (-0.14, 0.12):  # front and rear door shut lines
+                c.prim('Trim', 'Block', (x + sgn * (w / 2 + 0.006), y + h * 0.05, z + dz * l), (0.02, h * 0.8, 0.035),
+                       (0, 0, 0), bevel=0)
+
+
 def recipe_car(car_id):
     """An expansion car rebuilt from its recipe.json blockout (the source of its reference render): every part kept,
     edges bevelled, tyres rounder, parts grouped by colour into Body / Trim / Accent / Glass / Metal / Light."""
@@ -619,6 +677,8 @@ def recipe_car(car_id):
         r = role(p)
         group = r if r.startswith('Wheel_') else names[(r, key(p))]
         c.prim(group, p['shape'], p['pos'], p['size'], p['rotation'])
+    if GEOM >= 2:
+        strong_details(c, parts)
     # Kit pieces in Roblox space (front is -Z): splitter + neon lip, diffuser fins, lip spoiler or (novelty) a wing.
     width = next(p for p in parts if p['name'] == 'Body')['size'][0]
     front = min(p['pos'][2] - p['size'][2] / 2 for p in body)
@@ -650,11 +710,21 @@ BUILDERS = {fn.__name__: fn for fn in (go_kart, midnight_kart, rusty_hatchback, 
 
 
 def build(car_id):
-    previous = bpy.context.window.scene
+    global GEOM
+    previous = bpy.context.window and bpy.context.window.scene
     try:
-        car = BUILDERS[car_id]() if car_id in BUILDERS else recipe_car(car_id)
-        report = car.finish()
+        for GEOM in (2, 1, 0):
+            try:
+                report = (BUILDERS[car_id]() if car_id in BUILDERS else recipe_car(car_id)).finish()
+                break
+            except AssertionError as e:
+                # Bounds failures are real errors; over the triangle budget steps down a level.
+                if GEOM == 0 or not (isinstance(e.args[0], tuple) and len(e.args[0]) == 2):
+                    raise
+        report['geometry_pass'] = GEOM
     finally:
-        bpy.context.window.scene = previous
+        GEOM = 2
+        if previous:
+            bpy.context.window.scene = previous
     print(json.dumps(report))
     return report

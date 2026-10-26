@@ -1045,6 +1045,17 @@
       "status": "doing",
       "owner": "Claude",
       "updated": "2026-10-26"
+    },
+    {
+      "id": "rendering-pass",
+      "title": "Rendering pass + car finish (lighting baseline, Asphalt/Concrete, LOD, glossy car finish)",
+      "status": "doing",
+      "source": "Owner",
+      "by": "Claude",
+      "added": "2026-10-26T13:10:00-07:00",
+      "updated": "2026-10-26T13:45:00-07:00",
+      "updatedBy": "Claude",
+      "detail": "docs/RENDERING_SPEC.md + CAR_REDESIGN_SPEC section 8. Code: Shared/LightingConfig (applied in Main before WeatherService.Start), TrackBuilder road Asphalt / walls + supports Concrete, NpcRacer shadows, CarAppearance.FINISH. Previewed live in client only. Left: restart Play and run environment, car_redesign, npc, weather, race; set Technology=Future (manual item); geometry pass (level 2: rounded panels, door seams, arch flares, rim lips, spoked hand-built wheels, cheaper 24-side tyres) on all 111 cars, uploaded (assets/meshes/cars/ids.json) and synced to RedesignCarModels; not yet seen in a fresh Play session."
     }
   ]
 }

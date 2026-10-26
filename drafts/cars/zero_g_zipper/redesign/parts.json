@@ -13,7 +13,7 @@
     "Wheel_RL",
     "Wheel_RR"
   ],
-  "tris": 5612,
+  "tris": 5788,
   "wheels": [
     "Wheel_FL",
     "Wheel_FR",
@@ -23,7 +23,7 @@
   "min": [
     -1.83,
     -2.706,
-    0.011
+    0.005
   ],
   "max": [
     1.83,

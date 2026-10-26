@@ -73,3 +73,15 @@ For every catalog car with a reference:
 - Wheeled cars have all four `Wheel_*` parts.
 
 The existing `car_size`, `gacha`, `index`, `race`, `lap:*` and `vehicle_effects` scenarios stay green.
+
+## 8. Finish and geometry pass (owner, 2026-10-26)
+- **Finish (runtime, `Shared/CarAppearance`, every skin: equipped, NPC and display):** groups keep their material
+  (section 2). Paint groups (`Body`, `Accent`, `Trim`) get `Reflectance` 0.08 (gloss), `Metal` 0.25, `Glass` 0.2
+  with `Transparency` 0.25. `Light*` parts cast no shadow, and neither do `Glass`, `Trim` or `Metal` parts (small
+  detail). Wheels stay matte. Numbers live in `CarAppearance.FINISH` and are tunable (placeholders).
+- **Geometry (Blender, `tools/build_redesign_cars.py`, `GEOM` level; owner 2026-10-26: "stronger"):** level 2 gives
+  paint panels (`Body*`, `Accent*`) at least `ROUND_MIN` 0.12 thick a wider 2-segment bevel, door shut lines on the
+  body sides, wheel-arch flares (`Trim`) and rim lips (`Metal`) on recipe wheels, a rim lip and five spokes on
+  hand-built wheels, and 24-side tyres with a 1-segment shoulder. A car over 6,000 triangles steps down to level 1
+  (lighter: panels >= 0.35, no seams / flares / spokes), then level 0 (pre-pass). 2026-10-26: 110 cars level 2,
+  `golden_racer` level 1. Silhouette, colours, bounds and part names unchanged.

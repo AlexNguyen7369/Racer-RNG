@@ -1,5 +1,19 @@
 # Agent handoff
 
+## Rendering pass + car finish / geometry — 2026-10-26 (Claude, uncommitted)
+
+- Owner: improve all car models (finish + geometry pass) and in-game rendering (lighting, materials, LOD).
+- Done: docs (design doc, RENDERING_SPEC, CAR_REDESIGN_SPEC 8); Shared/LightingConfig, TrackBuilder materials, NpcRacer
+  shadows, CarAppearance.FINISH. Static checks pass. Lighting values tuned against live client screenshots.
+- Geometry (owner: stronger, then upload): build_redesign_cars.py GEOM levels 2/1/0 with triangle-budget fallback;
+  level 2 = rounder paint panels (>= 0.12 thick), door seams, wheel-arch flares, rim lips, spoked hand-built wheels,
+  24-side tyres with a 1-segment shoulder (668 -> 284 tris each). 110 cars level 2, golden_racer level 1. Headless:
+  `Blender -b --python` (scratchpad run_build.py pattern: exec the file, call build(id)).
+- Uploaded all 111 (ids.json), Studio LoadAsset dump via a local HTTP receiver -> meshes.json, write_redesign_rbxmx.py
+  -> RedesignCarModels (Rojo synced). Part sets unchanged; bounds within spec.
+- Next: restart Play (Studio was in the owner's session, not restarted), look at the cars, run car_redesign, car_size,
+  gacha, index, vehicle_effects, environment, npc, weather, race; Technology = Future (manual item); commit.
+
 ## Trail VFX — 2026-10-26 (Claude)
 
 - Committed + pushed 4871383: Rainbow + Void trails (VehicleEffects profiles, Client/VehicleEffectMotion, 16

@@ -60,6 +60,8 @@ end
 BiomeDressing.Prune(trackModels, { spawnArea }) -- scenery keeps clear of every road and the spawn area
 VfxArea.Build().Parent = Workspace -- the admin-only VFX showcase floor (/tp vfxarea)
 
+-- The lighting baseline goes in before WeatherService snapshots it (docs/RENDERING_SPEC.md)
+require(Shared.LightingConfig).Apply()
 -- The player's car auto-races the whole chain at the speed from their saved stats
 RaceService.Start(RaceService.BuildRoute(entries))
 WeatherService.Start()

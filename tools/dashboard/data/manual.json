@@ -491,6 +491,32 @@
         "In Claude Code type: ! /Applications/Blender.app/Contents/Resources/5.2/python/bin/python3.13 ~/.claude/skills/roblox-vfx/scripts/vfxtex.py preview /Users/alexnguyen7369/Documents/RobloxGames/vfx/trails/out/*.png",
         "Tell Claude the printed vfxpreview/<stamp> folder; Claude re-runs the preview in the test Studio. Remove the copies later with vfxtex.py clean-preview."
       ]
+    },
+    {
+      "id": "lighting-future-2026-10-26",
+      "title": "Set Lighting.Technology to Future and save the place",
+      "why": "docs/RENDERING_SPEC.md section 1: scripts cannot set Lighting.Technology, and the glossy car finish and Asphalt/Concrete materials look best with Future lighting.",
+      "blocks": "The full look of the rendering pass (reflections, soft shadows).",
+      "when": "2026-10-26",
+      "status": "open",
+      "steps": [
+        "Stop Play in Studio.",
+        "Explorer > Lighting > Properties > Technology: choose Future.",
+        "File > Save to Roblox (or publish)."
+      ]
+    },
+    {
+      "id": "car-geometry-wave-approval-2026-10-26",
+      "title": "Approve the car geometry pass before upload",
+      "why": "CAR_REDESIGN_SPEC section 6/8: waves merge only after owner approval. 101 expansion cars were rebuilt locally (rounder tyres, rounder thick paint panels); the 10 hand-built wave-1 cars kept their geometry (already near 6,000 tris). Owner 2026-10-26: make it stronger, then upload. Done: level-2 pass on 110 cars (golden_racer level 1), all 111 re-uploaded and synced.",
+      "blocks": "Uploading 101 car meshes and re-syncing RedesignCarModels.",
+      "when": "2026-10-26",
+      "status": "done",
+      "steps": [
+        "Compare old vs new previews: drafts/cars/<id>/redesign/preview.png (git diff shows the changed files).",
+        "Say approve (Claude uploads with tools/upload_car_meshes.py, refreshes meshes.json and RedesignCarModels) or ask for a stronger pass.",
+        "To discard: git checkout drafts/cars."
+      ]
     }
   ]
 }

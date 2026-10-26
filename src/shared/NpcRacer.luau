@@ -101,6 +101,8 @@ local function setupParts(model)
 			d.CanCollide = false
 			d.CanTouch = false
 			d.CanQuery = false
+			-- Client-only ghost: only the body and wheels cast shadows (docs/RENDERING_SPEC.md section 3)
+			d.CastShadow = d.CastShadow and (d.Name == "Body" or d.Name:sub(1, 6) == "Wheel_")
 		end
 	end
 end

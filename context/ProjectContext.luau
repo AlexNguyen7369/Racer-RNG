@@ -3,7 +3,17 @@
 PROJECT CONTEXT - Idle Vehicle Simulator (read me first)
 Shown in Studio at: ServerScriptService > ProjectContext   (source file: context/ProjectContext.luau)
 Do NOT edit this in Studio: edit the file on disk, Rojo syncs it. Claude updates it at the end of every loop.
-Last updated: 2026-10-26 (Claude: Market trail / aura VFX redesign)
+Last updated: 2026-10-26 (Claude: rendering pass + car finish / geometry pass)
+
+RENDERING PASS + CAR FINISH - 2026-10-26 (Claude, owner request; uncommitted)
+- Rules first: design doc "Owner rendering pass" + car finish note, new docs/RENDERING_SPEC.md, CAR_REDESIGN_SPEC 8.
+- Shared/LightingConfig (Main applies it before WeatherService.Start, so weather restores it), TrackBuilder roads
+  Asphalt / walls + supports Concrete, NpcRacer: only Body + wheels cast shadows, CarAppearance.FINISH (gloss,
+  glass, no shadows from small groups). stylua / selene 0 / rojo build pass. Previewed in the live client only.
+- Geometry pass (tools/build_redesign_cars.py, headless Blender -b, levels 2/1/0 by triangle budget): owner asked for
+  a stronger pass, then upload. 110 cars level 2, golden_racer level 1; all 111 re-uploaded, meshes.json and
+  RedesignCarModels regenerated (part sets unchanged).
+- Not run: environment, car_redesign, npc, weather, race scenarios (Studio was in the owner's Play session).
 
 UPGRADE TREE + UI TESTS - 2026-10-26 (Claude, owner decisions; static checks only, live [UITEST] pending)
 - Owner: the upgrade tree stays a full-screen overlay (UPGRADE_TREE_SPEC 5, HUD_LAYOUT_SPEC 1 + 6 updated: exempt

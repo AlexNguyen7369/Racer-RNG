@@ -349,7 +349,8 @@ function TrackBuilder.Build(spec, origin)
 			"Road" .. i,
 			Vector3.new(width, ROAD_THICKNESS, piece.Length),
 			pieceCF * CFrame.new(0, -ROAD_THICKNESS / 2, 0),
-			colors.Road
+			colors.Road,
+			Enum.Material.Asphalt -- docs/RENDERING_SPEC.md section 2
 		)
 		local wallOffset = width / 2 + WALL_THICKNESS / 2
 		local pieceWalls = {}
@@ -367,7 +368,8 @@ function TrackBuilder.Build(spec, origin)
 					"Wall" .. i .. (side < 0 and "L" or "R"),
 					Vector3.new(WALL_THICKNESS, WALL_HEIGHT, wallLength),
 					pieceCF * CFrame.new(side * wallOffset, WALL_HEIGHT / 2 - ROAD_THICKNESS, wallZ),
-					colors.Wall
+					colors.Wall,
+					Enum.Material.Concrete
 				)
 			)
 		end
@@ -393,7 +395,8 @@ function TrackBuilder.Build(spec, origin)
 				"Support" .. i,
 				Vector3.new(width - 1, height, piece.Length * math.max(flatLook.Magnitude, 0.5)),
 				CFrame.new(pieceCF.Position.X, GROUND_TOP + height / 2, pieceCF.Position.Z) * footprint.Rotation,
-				colors.Support
+				colors.Support,
+				Enum.Material.Concrete
 			)
 		end
 	end

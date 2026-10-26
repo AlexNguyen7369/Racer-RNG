@@ -4,6 +4,26 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CarCatalog = require(script.Parent.CarCatalog)
 local CarAppearance = {}
 
+-- Showroom finish per part group (docs/CAR_REDESIGN_SPEC.md section 8, placeholders): Reflectance, Transparency
+-- (nil keeps the template's) and Shadow. A group is the part name without its number (Accent2 -> Accent).
+CarAppearance.FINISH = {
+	Body = { Reflectance = 0.08, Shadow = true },
+	Accent = { Reflectance = 0.08, Shadow = true },
+	Trim = { Reflectance = 0.08, Shadow = false },
+	Metal = { Reflectance = 0.25, Shadow = false },
+	Glass = { Reflectance = 0.2, Transparency = 0.25, Shadow = false },
+	Light = { Shadow = false },
+}
+
+local function finish(part)
+	local f = CarAppearance.FINISH[(part.Name:gsub("%d+$", ""))]
+	if f then
+		part.Reflectance = f.Reflectance or part.Reflectance
+		part.Transparency = f.Transparency or part.Transparency
+		part.CastShadow = f.Shadow
+	end
+end
+
 function CarAppearance.Apply(car, id, config)
 	local chassis = car.PrimaryPart
 	assert(chassis, "Car appearance requires the existing chassis")
@@ -29,6 +49,7 @@ function CarAppearance.Apply(car, id, config)
 				then
 					part.Color = part.Color:Lerp(spec.Tint, 0.35)
 				end
+				finish(part)
 				part.CanCollide = false
 				part.CanTouch = false
 				part.CanQuery = false
@@ -108,6 +129,7 @@ function CarAppearance.Display(spec, cframe, scale)
 			if spec.Tint and not template:GetAttribute("Redesign") and part.Material ~= Enum.Material.Glass then
 				part.Color = part.Color:Lerp(spec.Tint, 0.35)
 			end
+			finish(part)
 			part.Anchored = true
 			part.CanCollide = false
 			part.CanTouch = false

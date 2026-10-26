@@ -19,7 +19,7 @@
     "Accent",
     "Accent4"
   ],
-  "tris": 3600,
+  "tris": 5232,
   "wheels": [
     "Wheel_FL",
     "Wheel_FR",
@@ -29,7 +29,7 @@
   "min": [
     -1.58,
     -3.105,
-    0.014
+    0.008
   ],
   "max": [
     1.58,
