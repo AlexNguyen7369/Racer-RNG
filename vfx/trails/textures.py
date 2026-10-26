@@ -229,3 +229,28 @@ vt.draw_texture("Shard", shard, size=256)
 vt.draw_texture("Plasma", plasma, size=512)
 vt.draw_texture("Nebula", nebula, size=256)
 vt.draw_texture("Dot", dot, size=64)
+
+
+# ---- draft: Ascended (Super Saiyan style) aura, owner 2026-10-26 ----
+
+# Ki flame (drawn, two tones, loops): a tall cluster of jagged, pointed spikes like a Dragon Ball Z aura,
+# each spike licking up and down out of step so the loop flickers.
+def ki_flame(t, size):
+    x, y = vt.tex_coords(size)
+    wx, wy = vt.tex_warp(x, y, amount=0.05, scale=5, seed=81, t=t)
+    body = numpy.full(x.shape, -1.0, dtype=numpy.float32)
+    core = numpy.full(x.shape, -1.0, dtype=numpy.float32)
+    spikes = [(-0.42, 0.55, 0.0), (-0.15, 0.95, 0.35), (0.12, 0.8, 0.7), (0.38, 0.6, 0.2), (0.0, 0.7, 0.55)]
+    for cx, height, phase in spikes:
+        tip = -0.85 + (height + 0.12 * numpy.sin(2 * numpy.pi * (t + phase))) * 1.7
+        ry = numpy.clip((wy + 0.85) / (tip + 0.85), 0, 1)  # 0 at the base, 1 at this spike's tip
+        half = 0.2 * (1 - ry) ** 1.1 * (0.6 + 0.4 * numpy.sin(numpy.pi * numpy.clip(ry * 3, 0, 1)))
+        inside = numpy.where(wy < tip, half - numpy.abs(wx - cx - 0.04 * numpy.sin(ry * 7 + phase * 6)), -1)
+        body = numpy.maximum(body, inside)
+        core = numpy.maximum(core, numpy.where(wy < tip, half * 0.45 - numpy.abs(wx - cx), -1))
+    base = 0.35 - numpy.hypot(wx * 0.9, (wy + 0.85) * 2.2)  # a rounded root joining the spikes
+    body = numpy.maximum(body, base)
+    return vt.tex_edge(body, soft=0.006), 0.6 + 0.4 * vt.tex_edge(numpy.maximum(core, base - 0.12), soft=0.008)
+
+
+vt.draw_flipbook("KiFlame", ki_flame, grid=4, loop=True, fps=24)

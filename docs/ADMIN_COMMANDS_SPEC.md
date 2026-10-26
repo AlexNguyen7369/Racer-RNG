@@ -74,7 +74,8 @@ attribute for testing; it disappears when the player leaves and multiplies norma
 - `src/shared/VfxArea.luau`: a flat testing floor far from every track and the spawn (`CENTER` (1600, 0, 0), east of
   the track chain), reached only with `/tp vfxarea`. `VfxArea.Build()` (called from `Main`) makes
   `Workspace.VfxArea` (anchored floor + sign); `VfxArea.SpawnCFrame()` is where `/tp vfxarea` puts the avatar.
-- `VfxArea.Items`: every Market trail and aura, one showcase lane each. `src/client/VfxShowcase.client.luau` builds
+- `VfxArea.Items`: every Market trail and aura, plus draft profiles not sold yet (`ascended_aura`, owner
+  2026-10-26), one showcase lane each; drafts use `VehicleEffects.ApplyProfile` since they have no Market item. `src/client/VfxShowcase.client.luau` builds
   one local car per item with `VehicleEffects.Apply` and drives it round its own loop while the local avatar is within
   `VfxArea.SHOW_RADIUS` of `CENTER`, and removes them when it leaves. Client-only visuals: nothing replicates, no
   stat, save or race state changes.

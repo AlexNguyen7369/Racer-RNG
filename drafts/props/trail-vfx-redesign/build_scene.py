@@ -286,9 +286,9 @@ def emitter(name, car_origin, e, rng):
         ob.color = (*color, alpha)
         ob.visible_shadow = False
         scene.collection.objects.link(ob)
-        if orient == "camera":
-            c = ob.constraints.new("DAMPED_TRACK")
-            c.target, c.track_axis = CAM, "TRACK_Z"
+        if orient == "camera":  # face the camera with the image's top up, as a FacingCamera particle does
+            c = ob.constraints.new("TRACK_TO")
+            c.target, c.track_axis, c.up_axis = CAM, "TRACK_Z", "UP_Y"
         elif orient == "fixed":  # a flat card at a fixed tilt (Roblox: a flat ring on a turned attachment)
             rx, ry, rz = e.get("rot", (0, 0, 0))
             ob.rotation_euler = (math.radians(rx), math.radians(rz), math.radians(ry + rng.uniform(0, 360) * e.get("spin_fixed", 0)))
@@ -510,8 +510,36 @@ emitter("GalaxyStars", o, dict(tex="Glint.png", rate=70, life=(0.8, 1.5), size=[
 emitter("GalaxyShooting", o, dict(tex="Spark.png", rate=6, life=(0.3, 0.5), speed=(15, 25), dir=(1, 0.2, 0), spread=90, size=[(0, 1.2), (1, 0.4)],
         stretch=4, color=WHITE, le=1, br=5, orient="parallel", locked=True, at=(0, 0.5, 0), box=(1, 0.5, 2)), rng)
 
+# Ascended (Super Saiyan style) aura, draft 2026-10-26: spiky looping ki flames, a crown over the roof,
+# lightning, a ground shockwave, dust and floating rocks.
+WHITEGOLD, GOLDEN, AMBER, BOLTC = lin((255, 248, 200)), lin((255, 214, 64)), lin((255, 160, 20)), lin((150, 220, 255))
+X = 72
+car("Ascended Aura", X)
+o = (X, 0)
+emitter("AscSheathOuter", o, dict(tex="KiFlame.flipbook.png", grid=4, rate=70, life=(0.3, 0.5), speed=(6, 9), spread=6, acc=(0, 10, 0),
+        size=[(0, 2.2), (0.5, 3.2), (1, 2)], color=[(0, WHITEGOLD), (0.4, GOLDEN), (1, AMBER)], le=0.5, br=6, locked=True, spin=False,
+        ring=(1.9, 3.7), at=(0, -1.0, 0)), rng)
+emitter("AscSheathInner", o, dict(tex="KiFlame.flipbook.png", grid=4, rate=50, life=(0.25, 0.4), speed=(4, 7), spread=6, acc=(0, 8, 0),
+        size=[(0, 1.4), (1, 2.2)], color=[(0, WHITE), (1, WHITEGOLD)], le=1, br=4, locked=True, spin=False, ring=(1.4, 3.0), at=(0, -0.8, 0)), rng)
+emitter("AscCrown", o, dict(tex="KiFlame.flipbook.png", grid=4, rate=20, life=(0.3, 0.5), speed=(8, 12), spread=5, acc=(0, 8, 0),
+        size=[(0, 2.5), (1, 3.5)], color=[(0, WHITEGOLD), (1, GOLDEN)], le=0.7, br=5, locked=True, spin=False, at=(0, 1.2, 0), box=(1.2, 0.1, 2.4)), rng)
+emitter("AscStreaks", o, dict(tex="Spark.png", rate=50, life=(0.2, 0.35), speed=(18, 26), spread=4, size=[(0, 0.6), (1, 0.25)], stretch=3,
+        color=[(0, WHITE), (1, GOLDEN)], le=1, br=5, orient="parallel", locked=True, ring=(1.8, 3.5), at=(0, -0.8, 0)), rng)
+emitter("AscLightning", o, dict(tex="Bolt.flipbook.png", grid=4, rate=12, life=(0.12, 0.2), size=[(0, 3.5), (1, 5)], color=BOLTC, le=1, br=7,
+        locked=True, at=(0, 0.6, 0), box=(2, 1.2, 3.6)), rng)
+emitter("AscGlow", o, dict(tex="Dot.png", rate=4, life=(0.6, 0.8), size=[(0, 10), (1, 10)], transparency=[(0, 0.7), (0.5, 0.55), (1, 1)],
+        color=GOLDEN, le=1, br=1.5, orient="flat", locked=True, at=(0, -1.24, 0)), rng)
+emitter("AscShockwave", o, dict(tex="Ring.png", rate=0.8, life=(0.7, 0.7), size=[(0, 4), (1, 14)], transparency=[(0, 0.2), (1, 1)],
+        color=GOLDEN, le=1, br=3, orient="flat", locked=True, at=(0, -1.25, 0)), rng)
+emitter("AscDebris", o, dict(tex="Shard.png", rate=8, life=(1.2, 2), speed=(1.5, 3), spread=20, size=[(0, 0.5), (1, 0.3)],
+        transparency=[(0, 0), (0.8, 0), (1, 1)], color=lin((90, 85, 80)), le=0, br=1, locked=True, ring=(3.5, 5), at=(0, -1.1, 0)), rng)
+emitter("AscDust", o, dict(tex="VoidWisp.flipbook.png", grid=4, rate=8, life=(0.8, 1.2), speed=(2, 4), spread=60, size=[(0, 1.5), (1, 3.5)],
+        transparency=[(0, 0.5), (1, 1)], color=lin((170, 160, 150)), le=0, br=1, ring=(3, 4.5), at=(0, -1.1, 0)), rng)
+emitter("AscSparkles", o, dict(tex="Glint.png", rate=25, life=(0.5, 1), size=[(0, 0), (0.3, 0.7), (1, 0)], color=WHITEGOLD, le=1, br=4,
+        locked=True, at=(0, 0.8, 0), box=(2.2, 1.6, 3.8)), rng)
+
 # ---------------------------------------------------------------- ground, light, camera
-box("Road", (8, -40, -0.05), (120, 140, 0.1), simple_mat("Road", lin((120, 130, 150))))
+box("Road", (14, -40, -0.05), (140, 140, 0.1), simple_mat("Road", lin((120, 130, 150))))
 sun = bpy.data.objects.new("Sun", bpy.data.lights.new("Sun", "SUN"))
 sun.data.energy = 3
 sun.rotation_euler = (math.radians(40), 0, math.radians(30))
@@ -556,6 +584,7 @@ SHOTS = {  # name: (camera location, look-at, lens)
     "solar": ((-10, 16, 9), (-16, -30, 0), 30),
     "void": ((10, 16, 9), (4, -30, 0), 30),
     "auras": ((40, 30, 12), (40, -2, 1), 30),
+    "ascended": ((80, 16, 7), (72, 0, 2), 32),
 }
 
 

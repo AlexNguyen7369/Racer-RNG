@@ -28,11 +28,7 @@ local function build()
 				d.Anchored, d.CanCollide, d.CanQuery, d.CanTouch = true, false, false, false
 			end
 		end
-		VehicleEffects.Apply(car, {
-			GetAttribute = function(_, key)
-				return key == "Equipped" .. kind and id or nil
-			end,
-		})
+		VehicleEffects.ApplyProfile(car, kind, id)
 		car.Parent = showcase
 		table.insert(
 			cars,

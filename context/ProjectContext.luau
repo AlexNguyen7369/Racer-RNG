@@ -127,6 +127,15 @@ ONE STEADY RACE SPEED - 2026-10-20 (Claude, uncommitted)
 - Tests: CarTest END pass=45 fail=2 (race max_speed lane checks = test lag, fixed by test-writer, unverified;
   track:Volcano never_tilted 0.811, bot lap not using RaceService, unexplained). Re-run pending (Studio closed).
 
+ASCENDED AURA DRAFT - 2026-10-26 (Claude, owner request; uncommitted)
+- A golden Super Saiyan style ki aura after Dragon Ball Z, as VehicleEffects profile `ascended_aura` (working name
+  "Ascended Aura"; Dragon Ball names stay out of the game). Design doc "Draft aura": showcase only, not sold; price,
+  Speed multi and Market entry are open questions. New texture KiFlame (looping 4x4 spiky ki flames, uploaded
+  rbxassetid://118315939715440); VehicleEffects.ApplyProfile shows drafts without a Market item; VfxArea lane 7.
+- Layers: outer + inner KiFlame sheath (locked, rising fast), a crown over the roof, rising streaks, blue-white
+  lightning, ground glow and shockwave, blown dust, floating rocks, sparkles. Blender lane in trails.blend.
+- Verified: stylua, selene 0/0, rojo build, Blender frozen frame. NOT verified: live in the VFX area.
+
 VFX SHOWCASE AREA - 2026-10-26 (Claude, owner request; uncommitted)
 - Shared/VfxArea: a 240 x 140 floor at (1600, 0, 0), east of everything (world parts end near x = 700), built by
   Main. Client/VfxShowcase drives one local car per Market trail / aura there while the avatar is within 400 studs.

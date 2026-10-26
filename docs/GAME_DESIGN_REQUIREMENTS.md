@@ -522,6 +522,12 @@ Idle Vehicle Simulator — Game Design Requirements
      upgrades                         bursts
 
 
+  Draft aura (owner 2026-10-26): a golden "Super Saiyan" style ki aura inspired by Dragon Ball Z
+  (internal id ascended_aura, working name "Ascended Aura": the Dragon Ball names stay out of the game).
+  It is shown only in the VFX showcase area for review and is not sold yet. Open question: its price,
+  its Speed multi (A) and whether it joins the Market.
+
+
   Sample fuel ladder (placeholder numbers)
 
 

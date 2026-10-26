@@ -14,6 +14,7 @@ local TEX = {
 	Dot = "rbxassetid://85679586220861",
 	Flame = "rbxassetid://130692121457990",
 	Glint = "rbxassetid://132086922886913",
+	KiFlame = "rbxassetid://118315939715440",
 	Nebula = "rbxassetid://132097236933374",
 	Plasma = "rbxassetid://91657974746818",
 	RainbowRibbon = "rbxassetid://120579905618548",
@@ -26,7 +27,8 @@ local TEX = {
 	VoidWake = "rbxassetid://127408604767217",
 	VoidWisp = "rbxassetid://81105083815679",
 }
-local FLIPBOOKS = { Bolt = true, Flame = true, VoidWisp = true } -- 4 x 4 sheets
+local FLIPBOOKS = { Bolt = true, Flame = true, VoidWisp = true, KiFlame = true } -- 4 x 4 sheets
+local LOOPING = { KiFlame = 24 } -- flipbooks that loop (frames per second) from a random frame, to flicker
 Effects.MOTION_TAG = "VehicleFxMotion"
 
 local rgb, V = Color3.fromRGB, Vector3.new
@@ -36,6 +38,7 @@ local PALE, GOLD, ORANGE, RED = rgb(255, 245, 145), rgb(255, 188, 48), rgb(255, 
 local CYAN, ICE = rgb(80, 190, 255), rgb(180, 245, 255)
 local EMBER, FLAMEY = rgb(255, 92, 38), rgb(255, 220, 75)
 local GALV, PINK, NAVY = rgb(137, 80, 255), rgb(255, 91, 220), rgb(40, 30, 120)
+local WHITEGOLD, GOLDEN, AMBER, BOLT = rgb(255, 248, 200), rgb(255, 214, 64), rgb(255, 160, 20), rgb(150, 220, 255)
 local FIRE = { { 0, PALE }, { 0.3, GOLD }, { 0.6, ORANGE }, { 0.85, RED }, { 1, rgb(40, 10, 5) } }
 local WARM_SMOKE = { { 0, rgb(230, 140, 80) }, { 1, rgb(140, 125, 120) } }
 local HUES = {}
@@ -703,6 +706,163 @@ local PROFILES = {
 			},
 		},
 	},
+	-- Draft (owner 2026-10-26, design doc "Draft aura"): a golden Super Saiyan style ki aura after Dragon Ball Z.
+	-- Not sold: shown only in the VFX showcase area through ApplyProfile. Spiky looping ki flames hug the body
+	-- and shoot up (a crown over the roof), blue-white lightning crackles, a shockwave rolls out along the
+	-- ground, dust is blown out and small rocks float up.
+	ascended_aura = {
+		emitters = {
+			{
+				"SheathOuter",
+				tex = "KiFlame",
+				rate = 70,
+				life = { 0.3, 0.5 },
+				speed = { 6, 9 },
+				spread = 6,
+				acc = V(0, 10, 0),
+				size = { { 0, 2.2 }, { 0.5, 3.2 }, { 1, 2 } },
+				color = { { 0, WHITEGOLD }, { 0.4, GOLDEN }, { 1, AMBER } },
+				le = 0.5,
+				br = 6,
+				locked = true,
+				upright = true,
+				at = V(0, -1.0, 0),
+				ring = Vector2.new(1.9, 3.7),
+			},
+			{
+				"SheathInner",
+				tex = "KiFlame",
+				rate = 50,
+				life = { 0.25, 0.4 },
+				speed = { 4, 7 },
+				spread = 6,
+				acc = V(0, 8, 0),
+				size = { { 0, 1.4 }, { 1, 2.2 } },
+				color = { { 0, WHITE }, { 1, WHITEGOLD } },
+				le = 1,
+				br = 4,
+				locked = true,
+				upright = true,
+				at = V(0, -0.8, 0),
+				ring = Vector2.new(1.4, 3.0),
+				z = 0.5,
+			},
+			{
+				"Crown",
+				tex = "KiFlame",
+				rate = 20,
+				life = { 0.3, 0.5 },
+				speed = { 8, 12 },
+				spread = 5,
+				acc = V(0, 8, 0),
+				size = { { 0, 2.5 }, { 1, 3.5 } },
+				color = { { 0, WHITEGOLD }, { 1, GOLDEN } },
+				le = 0.7,
+				br = 5,
+				locked = true,
+				upright = true,
+				at = V(0, 1.2, 0),
+				box = V(1.2, 0.1, 2.4),
+			},
+			{
+				"Streaks",
+				tex = "Spark",
+				rate = 50,
+				life = { 0.2, 0.35 },
+				speed = { 18, 26 },
+				spread = 4,
+				size = { { 0, 0.6 }, { 1, 0.25 } },
+				color = { { 0, WHITE }, { 1, GOLDEN } },
+				le = 1,
+				br = 5,
+				streak = true,
+				locked = true,
+				at = V(0, -0.8, 0),
+				ring = Vector2.new(1.8, 3.5),
+			},
+			{
+				"Lightning",
+				tex = "Bolt",
+				rate = 12,
+				life = { 0.12, 0.2 },
+				size = { { 0, 3.5 }, { 1, 5 } },
+				color = BOLT,
+				le = 1,
+				br = 7,
+				locked = true,
+				at = V(0, 0.6, 0),
+				box = V(2, 1.2, 3.6),
+			},
+			{
+				"Glow",
+				tex = "Dot",
+				rate = 4,
+				life = { 0.6, 0.8 },
+				size = 10,
+				transparency = { { 0, 0.7 }, { 0.5, 0.55 }, { 1, 1 } },
+				color = GOLDEN,
+				le = 1,
+				br = 1.5,
+				flat = true,
+				locked = true,
+				at = V(0, -1.24, 0),
+			},
+			{
+				"Shockwave",
+				tex = "Ring",
+				rate = 0.8,
+				life = { 0.7, 0.7 },
+				size = { { 0, 4 }, { 1, 14 } },
+				transparency = { { 0, 0.2 }, { 1, 1 } },
+				color = GOLDEN,
+				le = 1,
+				br = 3,
+				flat = true,
+				locked = true,
+				at = V(0, -1.25, 0),
+			},
+			{
+				"Debris",
+				tex = "Shard",
+				rate = 8,
+				life = { 1.2, 2 },
+				speed = { 1.5, 3 },
+				spread = 20,
+				size = { { 0, 0.5 }, { 1, 0.3 } },
+				transparency = { { 0, 0 }, { 0.8, 0 }, { 1, 1 } },
+				color = rgb(90, 85, 80),
+				locked = true,
+				at = V(0, -1.1, 0),
+				ring = Vector2.new(3.5, 5),
+			},
+			{
+				"Dust",
+				tex = "VoidWisp",
+				rate = 8,
+				life = { 0.8, 1.2 },
+				speed = { 2, 4 },
+				spread = 60,
+				size = { { 0, 1.5 }, { 1, 3.5 } },
+				transparency = { { 0, 0.5 }, { 1, 1 } },
+				color = rgb(170, 160, 150),
+				at = V(0, -1.1, 0),
+				ring = Vector2.new(3, 4.5),
+			},
+			{
+				"Sparkles",
+				tex = "Glint",
+				rate = 25,
+				life = { 0.5, 1 },
+				size = { { 0, 0 }, { 0.3, 0.7 }, { 1, 0 } },
+				color = WHITEGOLD,
+				le = 1,
+				br = 4,
+				locked = true,
+				at = V(0, 0.8, 0),
+				box = V(2.2, 1.6, 3.8),
+			},
+		},
+	},
 }
 Effects.Profiles = PROFILES
 
@@ -803,7 +963,11 @@ local function emitter(chassis, item, e, hosts)
 	p.Texture = TEX[e.tex]
 	if FLIPBOOKS[e.tex] then
 		p.FlipbookLayout = Enum.ParticleFlipbookLayout.Grid4x4
-		p.FlipbookMode = Enum.ParticleFlipbookMode.OneShot
+		p.FlipbookMode = LOOPING[e.tex] and Enum.ParticleFlipbookMode.Loop or Enum.ParticleFlipbookMode.OneShot
+		if LOOPING[e.tex] then
+			p.FlipbookFramerate = NumberRange.new(LOOPING[e.tex])
+			p.FlipbookStartRandom = true
+		end
 	end
 	p.Rate = e.rate
 	p.Lifetime = NumberRange.new(e.life[1], e.life[2])
@@ -836,10 +1000,11 @@ local function emitter(chassis, item, e, hosts)
 	end
 	p.Parent = parent
 end
-function Effects.Apply(car, player)
+-- Removes every effect from the car and returns a fresh MarketEffects folder (nil without a chassis).
+local function reset(car)
 	local chassis = car and car.PrimaryPart
 	if not chassis then
-		return
+		return nil
 	end
 	for _, child in chassis:GetChildren() do
 		if child:IsA("Attachment") and child:GetAttribute("MarketEffect") then
@@ -853,19 +1018,40 @@ function Effects.Apply(car, player)
 	local folder = Instance.new("Folder")
 	folder.Name = "MarketEffects"
 	folder.Parent = car
+	return folder
+end
+local function build(folder, chassis, kind, id)
+	local profile = PROFILES[id]
+	if not profile then
+		return
+	end
+	local item = { Id = id } -- instance names are <id><layer>
+	folder:SetAttribute(kind, id)
+	for _, r in profile.ribbons or {} do
+		ribbon(folder, chassis, item, r)
+	end
+	local hosts = {}
+	for _, e in profile.emitters or {} do
+		emitter(chassis, item, e, hosts)
+	end
+end
+function Effects.Apply(car, player)
+	local folder = reset(car)
+	if not folder then
+		return
+	end
 	for _, kind in { "Aura", "Trail" } do
 		local item = MarketConfig.Get(kind, player and player:GetAttribute("Equipped" .. kind))
-		local profile = item and PROFILES[item.Id]
-		if profile then
-			folder:SetAttribute(kind, item.Id)
-			for _, r in profile.ribbons or {} do
-				ribbon(folder, chassis, item, r)
-			end
-			local hosts = {}
-			for _, e in profile.emitters or {} do
-				emitter(chassis, item, e, hosts)
-			end
+		if item then
+			build(folder, car.PrimaryPart, kind, item.Id)
 		end
+	end
+end
+-- One profile by id, Market item or not (the VFX showcase shows drafts such as ascended_aura this way).
+function Effects.ApplyProfile(car, kind, id)
+	local folder = reset(car)
+	if folder then
+		build(folder, car.PrimaryPart, kind, id)
 	end
 end
 return Effects

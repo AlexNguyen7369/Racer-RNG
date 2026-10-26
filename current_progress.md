@@ -58,6 +58,7 @@
 55. 2026-10-26 — Alex Nguyen — Redesigned the Rainbow and Void trails with 16 drawn, uploaded VFX textures (data-driven VehicleEffects plus a client motion script; solar trail and auras keep the old look) (4871383).
 56. 2026-10-26 — Alex Nguyen — Redesigned the Solar trail and the three auras (calmer Azure and Galaxy, a Dragon Ball Z style Ember ki sheath) and removed the legacy effect look (9c91e1d).
 57. 2026-10-26 — Alex Nguyen — Added the VFX showcase area (a separate floor with one local car per trail and aura) and the admin commands `/tp vfxarea` and `/tp home`, written into the admin spec first.
+58. 2026-10-26 — Alex Nguyen — Drafted the golden Ascended Aura (a Super Saiyan style ki aura after Dragon Ball Z, showcase only, not sold) with a new looping KiFlame texture, VehicleEffects.ApplyProfile and a seventh VFX-area lane.
 
 ## What's next
 **Run the full CarTest harness in Racer RNG and fix any red, with vehicle_effects and admin checked first.**
