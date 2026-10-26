@@ -19,6 +19,10 @@
   automatic canvases OK; gaps logged as backlog (ui-reduced-motion, ui-gamepad-focus, ui-safe-insets), each needs
   an owner rule in the design doc first. ROADMAP.md / design/DESIGN.md conventions of the lifecycle and
   ui-implementation skills are not adopted: todo.json and ui/specs are this project's equivalents.
+- Owner approved all three UI rules and dropped roblox-engineer (2026-10-26). Rules in the design doc + HUD_LAYOUT_SPEC
+  section 7; code: Client/UiMotion, Client/SafeInsets, PanelSwitch gamepad focus, tweens in RollToast /
+  RacerUiController / ProgressionUi / RacerMotion. Static checks pass; Studio checks pending (Controller Emulator,
+  notched phone in Device Simulator, Reduced Motion on). ui-test-writer should add coverage for the three rules.
 
 ## Full compatibility gate — 2026-10-22 (Codex, blocked)
 

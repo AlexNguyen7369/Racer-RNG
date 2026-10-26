@@ -3,7 +3,6 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
-local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local catalog = require(Shared.CarCatalog)
@@ -35,6 +34,7 @@ local HudButtonStyle = require(Ui.HudButtonStyle)
 require(Ui.RacerMotion).Attach(playerGui)
 local client = script.Parent:IsA("LocalScript") and script.Parent.Parent or script.Parent
 local PanelSwitch = require(client.PanelSwitch)
+local UiMotion = require(client.UiMotion)
 local PanelBand = require(client.PanelBand)
 local hud = require(Ui.RacerHud).Bind(playerGui)
 require(client.RaceProgressMap).Attach(hud)
@@ -663,7 +663,7 @@ local function refreshTurbo()
 		turboTween:Cancel()
 	end
 	local size = UDim2.fromScale(progress / every, 1)
-	turboTween = TweenService:Create(hud.TurboFill, TweenInfo.new(0.2), { Size = size })
+	turboTween = UiMotion.Create(hud.TurboFill, TweenInfo.new(0.2), { Size = size })
 	local tweenRef = turboTween
 	tweenRef:Play()
 	-- Keep the authoritative endpoint exact for HUD checks and for a turbo reset;
@@ -702,7 +702,7 @@ local function refreshLevel()
 		levelTween:Cancel()
 	end
 	local size = UDim2.fromScale(progress, 1)
-	levelTween = TweenService:Create(hud.LevelFill, TweenInfo.new(0.2), { Size = size })
+	levelTween = UiMotion.Create(hud.LevelFill, TweenInfo.new(0.2), { Size = size })
 	levelTween:Play()
 	local tweenRef = levelTween
 	task.delay(0.25, function()

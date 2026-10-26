@@ -106,3 +106,20 @@ adds the shared white highlight and slight enlargement; its Claim button remains
 - No two reachable buttons, panels or labels overlap at any tested viewport, phone landscape included
   (`UiSpec` / `UiResponsive`).
 - On phones (viewport height <= 500) the grid tiles and pills shrink.
+
+## 7. Motion, safe area and gamepad (owner 2026-10-26)
+
+- **Reduced motion.** Motion is reduced while Roblox's `GuiService.ReducedMotionEnabled` is on OR the player's
+  in-game REDUCED EFFECTS toggle (player attribute `ReduceEffects`) is on; `Client/UiMotion.Reduced()` is the one
+  check. While reduced, every UI tween made through `UiMotion.Create` lands on its goal at once, looping tweens
+  (the Epic ring pulse, the reel streaks) do not play, and the roll reel skips its spin and lands on the result.
+  The outcome, timing of the result reveal and all server values are unchanged. The REDUCED EFFECTS toggle keeps
+  its existing extra effect cuts (no flashes, no tile tilt, no landing pop).
+- **Safe area.** Every player ScreenGui uses `ScreenInsets = DeviceSafeInsets` (`Client/SafeInsets`), so buttons
+  and labels never sit under a notch or rounded corner. Like the authored `IgnoreGuiInset = true`, it does not
+  reserve the Roblox top bar, so the layout beside the top bar is unchanged and desktop layout does not move. Exempt (full-screen, may bleed):
+  `PanelDim`, `LoserScreen`, `RollShowcase`.
+- **Gamepad focus.** When a `PanelSwitch` panel opens while the player's preferred input is a gamepad, the
+  panel's top-left visible button is selected, `GuiService` selection is limited to that panel, and ButtonB
+  closes it (bound only while a panel is open). Closing the panel removes the limit and restores the selection
+  that was active before it opened (or clears it). Mouse, touch and keyboard behaviour is unchanged.

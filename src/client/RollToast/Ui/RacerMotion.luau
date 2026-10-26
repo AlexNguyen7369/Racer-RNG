@@ -1,6 +1,6 @@
 --!nonstrict
 -- Local visual feedback only; never changes gameplay or layout spacing.
-local TweenService = game:GetService("TweenService")
+local UiMotion = require(script.Parent.Parent.Parent:WaitForChild("UiMotion"))
 local UserInputService = game:GetService("UserInputService")
 local Motion = {}
 
@@ -50,7 +50,7 @@ function Motion.Attach(root)
 			if activeTween then
 				activeTween:Cancel()
 			end
-			activeTween = TweenService:Create(
+			activeTween = UiMotion.Create(
 				scale,
 				TweenInfo.new(0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
 				{ Scale = value }
@@ -58,11 +58,12 @@ function Motion.Attach(root)
 			activeTween:Play()
 		end
 		local function highlight(value)
-			TweenService:Create(
+			UiMotion.Create(
 				hoverStroke,
 				TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
 				{ Transparency = value }
-			):Play()
+			)
+				:Play()
 		end
 		object.MouseEnter:Connect(function()
 			if not UserInputService.MouseEnabled then

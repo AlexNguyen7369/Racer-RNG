@@ -1008,24 +1008,24 @@
     {
       "id": "ui-reduced-motion",
       "title": "Honour Reduced Motion in UI animations",
-      "detail": "roblox-ui audit 2026-10-26: no script reads GuiService.ReducedMotionEnabled (roll reel, count-ups, panel tweens). Needs an owner rule in the design doc / HUD_LAYOUT_SPEC before code.",
-      "status": "backlog",
+      "detail": "Owner rule 2026-10-26 (HUD_LAYOUT_SPEC 7). Implemented: Client/UiMotion (ReducedMotionEnabled or ReduceEffects) routes UI tweens; reel spin, fly icon, ring pulse and streak loops skip. Needs a Studio check and ui-test-writer coverage.",
+      "status": "doing",
       "owner": "Claude",
       "updated": "2026-10-26"
     },
     {
       "id": "ui-gamepad-focus",
       "title": "Gamepad / console focus for panels",
-      "detail": "roblox-ui audit 2026-10-26: buttons use Activated (good) but panels set no initial SelectedObject or focus trap; console players can not reliably navigate. Decide in the design doc whether console is a supported platform first.",
-      "status": "backlog",
+      "detail": "Owner rule 2026-10-26 (HUD_LAYOUT_SPEC 7). Implemented in Client/PanelSwitch: first button selected, AddSelectionParent trap, ButtonB closes, selection restored. Needs a Controller Emulator check and ui-test-writer coverage.",
+      "status": "doing",
       "owner": "Claude",
       "updated": "2026-10-26"
     },
     {
       "id": "ui-safe-insets",
       "title": "Safe-area policy for IgnoreGuiInset GUIs",
-      "detail": "roblox-ui audit 2026-10-26: all 27 ScreenGuis use IgnoreGuiInset = true and none sets ScreenInsets; check top-right pills and edge tiles against notches / the Roblox top bar on phones, then write the rule into HUD_LAYOUT_SPEC.",
-      "status": "backlog",
+      "detail": "Owner rule 2026-10-26 (HUD_LAYOUT_SPEC 7). Implemented: Client/SafeInsets sets DeviceSafeInsets on every PlayerGui ScreenGui except PanelDim, LoserScreen, RollShowcase. Needs a notched-phone Device Simulator check.",
+      "status": "doing",
       "owner": "Claude",
       "updated": "2026-10-26"
     }

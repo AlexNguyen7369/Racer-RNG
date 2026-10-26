@@ -20,7 +20,12 @@ CODEBASE RE-AUDIT - 2026-10-26 (Claude, uncommitted, on feature/alex/race-progre
   seven modules regenerated and match the generator exactly. verify.py --lune now passes (task / property-signal
   stubs, seven saved ScreenGuis). Baked StarterGui.rbxm is stale for Index/Stats/Settings/Rebirth/Upgrades: Bind
   builds those from code until re-baked (manual item rebake-startergui-2026-10-26).
-- UNVERIFIED in Studio (no Studio open): harness `data`, a real shutdown save, the UI suite on the regenerated GUIs.
+- Owner rules 2026-10-26 (design doc + HUD_LAYOUT_SPEC 7), implemented: Client/UiMotion (reduced motion = Roblox
+  setting or REDUCED EFFECTS; UI tweens instant, reel lands without spinning), Client/SafeInsets (DeviceSafeInsets
+  on all ScreenGuis but PanelDim / LoserScreen / RollShowcase), PanelSwitch gamepad focus (first button, trap,
+  ButtonB closes, restore). roblox-engineer skill dropped (owner).
+- UNVERIFIED in Studio (no Studio open): harness `data`, a real shutdown save, the UI suite on the regenerated GUIs, and the three
+  new UI rules (Controller Emulator, notched phone, Reduced Motion on).
 
 OWNER REQUEST - STAGED REBIRTH MULTIPLIERS - 2026-10-22 (Codex, uncommitted)
 - Rebirth Speed Gain and Luck factors now compound as x5.00, x7.50, x7.50, x10.00, x10.00, then x7.50 repeating.

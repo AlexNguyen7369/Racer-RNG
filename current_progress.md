@@ -52,8 +52,9 @@
 49. 2026-10-26 — Alex Nguyen — Re-audited the codebase against the Roblox skill checklists; made BindToClose save in parallel and wait for in-flight saves, and cleared 918 selene warnings (UDim2 fromOffset/fromScale in generator and Ui modules, `select` shadowing, unused var) (2812425).
 50. 2026-10-26 — Alex Nguyen — Reconciled the seven Racer UI modules with the spec generator (Rebirth x5.00 text moved into its spec, Upgrades shadow shades pinned), fixed `verify.py --lune`, and cut selene to 1 warning (9650e39).
 51. 2026-10-26 — Alex Nguyen — Installed four Roblox skills and ran the roblox-ui audit; logged Reduced Motion, gamepad focus and safe-inset gaps as backlog items.
+52. 2026-10-26 — Alex Nguyen — Added the owner-approved UI rules (Reduced Motion, device safe-area insets, gamepad panel focus) to the design doc and HUD spec and implemented them (UiMotion, SafeInsets, PanelSwitch).
 
 ## What's next
-**In Studio: run the harness `data` scenario and a real shutdown save, run the UI suite on the regenerated GUIs, and re-bake `assets/studio/StarterGui.rbxm` (manual item `rebake-startergui-2026-10-26`).**
+**In Studio: run the harness `data` scenario and a real shutdown save, the UI suite (plus Controller Emulator, a notched phone and Reduced Motion on), and re-bake `assets/studio/StarterGui.rbxm`.**
 
-**Why this is next:** the shutdown-save fix (bug 53a825f0) and the regenerated UI are only verified offline; until the re-bake, five GUIs are built from code at runtime instead of the saved asset.
+**Why this is next:** the shutdown-save fix, the regenerated UI and the three new UI rules are only verified offline; the re-bake lets five GUIs use the saved asset again.

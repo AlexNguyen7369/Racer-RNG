@@ -821,6 +821,14 @@ Idle Vehicle Simulator — Game Design Requirements
        options in the new look. Active potions show bottle icons with the time left under each.
        No buttons or panels may overlap at any screen size.
 
+       Owner decision, 2026-10-26 (accessibility and devices; details in docs/HUD_LAYOUT_SPEC.md
+       section 7): the UI respects reduced motion (Roblox's Reduced Motion setting or the in-game
+       REDUCED EFFECTS toggle: tweens land at once and the roll reel lands without spinning);
+       interactive UI stays inside the device safe area (notches), while full-screen dims and
+       overlays may still bleed edge to edge; console is supported: opening a panel with a
+       gamepad selects its first button, focus stays inside the panel, B closes it and closing
+       restores the previous selection.
+
        Owner plan, 2026-10-20: Daily Rewards, Quests, Shop and Market share the Backpack
        frame vocabulary (header/icon/title, red X, rounded frame, backdrop, tabs, PanelBand).
        Daily retains its red styling and all existing panel contents/remotes remain.

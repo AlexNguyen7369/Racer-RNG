@@ -31,6 +31,7 @@ local remotes = ReplicatedStorage:WaitForChild("Remotes")
 local rollRemote = remotes:WaitForChild("RollResult")
 local autoRollRemote = remotes:WaitForChild("SetAutoRoll")
 local PanelSwitch = require(script.Parent:WaitForChild("PanelSwitch"))
+local UiMotion = require(script.Parent:WaitForChild("UiMotion"))
 
 local A = RollAnimConfig
 local SHOWCASE_ORDER = 14 -- above the HUD and DuelUi (12), below the loser screen (20)
@@ -92,7 +93,7 @@ local function rarityRank(spec)
 end
 
 local function reduceEffects()
-	return player:GetAttribute("ReduceEffects") == true
+	return UiMotion.Reduced()
 end
 
 -- Card body ------------------------------------------------------------------------------------------------------
@@ -663,7 +664,7 @@ setAttr("Phase", "Idle")
 setAttr("RollSerial", 0)
 
 local function tween(inst, seconds, props, style, direction)
-	local t = TweenService:Create(
+	local t = UiMotion.Create(
 		inst,
 		TweenInfo.new(seconds, style or Enum.EasingStyle.Quad, direction or Enum.EasingDirection.Out),
 		props
@@ -860,7 +861,7 @@ local function openEnlarged(auto)
 	card.Position = UDim2.fromOffset(from.X, from.Y)
 	card.Size = UDim2.fromOffset(toast.AbsoluteSize.X, toast.AbsoluteSize.Y)
 	local info = TweenInfo.new(A.SWITCH, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
-	TweenService:Create(card, info, { Position = CARD_POS, Size = targetSize }):Play()
+	UiMotion.Create(card, info, { Position = CARD_POS, Size = targetSize }):Play()
 	task.delay(A.SWITCH + 0.05, function()
 		if switchStamp == stamp and isEnlarged() then
 			card.Position = CARD_POS
@@ -889,7 +890,7 @@ local function closeEnlarged()
 		autoRaceBottom() + A.COMPACT_GAP + A.COMPACT_HEIGHT / 2
 	)
 	local info = TweenInfo.new(A.SWITCH, Enum.EasingStyle.Back, Enum.EasingDirection.In)
-	TweenService:Create(card, info, {
+	UiMotion.Create(card, info, {
 		Position = UDim2.fromOffset(to.X, to.Y),
 		Size = UDim2.fromOffset(card.AbsoluteSize.X / A.ENLARGED_FACTOR, A.COMPACT_HEIGHT),
 	}):Play()
@@ -951,7 +952,7 @@ local function landEffects(b, roll, mySerial)
 	if not b.Full then
 		return -- the compact roll has no card: smoke and streaks only
 	end
-	if rank >= 4 then -- Epic: pulsing ring
+	if rank >= 4 and not reduceEffects() then -- Epic: pulsing ring (a loop: never under reduced motion)
 		b.Ring.Visible = true
 		b.RingStroke.Color = color
 		b.RingStroke.Transparency = 0
@@ -1008,7 +1009,8 @@ local function flyToIndex(spec)
 	local started = os.clock()
 	task.spawn(function()
 		while flyIcon.Visible and phase == "Exit" do
-			local alpha = math.clamp((os.clock() - started) / math.max(A.EXIT * 0.7, 0.01), 0, 1)
+			local alpha = reduceEffects() and 1
+				or math.clamp((os.clock() - started) / math.max(A.EXIT * 0.7, 0.01), 0, 1)
 			local eased = 1 - (1 - alpha) ^ 2
 			flyIcon.Position = UDim2.fromOffset(from.X + (to.X - from.X) * eased, from.Y + (to.Y - from.Y) * eased)
 			if alpha >= 1 then
@@ -1076,7 +1078,7 @@ local function play(roll)
 			tile.Position = UDim2.fromScale(0.5 + (i - 1) * 0.86, 0.5)
 			tiles[b][i] = tile
 		end
-		for _, s in b.Streaks:GetChildren() do
+		for _, s in reduceEffects() and {} or b.Streaks:GetChildren() do
 			s.BackgroundTransparency = 0.4
 			s.Position = UDim2.fromScale(-0.6, s.Position.Y.Scale)
 			local loop = TweenService:Create(
@@ -1091,7 +1093,7 @@ local function play(roll)
 	local started = os.clock()
 	local distance = (#reelIds - 1) * 0.86 - 0.18
 	while alive() do
-		local alpha = math.clamp((os.clock() - started) / A.SPIN, 0, 1)
+		local alpha = reduceEffects() and 1 or math.clamp((os.clock() - started) / A.SPIN, 0, 1)
 		local travel = distance * (1 - (1 - alpha) ^ 3)
 		for _, b in bodies do
 			for i, tile in ipairs(tiles[b]) do

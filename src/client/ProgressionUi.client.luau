@@ -4,7 +4,6 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
 local player = Players.LocalPlayer
 -- Speed amounts and gain rates show the saved base Speed. Equipped cars affect cruise movement only.
 local gui = player:WaitForChild("PlayerGui")
@@ -18,6 +17,7 @@ local Boosts = require(shared.BoostConfig)
 local CarCatalog = require(shared.CarCatalog)
 local GachaConfig = require(shared.GachaConfig)
 local Switch = require(script.Parent.PanelSwitch)
+local UiMotion = require(script.Parent.UiMotion)
 local Band = require(script.Parent.PanelBand)
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
 local BLUE = Color3.fromRGB(61, 151, 219)
@@ -284,9 +284,9 @@ for _, tile in Tree.Tiles() do
 			purchaseSound:Play()
 		else
 			b.Rotation = -3
-			TweenService:Create(b, TweenInfo.new(0.15), { Rotation = 0 }):Play()
+			UiMotion.Create(b, TweenInfo.new(0.15), { Rotation = 0 }):Play()
 		end
-		TweenService:Create(label, TweenInfo.new(0.15), { TextSize = 15 }):Play()
+		UiMotion.Create(label, TweenInfo.new(0.15), { TextSize = 15 }):Play()
 		task.delay(0.2, function()
 			label.TextSize = 13
 		end)
