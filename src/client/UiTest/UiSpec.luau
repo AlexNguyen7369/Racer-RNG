@@ -394,10 +394,11 @@ UiSpec.Rebirth = {
 	},
 	-- Each reward tile <Name> holds <Name>Icon (ImageLabel with a non-empty Image) and <Name>Caption (TextLabel), not
 	-- overlapping (node ids are unique in the generator, so the tile name is the prefix; both are listed in Nodes).
-	-- Caption = Format with the RebirthConfig multiplier: the NEXT rebirth's gain.
+	-- Caption = Format with the NEXT rebirth's gain: Multiplier tiles use RebirthConfig.NextMultiplier(RebirthLevel)
+	-- (staged x5, x7.5, x7.5, x10, x10, then x7.5; docs/REBIRTH_SPEC.md), others RebirthConfig[Config].
 	Tiles = {
-		{ Name = "LuckReward", Config = "LUCK_MULTIPLIER", Multiplier = true, Format = "x%.2f Luck" },
-		{ Name = "SpeedReward", Config = "SPEED_GAIN_MULTIPLIER", Multiplier = true, Format = "x%.2f Speed Gain" },
+		{ Name = "LuckReward", Multiplier = true, Format = "x%.2f Luck" },
+		{ Name = "SpeedReward", Multiplier = true, Format = "x%.2f Speed Gain" },
 		{ Name = "PointReward", Config = "POINTS_PER_REBIRTH", Format = "+%d Stat Point", Plural = "+%d Stat Points" },
 	},
 	-- The panel's sections, shown together: no two may overlap (at every viewport).
@@ -667,6 +668,9 @@ UiSpec.BandPanels = {
 	["CheckpointUi/Panel"] = 760,
 	["DailyBoosts/ModalBackdrop/Modal"] = 760,
 	["RacerBackpack/Panel"] = 760,
+	-- Client/ProgressionUi panel(): Band.Fit(p, 700)
+	["RacerWorkshop/Panel"] = 700,
+	["RacerWelcome/Panel"] = 700,
 }
 UiSpec.Band = {
 	Race = "RacerHud/Race",
@@ -727,7 +731,7 @@ UiSpec.PanelDimmers = {
 		"RollToast/PanelDimmer",
 		"RacerProgression/PanelDimmer",
 	},
-	VeilExempt = { RollShowcase = true, LoserScreen = true },
+	VeilExempt = { RollShowcase = true, LoserScreen = true, RacerUpgrades = true },
 	Veil = { MinCoverage = 0.9, MaxTransparency = 0.95 },
 	PersistentButtons = {
 		"HudChrome/Grid/Index",
@@ -757,6 +761,13 @@ UiSpec.Motion = {
 	HighlightColour = Color3.new(1, 1, 1),
 	HighlightThickness = 3,
 }
+
+-- Owner 2026-10-26 (docs/UPGRADE_TREE_SPEC.md section 5, docs/HUD_LAYOUT_SPEC.md sections 1 and 6): like the roll
+-- showcase, these panels are full-screen overlays. While one is open, everything in its ScreenGui may cover any
+-- element of another ScreenGui (the HUD entries need not be drawn or clickable), and the panel band rules
+-- (below roll / race, above turbo) do not apply. Overlaps INSIDE its ScreenGui (tile vs tile, tile vs chrome) and
+-- every other panel's rules stay checked.
+UiSpec.FullScreenPanels = { ["RacerUpgrades/Panel"] = true }
 
 -- Overlaps that are allowed: a modal panel may cover a read-out (Speed, Money), never a button or the TURBO bar.
 UiSpec.AllowOverlap = {}
@@ -1946,12 +1957,28 @@ UiSpec.Weather = {
 	TimeText = "^(%d+)s left$", -- "" when no weather is active
 	TimeTolerance = 1, -- s between the shown countdown and ceil(WeatherEndsAt - server time)
 }
+-- The hex upgrade tree (Client/ProgressionUi + Client/RollToast/Ui/UpgradeTreeView; chrome generated from
+-- ui/specs/RacerUpgrades.ui.json into Client/Ui/RacerUpgrades). The chrome (TreeTitle, Close, ZoomTools, Details,
+-- Balance) sits directly in the ScreenGui; the tree is Panel/Canvas (a clipping ScrollingFrame panned by drag and the
+-- wheel) / TreeWorld (UIScale TreeZoom) holding the Start node and one TextButton per UpgradeTree tile, named by its
+-- id. Every tile UpgradeTree.Tiles() defines (docs/UPGRADE_TREE_SPEC.md section 1, Walkspeed included) must be there.
 UiSpec.Guis.RacerUpgrades = {
 	Source = "Client/ProgressionUi",
 	Panels = { "Panel" },
 	Buttons = {
-		{ Path = "Panel/Close", Does = "close_panel", Panel = "RacerUpgrades/Panel" },
-		{ Path = "Panel/Canvas/*", Does = "remote", Remote = "BuyUpgrade", Arg = "upgrade_id", Count = "upgrades" },
+		{ Path = "Close/Face", Does = "close_panel", Panel = "RacerUpgrades/Panel", Text = "X" },
+		{ Path = "ZoomTools/Exit/Face", Does = "close_panel", Panel = "RacerUpgrades/Panel", Text = "EXIT" },
+		{ Path = "ZoomTools/ZoomIn/Face", Does = "local", Effect = "tree_zoom_in", Text = "+" },
+		{ Path = "ZoomTools/ZoomOut/Face", Does = "local", Effect = "tree_zoom_out", Text = "-" },
+		-- The tree's root node (START / UPGRADES): owned by everyone, a click fires nothing (click upgrade_start_inert).
+		{ Path = "Panel/Canvas/TreeWorld/Start", Does = "local", Effect = "none" },
+		{
+			Path = "Panel/Canvas/TreeWorld/*",
+			Does = "remote",
+			Remote = "BuyUpgrade",
+			Arg = "upgrade_id",
+			Count = "upgrades",
+		},
 	},
 }
 UiSpec.Guis.RacerWorkshop = {
@@ -1968,7 +1995,12 @@ UiSpec.Guis.RacerWelcome = {
 	Buttons = { { Path = "Panel/Close", Does = "close_panel", Panel = "RacerWelcome/Panel" } },
 }
 UiSpec.Progression = {
-	TileSize = Vector2.new(100, 88),
+	-- Owner 2026-10-26 (UPGRADE_TREE_SPEC section 5): the click box is 100 x 106 (NODE_HEIGHT = STEP_Y), so
+	-- neighbouring tiles' click areas never overlap.
+	TileSize = Vector2.new(100, 106),
+	AffordableColour = Color3.fromRGB(60, 255, 60), -- section 5: an affordable price is green
+	Canvas = "RacerUpgrades/Panel/Canvas",
+	TreeWorld = "RacerUpgrades/Panel/Canvas/TreeWorld",
 	UpgradeEntry = "HudChrome/UpgradeSlot/Upgrade",
 	UpgradeBadge = "HudChrome/UpgradeSlot/Upgrade/Badge",
 	WorkshopRateStep = 0.05,
@@ -2022,12 +2054,44 @@ for _, name in { "Upgrades", "Workshop", "Welcome" } do
 	table.insert(UiSpec.Clicks, {
 		Id = "close_" .. string.lower(name),
 		Gui = "Racer" .. name,
-		Path = "Panel/Close",
+		Path = name == "Upgrades" and "Close/Face" or "Panel/Close",
 		Prepare = only(path),
 		NeedSetup = { "spy" },
 		Expect = { Panels = { [path] = false }, Remote = false },
 	})
 end
+table.insert(UiSpec.Clicks, {
+	Id = "exit_upgrades",
+	Gui = "RacerUpgrades",
+	Path = "ZoomTools/Exit/Face",
+	Prepare = only("RacerUpgrades/Panel"),
+	NeedSetup = { "spy" },
+	Expect = { Panels = { ["RacerUpgrades/Panel"] = false }, Remote = false },
+})
+-- + then - (run in this order, so the tree zoom ends where it started): the RacerUpgrades attribute TreeZoom
+-- (UpgradeTreeView zoom()) rises after + and falls after -, the panel stays open, nothing is sent to the server.
+for _, zoom in { "in", "out" } do
+	table.insert(UiSpec.Clicks, {
+		Id = "tree_zoom_" .. zoom,
+		Gui = "RacerUpgrades",
+		Path = zoom == "in" and "ZoomTools/ZoomIn/Face" or "ZoomTools/ZoomOut/Face",
+		Prepare = only("RacerUpgrades/Panel"),
+		NeedSetup = { "spy" },
+		Expect = {
+			Panels = { ["RacerUpgrades/Panel"] = true },
+			Remote = false,
+			After = { "tree_zoomed_" .. zoom },
+		},
+	})
+end
+table.insert(UiSpec.Clicks, {
+	Id = "upgrade_start_inert",
+	Gui = "RacerUpgrades",
+	Path = "Panel/Canvas/TreeWorld/Start",
+	Prepare = only("RacerUpgrades/Panel"),
+	NeedSetup = { "spy", "progression_spy" },
+	Expect = { Panels = { ["RacerUpgrades/Panel"] = true }, Remote = false, After = { "progression_not_optimistic" } },
+})
 table.insert(UiSpec.Clicks, {
 	Id = "open_upgrades",
 	Gui = "HudChrome",
@@ -2059,7 +2123,7 @@ end
 table.insert(UiSpec.Clicks, {
 	Id = "buy_upgrade",
 	Gui = "RacerUpgrades",
-	Path = "Panel/Canvas/money_1",
+	Path = "Panel/Canvas/TreeWorld/money_1",
 	Prepare = only("RacerUpgrades/Panel"),
 	NeedSetup = { "progression_buyable", "spy", "progression_spy" },
 	Expect = { Remote = { Name = "BuyUpgrade", Arg = "upgrade_id" }, After = { "progression_not_optimistic" } },
@@ -2067,7 +2131,7 @@ table.insert(UiSpec.Clicks, {
 table.insert(UiSpec.Clicks, {
 	Id = "upgrade_no_money",
 	Gui = "RacerUpgrades",
-	Path = "Panel/Canvas/money_1",
+	Path = "Panel/Canvas/TreeWorld/money_1",
 	Prepare = only("RacerUpgrades/Panel"),
 	NeedSetup = { "progression_no_money", "spy", "progression_spy" },
 	Expect = { Remote = false, After = { "progression_not_optimistic" } },

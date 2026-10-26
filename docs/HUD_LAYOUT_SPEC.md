@@ -21,7 +21,8 @@ Owner, 2026-10-15 (same day, replaces the first 2 x 3 grid):
   (`PanelSwitch`).
 - Shop opens the gamepass Shop (`docs/GAMEPASS_SHOP_SPEC.md`). Items opens the Backpack (section 3). Upgrade opens
   the upgrade tree. Index, Stats and Rebirth open their existing panels.
-- Panels open between the left grid and the Shop column.
+- Panels open between the left grid and the Shop column. Exception (owner 2026-10-26): the upgrade tree is a
+  full-screen overlay (`docs/UPGRADE_TREE_SPEC.md` section 5), like the roll showcase.
 
 ## 2. Top-right pills
 
@@ -99,7 +100,8 @@ adds the shared white highlight and slight enlargement; its Claim button remains
   buttons. Owner 2026-10-20 (replaces the per-HUD veil): a panel never dims the whole screen. Only the world
   behind the UI is dimmed, by one non-interactive layer (`HudChrome` creates ScreenGui `PanelDim`, DisplayOrder 0,
   below every HUD ScreenGui); the HUD stays at full brightness. Panels' own full-screen `Backdrop` frames are
-  transparent. The full-screen roll showcase is exempt because it intentionally replaces the HUD.
+  transparent. The full-screen roll showcase and the full-screen upgrade tree (owner 2026-10-26) are exempt because
+  they intentionally replace the HUD; while one of them is open the HUD entries need not be drawn or clickable.
 - Owner 2026-10-20: the HUD tiles stay clickable while Shop, Market or Daily is open. Their full-screen dim
   `Backdrop` is a non-interactive Frame (it never swallows clicks); clicking a HUD tile switches panels, and a click
   on empty screen that no GUI handles closes Shop or Market (`PanelFrame.CloseOnOutsideClick`).

@@ -5,6 +5,15 @@ Shown in Studio at: ServerScriptService > ProjectContext   (source file: context
 Do NOT edit this in Studio: edit the file on disk, Rojo syncs it. Claude updates it at the end of every loop.
 Last updated: 2026-10-26 (Claude: full codebase re-audit)
 
+UPGRADE TREE + UI TESTS - 2026-10-26 (Claude, owner decisions; static checks only, live [UITEST] pending)
+- Owner: the upgrade tree stays a full-screen overlay (UPGRADE_TREE_SPEC 5, HUD_LAYOUT_SPEC 1 + 6 updated: exempt
+  like RollShowcase) and Walkspeed I-V is shown again. UpgradeTreeView: walkspeed no longer skipped, gated tiles
+  show "Reach Track N", affordable price green, tile click box 100 x 106 (no overlap). Bugs b33d28b9, 24c85a85,
+  b5fe716f fixed in code, not yet seen live.
+- ui-test-writer reconciled stale UI tests: ui_rebirth expects NextMultiplier, ui_upgrades tiles under
+  Panel/Canvas/TreeWorld, UiResponsive generated table regenerated + HudChrome model, PanelDim float tolerance,
+  RacerUpgrades declared a full-screen panel. Run [UITEST] next (Racer RNG place, Rojo connected).
+
 TEST RESULTS - 2026-10-26 live Studio (Claude, Rojo synced, after the re-audit)
 - harness: [CARTEST] END pass=48 fail=2 -> economy (stale test: MAX_SPEED 80/196; owner kept 88, doc 1M example
   corrected to 218, test-writer updated -> economy 43/43 PASS) and npc (npc_lose_player_time_measured 98.55 vs 99.70

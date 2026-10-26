@@ -89,9 +89,14 @@ The bar becomes "TURBO LUCK n/N" with the tier's N and pops "TURBO xM!". Progres
 - **No world spot (owner, 2026-10-13):** the "UPGRADES" sign and pad in the spawn area (local (150, -70)) are removed;
   the Best Roll Ever pedestal (`docs/LEADERBOARD_SPEC.md` 3a) stands there. The tree opens only from the UPGRADES
   button. The upgrade pad of each workshop plot (`docs/WORKSHOP_SPEC.md`) is a different thing and stays.
-- The tree panel is a PanelSwitch panel (mutually exclusive with Index / Stats), starts below the Auto Race button and
-  ends above the turbo bar, Close button at the bottom, fits phone landscape.
+- The tree panel is a PanelSwitch panel (mutually exclusive with Index / Stats). Owner 2026-10-26 (replaces "starts
+  below the Auto Race button and ends above the turbo bar"): it is a full-screen overlay (Isaac's 2026-10-14 design)
+  with the world blurred, drag to pan, mouse-wheel and +/- zoom, a Close (X) and an EXIT button; it fits phone
+  landscape. Like the roll showcase it is exempt from the panel band and the HUD-stays-clickable rule
+  (`docs/HUD_LAYOUT_SPEC.md` sections 1 and 6).
+- All six branches are shown, Walkspeed included (owner 2026-10-26: the 2026-10-14 tree had hidden it).
 - Tiles: owned = blue, buyable = its price (green if affordable, red if not), gated = "Reach Track N", beyond = "?".
+  Neighbouring tiles' click areas never overlap.
 
 ## 6. Server rules
 - `Remotes.BuyUpgrade(tileId)`: validated (known tile, previous tile owned, gate met, enough Money), rate-limited;

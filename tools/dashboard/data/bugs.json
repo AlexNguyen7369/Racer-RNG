@@ -1255,6 +1255,92 @@
       "fixedAt": "2026-10-26T01:30:02-07:00",
       "fixedBy": "Alex Nguyen",
       "fixNote": "2026-10-26 live Studio: harness data 145/145; Play stop (BindToClose) logged no save errors; parallel save + in-flight wait in place."
+    },
+    {
+      "id": "b33d28b9",
+      "name": "Upgrade tree hides the Walkspeed branch",
+      "kind": "fault",
+      "status": "open",
+      "file": "src/client/RollToast/Ui/UpgradeTreeView.luau",
+      "line": 147,
+      "endLine": 149,
+      "snippet": {
+        "from": 143,
+        "lines": [
+          "\tstart.Price.Text = \"UPGRADES\"",
+          "\tfor _, tile in Tree.Tiles() do",
+          "\t\tif tile.Branch == \"walkspeed\" then",
+          "\t\t\tcontinue",
+          "\t\tend",
+          "\t\tlocal entry = node(tile.Id, tile.Name, tile.Q, tile.R, ICONS[tile.Branch])",
+          "\t\tentry.Tile = tile",
+          "\t\ttiles[tile.Id] = entry",
+          "\t\tentry.Button.MouseEnter:Connect(function()",
+          "\t\t\tinspect(entry)",
+          "\t\tend)"
+        ]
+      },
+      "summary": "UpgradeTreeView skips every walkspeed tile (continue), so walkspeed_1..5 from UpgradeConfig (UPGRADE_TREE_SPEC section 1: Walkspeed I-V) can not be seen or bought, while UpgradesBuyable / the Upgrade badge still count walkspeed_1. ui_upgrades tile_present_walkspeed_* and ui_inventory button_count stay red (24 of 29 tiles).",
+      "error": "",
+      "foundBy": "ui-test-writer",
+      "foundAt": "2026-10-26T01:44:38-07:00",
+      "loggedBy": "Alex Nguyen"
+    },
+    {
+      "id": "24c85a85",
+      "name": "Gated upgrade tiles show a price, not Reach Track N",
+      "kind": "fault",
+      "status": "open",
+      "file": "src/client/RollToast/Ui/UpgradeTreeView.luau",
+      "line": 166,
+      "endLine": 166,
+      "snippet": {
+        "from": 162,
+        "lines": [
+          "\t\tentry.Label.Position = locked and UDim2.new(0, 0, 0.5, -26) or UDim2.fromOffset(2, 12)",
+          "\t\tentry.Label.Size = locked and UDim2.new(1, 0, 0, 52) or UDim2.new(1, -4, 0, 46)",
+          "\t\tentry.Art.Visible = not locked",
+          "\t\tentry.Price.Text = locked and \"\" or owned and \"OWNED\" or Format.MoneyText(Tree.Price(entry.Tile.Id))",
+          "\t\tentry.Price.TextColor3 = owned and Color3.fromRGB(60, 255, 60)",
+          "\t\t\tor canBuy and Color3.fromRGB(255, 224, 80)",
+          "\t\t\tor Color3.fromRGB(255, 105, 105)",
+          "\t\tpaint(entry.Fills, owned and CYAN or DARK)",
+          "\t\tpaint(entry.Outline, owned and WHITE or canBuy and CYAN or Color3.fromRGB(82, 90, 100))"
+        ]
+      },
+      "summary": "View.Paint writes the price on a gated tile; UPGRADE_TREE_SPEC section 5 says a gated tile shows 'Reach Track N' (it only appears in the Details status on hover). ui_upgrades tile_truth_<id> fails for gated tiles.",
+      "error": "",
+      "foundBy": "ui-test-writer",
+      "foundAt": "2026-10-26T01:44:38-07:00",
+      "loggedBy": "Alex Nguyen"
+    },
+    {
+      "id": "b5fe716f",
+      "name": "Hex tile hitboxes overlap their neighbours",
+      "kind": "fault",
+      "status": "open",
+      "file": "src/client/RollToast/Ui/UpgradeTreeView.luau",
+      "line": 7,
+      "endLine": 7,
+      "snippet": {
+        "from": 3,
+        "lines": [
+          "local View = {}",
+          "local Components = require(script.Parent.RacerComponents)",
+          "local UserInputService = game:GetService(\"UserInputService\")",
+          "local WORLD, MIN_ZOOM, MAX_ZOOM, ZOOM_STEP = 1800, 0.15, 1.6, 0.16",
+          "local NODE_WIDTH, NODE_HEIGHT, STEP_X, STEP_Y = 100, 116, 122, 106",
+          "local CYAN, DARK, WHITE = Color3.fromRGB(30, 216, 255), Color3.fromRGB(27, 33, 46), Color3.new(1, 1, 1)",
+          "local ICONS =",
+          "\t{ money = \"cash\", luck = \"luck\", speed = \"speed\", rollspeed = \"go_kart\", turbo = \"rocket_car\", walkspeed = \"speed\" }",
+          "local function make(class, name, props, parent)"
+        ]
+      },
+      "summary": "Tile TextButtons are 100x116 rects on a 122x106 axial grid: tiles in adjacent rows (dx 61, dy 106) overlap by 39x10 px of transparent corner, so a click there can hit the wrong tile. ui_layout no_overlap_upgrades_open_* reports the pairs.",
+      "error": "",
+      "foundBy": "ui-test-writer",
+      "foundAt": "2026-10-26T01:44:38-07:00",
+      "loggedBy": "Alex Nguyen"
     }
   ]
 }

@@ -49,14 +49,8 @@ function Progression.Build(h)
 		}
 	end
 	function scenarios.ui_upgrades(res)
-		local canvas = h.find("RacerUpgrades/Panel/Canvas")
-		h.check(
-			res,
-			"upgrade_canvas_scrolls",
-			canvas and canvas.ClassName or "missing",
-			"ScrollingFrame",
-			canvas ~= nil and canvas:IsA("ScrollingFrame") and canvas.ScrollingEnabled and canvas.ClipsDescendants
-		)
+		local canvas = h.find(Spec.Progression.Canvas)
+		local world = h.find(Spec.Progression.TreeWorld)
 		local truth = state()
 		local count = h.player:GetAttribute("UpgradesBuyable")
 		expect(res, "buyable_count_matches_tree", count, Tree.BuyableCount(truth))
@@ -69,7 +63,7 @@ function Progression.Build(h)
 			end
 		end
 		for _, tile in Tree.Tiles() do
-			local button = canvas and canvas:FindFirstChild(tile.Id)
+			local button = world and world:FindFirstChild(tile.Id)
 			h.check(
 				res,
 				"tile_present_" .. tile.Id,
@@ -88,6 +82,24 @@ function Progression.Build(h)
 					or reason == "gated" and ("Reach Track " .. Tree.RequiredTrack(tile.Id, truth.TrackCount))
 					or Format.MoneyText(Tree.Price(tile.Id))
 				h.check(res, "tile_truth_" .. tile.Id, text, wanted, string.find(text, wanted, 1, true) ~= nil)
+				-- UPGRADE_TREE_SPEC section 5: a buyable price is green if affordable, red if not
+				local price = button:FindFirstChild("Price", true)
+				if canBuy or reason == "money" then
+					local c = price and price:IsA("TextLabel") and price.TextColor3
+					local green = Spec.Progression.AffordableColour
+					h.check(
+						res,
+						"tile_price_colour_" .. tile.Id,
+						c and tostring(c) or "no Price label",
+						canBuy and tostring(green) or "red (R > G and R > B)",
+						c ~= nil
+							and (
+								canBuy
+									and math.abs(c.R - green.R) + math.abs(c.G - green.G) + math.abs(c.B - green.B) <= 0.02
+								or not canBuy and c.R > c.G and c.R > c.B
+							)
+					)
+				end
 				local angled = 0
 				for _, part in button:GetDescendants() do
 					if part:IsA("Frame") and part.BackgroundTransparency < 1 and math.abs(part.Rotation) % 90 > 1 then
@@ -97,14 +109,41 @@ function Progression.Build(h)
 				h.check(res, "tile_hex_geometry_" .. tile.Id, angled, ">=2 slanted visible polygon parts", angled >= 2)
 			end
 		end
+		local restore = h.setPanels({ "RacerUpgrades/Panel" })
+		h.frames(2)
+		-- The hex tree pans by drag / wheel (UpgradeTreeView sets CanvasPosition itself; native scrolling is off), so
+		-- the canvas must be a clipping ScrollingFrame whose canvas spans the whole zoomed TreeWorld (measured with
+		-- the tree open): every tile can be panned into the window (tile_pan_reachable_* / tile_pan_hit_* prove it).
+		local spans = canvas ~= nil
+			and world ~= nil
+			and canvas:IsA("ScrollingFrame")
+			and canvas.ClipsDescendants
+			and world.AbsoluteSize.X > 0
+			and canvas.CanvasSize.X.Offset + Spec.Tolerance >= world.AbsoluteSize.X
+			and canvas.CanvasSize.Y.Offset + Spec.Tolerance >= world.AbsoluteSize.Y
+		h.check(
+			res,
+			"upgrade_canvas_scrolls",
+			canvas
+					and world
+					and ("%s canvas %s world %s"):format(
+						canvas.ClassName,
+						tostring(canvas:IsA("ScrollingFrame") and canvas.CanvasSize or "-"),
+						tostring(world.AbsoluteSize)
+					)
+				or "missing",
+			"clipping ScrollingFrame, CanvasSize >= TreeWorld size",
+			spans
+		)
 		if canvas and canvas:IsA("ScrollingFrame") then
-			local restore = h.setPanels({ "RacerUpgrades/Panel" })
 			local original = canvas.CanvasPosition
 			for _, tile in Tree.Tiles() do
-				local b = canvas:FindFirstChild(tile.Id)
+				local b = world and world:FindFirstChild(tile.Id)
 				if b and b:IsA("GuiButton") then
+					-- Pan the tile to the middle of the window (clear of the chrome along the screen edges)
 					local position = b.AbsolutePosition - canvas.AbsolutePosition + canvas.CanvasPosition
-					canvas.CanvasPosition = Vector2.new(math.max(0, position.X - 8), math.max(0, position.Y - 8))
+					local target = position + b.AbsoluteSize / 2 - canvas.AbsoluteSize / 2
+					canvas.CanvasPosition = Vector2.new(math.max(0, target.X), math.max(0, target.Y))
 					h.frames(2)
 					local br, cr = h.rect(b), h.rect(canvas)
 					h.check(
@@ -125,8 +164,8 @@ function Progression.Build(h)
 				end
 			end
 			canvas.CanvasPosition = original
-			restore()
 		end
+		restore()
 		-- Owner 2026-10-13: the spawn-area upgrade pad is removed; the tree opens only from the HUD Upgrade button
 		-- (clicks open_upgrades / toggle_upgrades_closed). Only the workshop plots keep an UpgradePad.
 		local plots = workspace:FindFirstChild("Workshops")
@@ -204,7 +243,25 @@ function Progression.Build(h)
 			for _, name in { "Upgrades", "Workshop", "Welcome" } do
 				local panel = h.find("Racer" .. name .. "/Panel")
 				local race, roll, turbo = h.find(Spec.Hud.Race), h.find("RollToast/Toast"), h.find(Spec.Hud.Turbo)
-				if panel and race and roll and turbo then
+				local lower = string.lower(name) .. "_" .. vpSpec.Name
+				if Spec.FullScreenPanels["Racer" .. name .. "/Panel"] then
+					-- Owner 2026-10-26 (HUD_LAYOUT_SPEC sections 1 and 6): a full-screen overlay, exempt from the band
+					for _, rule in
+						{ "panel_below_roll_", "panel_below_race_", "panel_compact_no_overlap_", "panel_above_turbo_" }
+					do
+						h.check(res, rule .. lower, "exempt", "exempt (full-screen overlay)", true)
+					end
+				end
+				if Spec.FullScreenPanels["Racer" .. name .. "/Panel"] and panel then
+					local p = rect(panel)
+					h.check(
+						res,
+						"panel_positive_size_" .. lower,
+						{ p.w, p.h },
+						"positive viewport-contained area",
+						p.w > 0 and p.h > 0 and p.x >= 0 and p.x + p.w <= vp.X and p.y + p.h <= vp.Y
+					)
+				elseif panel and race and roll and turbo then
 					local p, a, r, t = rect(panel), rect(race), rect(roll), rect(turbo)
 					local minimum = math.max(a.y + a.h, r.y + r.h) + Spec.PanelTopMargin
 					local beside = p.x >= r.x + r.w - Spec.Tolerance or p.x + p.w <= r.x + Spec.Tolerance

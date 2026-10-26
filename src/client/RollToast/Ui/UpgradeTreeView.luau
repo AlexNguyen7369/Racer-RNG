@@ -4,7 +4,8 @@ local View = {}
 local Components = require(script.Parent.RacerComponents)
 local UserInputService = game:GetService("UserInputService")
 local WORLD, MIN_ZOOM, MAX_ZOOM, ZOOM_STEP = 1800, 0.15, 1.6, 0.16
-local NODE_WIDTH, NODE_HEIGHT, STEP_X, STEP_Y = 100, 116, 122, 106
+-- The click box is one row step tall so neighbouring tiles never overlap; the hex art is sized from the width.
+local NODE_WIDTH, NODE_HEIGHT, STEP_X, STEP_Y = 100, 106, 122, 106
 local CYAN, DARK, WHITE = Color3.fromRGB(30, 216, 255), Color3.fromRGB(27, 33, 46), Color3.new(1, 1, 1)
 local ICONS =
 	{ money = "cash", luck = "luck", speed = "speed", rollspeed = "go_kart", turbo = "rocket_car", walkspeed = "speed" }
@@ -142,9 +143,6 @@ function View.Create(gui, Tree, Format)
 	local start = node("Start", "START", 0, 0, "speed")
 	start.Price.Text = "UPGRADES"
 	for _, tile in Tree.Tiles() do
-		if tile.Branch == "walkspeed" then
-			continue
-		end
 		local entry = node(tile.Id, tile.Name, tile.Q, tile.R, ICONS[tile.Branch])
 		entry.Tile = tile
 		tiles[tile.Id] = entry
@@ -162,15 +160,16 @@ function View.Create(gui, Tree, Format)
 		entry.Label.Position = locked and UDim2.new(0, 0, 0.5, -26) or UDim2.fromOffset(2, 12)
 		entry.Label.Size = locked and UDim2.new(1, 0, 0, 52) or UDim2.new(1, -4, 0, 46)
 		entry.Art.Visible = not locked
-		entry.Price.Text = locked and "" or owned and "OWNED" or Format.MoneyText(Tree.Price(entry.Tile.Id))
+		local gate = reason == "gated" and ("Reach Track " .. Tree.RequiredTrack(entry.Tile.Id, trackCount)) or nil
+		entry.Price.Text = locked and "" or owned and "OWNED" or gate or Format.MoneyText(Tree.Price(entry.Tile.Id))
 		entry.Price.TextColor3 = owned and Color3.fromRGB(60, 255, 60)
-			or canBuy and Color3.fromRGB(255, 224, 80)
+			or canBuy and Color3.fromRGB(60, 255, 60)
 			or Color3.fromRGB(255, 105, 105)
 		paint(entry.Fills, owned and CYAN or DARK)
 		paint(entry.Outline, owned and WHITE or canBuy and CYAN or Color3.fromRGB(82, 90, 100))
 		entry.Status = owned and "OWNED"
 			or locked and "Previous upgrade required"
-			or reason == "gated" and ("Reach Track " .. Tree.RequiredTrack(entry.Tile.Id, trackCount))
+			or gate
 			or canBuy and ("BUY • " .. Format.MoneyText(Tree.Price(entry.Tile.Id)))
 			or "Not enough Money"
 		if selected == entry then

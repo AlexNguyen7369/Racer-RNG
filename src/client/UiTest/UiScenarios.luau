@@ -626,9 +626,12 @@ local function ownScale(obj, ctx)
 			local override = child.Name == "UIScale" and ctx.scaleOverride and ctx.scaleOverride[obj]
 			local modelled = override
 				or (child.Name == "UIScale" and UiResponsive.ScaleAt(pathOf(obj), ctx.vp))
+				or (child.Name == UiResponsive.HudChrome.ScaleName and UiResponsive.HudChromeScale(pathOf(obj), ctx.vp))
 				or marketTabScale(obj, child, ctx)
 			if modelled then
 				s *= modelled
+			elseif UiResponsive.LiveScales[child.Name] then
+				s *= child.Scale -- player state (the tree zoom), the same at every viewport
 			else
 				if not sameSize(ctx.vp, viewport()) then
 					ctx.unsupported[pathOf(obj)] = "UIScale " .. child.Name
@@ -663,13 +666,56 @@ local function variantProps(obj, ctx)
 	return props.Size or obj.Size, props.Position or obj.Position, props.AnchorPoint or obj.AnchorPoint
 end
 
+-- UiResponsive.LiveAutoSize: an AutomaticSize node whose content does not depend on the viewport.
+local function liveAutoSized(obj)
+	if obj.AutomaticSize == Enum.AutomaticSize.None then
+		return false
+	end
+	local path = pathOf(obj)
+	for _, pattern in UiResponsive.LiveAutoSize do
+		if pathMatches(pattern, path) then
+			return true
+		end
+	end
+	return false
+end
+
+-- The live product of every UIScale on obj and its GuiObject ancestors (what its AbsoluteSize is scaled by).
+local function liveScaleOf(obj)
+	local s, node = 1, obj
+	while node and node:IsA("GuiObject") do
+		for _, child in node:GetChildren() do
+			if child:IsA("UIScale") then
+				s *= child.Scale
+			end
+		end
+		node = node.Parent
+	end
+	return s
+end
+
 -- obj's size in `base` (Offsets are design pixels scaled by the inherited UIScale c; UISizeConstraint limits the
--- design size; obj's own UIScale scales it about its anchor).
+-- design size; obj's own UIScale scales it about its anchor). A LiveAutoSize node's automatic axes take its live
+-- size in design pixels (AbsoluteSize / live UIScale factors).
 local function sizeIn(obj, size, base, ctx, c)
 	local own = ownScale(obj, ctx)
 	local w = base.w * size.X.Scale + c * size.X.Offset
 	local h = base.h * size.Y.Scale + c * size.Y.Offset
 	w, h = constrain(obj, w / c, h / c)
+	if liveAutoSized(obj) then
+		local live = liveScaleOf(obj)
+		local auto = obj.AutomaticSize
+		if obj.AbsoluteSize.X <= 0 or obj.AbsoluteSize.Y <= 0 or live <= 0 then
+			ctx.unsupported[pathOf(obj)] = "AutomaticSize (not rendered live)"
+		else
+			if auto == Enum.AutomaticSize.X or auto == Enum.AutomaticSize.XY then
+				w = obj.AbsoluteSize.X / live
+			end
+			if auto == Enum.AutomaticSize.Y or auto == Enum.AutomaticSize.XY then
+				h = obj.AbsoluteSize.Y / live
+			end
+		end
+	end
 	return w * c * own, h * c * own
 end
 
@@ -937,7 +983,7 @@ simRect = function(obj, ctx)
 			end
 		end
 		local c = inheritedScale(parent, ctx)
-		if obj.AutomaticSize ~= Enum.AutomaticSize.None then
+		if obj.AutomaticSize ~= Enum.AutomaticSize.None and not liveAutoSized(obj) then
 			ctx.unsupported[pathOf(obj)] = "AutomaticSize"
 		end
 		local base = parent:IsA("GuiObject") and contentBox(parent, pr, c) or pr
@@ -950,9 +996,8 @@ simRect = function(obj, ctx)
 		else
 			local path = pathOf(obj)
 			local dependencies = {}
-			local isProgressionPanel = path == "RacerUpgrades/Panel"
-				or path == "RacerWorkshop/Panel"
-				or path == "RacerWelcome/Panel"
+			-- RacerWorkshop / RacerWelcome panels are Band.Fit panels (UiSpec.BandPanels); RacerUpgrades/Panel is the
+			-- full-screen hex tree (UpgradeTreeView: Size (1, 0, 1, 0), no runtime fit), solved like any node.
 			local isRate = path == "RacerProgression/WorkshopRate"
 			local isRacerPanel = UiResponsive.IsRacerPanel(path)
 			local bandMax = UiSpec.BandPanels[path] -- Client/PanelBand.Fit panels (Shop, Market)
@@ -964,13 +1009,6 @@ simRect = function(obj, ctx)
 					Navigation = UiSpec.Band.Grid,
 					ShopColumn = UiSpec.Band.ShopColumn,
 					Money = UiSpec.Band.Money,
-				}
-			elseif isProgressionPanel then
-				wanted = {
-					Toast = "RollToast/Toast",
-					Turbo = UiSpec.Hud.Turbo,
-					UpgradeButton = "HudChrome/UpgradeSlot/Upgrade",
-					Navigation = UiSpec.RacerPanelBand.Navigation,
 				}
 			elseif isRate then
 				wanted = { Speed = UiSpec.Hud.Speed, Toast = "RollToast/Toast" }
@@ -1009,13 +1047,26 @@ simRect = function(obj, ctx)
 				local size = variantProps(obj, ctx)
 				fitted = UiResponsive.RacerPanelFit(ctx.vp, dependencies, size)
 				ctx.scaleOverride[obj] = fitted.Scale
-			elseif isProgressionPanel or isRate or path == UiSpec.Weather.Icon then
+			elseif isRate or path == UiSpec.Weather.Icon then
 				fitted = UiResponsive.Progression(path, ctx.vp, dependencies)
 			end
 			local vSize, vPosition, vAnchor = variantProps(obj, ctx)
 			local size = fitted and fitted.Size or vSize
 			local position = fitted and fitted.Position or vPosition
 			local anchor = fitted and fitted.AnchorPoint or vAnchor
+			-- Client/HudChrome's runtime placement (UiResponsive.HudChrome)
+			local holder = UiResponsive.HudChrome.HolderPositions[path]
+			if holder then
+				position = holder[UiResponsive.VariantOf(ctx.vp)]
+			elseif UiResponsive.HudChrome.Slots[path] then
+				local level = findPath(UiResponsive.HudChrome.Level)
+				local turbo = findPath(UiResponsive.HudChrome.Turbo)
+				if level and turbo then
+					position = UiResponsive.HudChromeSlot(path, simRect(level, ctx), simRect(turbo, ctx))
+				else
+					ctx.unsupported[path] = "missing runtime layout dependency"
+				end
+			end
 			-- The compact roll's live Y offset is fitCompact's for the live screen: at a simulated viewport it is
 			-- Race Face bottom + COMPACT_GAP there (UiResponsive.BelowRace)
 			local below = UiResponsive.BelowRace[path]
@@ -2464,6 +2515,16 @@ local function overlapAllowed(a, b, ra, rb, rectOf)
 	if panelPath then
 		local problem = panelCoverProblem(panelPath, readout, ra and rb and intersection(ra, rb), rectOf)
 		return problem == nil, problem
+	end
+	-- While a full-screen overlay panel is open (UiSpec.FullScreenPanels), its ScreenGui may cover other ScreenGuis
+	local guiA, guiB = string.match(a, "^[^/]+"), string.match(b, "^[^/]+")
+	if guiA ~= guiB then
+		for panel in UiSpec.FullScreenPanels do
+			local g, open = string.match(panel, "^[^/]+"), findPath(panel)
+			if (g == guiA or g == guiB) and open and effectivelyVisible(open) then
+				return true
+			end
+		end
 	end
 	for _, pair in UiSpec.AllowOverlap do
 		if (pair[1] == a and pair[2] == b) or (pair[1] == b and pair[2] == a) then
@@ -5118,7 +5179,9 @@ function S.ui_panels(res)
 			"panel_dim_transparency",
 			t,
 			("%.2f..%.2f"):format(cfgDim.Transparency.Min, cfgDim.Transparency.Max),
-			t >= cfgDim.Transparency.Min and t <= cfgDim.Transparency.Max
+			-- BackgroundTransparency is stored as a float32 (0.45 reads back as 0.4499999...): compare to the bounds
+			-- with a float32 rounding tolerance, not a looser range.
+			t >= cfgDim.Transparency.Min - 1e-6 and t <= cfgDim.Transparency.Max + 1e-6
 		)
 		local full = dimFrame.Size.X.Scale >= 1 and dimFrame.Size.Y.Scale >= 1 and dimFrame.Visible
 		check(res, "panel_dim_full_screen", tostring(dimFrame.Size), "{1, 0}, {1, 0}", full)
@@ -5195,7 +5258,14 @@ function S.ui_panels(res)
 			check(res, "panel_dim_enabled_while_" .. panelPath, dimGui.Enabled, true, on)
 		end
 		checkList(res, "no_dark_veil_over_hud_while_" .. panelPath, darkVeils())
-		for _, buttonPath in persistentPaths do
+		-- A full-screen overlay (UiSpec.FullScreenPanels) need not leave the HUD entries drawn or clickable
+		local overlay = UiSpec.FullScreenPanels[panelPath]
+		for _, buttonPath in if overlay then persistentPaths else {} do
+			for _, rule in { "persistent_button_visible_", "persistent_button_clickable_" } do
+				check(res, rule .. buttonPath .. "_while_" .. panelPath, "exempt", "exempt (full-screen overlay)", true)
+			end
+		end
+		for _, buttonPath in if overlay then {} else persistentPaths do
 			local button = findPath(buttonPath)
 			check(
 				res,
@@ -5889,6 +5959,8 @@ local function attrSnapshot()
 		Showcase = attr("Showcase"), -- Workshop Showcase ids joined by "," (showcase_* clicks)
 		ProgressionMoney = player:FindFirstChild("leaderstats") and player.leaderstats.Money.Value,
 		ProgressionOwned = player:FindFirstChild("Upgrades") and #player.Upgrades:GetChildren() or 0,
+		-- The hex tree's zoom (UpgradeTreeView sets the RacerUpgrades attribute TreeZoom; tree_zoom_* clicks)
+		TreeZoom = playerGui:FindFirstChild("RacerUpgrades") and playerGui.RacerUpgrades:GetAttribute("TreeZoom"),
 	}
 	for _, stat in GachaConfig.STATS do
 		snap["Alloc_" .. stat] = attr("Alloc_" .. stat) or 0
@@ -6164,7 +6236,11 @@ function UiScenarios.RunClick(id)
 		end
 	end
 	local rowStat = spec.Gui == "RacerStats" and splitPath(path)[5] or nil
-	local upgradeId = spec.Gui == "RacerUpgrades" and splitPath(path)[3] or nil
+	-- A tree tile: RacerUpgrades Panel/Canvas/TreeWorld/<tile id> (scrolled into the canvas window below)
+	local upgradeId = spec.Gui == "RacerUpgrades"
+			and pathMatches(UiSpec.Progression.TreeWorld .. "/*", spec.Gui .. "/" .. path)
+			and splitPath(path)[4]
+		or nil
 	local button = findPath(spec.Gui .. "/" .. path)
 	if not button and spec.Gui == UiSpec.Showcase.Gui and #splitPath(path) == 1 then
 		local sg = playerGui:FindFirstChild(spec.Gui)
@@ -6193,8 +6269,10 @@ function UiScenarios.RunClick(id)
 		frames(2)
 	end
 	if upgradeId and grid and grid:IsA("ScrollingFrame") then
+		-- Pan the tree node to the middle of the window (clear of the chrome along the screen edges)
 		local rel = button.AbsolutePosition - grid.AbsolutePosition + grid.CanvasPosition
-		grid.CanvasPosition = Vector2.new(math.max(0, rel.X - 8), math.max(0, rel.Y - 8))
+		rel += button.AbsoluteSize / 2 - grid.AbsoluteSize / 2
+		grid.CanvasPosition = Vector2.new(math.max(0, rel.X), math.max(0, rel.Y))
 		frames(2)
 	end
 	-- Prepare.ScrollIntoView: the target's ScrollingFrame scrolled so the target is fully shown (put back after)
@@ -6630,6 +6708,14 @@ function UiScenarios.RunClick(id)
 			for _, key in { "WorkshopLevel", "ProgressionMoney", "ProgressionOwned" } do
 				check(res, "unchanged_" .. string.lower(key), now[key], pre[key], now[key] == pre[key])
 			end
+		elseif cond == "tree_zoomed_in" or cond == "tree_zoomed_out" then
+			local sg = playerGui:FindFirstChild("RacerUpgrades")
+			local now = sg and sg:GetAttribute("TreeZoom")
+			local was = pre.TreeZoom
+			local ok = type(now) == "number"
+				and type(was) == "number"
+				and (if cond == "tree_zoomed_in" then now > was else now < was)
+			check(res, cond, now or "missing", (cond == "tree_zoomed_in" and "> " or "< ") .. tostring(was), ok)
 		elseif cond == "workshop_rejection_shown" then
 			local result = findPath("RacerWorkshop/Panel/Result")
 			local text = result and allText(result) or ""

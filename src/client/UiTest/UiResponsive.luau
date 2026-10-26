@@ -11,6 +11,10 @@
 -- 53ff23d7d9f8, RacerSettings f7eec9b472c5, RollShowcase 1039b947bbd9); RacerRebirth rows regenerated 2026-10-15
 -- from the rebuilt panel (spec hash e3e844a47fa5; its Fill has no layout row: scale-only, the same at every
 -- variant). RacerHud/Settings has a UIScale but no layout row: its UDim2 is the baked one at every viewport.
+-- Regenerated 2026-10-26 (ui-test-writer) from the Bind() sections of RacerHud 8087703805de, RacerIndex 80e4155a1165,
+-- RacerStats d5878e28e2b7, RacerSettings 7c95f76829b1, RacerRebirth be16091fd518, RollShowcase 461182e58416 and
+-- Client/Ui/RacerUpgrades 5c3ab6a967ca (adds Level, RaceMap, RollControls, the Index tabs and the tree chrome).
+-- Client/HudChrome's runtime layout (not generated) is modelled by hand below (Model.HudChrome).
 -- The solver (UiScenarios simRect) uses a node's variant props from Nodes only at a viewport of the OTHER variant than
 -- the live one (on the live variant it reads the live properties, so a live deviation still shows), and the generated
 -- UIScale (ScaleAt) at every simulated viewport; hover / press UIScales (UiSpec.TransientScales) count as 1.
@@ -26,16 +30,24 @@ Model.Phone = { Ref = 390, Min = 0.85, Max = 1.15 }
 local generated = {
 	Scales = {
 		["RacerHud/Race"] = { Desktop = 1, Phone = 1 },
+		["RacerHud/RaceMap"] = { Desktop = 1, Phone = 1 },
 		["RacerHud/Navigation"] = { Desktop = 1, Phone = 1 },
 		["RacerHud/Speed"] = { Desktop = 1, Phone = 1 },
 		["RacerHud/Money"] = { Desktop = 1, Phone = 1 },
+		["RacerHud/Level"] = { Desktop = 1, Phone = 1 },
 		["RacerHud/Turbo"] = { Desktop = 1, Phone = 1 },
+		["RacerHud/RollControls"] = { Desktop = 1, Phone = 1 },
 		["RacerHud/Settings"] = { Desktop = 1, Phone = 1 },
 		["RacerIndex/Panel"] = { Desktop = 1, Phone = 1 },
 		["RacerStats/Panel"] = { Desktop = 1, Phone = 1 },
 		["RacerSettings/Panel"] = { Desktop = 1, Phone = 1 },
 		["RacerRebirth/Panel"] = { Desktop = 1, Phone = 1 },
 		["RollShowcase/Card"] = { Desktop = 1, Phone = 1 },
+		["RacerUpgrades/TreeTitle"] = { Desktop = 1, Phone = 1 },
+		["RacerUpgrades/Close"] = { Desktop = 1, Phone = 1 },
+		["RacerUpgrades/ZoomTools"] = { Desktop = 1, Phone = 1 },
+		["RacerUpgrades/Details"] = { Desktop = 1, Phone = 1 },
+		["RacerUpgrades/Balance"] = { Desktop = 1, Phone = 1 },
 	},
 	Nodes = {
 		["RacerHud/Race"] = {
@@ -68,17 +80,109 @@ local generated = {
 				Visible = true,
 			},
 		},
+		["RacerHud/RaceMap"] = {
+			Desktop = {
+				AnchorPoint = Vector2.new(1, 0),
+				Position = UDim2.new(1, -20, 0, 68),
+				Size = UDim2.fromOffset(360, 260),
+				Visible = false,
+			},
+			Phone = {
+				AnchorPoint = Vector2.new(1, 0),
+				Position = UDim2.new(1, -10, 0, 64),
+				Size = UDim2.fromOffset(250, 184),
+				Visible = false,
+			},
+		},
+		["RacerHud/RaceMap/RaceMapTitle"] = {
+			Desktop = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(8, 2),
+				Size = UDim2.fromOffset(344, 22),
+				TextSize = 16,
+				Visible = true,
+			},
+			Phone = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(8, 2),
+				Size = UDim2.fromOffset(234, 18),
+				TextSize = 12,
+				Visible = true,
+			},
+		},
+		["RacerHud/RaceMap/RaceMapStatus"] = {
+			Desktop = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(8, 25),
+				Size = UDim2.fromOffset(344, 18),
+				TextSize = 14,
+				Visible = true,
+			},
+			Phone = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(8, 25),
+				Size = UDim2.fromOffset(234, 16),
+				TextSize = 11,
+				Visible = true,
+			},
+		},
+		["RacerHud/RaceMap/RaceMapCanvas"] = {
+			Desktop = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(10, 44),
+				Size = UDim2.fromOffset(340, 196),
+				Visible = true,
+			},
+			Phone = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(8, 38),
+				Size = UDim2.fromOffset(234, 132),
+				Visible = true,
+			},
+		},
+		["RacerHud/RaceMap/RaceMapTime"] = {
+			Desktop = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(8, 236),
+				Size = UDim2.fromOffset(170, 22),
+				TextSize = 13,
+				Visible = true,
+			},
+			Phone = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(8, 166),
+				Size = UDim2.fromOffset(112, 16),
+				TextSize = 10,
+				Visible = true,
+			},
+		},
+		["RacerHud/RaceMap/RaceMapPB"] = {
+			Desktop = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(180, 236),
+				Size = UDim2.fromOffset(164, 22),
+				TextSize = 13,
+				Visible = true,
+			},
+			Phone = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(124, 166),
+				Size = UDim2.fromOffset(118, 16),
+				TextSize = 10,
+				Visible = true,
+			},
+		},
 		["RacerHud/Navigation"] = {
 			Desktop = {
 				AnchorPoint = Vector2.new(0, 0.5),
 				Position = UDim2.new(0, 22, 0.45, 0),
-				Size = UDim2.fromOffset(160, 206),
+				Size = UDim2.fromOffset(160, 226),
 				Visible = true,
 			},
 			Phone = {
 				AnchorPoint = Vector2.new(0, 0.5),
 				Position = UDim2.new(0, 12, 0.44, 0),
-				Size = UDim2.fromOffset(118, 184),
+				Size = UDim2.fromOffset(118, 200),
 				Visible = true,
 			},
 		},
@@ -115,13 +219,13 @@ local generated = {
 		["RacerHud/Navigation/Stats"] = {
 			Desktop = {
 				AnchorPoint = Vector2.new(0, 0),
-				Position = UDim2.fromOffset(0, 74),
+				Position = UDim2.fromOffset(0, 84),
 				Size = UDim2.fromOffset(160, 54),
 				Visible = true,
 			},
 			Phone = {
 				AnchorPoint = Vector2.new(0, 0),
-				Position = UDim2.fromOffset(0, 66),
+				Position = UDim2.fromOffset(0, 74),
 				Size = UDim2.fromOffset(118, 48),
 				Visible = true,
 			},
@@ -145,13 +249,13 @@ local generated = {
 		["RacerHud/Navigation/Rebirth"] = {
 			Desktop = {
 				AnchorPoint = Vector2.new(0, 0),
-				Position = UDim2.fromOffset(0, 148),
+				Position = UDim2.fromOffset(0, 168),
 				Size = UDim2.fromOffset(160, 54),
 				Visible = true,
 			},
 			Phone = {
 				AnchorPoint = Vector2.new(0, 0),
-				Position = UDim2.fromOffset(0, 132),
+				Position = UDim2.fromOffset(0, 148),
 				Size = UDim2.fromOffset(118, 48),
 				Visible = true,
 			},
@@ -276,6 +380,36 @@ local generated = {
 				Visible = true,
 			},
 		},
+		["RacerHud/Level"] = {
+			Desktop = {
+				AnchorPoint = Vector2.new(0.5, 1),
+				Position = UDim2.new(0.5, 0, 1, -60),
+				Size = UDim2.fromOffset(250, 32),
+				Visible = true,
+			},
+			Phone = {
+				AnchorPoint = Vector2.new(0.5, 1),
+				Position = UDim2.new(0.5, 0, 1, -52),
+				Size = UDim2.fromOffset(200, 30),
+				Visible = true,
+			},
+		},
+		["RacerHud/Level/Face/LevelLabel"] = {
+			Desktop = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(0, 0),
+				Size = UDim2.fromOffset(250, 32),
+				TextSize = 18,
+				Visible = true,
+			},
+			Phone = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(0, 0),
+				Size = UDim2.fromOffset(200, 30),
+				TextSize = 16,
+				Visible = true,
+			},
+		},
 		["RacerHud/Turbo"] = {
 			Desktop = {
 				AnchorPoint = Vector2.new(0.5, 1),
@@ -306,16 +440,92 @@ local generated = {
 				Visible = true,
 			},
 		},
+		["RacerHud/RollControls"] = {
+			Desktop = {
+				AnchorPoint = Vector2.new(1, 1),
+				Position = UDim2.new(1, -22, 1, -22),
+				Size = UDim2.fromOffset(220, 54),
+				Visible = false,
+			},
+			Phone = {
+				AnchorPoint = Vector2.new(1, 1),
+				Position = UDim2.new(1, -12, 1, -16),
+				Size = UDim2.fromOffset(194, 48),
+				Visible = false,
+			},
+		},
+		["RacerHud/RollControls/RollView"] = {
+			Desktop = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(0, 0),
+				Size = UDim2.fromOffset(104, 54),
+				Visible = true,
+			},
+			Phone = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(0, 0),
+				Size = UDim2.fromOffset(90, 48),
+				Visible = true,
+			},
+		},
+		["RacerHud/RollControls/RollView/Face/RollViewLabel"] = {
+			Desktop = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(0, 0),
+				Size = UDim2.fromScale(1, 1),
+				TextSize = 25,
+				Visible = true,
+			},
+			Phone = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(0, 0),
+				Size = UDim2.fromScale(1, 1),
+				TextSize = 22,
+				Visible = true,
+			},
+		},
+		["RacerHud/RollControls/AutoRoll"] = {
+			Desktop = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(124, 0),
+				Size = UDim2.fromOffset(96, 54),
+				Visible = true,
+			},
+			Phone = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(108, 0),
+				Size = UDim2.fromOffset(86, 48),
+				Visible = true,
+			},
+		},
+		["RacerHud/RollControls/AutoRoll/Face/AutoRollLabel"] = {
+			Desktop = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(0, 0),
+				Size = UDim2.fromScale(1, 1),
+				TextSize = 23,
+				Visible = true,
+			},
+			Phone = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(0, 0),
+				Size = UDim2.fromScale(1, 1),
+				TextSize = 20,
+				Visible = true,
+			},
+		},
 		["RacerIndex/Panel"] = {
 			Desktop = {
 				AnchorPoint = Vector2.new(0.5, 0.5),
 				Position = UDim2.fromScale(0.55, 0.52),
 				Size = UDim2.fromOffset(780, 524),
+				Visible = true,
 			},
 			Phone = {
 				AnchorPoint = Vector2.new(0.5, 0.5),
 				Position = UDim2.fromScale(0.62, 0.56),
 				Size = UDim2.fromOffset(500, 280),
+				Visible = true,
 			},
 		},
 		["RacerIndex/Panel/Face/Header"] = {
@@ -323,25 +533,73 @@ local generated = {
 				AnchorPoint = Vector2.new(0, 0),
 				Position = UDim2.fromOffset(12, 12),
 				Size = UDim2.fromOffset(756, 64),
+				Visible = true,
 			},
 			Phone = {
 				AnchorPoint = Vector2.new(0, 0),
 				Position = UDim2.fromOffset(8, 8),
 				Size = UDim2.fromOffset(484, 48),
+				Visible = true,
 			},
 		},
-		["RacerIndex/Panel/Face/Header/Face/Title"] = {
+		["RacerIndex/Panel/Face/Header/Face/CarsTab"] = {
 			Desktop = {
 				AnchorPoint = Vector2.new(0, 0),
-				Position = UDim2.fromOffset(12, 0),
-				Size = UDim2.fromOffset(650, 64),
-				TextSize = 34,
+				Position = UDim2.fromOffset(18, 8),
+				Size = UDim2.fromOffset(190, 48),
+				Visible = true,
 			},
 			Phone = {
 				AnchorPoint = Vector2.new(0, 0),
-				Position = UDim2.fromOffset(8, 0),
-				Size = UDim2.fromOffset(382, 48),
+				Position = UDim2.fromOffset(12, 0),
+				Size = UDim2.fromOffset(140, 48),
+				Visible = true,
+			},
+		},
+		["RacerIndex/Panel/Face/Header/Face/CarsTab/Face/CarsTabLabel"] = {
+			Desktop = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(0, 0),
+				Size = UDim2.fromScale(1, 1),
 				TextSize = 25,
+				Visible = true,
+			},
+			Phone = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(0, 0),
+				Size = UDim2.fromScale(1, 1),
+				TextSize = 22,
+				Visible = true,
+			},
+		},
+		["RacerIndex/Panel/Face/Header/Face/ConsumablesTab"] = {
+			Desktop = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(228, 8),
+				Size = UDim2.fromOffset(270, 48),
+				Visible = true,
+			},
+			Phone = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(168, 0),
+				Size = UDim2.fromOffset(214, 48),
+				Visible = true,
+			},
+		},
+		["RacerIndex/Panel/Face/Header/Face/ConsumablesTab/Face/ConsumablesTabLabel"] = {
+			Desktop = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(0, 0),
+				Size = UDim2.fromScale(1, 1),
+				TextSize = 23,
+				Visible = true,
+			},
+			Phone = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(0, 0),
+				Size = UDim2.fromScale(1, 1),
+				TextSize = 20,
+				Visible = true,
 			},
 		},
 		["RacerIndex/Panel/Face/Header/Face/Close"] = {
@@ -349,11 +607,13 @@ local generated = {
 				AnchorPoint = Vector2.new(0, 0),
 				Position = UDim2.fromOffset(692, 6),
 				Size = UDim2.fromOffset(52, 52),
+				Visible = true,
 			},
 			Phone = {
 				AnchorPoint = Vector2.new(0, 0),
 				Position = UDim2.fromOffset(428, 0),
 				Size = UDim2.fromOffset(48, 48),
+				Visible = true,
 			},
 		},
 		["RacerIndex/Panel/Face/Header/Face/Close/Face/CloseLabel"] = {
@@ -362,12 +622,14 @@ local generated = {
 				Position = UDim2.fromOffset(0, 0),
 				Size = UDim2.fromScale(1, 1),
 				TextSize = 26,
+				Visible = true,
 			},
 			Phone = {
 				AnchorPoint = Vector2.new(0, 0),
 				Position = UDim2.fromOffset(0, 0),
 				Size = UDim2.fromScale(1, 1),
 				TextSize = 24,
+				Visible = true,
 			},
 		},
 		["RacerIndex/Panel/Face/IndexProgress"] = {
@@ -376,12 +638,14 @@ local generated = {
 				Position = UDim2.fromOffset(16, 92),
 				Size = UDim2.fromOffset(748, 26),
 				TextSize = 21,
+				Visible = true,
 			},
 			Phone = {
 				AnchorPoint = Vector2.new(0, 0),
 				Position = UDim2.fromOffset(12, 72),
 				Size = UDim2.fromOffset(476, 22),
 				TextSize = 18,
+				Visible = true,
 			},
 		},
 		["RacerIndex/Panel/Face/GridHost"] = {
@@ -389,11 +653,27 @@ local generated = {
 				AnchorPoint = Vector2.new(0, 0),
 				Position = UDim2.fromOffset(16, 134),
 				Size = UDim2.fromOffset(748, 374),
+				Visible = true,
 			},
 			Phone = {
 				AnchorPoint = Vector2.new(0, 0),
 				Position = UDim2.fromOffset(12, 100),
 				Size = UDim2.fromOffset(476, 168),
+				Visible = true,
+			},
+		},
+		["RacerIndex/Panel/Face/ConsumablesHost"] = {
+			Desktop = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(16, 134),
+				Size = UDim2.fromOffset(748, 374),
+				Visible = false,
+			},
+			Phone = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(12, 100),
+				Size = UDim2.fromOffset(476, 168),
+				Visible = false,
 			},
 		},
 		["RacerStats/Panel"] = {
@@ -401,11 +681,13 @@ local generated = {
 				AnchorPoint = Vector2.new(0.5, 0.5),
 				Position = UDim2.fromScale(0.55, 0.52),
 				Size = UDim2.fromOffset(680, 472),
+				Visible = true,
 			},
 			Phone = {
 				AnchorPoint = Vector2.new(0.5, 0.5),
 				Position = UDim2.fromScale(0.62, 0.56),
 				Size = UDim2.fromOffset(500, 280),
+				Visible = true,
 			},
 		},
 		["RacerStats/Panel/Face/Header"] = {
@@ -413,11 +695,13 @@ local generated = {
 				AnchorPoint = Vector2.new(0, 0),
 				Position = UDim2.fromOffset(12, 12),
 				Size = UDim2.fromOffset(656, 64),
+				Visible = true,
 			},
 			Phone = {
 				AnchorPoint = Vector2.new(0, 0),
 				Position = UDim2.fromOffset(8, 8),
 				Size = UDim2.fromOffset(484, 48),
+				Visible = true,
 			},
 		},
 		["RacerStats/Panel/Face/Header/Face/Title"] = {
@@ -426,12 +710,14 @@ local generated = {
 				Position = UDim2.fromOffset(12, 0),
 				Size = UDim2.fromOffset(230, 64),
 				TextSize = 34,
+				Visible = true,
 			},
 			Phone = {
 				AnchorPoint = Vector2.new(0, 0),
 				Position = UDim2.fromOffset(8, 0),
 				Size = UDim2.fromOffset(200, 48),
 				TextSize = 25,
+				Visible = true,
 			},
 		},
 		["RacerStats/Panel/Face/Header/Face/Close"] = {
@@ -439,11 +725,13 @@ local generated = {
 				AnchorPoint = Vector2.new(0, 0),
 				Position = UDim2.fromOffset(592, 6),
 				Size = UDim2.fromOffset(52, 52),
+				Visible = true,
 			},
 			Phone = {
 				AnchorPoint = Vector2.new(0, 0),
 				Position = UDim2.fromOffset(428, 0),
 				Size = UDim2.fromOffset(48, 48),
+				Visible = true,
 			},
 		},
 		["RacerStats/Panel/Face/Header/Face/Close/Face/CloseLabel"] = {
@@ -452,12 +740,14 @@ local generated = {
 				Position = UDim2.fromOffset(0, 0),
 				Size = UDim2.fromScale(1, 1),
 				TextSize = 26,
+				Visible = true,
 			},
 			Phone = {
 				AnchorPoint = Vector2.new(0, 0),
 				Position = UDim2.fromOffset(0, 0),
 				Size = UDim2.fromScale(1, 1),
 				TextSize = 24,
+				Visible = true,
 			},
 		},
 		["RacerStats/Panel/Face/Header/Face/Points"] = {
@@ -466,12 +756,14 @@ local generated = {
 				Position = UDim2.fromOffset(258, 20),
 				Size = UDim2.fromOffset(310, 26),
 				TextSize = 22,
+				Visible = true,
 			},
 			Phone = {
 				AnchorPoint = Vector2.new(0, 0),
 				Position = UDim2.fromOffset(220, 15),
 				Size = UDim2.fromOffset(184, 22),
 				TextSize = 18,
+				Visible = true,
 			},
 		},
 		["RacerStats/Panel/Face/StatsHost"] = {
@@ -479,11 +771,13 @@ local generated = {
 				AnchorPoint = Vector2.new(0, 0),
 				Position = UDim2.fromOffset(16, 98),
 				Size = UDim2.fromOffset(648, 358),
+				Visible = true,
 			},
 			Phone = {
 				AnchorPoint = Vector2.new(0, 0),
 				Position = UDim2.fromOffset(12, 76),
 				Size = UDim2.fromOffset(476, 192),
+				Visible = true,
 			},
 		},
 		["RacerSettings/Panel"] = {
@@ -491,11 +785,13 @@ local generated = {
 				AnchorPoint = Vector2.new(0.5, 0.5),
 				Position = UDim2.fromScale(0.55, 0.52),
 				Size = UDim2.fromOffset(600, 362),
+				Visible = true,
 			},
 			Phone = {
 				AnchorPoint = Vector2.new(0.5, 0.5),
 				Position = UDim2.fromScale(0.62, 0.56),
 				Size = UDim2.fromOffset(500, 280),
+				Visible = true,
 			},
 		},
 		["RacerSettings/Panel/Face/Header"] = {
@@ -503,11 +799,13 @@ local generated = {
 				AnchorPoint = Vector2.new(0, 0),
 				Position = UDim2.fromOffset(12, 12),
 				Size = UDim2.fromOffset(576, 64),
+				Visible = true,
 			},
 			Phone = {
 				AnchorPoint = Vector2.new(0, 0),
 				Position = UDim2.fromOffset(8, 8),
 				Size = UDim2.fromOffset(484, 48),
+				Visible = true,
 			},
 		},
 		["RacerSettings/Panel/Face/Header/Face/Title"] = {
@@ -516,12 +814,14 @@ local generated = {
 				Position = UDim2.fromOffset(12, 0),
 				Size = UDim2.fromOffset(470, 64),
 				TextSize = 34,
+				Visible = true,
 			},
 			Phone = {
 				AnchorPoint = Vector2.new(0, 0),
 				Position = UDim2.fromOffset(8, 0),
 				Size = UDim2.fromOffset(382, 48),
 				TextSize = 25,
+				Visible = true,
 			},
 		},
 		["RacerSettings/Panel/Face/Header/Face/Close"] = {
@@ -529,11 +829,13 @@ local generated = {
 				AnchorPoint = Vector2.new(0, 0),
 				Position = UDim2.fromOffset(512, 6),
 				Size = UDim2.fromOffset(52, 52),
+				Visible = true,
 			},
 			Phone = {
 				AnchorPoint = Vector2.new(0, 0),
 				Position = UDim2.fromOffset(428, 0),
 				Size = UDim2.fromOffset(48, 48),
+				Visible = true,
 			},
 		},
 		["RacerSettings/Panel/Face/Header/Face/Close/Face/CloseLabel"] = {
@@ -542,12 +844,14 @@ local generated = {
 				Position = UDim2.fromOffset(0, 0),
 				Size = UDim2.fromScale(1, 1),
 				TextSize = 26,
+				Visible = true,
 			},
 			Phone = {
 				AnchorPoint = Vector2.new(0, 0),
 				Position = UDim2.fromOffset(0, 0),
 				Size = UDim2.fromScale(1, 1),
 				TextSize = 24,
+				Visible = true,
 			},
 		},
 		["RacerSettings/Panel/Face/SoundRow"] = {
@@ -555,11 +859,13 @@ local generated = {
 				AnchorPoint = Vector2.new(0, 0),
 				Position = UDim2.fromOffset(16, 100),
 				Size = UDim2.fromOffset(568, 60),
+				Visible = true,
 			},
 			Phone = {
 				AnchorPoint = Vector2.new(0, 0),
 				Position = UDim2.fromOffset(12, 74),
 				Size = UDim2.fromOffset(476, 50),
+				Visible = true,
 			},
 		},
 		["RacerSettings/Panel/Face/SoundRow/Face/SoundName"] = {
@@ -568,12 +874,14 @@ local generated = {
 				Position = UDim2.fromOffset(12, 0),
 				Size = UDim2.fromOffset(400, 60),
 				TextSize = 25,
+				Visible = true,
 			},
 			Phone = {
 				AnchorPoint = Vector2.new(0, 0),
 				Position = UDim2.fromOffset(8, 0),
 				Size = UDim2.fromOffset(338, 50),
 				TextSize = 20,
+				Visible = true,
 			},
 		},
 		["RacerSettings/Panel/Face/SoundRow/Face/SoundToggle"] = {
@@ -581,11 +889,13 @@ local generated = {
 				AnchorPoint = Vector2.new(0, 0),
 				Position = UDim2.fromOffset(436, 6),
 				Size = UDim2.fromOffset(116, 48),
+				Visible = true,
 			},
 			Phone = {
 				AnchorPoint = Vector2.new(0, 0),
 				Position = UDim2.fromOffset(356, 1),
 				Size = UDim2.fromOffset(108, 48),
+				Visible = true,
 			},
 		},
 		["RacerSettings/Panel/Face/SoundRow/Face/SoundToggle/Face/SoundToggleLabel"] = {
@@ -594,12 +904,14 @@ local generated = {
 				Position = UDim2.fromOffset(0, 0),
 				Size = UDim2.fromScale(1, 1),
 				TextSize = 23,
+				Visible = true,
 			},
 			Phone = {
 				AnchorPoint = Vector2.new(0, 0),
 				Position = UDim2.fromOffset(0, 0),
 				Size = UDim2.fromScale(1, 1),
 				TextSize = 21,
+				Visible = true,
 			},
 		},
 		["RacerSettings/Panel/Face/EffectsRow"] = {
@@ -607,11 +919,13 @@ local generated = {
 				AnchorPoint = Vector2.new(0, 0),
 				Position = UDim2.fromOffset(16, 178),
 				Size = UDim2.fromOffset(568, 60),
+				Visible = true,
 			},
 			Phone = {
 				AnchorPoint = Vector2.new(0, 0),
 				Position = UDim2.fromOffset(12, 142),
 				Size = UDim2.fromOffset(476, 50),
+				Visible = true,
 			},
 		},
 		["RacerSettings/Panel/Face/EffectsRow/Face/EffectsName"] = {
@@ -620,12 +934,14 @@ local generated = {
 				Position = UDim2.fromOffset(12, 0),
 				Size = UDim2.fromOffset(400, 60),
 				TextSize = 25,
+				Visible = true,
 			},
 			Phone = {
 				AnchorPoint = Vector2.new(0, 0),
 				Position = UDim2.fromOffset(8, 0),
 				Size = UDim2.fromOffset(338, 50),
 				TextSize = 20,
+				Visible = true,
 			},
 		},
 		["RacerSettings/Panel/Face/EffectsRow/Face/EffectsToggle"] = {
@@ -633,11 +949,13 @@ local generated = {
 				AnchorPoint = Vector2.new(0, 0),
 				Position = UDim2.fromOffset(436, 6),
 				Size = UDim2.fromOffset(116, 48),
+				Visible = true,
 			},
 			Phone = {
 				AnchorPoint = Vector2.new(0, 0),
 				Position = UDim2.fromOffset(356, 1),
 				Size = UDim2.fromOffset(108, 48),
+				Visible = true,
 			},
 		},
 		["RacerSettings/Panel/Face/EffectsRow/Face/EffectsToggle/Face/EffectsToggleLabel"] = {
@@ -646,12 +964,14 @@ local generated = {
 				Position = UDim2.fromOffset(0, 0),
 				Size = UDim2.fromScale(1, 1),
 				TextSize = 23,
+				Visible = true,
 			},
 			Phone = {
 				AnchorPoint = Vector2.new(0, 0),
 				Position = UDim2.fromOffset(0, 0),
 				Size = UDim2.fromScale(1, 1),
 				TextSize = 21,
+				Visible = true,
 			},
 		},
 		["RacerSettings/Panel/Face/AutoRow"] = {
@@ -659,11 +979,13 @@ local generated = {
 				AnchorPoint = Vector2.new(0, 0),
 				Position = UDim2.fromOffset(16, 256),
 				Size = UDim2.fromOffset(568, 60),
+				Visible = true,
 			},
 			Phone = {
 				AnchorPoint = Vector2.new(0, 0),
 				Position = UDim2.fromOffset(12, 210),
 				Size = UDim2.fromOffset(476, 50),
+				Visible = true,
 			},
 		},
 		["RacerSettings/Panel/Face/AutoRow/Face/AutoName"] = {
@@ -672,12 +994,14 @@ local generated = {
 				Position = UDim2.fromOffset(12, 0),
 				Size = UDim2.fromOffset(400, 60),
 				TextSize = 25,
+				Visible = true,
 			},
 			Phone = {
 				AnchorPoint = Vector2.new(0, 0),
 				Position = UDim2.fromOffset(8, 0),
 				Size = UDim2.fromOffset(338, 50),
 				TextSize = 20,
+				Visible = true,
 			},
 		},
 		["RacerSettings/Panel/Face/AutoRow/Face/AutoToggle"] = {
@@ -685,11 +1009,13 @@ local generated = {
 				AnchorPoint = Vector2.new(0, 0),
 				Position = UDim2.fromOffset(436, 6),
 				Size = UDim2.fromOffset(116, 48),
+				Visible = true,
 			},
 			Phone = {
 				AnchorPoint = Vector2.new(0, 0),
 				Position = UDim2.fromOffset(356, 1),
 				Size = UDim2.fromOffset(108, 48),
+				Visible = true,
 			},
 		},
 		["RacerSettings/Panel/Face/AutoRow/Face/AutoToggle/Face/AutoToggleLabel"] = {
@@ -698,12 +1024,14 @@ local generated = {
 				Position = UDim2.fromOffset(0, 0),
 				Size = UDim2.fromScale(1, 1),
 				TextSize = 23,
+				Visible = true,
 			},
 			Phone = {
 				AnchorPoint = Vector2.new(0, 0),
 				Position = UDim2.fromOffset(0, 0),
 				Size = UDim2.fromScale(1, 1),
 				TextSize = 21,
+				Visible = true,
 			},
 		},
 		["RacerRebirth/Panel"] = {
@@ -1083,11 +1411,13 @@ local generated = {
 				AnchorPoint = Vector2.new(0.5, 0.5),
 				Position = UDim2.fromScale(0.5, 0.46),
 				Size = UDim2.fromOffset(760, 320),
+				Visible = true,
 			},
 			Phone = {
 				AnchorPoint = Vector2.new(0.5, 0.5),
 				Position = UDim2.fromScale(0.5, 0.46),
 				Size = UDim2.fromOffset(540, 224),
+				Visible = true,
 			},
 		},
 		["RollShowcase/Card/CardBody"] = {
@@ -1095,11 +1425,13 @@ local generated = {
 				AnchorPoint = Vector2.new(0, 0),
 				Position = UDim2.fromOffset(0, 0),
 				Size = UDim2.fromOffset(760, 320),
+				Visible = true,
 			},
 			Phone = {
 				AnchorPoint = Vector2.new(0, 0),
 				Position = UDim2.fromOffset(0, 0),
 				Size = UDim2.fromOffset(540, 224),
+				Visible = true,
 			},
 		},
 		["RollShowcase/Card/CardBody/Face/RollHeader"] = {
@@ -1107,11 +1439,13 @@ local generated = {
 				AnchorPoint = Vector2.new(0, 0),
 				Position = UDim2.fromOffset(12, 12),
 				Size = UDim2.fromOffset(736, 54),
+				Visible = true,
 			},
 			Phone = {
 				AnchorPoint = Vector2.new(0, 0),
 				Position = UDim2.fromOffset(10, 10),
 				Size = UDim2.fromOffset(520, 44),
+				Visible = true,
 			},
 		},
 		["RollShowcase/Card/CardBody/Face/RollHeader/Face/RollTitle"] = {
@@ -1120,12 +1454,14 @@ local generated = {
 				Position = UDim2.fromOffset(12, 5),
 				Size = UDim2.fromOffset(330, 44),
 				TextSize = 28,
+				Visible = true,
 			},
 			Phone = {
 				AnchorPoint = Vector2.new(0, 0),
 				Position = UDim2.fromOffset(8, 2),
 				Size = UDim2.fromOffset(280, 38),
 				TextSize = 24,
+				Visible = true,
 			},
 		},
 		["RollShowcase/Card/CardBody/Face/PreviewCar"] = {
@@ -1133,11 +1469,13 @@ local generated = {
 				AnchorPoint = Vector2.new(0, 0),
 				Position = UDim2.fromOffset(18, 84),
 				Size = UDim2.fromOffset(300, 220),
+				Visible = true,
 			},
 			Phone = {
 				AnchorPoint = Vector2.new(0, 0),
 				Position = UDim2.fromOffset(8, 68),
 				Size = UDim2.fromOffset(220, 144),
+				Visible = true,
 			},
 		},
 		["RollShowcase/Card/CardBody/Face/ResultName"] = {
@@ -1146,12 +1484,14 @@ local generated = {
 				Position = UDim2.fromOffset(334, 88),
 				Size = UDim2.fromOffset(406, 46),
 				TextSize = 32,
+				Visible = true,
 			},
 			Phone = {
 				AnchorPoint = Vector2.new(0, 0),
 				Position = UDim2.fromOffset(236, 72),
 				Size = UDim2.fromOffset(294, 30),
 				TextSize = 26,
+				Visible = true,
 			},
 		},
 		["RollShowcase/Card/CardBody/Face/ResultSpeed"] = {
@@ -1160,12 +1500,14 @@ local generated = {
 				Position = UDim2.fromOffset(334, 150),
 				Size = UDim2.fromOffset(406, 32),
 				TextSize = 23,
+				Visible = true,
 			},
 			Phone = {
 				AnchorPoint = Vector2.new(0, 0),
 				Position = UDim2.fromOffset(236, 112),
 				Size = UDim2.fromOffset(294, 26),
 				TextSize = 18,
+				Visible = true,
 			},
 		},
 		["RollShowcase/Card/CardBody/Face/ResultRarity"] = {
@@ -1174,12 +1516,14 @@ local generated = {
 				Position = UDim2.fromOffset(334, 198),
 				Size = UDim2.fromOffset(406, 32),
 				TextSize = 25,
+				Visible = true,
 			},
 			Phone = {
 				AnchorPoint = Vector2.new(0, 0),
 				Position = UDim2.fromOffset(236, 150),
 				Size = UDim2.fromOffset(294, 26),
 				TextSize = 20,
+				Visible = true,
 			},
 		},
 		["RollShowcase/Card/CardBody/Face/ResultOdds"] = {
@@ -1188,12 +1532,152 @@ local generated = {
 				Position = UDim2.fromOffset(334, 242),
 				Size = UDim2.fromOffset(406, 26),
 				TextSize = 19,
+				Visible = true,
 			},
 			Phone = {
 				AnchorPoint = Vector2.new(0, 0),
 				Position = UDim2.fromOffset(236, 184),
 				Size = UDim2.fromOffset(294, 24),
 				TextSize = 17,
+				Visible = true,
+			},
+		},
+		["RacerUpgrades/TreeTitle"] = {
+			Desktop = {
+				AnchorPoint = Vector2.new(0.5, 0),
+				Position = UDim2.new(0.5, 0, 0, 68),
+				Size = UDim2.fromOffset(250, 38),
+				TextSize = 28,
+				Visible = true,
+			},
+			Phone = {
+				AnchorPoint = Vector2.new(0.5, 0),
+				Position = UDim2.new(0.5, 0, 0, 62),
+				Size = UDim2.fromOffset(200, 30),
+				TextSize = 22,
+				Visible = true,
+			},
+		},
+		["RacerUpgrades/Close"] = {
+			Desktop = {
+				AnchorPoint = Vector2.new(1, 0),
+				Position = UDim2.new(1, -22, 0, 72),
+				Size = UDim2.fromOffset(52, 52),
+				Visible = true,
+			},
+			Phone = {
+				AnchorPoint = Vector2.new(1, 0),
+				Position = UDim2.new(1, -12, 0, 64),
+				Size = UDim2.fromOffset(48, 48),
+				Visible = true,
+			},
+		},
+		["RacerUpgrades/Close/Face/CloseLabel"] = {
+			Desktop = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(0, 0),
+				Size = UDim2.fromScale(1, 1),
+				TextSize = 32,
+				Visible = true,
+			},
+			Phone = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(0, 0),
+				Size = UDim2.fromScale(1, 1),
+				TextSize = 28,
+				Visible = true,
+			},
+		},
+		["RacerUpgrades/ZoomTools"] = {
+			Desktop = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.new(0, 22, 0.46, 0),
+				Size = UDim2.fromOffset(120, 132),
+				Visible = true,
+			},
+			Phone = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.new(0, 12, 0.4, 0),
+				Size = UDim2.fromOffset(120, 132),
+				Visible = true,
+			},
+		},
+		["RacerUpgrades/Details"] = {
+			Desktop = {
+				AnchorPoint = Vector2.new(1, 1),
+				Position = UDim2.new(1, -24, 1, -92),
+				Size = UDim2.fromOffset(280, 146),
+				Visible = true,
+			},
+			Phone = {
+				AnchorPoint = Vector2.new(1, 1),
+				Position = UDim2.new(1, -12, 1, -78),
+				Size = UDim2.fromOffset(220, 122),
+				Visible = true,
+			},
+		},
+		["RacerUpgrades/Details/Face/DetailTitle"] = {
+			Desktop = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(12, 12),
+				Size = UDim2.new(1, -24, 0, 30),
+				TextSize = 21,
+				Visible = true,
+			},
+			Phone = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(12, 12),
+				Size = UDim2.new(1, -24, 0, 24),
+				TextSize = 16,
+				Visible = true,
+			},
+		},
+		["RacerUpgrades/Details/Face/DetailBonus"] = {
+			Desktop = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(12, 52),
+				Size = UDim2.new(1, -24, 0, 26),
+				TextSize = 17,
+				Visible = true,
+			},
+			Phone = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(12, 46),
+				Size = UDim2.new(1, -24, 0, 22),
+				TextSize = 14,
+				Visible = true,
+			},
+		},
+		["RacerUpgrades/Details/Face/DetailStatus"] = {
+			Desktop = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(12, 96),
+				Size = UDim2.new(1, -24, 0, 28),
+				TextSize = 19,
+				Visible = true,
+			},
+			Phone = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(12, 82),
+				Size = UDim2.new(1, -24, 0, 24),
+				TextSize = 15,
+				Visible = true,
+			},
+		},
+		["RacerUpgrades/Balance"] = {
+			Desktop = {
+				AnchorPoint = Vector2.new(0.5, 1),
+				Position = UDim2.new(0.5, 0, 1, -22),
+				Size = UDim2.fromOffset(260, 42),
+				TextSize = 28,
+				Visible = true,
+			},
+			Phone = {
+				AnchorPoint = Vector2.new(0.5, 1),
+				Position = UDim2.new(0.5, 0, 1, -14),
+				Size = UDim2.fromOffset(200, 34),
+				TextSize = 22,
+				Visible = true,
 			},
 		},
 	},
@@ -1367,36 +1851,63 @@ function Model.CardRect(viewport, root)
 	return Model.ScaledHudRect("RollShowcase/Card", viewport, nil, root)
 end
 
+-- Client/HudChrome refresh() (docs/HUD_LAYOUT_SPEC.md section 1), every 0.25 s and on every PanelSwitch change:
+--   each tile holder (Grid, ShopColumn, ItemsSlot, UpgradeSlot) has a UIScale "Scale" = (phone and Phone or 1) x
+--   (BottomScale for the bottom pair); TopRight's UIScale "Scale" = phone and BarPhone or 1 (phone = viewport height
+--   <= PHONE_MAX_HEIGHT). Grid / ShopColumn take HolderPositions[variant]. ItemsSlot's Position =
+--   fromOffset(left - SlotGap, gap), UpgradeSlot's = fromOffset(right + SlotGap, gap), where left / right are the
+--   outer edges of RacerHud/Level and RacerHud/Turbo together and gap = (Level bottom + Turbo top) / 2, in screen
+--   pixels (HudChrome ignores the inset). The pair is Visible only when Level and Turbo exist.
+Model.HudChrome = {
+	Phone = 0.68,
+	BottomScale = 0.75,
+	BarPhone = 0.8,
+	SlotGap = 10,
+	ScaleName = "Scale",
+	HolderPositions = {
+		["HudChrome/Grid"] = { Desktop = UDim2.new(0, 14, 0.5, -24), Phone = UDim2.new(0, 8, 0.5, -20) },
+		["HudChrome/ShopColumn"] = { Desktop = UDim2.new(1, -14, 0.5, -24), Phone = UDim2.new(1, -8, 0.5, -20) },
+	},
+	Slots = { ["HudChrome/ItemsSlot"] = "left", ["HudChrome/UpgradeSlot"] = "right" },
+	Level = "RacerHud/Level",
+	Turbo = "RacerHud/Turbo",
+	Bar = "HudChrome/TopRight",
+}
+-- HudChrome's UIScale "Scale" factor of the node at `path` at a viewport, or nil when it is not a HudChrome holder.
+function Model.HudChromeScale(path, viewport)
+	local cfg = Model.HudChrome
+	local phone = viewport.Y <= Model.PHONE_MAX_HEIGHT
+	if path == cfg.Bar then
+		return phone and cfg.BarPhone or 1
+	end
+	if cfg.HolderPositions[path] or cfg.Slots[path] then
+		return (phone and cfg.Phone or 1) * (cfg.Slots[path] and cfg.BottomScale or 1)
+	end
+	return nil
+end
+-- The bottom pair's Position (screen offsets) from the Level and Turbo screen rects, or nil for other paths.
+function Model.HudChromeSlot(path, level, turbo)
+	local side = Model.HudChrome.Slots[path]
+	if not side then
+		return nil
+	end
+	local gap = (level.y + level.h + turbo.y) / 2
+	if side == "left" then
+		return UDim2.fromOffset(math.min(level.x, turbo.x) - Model.HudChrome.SlotGap, gap)
+	end
+	return UDim2.fromOffset(math.max(level.x + level.w, turbo.x + turbo.w) + Model.HudChrome.SlotGap, gap)
+end
+-- AutomaticSize nodes whose content does not depend on the viewport (fixed TextSize captions in HudChrome's pills):
+-- the solver measures their size live (AbsoluteSize divided by the live UIScale factors, i.e. design pixels) and
+-- applies the simulated viewport's UIScale factors to it. Patterns as in UiSpec button paths ("*" = one segment).
+Model.LiveAutoSize = { "HudChrome/TopRight", "HudChrome/TopRight/*", "HudChrome/TopRight/*/Caption" }
+-- UIScales that are player state, not viewport layout (UpgradeTreeView's TreeZoom: + / - buttons and the mouse
+-- wheel): read live at every viewport.
+Model.LiveScales = { TreeZoom = true }
+
 -- ProgressionUi's Heartbeat fit rules. Model input only: panel clearance and overlap limits remain in UiSpec.
 function Model.Progression(path, viewport, dependencies)
-	if path == "RacerUpgrades/Panel" or path == "RacerWorkshop/Panel" or path == "RacerWelcome/Panel" then
-		local toast = assert(dependencies and dependencies.Toast, "virtual Toast rectangle required")
-		local turbo = assert(dependencies.Turbo, "virtual Turbo rectangle required")
-		local top = toast.y + toast.h + 8
-		local bottom = turbo.y - 8
-		-- Non-phone: the base width, then narrowed so the centred panel clears the Navigation column (badge
-		-- included, Model.ColumnRight) + 8 on the left and the mirrored band on the right; never under 100.
-		local baseWidth = viewport.Y > 700 and math.min(700, viewport.X - 284) or math.min(700, viewport.X * 0.82)
-		local navigation = assert(dependencies.Navigation, "virtual Navigation rectangle required")
-		local columnRight = Model.ColumnRight(navigation, dependencies.NavigationParts)
-		local width = math.max(100, math.min(baseWidth, viewport.X - 2 * (columnRight + 8)))
-		if viewport.Y <= 500 then
-			local entry = assert(dependencies.UpgradeButton, "virtual UpgradeButton rectangle required")
-			local right = toast.x + toast.w + 12
-			local sideWidth = math.max(100, math.min(300, viewport.X - right - 16))
-			top = entry.y + entry.h + 8
-			return {
-				AnchorPoint = Vector2.new(1, 0),
-				Position = UDim2.new(1, -16, 0, top),
-				Size = UDim2.fromOffset(sideWidth, math.max(112, bottom - top)),
-			}
-		end
-		return {
-			AnchorPoint = Vector2.new(0.5, 0),
-			Position = UDim2.new(0.5, 0, 0, top),
-			Size = UDim2.fromOffset(width, math.max(112, bottom - top)),
-		}
-	elseif path == "RacerProgression/WorkshopRate" then
+	if path == "RacerProgression/WorkshopRate" then
 		-- R4 (owner decision 2026-10-08): centred 28 px above the Speed group's top; when that top would be above
 		-- Toast bottom + 4 (inside the compact roll) it sits right of the Speed group instead: x = Speed right + 8,
 		-- width max(60, viewport X - x - 12), height 24, vertically centred on Speed (TextSize 12, left aligned).
