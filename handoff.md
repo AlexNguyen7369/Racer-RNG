@@ -13,8 +13,13 @@
 - Test Studio: `trailtest.rbxl` from `rojo build` (session scratchpad). Trail / ParticleEmitter TextureContent from
   an EditableImage renders untextured white (Decal is fine), so in-game needs `vfxtex.py preview` (owner runs it)
   or the real upload (16 images, irreversible).
-- Next: owner reviews the Blender round 2; port the six profiles into preview.luau; then into VehicleEffects
-  (keep the void_trail names the vehicle_effects test checks).
+- Round 3 (owner: Solar more flamboyant, Void more particles / less static, auras eccentric) is in the Blender
+  scene and in `vfx/trails/preview.luau` (live Trails / ParticleEmitters, orbit and precessing host parts).
+  It runs in the test Studio playtest (pasted into the Client; loadstring is off in Play), effects untextured.
+- Blocker: macOS App Management blocks writing into RobloxStudio.app even with the sandbox off; owner steps are
+  in manual.json `vfx-preview-app-management-2026-10-26`. Then re-run preview.luau with the printed TEX folder.
+- Next: owner reviews live; port the approved profiles into VehicleEffects (keep the void_trail names the
+  vehicle_effects test checks) and upload the settled textures in one batch.
 
 ## Codebase re-audit — 2026-10-26 (Claude, uncommitted)
 

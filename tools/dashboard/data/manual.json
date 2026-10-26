@@ -477,6 +477,20 @@
         "Save StarterGui to assets/studio/StarterGui.rbxm and tell Claude, who will run `python3 -B ui/tooling/verify.py --lune` and the UI suite."
       ],
       "done": "2026-10-26"
+    },
+    {
+      "id": "vfx-preview-app-management-2026-10-26",
+      "title": "Let the terminal copy draft VFX textures into Roblox Studio",
+      "why": "The redesigned trails and auras (vfx/trails/) use 16 drawn textures. Studio's Trails and ParticleEmitters only draw local files from its own content folder (rbxasset://textures/vfxpreview/...) or uploaded assets; EditableImages render white. macOS App Management blocks writing inside RobloxStudio.app ('Operation not permitted'), even from the owner's own shell. Done 2026-10-26: owner enabled App Management; textures copied to vfxpreview/014519 and all load in the test Studio (ContentProvider Success).",
+      "blocks": "Seeing the six draft cosmetics live in the test Studio (vfx/trails/preview.luau); without it they show as untextured placeholders.",
+      "when": "2026-10-26",
+      "status": "done",
+      "steps": [
+        "Open System Settings > Privacy & Security > App Management.",
+        "Turn on the app Claude Code runs in (Terminal, iTerm, VS Code or Claude). Quit and reopen it if macOS asks.",
+        "In Claude Code type: ! /Applications/Blender.app/Contents/Resources/5.2/python/bin/python3.13 ~/.claude/skills/roblox-vfx/scripts/vfxtex.py preview /Users/alexnguyen7369/Documents/RobloxGames/vfx/trails/out/*.png",
+        "Tell Claude the printed vfxpreview/<stamp> folder; Claude re-runs the preview in the test Studio. Remove the copies later with vfxtex.py clean-preview."
+      ]
     }
   ]
 }

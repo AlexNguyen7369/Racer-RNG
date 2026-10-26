@@ -3,7 +3,7 @@
 PROJECT CONTEXT - Idle Vehicle Simulator (read me first)
 Shown in Studio at: ServerScriptService > ProjectContext   (source file: context/ProjectContext.luau)
 Do NOT edit this in Studio: edit the file on disk, Rojo syncs it. Claude updates it at the end of every loop.
-Last updated: 2026-10-26 (Claude: full codebase re-audit)
+Last updated: 2026-10-26 (Claude: Market trail / aura VFX redesign)
 
 UPGRADE TREE + UI TESTS - 2026-10-26 (Claude, owner decisions; static checks only, live [UITEST] pending)
 - Owner: the upgrade tree stays a full-screen overlay (UPGRADE_TREE_SPEC 5, HUD_LAYOUT_SPEC 1 + 6 updated: exempt
@@ -127,7 +127,22 @@ ONE STEADY RACE SPEED - 2026-10-20 (Claude, uncommitted)
 - Tests: CarTest END pass=45 fail=2 (race max_speed lane checks = test lag, fixed by test-writer, unverified;
   track:Volcano never_tilted 0.811, bot lap not using RaceService, unexplained). Re-run pending (Studio closed).
 
-VOID TRAIL VFX - 2026-10-20 (Claude, uncommitted)
+MARKET VFX REDESIGN - 2026-10-26 (Claude, owner-approved look; rainbow_trail + void_trail committed)
+- Shared/VehicleEffects: data-driven PROFILES (rainbow_trail, void_trail) from 16 drawn textures (uploaded, ids in
+  vfx/trails/asset_ids.json; drawing script vfx/trails/textures.py, run with Blender's bundled python3.13 for numpy).
+  Trails 2.0-2.3 s long with 5-10 particle layers. solar_trail and the auras keep their old look (Effects.Legacy)
+  until their redesign lands (owner: auras less flamboyant, Ember aura like a Dragon Ball Z aura).
+- Server adds Attachments / Trails / ParticleEmitters only (no parts, no mass). New Client/VehicleEffectMotion plays
+  tagged (VehicleFxMotion) attachment motion locally: orbits, precessing rings, box / ring volume emission; held at
+  rest under reduced motion. void_trail keeps Core / EdgeL / EdgeR and Emitter -> Motes + Smoke (vehicle_effects test).
+- Drafts: drafts/props/trail-vfx-redesign/ (trails.blend + build_scene.py), vfx/trails/preview.luau (test Studio).
+- Verified 2026-10-26: stylua, selene 0/0, rojo build; live server in the real place: every trail + aura pair applies
+  with no error, mass delta 0, no BasePart, only effect classes, void names / tags / Rate > 0, unequip leaves nothing.
+  NOT verified: the vehicle_effects scenario itself (called outside the harness its fake character never seats,
+  auto_toggle fails the same way; it passed in the 2026-10-26 full harness before this change), the motion script
+  under load, particle budget with 7 players. Uploaded textures were still processing on Roblox at commit time.
+
+VOID TRAIL VFX - 2026-10-20 (superseded 2026-10-26) (Claude, uncommitted)
 - Shared/VehicleEffects: void_trail Style "Void" = dark ground-flat wake (Core) between the rear wheels, flickering
   dashed neon edges (EdgeL/EdgeR, hard-step Transparency), void smoke + motes. Visual only (spec PANEL_ART_GIFTING).
 - Tuned from live Studio captures on a client-only rig (screen_capture ~3-5 s/frame; background Studio renders ~15 fps,

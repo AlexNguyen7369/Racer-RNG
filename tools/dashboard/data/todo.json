@@ -1028,6 +1028,14 @@
       "status": "doing",
       "owner": "Claude",
       "updated": "2026-10-26"
+    },
+    {
+      "id": "market-vfx-redesign",
+      "title": "Market trail / aura VFX redesign (all six)",
+      "detail": "Rainbow + Void trails shipped 2026-10-26 (VehicleEffects + Client/VehicleEffectMotion, 16 textures uploaded). Next: Solar trail tweak; auras less flamboyant, Ember aura in a Dragon Ball Z style; run vehicle_effects in the full harness.",
+      "status": "doing",
+      "owner": "Claude",
+      "updated": "2026-10-26"
     }
   ]
 }
