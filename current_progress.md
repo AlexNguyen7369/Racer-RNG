@@ -49,8 +49,9 @@
 46. 2026-10-22 — Alex Nguyen — Added the Workshop car Showcase (duplicates kept as copies, 3 picked cars on workshop pedestals boost workshop Speed gain, save VERSION 12), fixed the auto-race rail at max speed, applied the owner's speed-curve and roll-speed rules, got the full harness green (50/0) and pushed `74a9a73` with Codex's pending work.
 47. 2026-10-22 — Alex Nguyen — Git-ignored the local `images/` folder (screenshots and recordings; recordings exceed GitHub's 100 MB limit) and stopped the in-progress UI compat run.
 48. 2026-10-22 — Alex Nguyen — Merged Isaac's `fix/isaac/hud-text-and-roll-art` branch keeping this branch's versions (all 23 changed files were already superseded by the newer UI), so the branch is recorded as merged with no file changes.
+49. 2026-10-26 — Alex Nguyen — Re-audited the codebase against the Roblox skill checklists; made BindToClose save in parallel and wait for in-flight saves, and cleared 918 selene warnings (UDim2 fromOffset/fromScale in generator and Ui modules, `select` shadowing, unused var) (2812425).
 
 ## What's next
-**Finish the compatibility check on `74a9a73`: run the UI suite (with the Workshop Showcase clicks), world, multiplayer and the final regression pass with Studio updated and the screen unlocked, and triage the remaining UI reds.**
+**Port the hand edits in `src/client/RollToast/Ui/*.luau` back into `ui/specs/*.ui.json` until `gen_atlas.py` reproduces the checked-in modules, then make `verify.py --lune` pass.**
 
-**Why this is next:** only the harness suite is green for this push; merging the branch and trusting the new Showcase UI depends on the UI, world, multiplayer and regression suites passing.
+**Why this is next:** the owner chose to keep the hand edits (2026-10-26); until the specs match, any UI re-bake through the required spec-and-generator path would wipe them, and the Lune tree check stays red.
