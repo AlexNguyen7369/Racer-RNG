@@ -56,8 +56,9 @@
 53. 2026-10-26 — Alex Nguyen — Verified the audit in live Studio (harness green bar an npc load flake, data 145/145, clean shutdown save), fixed the stale economy test to the owner's MAX_SPEED 88, and re-baked five stale StarterGui GUIs offline with Lune (UI suite 15/17 to 18/14).
 54. 2026-10-26 — Alex Nguyen — Applied the owner's upgrade-tree decisions (full-screen overlay written into the specs, Walkspeed tiles shown again, gated "Reach Track N", non-overlapping tiles) and had ui-test-writer reconcile the stale UI tests (74048ed).
 55. 2026-10-26 — Alex Nguyen — Redesigned the Rainbow and Void trails with 16 drawn, uploaded VFX textures (data-driven VehicleEffects plus a client motion script; solar trail and auras keep the old look) (4871383).
+56. 2026-10-26 — Alex Nguyen — Redesigned the Solar trail and the three auras (calmer Azure and Galaxy, a Dragon Ball Z style Ember ki sheath) and removed the legacy effect look (9c91e1d).
 
 ## What's next
-**Redesign the Solar trail and the three auras: tone all auras down (less flamboyant and eccentric) and rebuild the Ember aura as a flickering, rising Dragon Ball Z style energy aura.**
+**Build the separate VFX showcase area with the `/tp vfxarea` and `/tp home` admin commands.**
 
-**Why this is next:** the owner approved the Rainbow and Void trails and asked for these changes; until they land, the Solar trail and auras still use the old look through Effects.Legacy.
+**Why this is next:** the owner asked for it to review trails and auras without crowding the spawn; future VFX tuning rounds use it.
