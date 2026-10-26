@@ -1,5 +1,17 @@
 # Agent handoff
 
+## Codebase re-audit — 2026-10-26 (Claude, uncommitted)
+
+- Goal: re-audit the whole codebase against the downloaded Roblox skill checklists (security, performance, sharp
+  edges, UI lifecycle). Skills are in the scratchpad only; installing them to ~/.claude/skills was denied (owner
+  can copy them by hand). `roblox-engineer` was not found anywhere.
+- Result: no exploitable remote, leak or client-trust issue. Fixed the BindToClose shutdown save (parallel + waits
+  for in-flight leave saves, bug 53a825f0), InventoryTabs `select` shadowing, unused `canvas`. stylua, selene
+  (0 errors), Rojo build pass. Details in ProjectContext "CODEBASE RE-AUDIT".
+- Next: run the harness `data` scenario in Studio; mark bug 53a825f0 fixed once verified; run the UI suite (UDim2
+  fromOffset/fromScale rewrite in Ui modules + generator, behaviour-identical); fix `verify.py --lune` (missing
+  `task` mock, pre-existing); reconcile Ui modules with generator output (large drift).
+
 ## Full compatibility gate — 2026-10-22 (Codex, blocked)
 
 - Goal: run all five compatibility suites on the current shared tree, then commit and push only after an ALL GREEN result.

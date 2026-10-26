@@ -146,7 +146,12 @@ def lstr(t):
 
 
 def udim2(u):
-    return f"UDim2.new({lnum(u[0][0])}, {lnum(u[0][1])}, {lnum(u[1][0])}, {lnum(u[1][1])})"
+    (xs, xo), (ys, yo) = u
+    if xs == 0 and ys == 0:
+        return f"UDim2.fromOffset({lnum(xo)}, {lnum(yo)})"
+    if xo == 0 and yo == 0:
+        return f"UDim2.fromScale({lnum(xs)}, {lnum(ys)})"
+    return f"UDim2.new({lnum(xs)}, {lnum(xo)}, {lnum(ys)}, {lnum(yo)})"
 
 
 def color3(hexstr):
@@ -189,7 +194,7 @@ def build_body(spec, icons):
             face_class = "TextButton" if kind == "button" else "Frame"
             extra = ', Text = "", AutoButtonColor = false' if kind == "button" else ""
             out.append(f'\tlocal {v} = new("Frame", {{ {common(node)}, BackgroundTransparency = 1 }}, {parent})')
-            out.append(f'\tlocal {v}s = new("Frame", {{ Name = "Shadow", Position = UDim2.new(0, 0, 0, {lnum(th["shadowOffset"])}), '
+            out.append(f'\tlocal {v}s = new("Frame", {{ Name = "Shadow", Position = UDim2.fromOffset(0, {lnum(th["shadowOffset"])}), '
                        f'Size = UDim2.fromScale(1, 1), BackgroundColor3 = {color3(shadow_c)}, '
                        f'BackgroundTransparency = {lnum(round(1 - th["shadowAlpha"], 4))}, BorderSizePixel = 0, ZIndex = 1 }}, {v})')
             out.append(f'\tcorner({v}s, {lnum(th["radius"])})')
@@ -202,7 +207,7 @@ def build_body(spec, icons):
             out.append(f'\tnew("UIStroke", {{ Thickness = {lnum(th["outline"])}, Color = {color3(th["outlineColor"])}, '
                        f'ApplyStrokeMode = Enum.ApplyStrokeMode.Border }}, {v}f)')
             ins, lh = th["liftInset"], th["liftHeight"]
-            out.append(f'\tlocal {v}l = new("Frame", {{ Name = "Lift", Position = UDim2.new(0, {lnum(ins)}, 0, {lnum(ins / 2)}), '
+            out.append(f'\tlocal {v}l = new("Frame", {{ Name = "Lift", Position = UDim2.fromOffset({lnum(ins)}, {lnum(ins / 2)}), '
                        f'Size = UDim2.new(1, {lnum(-2 * ins)}, 0, {lnum(lh)}), BackgroundColor3 = Color3.new(1, 1, 1), '
                        f'BackgroundTransparency = {lnum(round(1 - th["liftAlpha"], 4))}, BorderSizePixel = 0 }}, {v}f)')
             out.append(f'\tcorner({v}l, {lnum(min(th["radius"], lh / 2))})')

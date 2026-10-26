@@ -36,14 +36,14 @@ function Ui.Build(playerGui)
 	local v1 = new("Frame", {
 		Name = "Panel",
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.new(0.55, 0, 0.52, 0),
-		Size = UDim2.new(0, 780, 0, 524),
+		Position = UDim2.fromScale(0.55, 0.52),
+		Size = UDim2.fromOffset(780, 524),
 		Visible = true,
 		BackgroundTransparency = 1,
 	}, gui)
 	local v1s = new("Frame", {
 		Name = "Shadow",
-		Position = UDim2.new(0, 0, 0, 4),
+		Position = UDim2.fromOffset(0, 4),
 		Size = UDim2.fromScale(1, 1),
 		BackgroundColor3 = Color3.fromRGB(18, 26, 65),
 		BackgroundTransparency = 0.4,
@@ -77,7 +77,7 @@ function Ui.Build(playerGui)
 	)
 	local v1l = new("Frame", {
 		Name = "Lift",
-		Position = UDim2.new(0, 4, 0, 2),
+		Position = UDim2.fromOffset(4, 2),
 		Size = UDim2.new(1, -8, 0, 6),
 		BackgroundColor3 = Color3.new(1, 1, 1),
 		BackgroundTransparency = 0.7,
@@ -90,28 +90,28 @@ function Ui.Build(playerGui)
 		v1,
 		{
 			AnchorPoint = Vector2.new(0.5, 0.5),
-			Position = UDim2.new(0.55, 0, 0.52, 0),
-			Size = UDim2.new(0, 780, 0, 524),
+			Position = UDim2.fromScale(0.55, 0.52),
+			Size = UDim2.fromOffset(780, 524),
 			Visible = true,
 		},
 		{
 			AnchorPoint = Vector2.new(0.5, 0.5),
-			Position = UDim2.new(0.62, 0, 0.56, 0),
-			Size = UDim2.new(0, 500, 0, 280),
+			Position = UDim2.fromScale(0.62, 0.56),
+			Size = UDim2.fromOffset(500, 280),
 			Visible = true,
 		},
 	})
 	local v2 = new("Frame", {
 		Name = "Header",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 12, 0, 12),
-		Size = UDim2.new(0, 756, 0, 64),
+		Position = UDim2.fromOffset(12, 12),
+		Size = UDim2.fromOffset(756, 64),
 		Visible = true,
 		BackgroundTransparency = 1,
 	}, v1f)
 	local v2s = new("Frame", {
 		Name = "Shadow",
-		Position = UDim2.new(0, 0, 0, 4),
+		Position = UDim2.fromOffset(0, 4),
 		Size = UDim2.fromScale(1, 1),
 		BackgroundColor3 = Color3.fromRGB(18, 81, 123),
 		BackgroundTransparency = 0.4,
@@ -145,7 +145,7 @@ function Ui.Build(playerGui)
 	)
 	local v2l = new("Frame", {
 		Name = "Lift",
-		Position = UDim2.new(0, 4, 0, 2),
+		Position = UDim2.fromOffset(4, 2),
 		Size = UDim2.new(1, -8, 0, 6),
 		BackgroundColor3 = Color3.new(1, 1, 1),
 		BackgroundTransparency = 0.7,
@@ -157,28 +157,28 @@ function Ui.Build(playerGui)
 		v2,
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 12, 0, 12),
-			Size = UDim2.new(0, 756, 0, 64),
+			Position = UDim2.fromOffset(12, 12),
+			Size = UDim2.fromOffset(756, 64),
 			Visible = true,
 		},
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 8, 0, 8),
-			Size = UDim2.new(0, 484, 0, 48),
+			Position = UDim2.fromOffset(8, 8),
+			Size = UDim2.fromOffset(484, 48),
 			Visible = true,
 		},
 	})
 	local v3 = new("Frame", {
 		Name = "CarsTab",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 18, 0, 8),
-		Size = UDim2.new(0, 190, 0, 48),
+		Position = UDim2.fromOffset(18, 8),
+		Size = UDim2.fromOffset(190, 48),
 		Visible = true,
 		BackgroundTransparency = 1,
 	}, v2f)
 	local v3s = new("Frame", {
 		Name = "Shadow",
-		Position = UDim2.new(0, 0, 0, 4),
+		Position = UDim2.fromOffset(0, 4),
 		Size = UDim2.fromScale(1, 1),
 		BackgroundColor3 = Color3.fromRGB(18, 81, 123),
 		BackgroundTransparency = 0.4,
@@ -214,7 +214,7 @@ function Ui.Build(playerGui)
 	)
 	local v3l = new("Frame", {
 		Name = "Lift",
-		Position = UDim2.new(0, 4, 0, 2),
+		Position = UDim2.fromOffset(4, 2),
 		Size = UDim2.new(1, -8, 0, 6),
 		BackgroundColor3 = Color3.new(1, 1, 1),
 		BackgroundTransparency = 0.7,
@@ -226,22 +226,22 @@ function Ui.Build(playerGui)
 		v3,
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 18, 0, 8),
-			Size = UDim2.new(0, 190, 0, 48),
+			Position = UDim2.fromOffset(18, 8),
+			Size = UDim2.fromOffset(190, 48),
 			Visible = true,
 		},
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 12, 0, 0),
-			Size = UDim2.new(0, 140, 0, 48),
+			Position = UDim2.fromOffset(12, 0),
+			Size = UDim2.fromOffset(140, 48),
 			Visible = true,
 		},
 	})
 	local v4 = new("TextLabel", {
 		Name = "CarsTabLabel",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 0, 0, 0),
-		Size = UDim2.new(1, 0, 1, 0),
+		Position = UDim2.fromOffset(0, 0),
+		Size = UDim2.fromScale(1, 1),
 		Visible = true,
 		BackgroundTransparency = 1,
 		Text = "CARS",
@@ -262,15 +262,15 @@ function Ui.Build(playerGui)
 		v4,
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 0, 0, 0),
-			Size = UDim2.new(1, 0, 1, 0),
+			Position = UDim2.fromOffset(0, 0),
+			Size = UDim2.fromScale(1, 1),
 			TextSize = 25,
 			Visible = true,
 		},
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 0, 0, 0),
-			Size = UDim2.new(1, 0, 1, 0),
+			Position = UDim2.fromOffset(0, 0),
+			Size = UDim2.fromScale(1, 1),
 			TextSize = 22,
 			Visible = true,
 		},
@@ -278,14 +278,14 @@ function Ui.Build(playerGui)
 	local v5 = new("Frame", {
 		Name = "ConsumablesTab",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 228, 0, 8),
-		Size = UDim2.new(0, 270, 0, 48),
+		Position = UDim2.fromOffset(228, 8),
+		Size = UDim2.fromOffset(270, 48),
 		Visible = true,
 		BackgroundTransparency = 1,
 	}, v2f)
 	local v5s = new("Frame", {
 		Name = "Shadow",
-		Position = UDim2.new(0, 0, 0, 4),
+		Position = UDim2.fromOffset(0, 4),
 		Size = UDim2.fromScale(1, 1),
 		BackgroundColor3 = Color3.fromRGB(18, 26, 65),
 		BackgroundTransparency = 0.4,
@@ -321,7 +321,7 @@ function Ui.Build(playerGui)
 	)
 	local v5l = new("Frame", {
 		Name = "Lift",
-		Position = UDim2.new(0, 4, 0, 2),
+		Position = UDim2.fromOffset(4, 2),
 		Size = UDim2.new(1, -8, 0, 6),
 		BackgroundColor3 = Color3.new(1, 1, 1),
 		BackgroundTransparency = 0.7,
@@ -333,22 +333,22 @@ function Ui.Build(playerGui)
 		v5,
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 228, 0, 8),
-			Size = UDim2.new(0, 270, 0, 48),
+			Position = UDim2.fromOffset(228, 8),
+			Size = UDim2.fromOffset(270, 48),
 			Visible = true,
 		},
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 168, 0, 0),
-			Size = UDim2.new(0, 214, 0, 48),
+			Position = UDim2.fromOffset(168, 0),
+			Size = UDim2.fromOffset(214, 48),
 			Visible = true,
 		},
 	})
 	local v6 = new("TextLabel", {
 		Name = "ConsumablesTabLabel",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 0, 0, 0),
-		Size = UDim2.new(1, 0, 1, 0),
+		Position = UDim2.fromOffset(0, 0),
+		Size = UDim2.fromScale(1, 1),
 		Visible = true,
 		BackgroundTransparency = 1,
 		Text = "CONSUMABLES",
@@ -369,15 +369,15 @@ function Ui.Build(playerGui)
 		v6,
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 0, 0, 0),
-			Size = UDim2.new(1, 0, 1, 0),
+			Position = UDim2.fromOffset(0, 0),
+			Size = UDim2.fromScale(1, 1),
 			TextSize = 23,
 			Visible = true,
 		},
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 0, 0, 0),
-			Size = UDim2.new(1, 0, 1, 0),
+			Position = UDim2.fromOffset(0, 0),
+			Size = UDim2.fromScale(1, 1),
 			TextSize = 20,
 			Visible = true,
 		},
@@ -385,14 +385,14 @@ function Ui.Build(playerGui)
 	local v7 = new("Frame", {
 		Name = "Close",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 692, 0, 6),
-		Size = UDim2.new(0, 52, 0, 52),
+		Position = UDim2.fromOffset(692, 6),
+		Size = UDim2.fromOffset(52, 52),
 		Visible = true,
 		BackgroundTransparency = 1,
 	}, v2f)
 	local v7s = new("Frame", {
 		Name = "Shadow",
-		Position = UDim2.new(0, 0, 0, 4),
+		Position = UDim2.fromOffset(0, 4),
 		Size = UDim2.fromScale(1, 1),
 		BackgroundColor3 = Color3.fromRGB(88, 37, 73),
 		BackgroundTransparency = 0.4,
@@ -428,7 +428,7 @@ function Ui.Build(playerGui)
 	)
 	local v7l = new("Frame", {
 		Name = "Lift",
-		Position = UDim2.new(0, 4, 0, 2),
+		Position = UDim2.fromOffset(4, 2),
 		Size = UDim2.new(1, -8, 0, 6),
 		BackgroundColor3 = Color3.new(1, 1, 1),
 		BackgroundTransparency = 0.7,
@@ -440,22 +440,22 @@ function Ui.Build(playerGui)
 		v7,
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 692, 0, 6),
-			Size = UDim2.new(0, 52, 0, 52),
+			Position = UDim2.fromOffset(692, 6),
+			Size = UDim2.fromOffset(52, 52),
 			Visible = true,
 		},
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 428, 0, 0),
-			Size = UDim2.new(0, 48, 0, 48),
+			Position = UDim2.fromOffset(428, 0),
+			Size = UDim2.fromOffset(48, 48),
 			Visible = true,
 		},
 	})
 	local v8 = new("TextLabel", {
 		Name = "CloseLabel",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 0, 0, 0),
-		Size = UDim2.new(1, 0, 1, 0),
+		Position = UDim2.fromOffset(0, 0),
+		Size = UDim2.fromScale(1, 1),
 		Visible = true,
 		BackgroundTransparency = 1,
 		Text = "X",
@@ -476,15 +476,15 @@ function Ui.Build(playerGui)
 		v8,
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 0, 0, 0),
-			Size = UDim2.new(1, 0, 1, 0),
+			Position = UDim2.fromOffset(0, 0),
+			Size = UDim2.fromScale(1, 1),
 			TextSize = 26,
 			Visible = true,
 		},
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 0, 0, 0),
-			Size = UDim2.new(1, 0, 1, 0),
+			Position = UDim2.fromOffset(0, 0),
+			Size = UDim2.fromScale(1, 1),
 			TextSize = 24,
 			Visible = true,
 		},
@@ -492,8 +492,8 @@ function Ui.Build(playerGui)
 	local v9 = new("TextLabel", {
 		Name = "IndexProgress",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 16, 0, 92),
-		Size = UDim2.new(0, 748, 0, 26),
+		Position = UDim2.fromOffset(16, 92),
+		Size = UDim2.fromOffset(748, 26),
 		Visible = true,
 		BackgroundTransparency = 1,
 		Text = "3 / 7 DISCOVERED",
@@ -514,15 +514,15 @@ function Ui.Build(playerGui)
 		v9,
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 16, 0, 92),
-			Size = UDim2.new(0, 748, 0, 26),
+			Position = UDim2.fromOffset(16, 92),
+			Size = UDim2.fromOffset(748, 26),
 			TextSize = 21,
 			Visible = true,
 		},
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 12, 0, 72),
-			Size = UDim2.new(0, 476, 0, 22),
+			Position = UDim2.fromOffset(12, 72),
+			Size = UDim2.fromOffset(476, 22),
 			TextSize = 18,
 			Visible = true,
 		},
@@ -530,8 +530,8 @@ function Ui.Build(playerGui)
 	local v10 = new("Frame", {
 		Name = "GridHost",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 16, 0, 134),
-		Size = UDim2.new(0, 748, 0, 374),
+		Position = UDim2.fromOffset(16, 134),
+		Size = UDim2.fromOffset(748, 374),
 		Visible = true,
 		BackgroundTransparency = 1,
 	}, v1f)
@@ -540,22 +540,22 @@ function Ui.Build(playerGui)
 		v10,
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 16, 0, 134),
-			Size = UDim2.new(0, 748, 0, 374),
+			Position = UDim2.fromOffset(16, 134),
+			Size = UDim2.fromOffset(748, 374),
 			Visible = true,
 		},
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 12, 0, 100),
-			Size = UDim2.new(0, 476, 0, 168),
+			Position = UDim2.fromOffset(12, 100),
+			Size = UDim2.fromOffset(476, 168),
 			Visible = true,
 		},
 	})
 	local v11 = new("Frame", {
 		Name = "ConsumablesHost",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 16, 0, 134),
-		Size = UDim2.new(0, 748, 0, 374),
+		Position = UDim2.fromOffset(16, 134),
+		Size = UDim2.fromOffset(748, 374),
 		Visible = false,
 		BackgroundTransparency = 1,
 	}, v1f)
@@ -564,14 +564,14 @@ function Ui.Build(playerGui)
 		v11,
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 16, 0, 134),
-			Size = UDim2.new(0, 748, 0, 374),
+			Position = UDim2.fromOffset(16, 134),
+			Size = UDim2.fromOffset(748, 374),
 			Visible = false,
 		},
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 12, 0, 100),
-			Size = UDim2.new(0, 476, 0, 168),
+			Position = UDim2.fromOffset(12, 100),
+			Size = UDim2.fromOffset(476, 168),
 			Visible = false,
 		},
 	})
@@ -627,14 +627,14 @@ function Ui.Bind(playerGui)
 	local v1 = new("Frame", {
 		Name = "Panel",
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.new(0.55, 0, 0.52, 0),
-		Size = UDim2.new(0, 780, 0, 524),
+		Position = UDim2.fromScale(0.55, 0.52),
+		Size = UDim2.fromOffset(780, 524),
 		Visible = true,
 		BackgroundTransparency = 1,
 	}, gui)
 	local v1s = new("Frame", {
 		Name = "Shadow",
-		Position = UDim2.new(0, 0, 0, 4),
+		Position = UDim2.fromOffset(0, 4),
 		Size = UDim2.fromScale(1, 1),
 		BackgroundColor3 = Color3.fromRGB(18, 26, 65),
 		BackgroundTransparency = 0.4,
@@ -668,7 +668,7 @@ function Ui.Bind(playerGui)
 	)
 	local v1l = new("Frame", {
 		Name = "Lift",
-		Position = UDim2.new(0, 4, 0, 2),
+		Position = UDim2.fromOffset(4, 2),
 		Size = UDim2.new(1, -8, 0, 6),
 		BackgroundColor3 = Color3.new(1, 1, 1),
 		BackgroundTransparency = 0.7,
@@ -681,28 +681,28 @@ function Ui.Bind(playerGui)
 		v1,
 		{
 			AnchorPoint = Vector2.new(0.5, 0.5),
-			Position = UDim2.new(0.55, 0, 0.52, 0),
-			Size = UDim2.new(0, 780, 0, 524),
+			Position = UDim2.fromScale(0.55, 0.52),
+			Size = UDim2.fromOffset(780, 524),
 			Visible = true,
 		},
 		{
 			AnchorPoint = Vector2.new(0.5, 0.5),
-			Position = UDim2.new(0.62, 0, 0.56, 0),
-			Size = UDim2.new(0, 500, 0, 280),
+			Position = UDim2.fromScale(0.62, 0.56),
+			Size = UDim2.fromOffset(500, 280),
 			Visible = true,
 		},
 	})
 	local v2 = new("Frame", {
 		Name = "Header",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 12, 0, 12),
-		Size = UDim2.new(0, 756, 0, 64),
+		Position = UDim2.fromOffset(12, 12),
+		Size = UDim2.fromOffset(756, 64),
 		Visible = true,
 		BackgroundTransparency = 1,
 	}, v1f)
 	local v2s = new("Frame", {
 		Name = "Shadow",
-		Position = UDim2.new(0, 0, 0, 4),
+		Position = UDim2.fromOffset(0, 4),
 		Size = UDim2.fromScale(1, 1),
 		BackgroundColor3 = Color3.fromRGB(18, 81, 123),
 		BackgroundTransparency = 0.4,
@@ -736,7 +736,7 @@ function Ui.Bind(playerGui)
 	)
 	local v2l = new("Frame", {
 		Name = "Lift",
-		Position = UDim2.new(0, 4, 0, 2),
+		Position = UDim2.fromOffset(4, 2),
 		Size = UDim2.new(1, -8, 0, 6),
 		BackgroundColor3 = Color3.new(1, 1, 1),
 		BackgroundTransparency = 0.7,
@@ -748,28 +748,28 @@ function Ui.Bind(playerGui)
 		v2,
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 12, 0, 12),
-			Size = UDim2.new(0, 756, 0, 64),
+			Position = UDim2.fromOffset(12, 12),
+			Size = UDim2.fromOffset(756, 64),
 			Visible = true,
 		},
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 8, 0, 8),
-			Size = UDim2.new(0, 484, 0, 48),
+			Position = UDim2.fromOffset(8, 8),
+			Size = UDim2.fromOffset(484, 48),
 			Visible = true,
 		},
 	})
 	local v3 = new("Frame", {
 		Name = "CarsTab",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 18, 0, 8),
-		Size = UDim2.new(0, 190, 0, 48),
+		Position = UDim2.fromOffset(18, 8),
+		Size = UDim2.fromOffset(190, 48),
 		Visible = true,
 		BackgroundTransparency = 1,
 	}, v2f)
 	local v3s = new("Frame", {
 		Name = "Shadow",
-		Position = UDim2.new(0, 0, 0, 4),
+		Position = UDim2.fromOffset(0, 4),
 		Size = UDim2.fromScale(1, 1),
 		BackgroundColor3 = Color3.fromRGB(18, 81, 123),
 		BackgroundTransparency = 0.4,
@@ -805,7 +805,7 @@ function Ui.Bind(playerGui)
 	)
 	local v3l = new("Frame", {
 		Name = "Lift",
-		Position = UDim2.new(0, 4, 0, 2),
+		Position = UDim2.fromOffset(4, 2),
 		Size = UDim2.new(1, -8, 0, 6),
 		BackgroundColor3 = Color3.new(1, 1, 1),
 		BackgroundTransparency = 0.7,
@@ -817,22 +817,22 @@ function Ui.Bind(playerGui)
 		v3,
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 18, 0, 8),
-			Size = UDim2.new(0, 190, 0, 48),
+			Position = UDim2.fromOffset(18, 8),
+			Size = UDim2.fromOffset(190, 48),
 			Visible = true,
 		},
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 12, 0, 0),
-			Size = UDim2.new(0, 140, 0, 48),
+			Position = UDim2.fromOffset(12, 0),
+			Size = UDim2.fromOffset(140, 48),
 			Visible = true,
 		},
 	})
 	local v4 = new("TextLabel", {
 		Name = "CarsTabLabel",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 0, 0, 0),
-		Size = UDim2.new(1, 0, 1, 0),
+		Position = UDim2.fromOffset(0, 0),
+		Size = UDim2.fromScale(1, 1),
 		Visible = true,
 		BackgroundTransparency = 1,
 		Text = "CARS",
@@ -853,15 +853,15 @@ function Ui.Bind(playerGui)
 		v4,
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 0, 0, 0),
-			Size = UDim2.new(1, 0, 1, 0),
+			Position = UDim2.fromOffset(0, 0),
+			Size = UDim2.fromScale(1, 1),
 			TextSize = 25,
 			Visible = true,
 		},
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 0, 0, 0),
-			Size = UDim2.new(1, 0, 1, 0),
+			Position = UDim2.fromOffset(0, 0),
+			Size = UDim2.fromScale(1, 1),
 			TextSize = 22,
 			Visible = true,
 		},
@@ -869,14 +869,14 @@ function Ui.Bind(playerGui)
 	local v5 = new("Frame", {
 		Name = "ConsumablesTab",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 228, 0, 8),
-		Size = UDim2.new(0, 270, 0, 48),
+		Position = UDim2.fromOffset(228, 8),
+		Size = UDim2.fromOffset(270, 48),
 		Visible = true,
 		BackgroundTransparency = 1,
 	}, v2f)
 	local v5s = new("Frame", {
 		Name = "Shadow",
-		Position = UDim2.new(0, 0, 0, 4),
+		Position = UDim2.fromOffset(0, 4),
 		Size = UDim2.fromScale(1, 1),
 		BackgroundColor3 = Color3.fromRGB(18, 26, 65),
 		BackgroundTransparency = 0.4,
@@ -912,7 +912,7 @@ function Ui.Bind(playerGui)
 	)
 	local v5l = new("Frame", {
 		Name = "Lift",
-		Position = UDim2.new(0, 4, 0, 2),
+		Position = UDim2.fromOffset(4, 2),
 		Size = UDim2.new(1, -8, 0, 6),
 		BackgroundColor3 = Color3.new(1, 1, 1),
 		BackgroundTransparency = 0.7,
@@ -924,22 +924,22 @@ function Ui.Bind(playerGui)
 		v5,
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 228, 0, 8),
-			Size = UDim2.new(0, 270, 0, 48),
+			Position = UDim2.fromOffset(228, 8),
+			Size = UDim2.fromOffset(270, 48),
 			Visible = true,
 		},
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 168, 0, 0),
-			Size = UDim2.new(0, 214, 0, 48),
+			Position = UDim2.fromOffset(168, 0),
+			Size = UDim2.fromOffset(214, 48),
 			Visible = true,
 		},
 	})
 	local v6 = new("TextLabel", {
 		Name = "ConsumablesTabLabel",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 0, 0, 0),
-		Size = UDim2.new(1, 0, 1, 0),
+		Position = UDim2.fromOffset(0, 0),
+		Size = UDim2.fromScale(1, 1),
 		Visible = true,
 		BackgroundTransparency = 1,
 		Text = "CONSUMABLES",
@@ -960,15 +960,15 @@ function Ui.Bind(playerGui)
 		v6,
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 0, 0, 0),
-			Size = UDim2.new(1, 0, 1, 0),
+			Position = UDim2.fromOffset(0, 0),
+			Size = UDim2.fromScale(1, 1),
 			TextSize = 23,
 			Visible = true,
 		},
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 0, 0, 0),
-			Size = UDim2.new(1, 0, 1, 0),
+			Position = UDim2.fromOffset(0, 0),
+			Size = UDim2.fromScale(1, 1),
 			TextSize = 20,
 			Visible = true,
 		},
@@ -976,14 +976,14 @@ function Ui.Bind(playerGui)
 	local v7 = new("Frame", {
 		Name = "Close",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 692, 0, 6),
-		Size = UDim2.new(0, 52, 0, 52),
+		Position = UDim2.fromOffset(692, 6),
+		Size = UDim2.fromOffset(52, 52),
 		Visible = true,
 		BackgroundTransparency = 1,
 	}, v2f)
 	local v7s = new("Frame", {
 		Name = "Shadow",
-		Position = UDim2.new(0, 0, 0, 4),
+		Position = UDim2.fromOffset(0, 4),
 		Size = UDim2.fromScale(1, 1),
 		BackgroundColor3 = Color3.fromRGB(88, 37, 73),
 		BackgroundTransparency = 0.4,
@@ -1019,7 +1019,7 @@ function Ui.Bind(playerGui)
 	)
 	local v7l = new("Frame", {
 		Name = "Lift",
-		Position = UDim2.new(0, 4, 0, 2),
+		Position = UDim2.fromOffset(4, 2),
 		Size = UDim2.new(1, -8, 0, 6),
 		BackgroundColor3 = Color3.new(1, 1, 1),
 		BackgroundTransparency = 0.7,
@@ -1031,22 +1031,22 @@ function Ui.Bind(playerGui)
 		v7,
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 692, 0, 6),
-			Size = UDim2.new(0, 52, 0, 52),
+			Position = UDim2.fromOffset(692, 6),
+			Size = UDim2.fromOffset(52, 52),
 			Visible = true,
 		},
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 428, 0, 0),
-			Size = UDim2.new(0, 48, 0, 48),
+			Position = UDim2.fromOffset(428, 0),
+			Size = UDim2.fromOffset(48, 48),
 			Visible = true,
 		},
 	})
 	local v8 = new("TextLabel", {
 		Name = "CloseLabel",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 0, 0, 0),
-		Size = UDim2.new(1, 0, 1, 0),
+		Position = UDim2.fromOffset(0, 0),
+		Size = UDim2.fromScale(1, 1),
 		Visible = true,
 		BackgroundTransparency = 1,
 		Text = "X",
@@ -1067,15 +1067,15 @@ function Ui.Bind(playerGui)
 		v8,
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 0, 0, 0),
-			Size = UDim2.new(1, 0, 1, 0),
+			Position = UDim2.fromOffset(0, 0),
+			Size = UDim2.fromScale(1, 1),
 			TextSize = 26,
 			Visible = true,
 		},
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 0, 0, 0),
-			Size = UDim2.new(1, 0, 1, 0),
+			Position = UDim2.fromOffset(0, 0),
+			Size = UDim2.fromScale(1, 1),
 			TextSize = 24,
 			Visible = true,
 		},
@@ -1083,8 +1083,8 @@ function Ui.Bind(playerGui)
 	local v9 = new("TextLabel", {
 		Name = "IndexProgress",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 16, 0, 92),
-		Size = UDim2.new(0, 748, 0, 26),
+		Position = UDim2.fromOffset(16, 92),
+		Size = UDim2.fromOffset(748, 26),
 		Visible = true,
 		BackgroundTransparency = 1,
 		Text = "3 / 7 DISCOVERED",
@@ -1105,15 +1105,15 @@ function Ui.Bind(playerGui)
 		v9,
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 16, 0, 92),
-			Size = UDim2.new(0, 748, 0, 26),
+			Position = UDim2.fromOffset(16, 92),
+			Size = UDim2.fromOffset(748, 26),
 			TextSize = 21,
 			Visible = true,
 		},
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 12, 0, 72),
-			Size = UDim2.new(0, 476, 0, 22),
+			Position = UDim2.fromOffset(12, 72),
+			Size = UDim2.fromOffset(476, 22),
 			TextSize = 18,
 			Visible = true,
 		},
@@ -1121,8 +1121,8 @@ function Ui.Bind(playerGui)
 	local v10 = new("Frame", {
 		Name = "GridHost",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 16, 0, 134),
-		Size = UDim2.new(0, 748, 0, 374),
+		Position = UDim2.fromOffset(16, 134),
+		Size = UDim2.fromOffset(748, 374),
 		Visible = true,
 		BackgroundTransparency = 1,
 	}, v1f)
@@ -1131,22 +1131,22 @@ function Ui.Bind(playerGui)
 		v10,
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 16, 0, 134),
-			Size = UDim2.new(0, 748, 0, 374),
+			Position = UDim2.fromOffset(16, 134),
+			Size = UDim2.fromOffset(748, 374),
 			Visible = true,
 		},
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 12, 0, 100),
-			Size = UDim2.new(0, 476, 0, 168),
+			Position = UDim2.fromOffset(12, 100),
+			Size = UDim2.fromOffset(476, 168),
 			Visible = true,
 		},
 	})
 	local v11 = new("Frame", {
 		Name = "ConsumablesHost",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.new(0, 16, 0, 134),
-		Size = UDim2.new(0, 748, 0, 374),
+		Position = UDim2.fromOffset(16, 134),
+		Size = UDim2.fromOffset(748, 374),
 		Visible = false,
 		BackgroundTransparency = 1,
 	}, v1f)
@@ -1155,14 +1155,14 @@ function Ui.Bind(playerGui)
 		v11,
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 16, 0, 134),
-			Size = UDim2.new(0, 748, 0, 374),
+			Position = UDim2.fromOffset(16, 134),
+			Size = UDim2.fromOffset(748, 374),
 			Visible = false,
 		},
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.new(0, 12, 0, 100),
-			Size = UDim2.new(0, 476, 0, 168),
+			Position = UDim2.fromOffset(12, 100),
+			Size = UDim2.fromOffset(476, 168),
 			Visible = false,
 		},
 	})

@@ -3,7 +3,22 @@
 PROJECT CONTEXT - Idle Vehicle Simulator (read me first)
 Shown in Studio at: ServerScriptService > ProjectContext   (source file: context/ProjectContext.luau)
 Do NOT edit this in Studio: edit the file on disk, Rojo syncs it. Claude updates it at the end of every loop.
-Last updated: 2026-10-22 (Codex: stronger Speed damping, defensive car physics, staged rebirth multipliers)
+Last updated: 2026-10-26 (Claude: full codebase re-audit)
+
+CODEBASE RE-AUDIT - 2026-10-26 (Claude, uncommitted, on feature/alex/race-progress-map-completion)
+- Checklists: security / performance audit + sharp edges (brockmartin/roblox-game-skill), roblox-ui lifecycle.
+- Clean: every remote type-checks, rate-limits and gates on DataLoaded; clients send ids only, never amounts;
+  ProcessReceipt is idempotent and rolls back on a failed save; codes/admin config stay server-side; all
+  per-player tables are weak-keyed or cleared on leave; every ScreenGui has ResetOnSpawn = false; network calls
+  are pcall-wrapped; server loops are throttled.
+- Fixed: BindToClose now saves in parallel and waits (25 s cap) for in-flight saves incl. PlayerRemoving ones
+  (bug 53a825f0). InventoryTabs local `select` renamed `selectTab` (shadowed the builtin); unused `canvas` removed.
+- Lint: ui/tooling/gen_atlas.py now emits UDim2.fromOffset/fromScale; the same behaviour-identical rewrite
+  (numeric args only, 1065 calls) applied to the checked-in Ui modules. selene: 0 errors, 11 warnings (intentional
+  `new`/`corner` shadowing in generated Bind, `okb` in a test). verify.py passes; `verify.py --lune` fails with
+  "attempt to index nil with 'defer'" on the baseline tree too (pre-existing). The checked-in Ui modules have
+  drifted from generator output (thousands of lines): never regenerate over them without reconciling first.
+- UNVERIFIED in Studio (no Studio open): harness `data`, a real shutdown save, a UI-suite pass.
 
 OWNER REQUEST - STAGED REBIRTH MULTIPLIERS - 2026-10-22 (Codex, uncommitted)
 - Rebirth Speed Gain and Luck factors now compound as x5.00, x7.50, x7.50, x10.00, x10.00, then x7.50 repeating.

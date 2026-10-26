@@ -162,7 +162,7 @@ function Tabs.Attach(refs, player, refreshCars)
 			player:GetAttributeChangedSignal("BoostUntil_" .. item.Id):Connect(refresh)
 		end
 	end
-	local function select(value)
+	local function selectTab(value)
 		tab = value
 		refs.Gui:SetAttribute("InventoryTab", tab)
 		refs.GridHost.Visible = tab == "Cars"
@@ -176,10 +176,10 @@ function Tabs.Attach(refs, player, refreshCars)
 		end
 	end
 	refs.CarsTab.Activated:Connect(function()
-		select("Cars")
+		selectTab("Cars")
 	end)
 	refs.ConsumablesTab.Activated:Connect(function()
-		select("Consumables")
+		selectTab("Consumables")
 	end)
 	refs.IndexProgress:GetPropertyChangedSignal("Text"):Connect(function()
 		if tab == "Consumables" and os.clock() >= statusUntil and refs.IndexProgress.Text ~= summary then
@@ -188,10 +188,10 @@ function Tabs.Attach(refs, player, refreshCars)
 	end)
 	workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(function()
 		task.defer(function()
-			select(tab)
+			selectTab(tab)
 		end)
 	end)
-	select("Cars")
+	selectTab("Cars")
 	task.spawn(function()
 		while refs.Gui.Parent do
 			task.wait(1)

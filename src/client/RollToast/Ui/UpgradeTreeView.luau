@@ -135,7 +135,7 @@ function View.Create(gui, Tree, Format)
 		local fills = hex(button, "HexFace", NODE_WIDTH - 3, CYAN, 5)
 		local art = Components.CarArt(button, "Art", icon, UDim2.new(0.5, -32, 0.5, -36), UDim2.fromOffset(64, 64))
 		art.ZIndex = 6
-		local title = label(button, "Text", name, UDim2.new(0, 2, 0, 12), UDim2.new(1, -4, 0, 46), 19)
+		local title = label(button, "Text", name, UDim2.fromOffset(2, 12), UDim2.new(1, -4, 0, 46), 19)
 		local price = label(button, "Price", "", UDim2.new(0, 2, 1, -36), UDim2.new(1, -4, 0, 28), 16)
 		return { Button = button, Label = title, Price = price, Art = art, Fills = fills, Outline = outline }
 	end

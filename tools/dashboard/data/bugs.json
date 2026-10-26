@@ -1215,6 +1215,43 @@
       "foundBy": "physics-tester",
       "foundAt": "2026-10-22T03:16:23-07:00",
       "loggedBy": "Alex Nguyen"
+    },
+    {
+      "id": "53a825f0",
+      "name": "Shutdown save could drop leave saves",
+      "kind": "fault",
+      "status": "open",
+      "file": "src/server/PlayerData.luau",
+      "line": 464,
+      "endLine": 473,
+      "snippet": {
+        "from": 460,
+        "lines": [
+          "\t\t\tpcall(hook, player) -- e.g. CarService stops the run, committing its last Speed gain",
+          "\t\tend",
+          "\t\tPlayerData.Save(player, nil, true)",
+          "\tend)",
+          "\tgame:BindToClose(function()",
+          "\t\tfor _, player in Players:GetPlayers() do",
+          "\t\t\ttask.spawn(PlayerData.Save, player, nil, true)",
+          "\t\tend",
+          "\t\t-- Players kicked by the shutdown save from PlayerRemoving: wait for those too, inside Roblox's 30 s limit",
+          "\t\tlocal deadline = os.clock() + 25",
+          "\t\twhile next(saving) and os.clock() < deadline do",
+          "\t\t\ttask.wait(0.1)",
+          "\t\tend",
+          "\tend)",
+          "\ttask.spawn(function()",
+          "\t\twhile true do",
+          "\t\t\ttask.wait(AUTOSAVE_SECONDS)",
+          "\t\t\tfor _, player in Players:GetPlayers() do"
+        ]
+      },
+      "summary": "BindToClose saved players one by one and returned without waiting for PlayerRemoving saves already in flight; on a server shutdown those saves could be cut off and the player's last progress lost. Now saves in parallel and waits (25 s cap) until no save is in flight.",
+      "error": "",
+      "foundBy": "claude-audit",
+      "foundAt": "2026-10-26T00:20:09-07:00",
+      "loggedBy": "Alex Nguyen"
     }
   ]
 }

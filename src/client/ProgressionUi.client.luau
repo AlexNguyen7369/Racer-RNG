@@ -250,7 +250,7 @@ local function refreshPotions(now)
 	potionStatus.Visible = activeCount > 0 and hud.Enabled
 end
 local treeView = require(script.Parent.RollToast.Ui.UpgradeTreeView).Create(gui, Tree, Format)
-local treePanel, canvas, feedback, tiles = treeView.Panel, treeView.Canvas, treeView.Feedback, treeView.Tiles
+local treePanel, feedback, tiles = treeView.Panel, treeView.Feedback, treeView.Tiles
 Switch.Register("Upgrades", treePanel)
 panels.Upgrades = treePanel
 for _, close in { treeView.Refs.Close, treeView.Refs.Exit } do

@@ -463,7 +463,12 @@ function PlayerData.Start()
 	end)
 	game:BindToClose(function()
 		for _, player in Players:GetPlayers() do
-			PlayerData.Save(player, nil, true)
+			task.spawn(PlayerData.Save, player, nil, true)
+		end
+		-- Players kicked by the shutdown save from PlayerRemoving: wait for those too, inside Roblox's 30 s limit
+		local deadline = os.clock() + 25
+		while next(saving) and os.clock() < deadline do
+			task.wait(0.1)
 		end
 	end)
 	task.spawn(function()
