@@ -55,8 +55,9 @@
 52. 2026-10-26 — Alex Nguyen — Added the owner-approved UI rules (Reduced Motion, device safe-area insets, gamepad panel focus) to the design doc and HUD spec and implemented them (UiMotion, SafeInsets, PanelSwitch).
 53. 2026-10-26 — Alex Nguyen — Verified the audit in live Studio (harness green bar an npc load flake, data 145/145, clean shutdown save), fixed the stale economy test to the owner's MAX_SPEED 88, and re-baked five stale StarterGui GUIs offline with Lune (UI suite 15/17 to 18/14).
 54. 2026-10-26 — Alex Nguyen — Applied the owner's upgrade-tree decisions (full-screen overlay written into the specs, Walkspeed tiles shown again, gated "Reach Track N", non-overlapping tiles) and had ui-test-writer reconcile the stale UI tests (74048ed).
+55. 2026-10-26 — Alex Nguyen — Redesigned the Rainbow and Void trails with 16 drawn, uploaded VFX textures (data-driven VehicleEffects plus a client motion script; solar trail and auras keep the old look) (4871383).
 
 ## What's next
-**Rerun the full [UITEST] suite in the Racer RNG place with Rojo connected, confirm the upgrade-tree fixes live, and fix any real overlaps that remain.**
+**Redesign the Solar trail and the three auras: tone all auras down (less flamboyant and eccentric) and rebuild the Ember aura as a flickering, rising Dragon Ball Z style energy aura.**
 
-**Why this is next:** the reconciled UI tests and the upgrade-tree fixes have only passed static checks; the live run decides which remaining reds are real defects.
+**Why this is next:** the owner approved the Rainbow and Void trails and asked for these changes; until they land, the Solar trail and auras still use the old look through Effects.Legacy.
