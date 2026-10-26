@@ -14,6 +14,11 @@
 - Next (needs Studio): harness `data` + a real shutdown save (then `bugs.py fixed 53a825f0`); UI suite on the
   regenerated GUIs; re-bake StarterGui.rbxm (manual item rebake-startergui-2026-10-26); test-writer may rename the
   shadowed `okb` in CarTest/Scenarios.luau:4472.
+- Skills installed 2026-10-26 (owner approved): roblox-game-development-lifecycle, roblox-ui-implementation,
+  roblox-ui, roblox-game (folder roblox-game-skill) in ~/.claude/skills. roblox-ui pass: Activated everywhere,
+  automatic canvases OK; gaps logged as backlog (ui-reduced-motion, ui-gamepad-focus, ui-safe-insets), each needs
+  an owner rule in the design doc first. ROADMAP.md / design/DESIGN.md conventions of the lifecycle and
+  ui-implementation skills are not adopted: todo.json and ui/specs are this project's equivalents.
 
 ## Full compatibility gate — 2026-10-22 (Codex, blocked)
 

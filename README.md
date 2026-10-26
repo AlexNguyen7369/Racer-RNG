@@ -203,7 +203,7 @@ updates automatically whenever the board changes; do not edit this block by hand
 - **Checkpoint tests (harness + UiSpec)**: test-writer: checkpoint scenario (validation, start track, loss resets to checkpoint, loop). ui-test-writer: CheckpointUi in UiSpec (overlap, locked cards, phone landscape). docs/CHECKPOINT_SPEC.md.
 - **Shop/Market panels cover the compact roll toast**: ui_hitboxes button_topmost_at_centre_shop_open/market_open: RollToast/Toast under the panel. PanelBand top = below Race button; the compact roll also sits below Race. Owner: band below the compact roll, or panel over the dimmed toast?
 
-### Backlog (future work) (11)
+### Backlog (future work) (14)
 
 - **static_settle cold-start flake**: Failed 4 of ~8 cold starts (0.58-0.78 vs 0.5). DampingRatio raised to 1.0, not yet re-verified.
 - **Slack bot setup for test results**: Revoke the exposed token, install the app with bot scopes, re-add the MCP, post results after each green run.
@@ -216,6 +216,9 @@ updates automatically whenever the board changes; do not edit this block by hand
 - **Icon art for trails and auras in the Backpack**: Backpack shows a colour streak / orb swatch until real art exists.
 - **Build Server Luck (2x/4x/8x developer products)**: Design doc lists it; the Shop shows it as Coming soon (no Grants, receipt never granted).
 - **Gift buttons in the Shop**: References show gift buttons; not built.
+- **Honour Reduced Motion in UI animations**: roblox-ui audit 2026-10-26: no script reads GuiService.ReducedMotionEnabled (roll reel, count-ups, panel tweens). Needs an owner rule in the design doc / HUD_LAYOUT_SPEC before code.
+- **Gamepad / console focus for panels**: roblox-ui audit 2026-10-26: buttons use Activated (good) but panels set no initial SelectedObject or focus trap; console players can not reliably navigate. Decide in the design doc whether console is a supported platform first.
+- **Safe-area policy for IgnoreGuiInset GUIs**: roblox-ui audit 2026-10-26: all 27 ScreenGuis use IgnoreGuiInset = true and none sets ScreenInsets; check top-right pills and edge tiles against notches / the Roblox top bar on phones, then write the rule into HUD_LAYOUT_SPEC.
 
 ### Recently done (52)
 

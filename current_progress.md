@@ -51,6 +51,7 @@
 48. 2026-10-22 — Alex Nguyen — Merged Isaac's `fix/isaac/hud-text-and-roll-art` branch keeping this branch's versions (all 23 changed files were already superseded by the newer UI), so the branch is recorded as merged with no file changes.
 49. 2026-10-26 — Alex Nguyen — Re-audited the codebase against the Roblox skill checklists; made BindToClose save in parallel and wait for in-flight saves, and cleared 918 selene warnings (UDim2 fromOffset/fromScale in generator and Ui modules, `select` shadowing, unused var) (2812425).
 50. 2026-10-26 — Alex Nguyen — Reconciled the seven Racer UI modules with the spec generator (Rebirth x5.00 text moved into its spec, Upgrades shadow shades pinned), fixed `verify.py --lune`, and cut selene to 1 warning (9650e39).
+51. 2026-10-26 — Alex Nguyen — Installed four Roblox skills and ran the roblox-ui audit; logged Reduced Motion, gamepad focus and safe-inset gaps as backlog items.
 
 ## What's next
 **In Studio: run the harness `data` scenario and a real shutdown save, run the UI suite on the regenerated GUIs, and re-bake `assets/studio/StarterGui.rbxm` (manual item `rebake-startergui-2026-10-26`).**
