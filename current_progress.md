@@ -54,8 +54,9 @@
 51. 2026-10-26 — Alex Nguyen — Installed four Roblox skills and ran the roblox-ui audit; logged Reduced Motion, gamepad focus and safe-inset gaps as backlog items.
 52. 2026-10-26 — Alex Nguyen — Added the owner-approved UI rules (Reduced Motion, device safe-area insets, gamepad panel focus) to the design doc and HUD spec and implemented them (UiMotion, SafeInsets, PanelSwitch).
 53. 2026-10-26 — Alex Nguyen — Verified the audit in live Studio (harness green bar an npc load flake, data 145/145, clean shutdown save), fixed the stale economy test to the owner's MAX_SPEED 88, and re-baked five stale StarterGui GUIs offline with Lune (UI suite 15/17 to 18/14).
+54. 2026-10-26 — Alex Nguyen — Applied the owner's upgrade-tree decisions (full-screen overlay written into the specs, Walkspeed tiles shown again, gated "Reach Track N", non-overlapping tiles) and had ui-test-writer reconcile the stale UI tests (74048ed).
 
 ## What's next
-**Have ui-test-writer reconcile the stale UI tests (ui_layout UIScale model, ui_upgrades tiles, ui_rebirth NextMultiplier, ui_inventory / ui_progression_layout), then fix the real layout overlaps they expose.**
+**Rerun the full [UITEST] suite in the Racer RNG place with Rojo connected, confirm the upgrade-tree fixes live, and fix any real overlaps that remain.**
 
-**Why this is next:** all 14 remaining UI reds predate this work; most are tests left behind by the HUD redesign and upgrade tree, and they hide the few genuine overlaps (compact roll under panels, Rebirth tile vs Money on short screens).
+**Why this is next:** the reconciled UI tests and the upgrade-tree fixes have only passed static checks; the live run decides which remaining reds are real defects.
