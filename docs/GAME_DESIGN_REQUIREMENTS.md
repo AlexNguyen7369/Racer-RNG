@@ -219,7 +219,8 @@ Idle Vehicle Simulator — Game Design Requirements
        = 16 studs/s). Recommended Speed: Track 1 ~7.7K, Track 5 ~301K, Track 10 ~2.15e23.
        Owner decision, 2026-10-22 (speed feel): make the first 100K Speed easier to gain and begin
        the stronger diminishing-return tail only after 100K. Placeholders MAX_SPEED 88 and HALF_STAT 100K.
-       With raw multi 1 this gives about 18 studs/s at 10K, 49 at 50K, 88 at 100K, and 205 at 1M;
+       With raw multi 1 this gives about 18 studs/s at 10K, 49 at 50K, 88 at 100K, and 218 at 1M
+       (owner 2026-10-26: 218 corrects the earlier 205, which did not match the formula above);
        above 100K every later point adds less cruise speed, with no cap.
        Track gates show a recommended Speed: the shown Speed at which the car's cruise speed
        matches that track's NPC. Players compare their own shown Speed with it, whatever car

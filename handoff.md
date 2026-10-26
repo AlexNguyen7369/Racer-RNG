@@ -1,5 +1,21 @@
 # Agent handoff
 
+## Trail VFX draft — 2026-10-26 (Claude, uncommitted, paused)
+
+- Goal: redesign all six Market cosmetics (Rainbow / Solar / Void trails, Azure / Ember / Galaxy auras) in
+  `Shared/VehicleEffects`; show them in Blender and in Studio. Draft only: game code unchanged, nothing uploaded.
+- Owner round-1 feedback (also in the roblox-vfx skill LESSONS.md #2): longer, more flamboyant; Void had no
+  particles; Rainbow thinner but long. Round 2 drafted: trails 1.9-2.3 s (85-105 studs) with 4-8 layers each,
+  auras with ground rings / sigil, locked flames or arcs, rising particles.
+- Files: `vfx/trails/textures.py` (16 textures in `vfx/trails/out/`; run with Blender's bundled python3.13, it has
+  numpy), `drafts/props/trail-vfx-redesign/build_scene.py` -> `trails.blend` (frozen particle frame; shots via
+  `shot("overview"|"rainbow"|"solar"|"void"|"auras")`), `vfx/trails/preview.luau` (round-1 profiles only).
+- Test Studio: `trailtest.rbxl` from `rojo build` (session scratchpad). Trail / ParticleEmitter TextureContent from
+  an EditableImage renders untextured white (Decal is fine), so in-game needs `vfxtex.py preview` (owner runs it)
+  or the real upload (16 images, irreversible).
+- Next: owner reviews the Blender round 2; port the six profiles into preview.luau; then into VehicleEffects
+  (keep the void_trail names the vehicle_effects test checks).
+
 ## Codebase re-audit — 2026-10-26 (Claude, uncommitted)
 
 - Goal: re-audit the whole codebase against the downloaded Roblox skill checklists (security, performance, sharp
@@ -11,9 +27,13 @@
 - Follow-up (owner: keep hand edits, commit and push): UI drift reconciled. Rebirth `x5.00` text moved into its
   spec, Upgrades shadow shades pinned in uispec.SHADOWS, all seven UI modules regenerated (zero drift),
   verify.py --lune fixed and passing, selene 1 warning (test file). Pushed to feature/alex/race-progress-map-completion.
-- Next (needs Studio): harness `data` + a real shutdown save (then `bugs.py fixed 53a825f0`); UI suite on the
-  regenerated GUIs; re-bake StarterGui.rbxm (manual item rebake-startergui-2026-10-26); test-writer may rename the
-  shadowed `okb` in CarTest/Scenarios.luau:4472.
+- Studio run 2026-10-26 (live, Rojo): harness green apart from a load flake in `npc` (passes alone) after test-writer
+  updated `economy` to the owner's MAX_SPEED 88 (doc 1M example corrected to 218). Shutdown save clean; bug 53a825f0
+  fixed. StarterGui.rbxm re-baked with Lune (5 GUIs; hashes all match). UI suite 18/14; every red predates this
+  work (list in ProjectContext TEST RESULTS 2026-10-26). Gamepad focus still needs a Controller Emulator pass.
+- Next: ui-test-writer reconcile of the stale UI tests (todo isaac-ui-tests-reconcile: ui_layout UIScale model,
+  ui_upgrades tiles, ui_rebirth NextMultiplier, ui_inventory/progression), then real layout items
+  (band-vs-compact-roll, Rebirth tile vs Money at short viewports).
 - Skills installed 2026-10-26 (owner approved): roblox-game-development-lifecycle, roblox-ui-implementation,
   roblox-ui, roblox-game (folder roblox-game-skill) in ~/.claude/skills. roblox-ui pass: Activated everywhere,
   automatic canvases OK; gaps logged as backlog (ui-reduced-motion, ui-gamepad-focus, ui-safe-insets), each needs

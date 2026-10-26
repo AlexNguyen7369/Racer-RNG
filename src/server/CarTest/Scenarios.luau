@@ -3550,7 +3550,7 @@ function Scenarios.economy()
 	end
 	local consts = {
 		BASE_SPEED = 10, -- owner 2026-10-21: lowered from 12
-		MAX_SPEED = 80, -- owner 2026-10-21: nerfed from 109, +35 studs/s per high-speed doubling
+		MAX_SPEED = 88, -- owner 2026-10-26: confirmed 88 (commit 8e0a20f), +39 studs/s per high-speed doubling
 		HALF_STAT = 100000, -- owner 2026-10-22: friendly linear start, diminishing tail after 100K
 		MAX_CRUISE_CAR_MULTI = 1.5,
 		GAIN_PER_SECOND = 2, -- owner 2026-10-22: friendlier early Speed progression
@@ -3768,7 +3768,7 @@ function Scenarios.economy()
 	end
 	check(checks, "speed_for_multi_at_zero_stat_is_base", sfm(0, 2800) or -1, base, zeroStatOk)
 	-- SpeedMulti 2800 at the threshold: damped past the 1.5 cap, so SpeedFor(HALF_STAT x 1.5) =
-	-- MAX_SPEED + (MAX_SPEED - BASE_SPEED) / 2 x log2(1.5) (100.47 studs/s at the 2026-10-22 placeholders).
+	-- MAX_SPEED + (MAX_SPEED - BASE_SPEED) / 2 x log2(1.5) (99.41 studs/s at MAX_SPEED 88, owner 2026-10-26).
 	local want2800 = top + (top - base) / 2 * math.log(1.5) / math.log(2)
 	check(checks, "speed_for_multi_2800_at_half_stat", sfm(half, 2800) or -1, want2800, rel(sfm(half, 2800), want2800))
 	local multis = { 1, 1.0001, 1.01, 1.5, 2, 3, 10, 100, 1000, 2600, 2800, 1e6, 1e12 }
@@ -3837,7 +3837,7 @@ function Scenarios.economy()
 		end
 		check(checks, "speed_for_inverts_stat_for", backOk and 1 or 0, 1, backOk)
 		-- Owner 2026-10-22 (design doc "Core stat model"): linear through HALF_STAT, so MAX_SPEED is reached at
-		-- HALF_STAT and the halfway speed at HALF_STAT / 2 ("45 at 50K, 80 at 100K"); "196 at 1M" in the tail.
+		-- HALF_STAT and the halfway speed at HALF_STAT / 2 ("49 at 50K, 88 at 100K"); "218 at 1M" in the tail (owner 2026-10-26).
 		check(
 			checks,
 			"stat_for_half_point_is_half_stat",
@@ -3846,7 +3846,7 @@ function Scenarios.economy()
 			close(stf(top), half) and close(stf((base + top) / 2), half / 2)
 		)
 		local at1M = sf(1e6)
-		check(checks, "speed_for_1m_is_196", at1M or -1, 196, num(at1M) and math.abs(at1M - 196) <= 0.5)
+		check(checks, "speed_for_1m_is_218", at1M or -1, 217.555, num(at1M) and math.abs(at1M - 217.555) <= 0.5)
 		local lowStatOk = stf(base) == 0 and stf(base - 5) == 0 and stf(0) == 0
 		for _, b in { "x", 0 / 0, true, {} } do
 			if stf(b) ~= 0 then

@@ -53,8 +53,9 @@
 50. 2026-10-26 — Alex Nguyen — Reconciled the seven Racer UI modules with the spec generator (Rebirth x5.00 text moved into its spec, Upgrades shadow shades pinned), fixed `verify.py --lune`, and cut selene to 1 warning (9650e39).
 51. 2026-10-26 — Alex Nguyen — Installed four Roblox skills and ran the roblox-ui audit; logged Reduced Motion, gamepad focus and safe-inset gaps as backlog items.
 52. 2026-10-26 — Alex Nguyen — Added the owner-approved UI rules (Reduced Motion, device safe-area insets, gamepad panel focus) to the design doc and HUD spec and implemented them (UiMotion, SafeInsets, PanelSwitch).
+53. 2026-10-26 — Alex Nguyen — Verified the audit in live Studio (harness green bar an npc load flake, data 145/145, clean shutdown save), fixed the stale economy test to the owner's MAX_SPEED 88, and re-baked five stale StarterGui GUIs offline with Lune (UI suite 15/17 to 18/14).
 
 ## What's next
-**In Studio: run the harness `data` scenario and a real shutdown save, the UI suite (plus Controller Emulator, a notched phone and Reduced Motion on), and re-bake `assets/studio/StarterGui.rbxm`.**
+**Have ui-test-writer reconcile the stale UI tests (ui_layout UIScale model, ui_upgrades tiles, ui_rebirth NextMultiplier, ui_inventory / ui_progression_layout), then fix the real layout overlaps they expose.**
 
-**Why this is next:** the shutdown-save fix, the regenerated UI and the three new UI rules are only verified offline; the re-bake lets five GUIs use the saved asset again.
+**Why this is next:** all 14 remaining UI reds predate this work; most are tests left behind by the HUD redesign and upgrade tree, and they hide the few genuine overlaps (compact roll under panels, Rebirth tile vs Money on short screens).

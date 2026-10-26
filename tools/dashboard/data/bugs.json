@@ -1220,7 +1220,7 @@
       "id": "53a825f0",
       "name": "Shutdown save could drop leave saves",
       "kind": "fault",
-      "status": "open",
+      "status": "fixed",
       "file": "src/server/PlayerData.luau",
       "line": 464,
       "endLine": 473,
@@ -1251,7 +1251,10 @@
       "error": "",
       "foundBy": "claude-audit",
       "foundAt": "2026-10-26T00:20:09-07:00",
-      "loggedBy": "Alex Nguyen"
+      "loggedBy": "Alex Nguyen",
+      "fixedAt": "2026-10-26T01:30:02-07:00",
+      "fixedBy": "Alex Nguyen",
+      "fixNote": "2026-10-26 live Studio: harness data 145/145; Play stop (BindToClose) logged no save errors; parallel save + in-flight wait in place."
     }
   ]
 }

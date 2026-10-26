@@ -466,16 +466,17 @@
     {
       "id": "rebake-startergui-2026-10-26",
       "title": "Re-bake the Racer UI ScreenGuis into StarterGui.rbxm",
-      "why": "The UI modules were regenerated from their specs (2026-10-26). RacerIndex, RacerStats, RacerSettings, RacerRebirth and RacerUpgrades now carry a newer SpecHash than the baked assets/studio/StarterGui.rbxm, so Bind rebuilds them from code at runtime instead of using the saved GUIs.",
+      "why": "The UI modules were regenerated from their specs (2026-10-26). RacerIndex, RacerStats, RacerSettings, RacerRebirth and RacerUpgrades now carry a newer SpecHash than the baked assets/studio/StarterGui.rbxm, so Bind rebuilds them from code at runtime instead of using the saved GUIs. Done 2026-10-26 by Claude offline with Lune (no Studio save needed): RacerStats, RacerSettings, RacerRebirth, RacerUpgrades and RollShowcase re-baked; all seven baked SpecHashes match their modules; verify.py --lune passes; live Play shows no client errors.",
       "blocks": "Nothing breaks (Bind falls back to Build); the baked asset just stops being used for those five GUIs until refreshed.",
       "when": "2026-10-26",
-      "status": "open",
+      "status": "done",
       "steps": [
         "Open the place in Studio with `rojo serve` running and Rojo connected (Edit mode, not Play).",
         "For each of RacerIndex, RacerStats, RacerSettings, RacerRebirth and RacerUpgrades, run ui/generated/<Name>.studio.luau in the command bar (no studio.luau for Stats/Settings: ask Claude to generate one) so StarterGui holds the new ScreenGui.",
         "Keep the Gallery / Rows subtrees as ui/tooling/README.md describes, or let the controller re-bake them on first Play.",
         "Save StarterGui to assets/studio/StarterGui.rbxm and tell Claude, who will run `python3 -B ui/tooling/verify.py --lune` and the UI suite."
-      ]
+      ],
+      "done": "2026-10-26"
     }
   ]
 }

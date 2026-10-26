@@ -5,6 +5,20 @@ Shown in Studio at: ServerScriptService > ProjectContext   (source file: context
 Do NOT edit this in Studio: edit the file on disk, Rojo syncs it. Claude updates it at the end of every loop.
 Last updated: 2026-10-26 (Claude: full codebase re-audit)
 
+TEST RESULTS - 2026-10-26 live Studio (Claude, Rojo synced, after the re-audit)
+- harness: [CARTEST] END pass=48 fail=2 -> economy (stale test: MAX_SPEED 80/196; owner kept 88, doc 1M example
+  corrected to 218, test-writer updated -> economy 43/43 PASS) and npc (npc_lose_player_time_measured 98.55 vs 99.70
+  under full-suite load; npc alone 120/120 PASS: load flake). data 145/145. Play stop (BindToClose) logged no errors.
+- StarterGui.rbxm re-baked offline with Lune (Stats, Settings, Rebirth, Upgrades, RollShowcase): all seven baked
+  SpecHashes match their modules; no client errors in Play.
+- New UI rules live: all 21 ScreenGuis DeviceSafeInsets (exempt ones untouched; positions identical on desktop),
+  UiMotion.Reduced follows the toggle and a 1 s tween lands at once. Gamepad focus not exercised (no emulator run).
+- [UITEST] 15/17 before the re-bake, 18/14 after (ui_toast, ui_showcase, ui_workshop_showcase now green). All 14
+  reds predate this work (see 2026-10-20/22 notes): stale tests (ui_upgrades money_* tiles, ui_rebirth expects the
+  first multiplier not NextMultiplier, ui_layout model lacks UIScale -> 334 checks, ui_inventory/progression_layout
+  upgrade tree), env fixtures (ui_loser, ui_billboards, ui_roll_emphasized), and known layout items
+  (band-vs-compact-roll, Rebirth tile vs Money at 606 px height, ui_shop / ui_market / ui_buttons Stats badge).
+
 CODEBASE RE-AUDIT - 2026-10-26 (Claude, uncommitted, on feature/alex/race-progress-map-completion)
 - Checklists: security / performance audit + sharp edges (brockmartin/roblox-game-skill), roblox-ui lifecycle.
 - Clean: every remote type-checks, rate-limits and gates on DataLoaded; clients send ids only, never amounts;
