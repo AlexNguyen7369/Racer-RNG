@@ -50,8 +50,9 @@
 47. 2026-10-22 — Alex Nguyen — Git-ignored the local `images/` folder (screenshots and recordings; recordings exceed GitHub's 100 MB limit) and stopped the in-progress UI compat run.
 48. 2026-10-22 — Alex Nguyen — Merged Isaac's `fix/isaac/hud-text-and-roll-art` branch keeping this branch's versions (all 23 changed files were already superseded by the newer UI), so the branch is recorded as merged with no file changes.
 49. 2026-10-26 — Alex Nguyen — Re-audited the codebase against the Roblox skill checklists; made BindToClose save in parallel and wait for in-flight saves, and cleared 918 selene warnings (UDim2 fromOffset/fromScale in generator and Ui modules, `select` shadowing, unused var) (2812425).
+50. 2026-10-26 — Alex Nguyen — Reconciled the seven Racer UI modules with the spec generator (Rebirth x5.00 text moved into its spec, Upgrades shadow shades pinned), fixed `verify.py --lune`, and cut selene to 1 warning (9650e39).
 
 ## What's next
-**Port the hand edits in `src/client/RollToast/Ui/*.luau` back into `ui/specs/*.ui.json` until `gen_atlas.py` reproduces the checked-in modules, then make `verify.py --lune` pass.**
+**In Studio: run the harness `data` scenario and a real shutdown save, run the UI suite on the regenerated GUIs, and re-bake `assets/studio/StarterGui.rbxm` (manual item `rebake-startergui-2026-10-26`).**
 
-**Why this is next:** the owner chose to keep the hand edits (2026-10-26); until the specs match, any UI re-bake through the required spec-and-generator path would wipe them, and the Lune tree check stays red.
+**Why this is next:** the shutdown-save fix (bug 53a825f0) and the regenerated UI are only verified offline; until the re-bake, five GUIs are built from code at runtime instead of the saved asset.
