@@ -1,15 +1,15 @@
 {
   "name": "RacerRebirth",
-  "spec": "ui/specs/RacerRebirth.ui.json",
-  "specHash": "e3e844a47fa5",
+  "spec": "RacerRebirth.ui.json",
+  "specHash": "be16091fd518",
   "files": {
-    "src/client/RollToast/Ui/RacerRebirth.luau": "cf3528fff4e5",
-    "ui/generated/RacerRebirth.studio.luau": "12347e13340b",
-    "ui/preview/RacerRebirth.svg": "8b30ffd87b8d",
-    "ui/preview/RacerRebirth_desktop.svg": "511041d6ab05",
-    "ui/preview/RacerRebirth_laptop.svg": "ab49aeffc310",
-    "ui/preview/RacerRebirth_tablet.svg": "bc822f1edfd1",
-    "ui/preview/RacerRebirth_phone.svg": "ffd8ceafc7fc"
+    "src/client/RollToast/Ui/RacerRebirth.luau": "b1a4f6e0e523",
+    "ui/generated/RacerRebirth.studio.luau": "05863d321400",
+    "ui/preview/RacerRebirth.svg": "1bb4c5e3ee04",
+    "ui/preview/RacerRebirth_desktop.svg": "d2b32a27ef2a",
+    "ui/preview/RacerRebirth_laptop.svg": "01759f5c8202",
+    "ui/preview/RacerRebirth_tablet.svg": "d8c852d1439e",
+    "ui/preview/RacerRebirth_phone.svg": "3fc418d8009c"
   },
   "missingIcons": []
 }

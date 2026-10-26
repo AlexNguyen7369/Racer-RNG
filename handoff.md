@@ -8,9 +8,12 @@
 - Result: no exploitable remote, leak or client-trust issue. Fixed the BindToClose shutdown save (parallel + waits
   for in-flight leave saves, bug 53a825f0), InventoryTabs `select` shadowing, unused `canvas`. stylua, selene
   (0 errors), Rojo build pass. Details in ProjectContext "CODEBASE RE-AUDIT".
-- Next: run the harness `data` scenario in Studio; mark bug 53a825f0 fixed once verified; run the UI suite (UDim2
-  fromOffset/fromScale rewrite in Ui modules + generator, behaviour-identical); fix `verify.py --lune` (missing
-  `task` mock, pre-existing); reconcile Ui modules with generator output (large drift).
+- Follow-up (owner: keep hand edits, commit and push): UI drift reconciled. Rebirth `x5.00` text moved into its
+  spec, Upgrades shadow shades pinned in uispec.SHADOWS, all seven UI modules regenerated (zero drift),
+  verify.py --lune fixed and passing, selene 1 warning (test file). Pushed to feature/alex/race-progress-map-completion.
+- Next (needs Studio): harness `data` + a real shutdown save (then `bugs.py fixed 53a825f0`); UI suite on the
+  regenerated GUIs; re-bake StarterGui.rbxm (manual item rebake-startergui-2026-10-26); test-writer may rename the
+  shadowed `okb` in CarTest/Scenarios.luau:4472.
 
 ## Full compatibility gate — 2026-10-22 (Codex, blocked)
 

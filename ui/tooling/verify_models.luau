@@ -15,6 +15,9 @@ local sizes = { { 1280, 720 }, { 1920, 1080 }, { 1024, 768 }, { 844, 390 }, { 12
 roblox.implementMethod("Instance", "WaitForChild", function(inst, child)
 	return assert(inst:FindFirstChild(child), child)
 end)
+roblox.implementMethod("Instance", "GetPropertyChangedSignal", function()
+	return { Connect = function() end }
+end)
 local function loadUi(path, width, height)
 	local camera = { ViewportSize = roblox.Vector2.new(width, height) }
 	local callbacks = {}
@@ -25,7 +28,8 @@ local function loadUi(path, width, height)
 			end,
 		}
 	end
-	local env = { workspace = { CurrentCamera = camera } }
+	-- The deferred/AbsoluteSize refits are no-ops offline: the loop below drives the camera callbacks itself.
+	local env = { workspace = { CurrentCamera = camera }, task = { defer = function() end, delay = function() end } }
 	for _, key in { "Instance", "Enum", "Vector2", "UDim", "UDim2", "Color3", "ColorSequence" } do
 		env[key] = roblox[key]
 	end
@@ -111,5 +115,5 @@ for _, gui in asset[1]:GetChildren() do
 		extraExamples = { unpack(extra, 1, math.min(#extra, 6)) },
 	})
 end
-assert(#inventory == 6, "expected six saved ScreenGuis")
+assert(#inventory == 7, "expected seven saved ScreenGuis")
 print(serde.encode("json", { comparisons = results, asset = inventory }))

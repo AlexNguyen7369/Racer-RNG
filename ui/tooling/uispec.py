@@ -26,7 +26,8 @@ THEME = {"font": "FredokaOne", "text": "#FFFFFF", "outlineColor": "#12162B",
 SHADOWS = {"#1ED8FF": "#12517B", "#AC63EE": "#3E2C76",
            "#FFB02E": "#584439", "#3DDC63": "#1B524A",
            "#FF4D5E": "#582549", "#202B47": "#121A41",
-           "#293753": "#151E45", "#A36C93": "#3B2F59"}
+           "#293753": "#151E45", "#A36C93": "#3B2F59",
+           "#686F87": "#293055", "#F4F7FF": "#555A7B"}
 
 
 def load_spec(path):

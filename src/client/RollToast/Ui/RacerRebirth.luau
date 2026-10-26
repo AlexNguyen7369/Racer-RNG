@@ -1,6 +1,6 @@
 --!nonstrict
--- GENERATED from ui/specs/RacerRebirth.ui.json. DO NOT EDIT: change the spec and run ui/tooling/gen_atlas.py.
--- spec-hash: e3e844a47fa5
+-- GENERATED from RacerRebirth.ui.json. DO NOT EDIT: change the spec and run ui/tooling/gen_atlas.py.
+-- spec-hash: be16091fd518
 -- Build(playerGui) creates the ScreenGui and returns refs: refs[<node id>] for every node (buttons: the Face
 -- TextButton, connect .Activated to it), refs.Gui for the ScreenGui.
 
@@ -19,7 +19,7 @@ end
 
 local Ui = {}
 
-Ui.SpecHash = "e3e844a47fa5"
+Ui.SpecHash = "be16091fd518"
 
 function Ui.Build(playerGui)
 	local refs = {}
@@ -31,7 +31,7 @@ function Ui.Build(playerGui)
 		IgnoreGuiInset = true,
 		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
 	}, playerGui)
-	gui:SetAttribute("SpecHash", "e3e844a47fa5")
+	gui:SetAttribute("SpecHash", "be16091fd518")
 	refs.Gui = gui
 	local v1 = new("Frame", {
 		Name = "Panel",
@@ -1203,11 +1203,14 @@ function Ui.Bind(playerGui)
 		saved:Destroy()
 		return Ui.Build(playerGui)
 	end
+	-- Bind looks up the baked instances under the same names the builder above creates them with.
+	-- selene: allow(shadowing)
 	local function new(className, props, parent)
 		local inst = parent:FindFirstChild(props.Name or className)
 		assert(inst and inst:IsA(className), "Saved UI is missing " .. (props.Name or className))
 		return inst
 	end
+	-- selene: allow(shadowing)
 	local function corner(parent, _radius)
 		assert(parent:FindFirstChildOfClass("UICorner"), "Saved UI corner is missing")
 	end
@@ -1220,7 +1223,7 @@ function Ui.Bind(playerGui)
 		IgnoreGuiInset = true,
 		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
 	}, playerGui)
-	gui:SetAttribute("SpecHash", "e3e844a47fa5")
+	gui:SetAttribute("SpecHash", "be16091fd518")
 	refs.Gui = gui
 	local v1 = new("Frame", {
 		Name = "Panel",

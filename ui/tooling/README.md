@@ -81,8 +81,8 @@ Relevant APIs: [Roblox serialization](https://lune-org.github.io/docs/api-refere
 and [Luau custom environments](https://lune-org.github.io/docs/api-reference/luau/).
 
 The existing `assets/studio/StarterGui.rbxm` contains one `StarterGui` container with
-exactly six ScreenGuis. `default.project.json` maps that asset as StarterGui; retain
-the container shape and serialize `{ starterGui }`, not six flattened root GUIs.
+exactly seven ScreenGuis (RacerUpgrades was added 2026-10-15). `default.project.json` maps that asset as StarterGui; retain
+the container shape and serialize `{ starterGui }`, not seven flattened root GUIs.
 The read-only inventory found 150 additional descendants in RacerIndex's Gallery
 and 79 in RacerStats' Rows. The other four GUI hierarchies match their module bases.
 Replacing the entire asset with plain `Build` output would lose those required
@@ -113,3 +113,11 @@ the full client initialization offline is not a bake. A future baker should firs
 emit to an explicit temporary destination, assert six GUI names and new SpecHash
 attributes, inspect preserved component subtrees, round-trip serialization, and
 verify `Bind` plus component binders before requesting any real asset replacement.
+
+## Regenerating the checked-in modules (2026-10-26)
+
+All seven shipped modules (six in `src/client/RollToast/Ui/`, `RacerUpgrades` in `src/client/Ui/`) were
+regenerated from the specs and match this generator byte for byte after formatting. Generate into a temporary
+`--root`, copy the modules into place, then run `stylua src` twice: StyLua needs a second pass to settle on
+generated output. A later bake must refresh `assets/studio/StarterGui.rbxm`; until then `Bind` sees a stale
+SpecHash for the changed GUIs and builds them from code (the controller re-bakes Gallery and Rows itself).

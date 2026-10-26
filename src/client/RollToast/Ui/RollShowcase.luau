@@ -1,5 +1,5 @@
 --!nonstrict
--- GENERATED from ui/specs/RollShowcase.ui.json. DO NOT EDIT: change the spec and run ui/tooling/gen_atlas.py.
+-- GENERATED from RollShowcase.ui.json. DO NOT EDIT: change the spec and run ui/tooling/gen_atlas.py.
 -- spec-hash: 461182e58416
 -- Build(playerGui) creates the ScreenGui and returns refs: refs[<node id>] for every node (buttons: the Face
 -- TextButton, connect .Activated to it), refs.Gui for the ScreenGui.
@@ -453,11 +453,14 @@ function Ui.Bind(playerGui)
 		saved:Destroy()
 		return Ui.Build(playerGui)
 	end
+	-- Bind looks up the baked instances under the same names the builder above creates them with.
+	-- selene: allow(shadowing)
 	local function new(className, props, parent)
 		local inst = parent:FindFirstChild(props.Name or className)
 		assert(inst and inst:IsA(className), "Saved UI is missing " .. (props.Name or className))
 		return inst
 	end
+	-- selene: allow(shadowing)
 	local function corner(parent, _radius)
 		assert(parent:FindFirstChildOfClass("UICorner"), "Saved UI corner is missing")
 	end

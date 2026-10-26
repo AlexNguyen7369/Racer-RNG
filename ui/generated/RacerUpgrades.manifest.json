@@ -1,15 +1,15 @@
 {
   "name": "RacerUpgrades",
-  "spec": "ui/specs/RacerUpgrades.ui.json",
-  "specHash": "d11f56f95c73",
+  "spec": "RacerUpgrades.ui.json",
+  "specHash": "5c3ab6a967ca",
   "files": {
-    "src/client/Ui/RacerUpgrades.luau": "1a6e9b28cc6a",
-    "ui/generated/RacerUpgrades.studio.luau": "6ea2dfbf24ac",
-    "ui/preview/RacerUpgrades.svg": "8db1be32e166",
-    "ui/preview/RacerUpgrades_phone_small.svg": "4c6b472a49bb",
-    "ui/preview/RacerUpgrades_phone.svg": "8577cdc69862",
-    "ui/preview/RacerUpgrades_laptop.svg": "b340063e5252",
-    "ui/preview/RacerUpgrades_hd.svg": "23603b70399a"
+    "src/client/RollToast/Ui/RacerUpgrades.luau": "b106ccb29395",
+    "ui/generated/RacerUpgrades.studio.luau": "06f071651eea",
+    "ui/preview/RacerUpgrades.svg": "612ff29ae47d",
+    "ui/preview/RacerUpgrades_desktop.svg": "9d7a85c53398",
+    "ui/preview/RacerUpgrades_laptop.svg": "99e4c8cab849",
+    "ui/preview/RacerUpgrades_tablet.svg": "e27769e33de0",
+    "ui/preview/RacerUpgrades_phone.svg": "2ff6efed12be"
   },
   "missingIcons": []
 }

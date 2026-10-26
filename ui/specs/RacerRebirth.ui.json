@@ -579,7 +579,7 @@
                 {
                   "id": "LuckRewardCaption",
                   "kind": "text",
-                  "text": "+10% Luck",
+                  "text": "x5.00 Luck",
                   "pos": [
                     [
                       0,
@@ -728,7 +728,7 @@
                 {
                   "id": "SpeedRewardCaption",
                   "kind": "text",
-                  "text": "+10% Speed Gain",
+                  "text": "x5.00 Speed Gain",
                   "pos": [
                     [
                       0,

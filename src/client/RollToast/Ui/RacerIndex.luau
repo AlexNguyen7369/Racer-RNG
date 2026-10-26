@@ -1,5 +1,5 @@
 --!nonstrict
--- GENERATED from ui/specs/RacerIndex.ui.json. DO NOT EDIT: change the spec and run ui/tooling/gen_atlas.py.
+-- GENERATED from RacerIndex.ui.json. DO NOT EDIT: change the spec and run ui/tooling/gen_atlas.py.
 -- spec-hash: 80e4155a1165
 -- Build(playerGui) creates the ScreenGui and returns refs: refs[<node id>] for every node (buttons: the Face
 -- TextButton, connect .Activated to it), refs.Gui for the ScreenGui.
@@ -581,6 +581,11 @@ function Ui.Build(playerGui)
 			return
 		end
 		local height = camera.ViewportSize.Y
+		-- Studio can briefly report a placeholder 1x1 camera while PlayerGui is already laid out.
+		-- Use the live GUI height so the first fit does not clamp desktop UI to minimum scale.
+		if height <= 1 and gui.AbsoluteSize.Y > 1 then
+			height = gui.AbsoluteSize.Y
+		end
 		local phone = height <= 500
 		local k = if phone then math.clamp(height / 390, 0.85, 1.15) else math.clamp(height / 720, 0.6, 1.4)
 		for _, scale in ipairs(scales) do
@@ -593,23 +598,33 @@ function Ui.Build(playerGui)
 		end
 	end
 	fit()
+	task.defer(fit)
+	task.delay(0.1, fit)
 	if workspace.CurrentCamera then
 		workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(fit)
 	end
+	gui:GetPropertyChangedSignal("AbsoluteSize"):Connect(fit)
 	return refs
 end
 
 function Ui.Bind(playerGui)
 	local saved = playerGui:WaitForChild("RacerIndex")
-	assert(
-		saved:IsA("ScreenGui") and saved:GetAttribute("SpecHash") == "80e4155a1165",
-		"Saved UI is stale; regenerate and bake it in Edit mode"
-	)
+	if not saved:IsA("ScreenGui") then
+		saved:Destroy()
+		return Ui.Build(playerGui)
+	end
+	if saved:GetAttribute("SpecHash") ~= Ui.SpecHash then
+		saved:Destroy()
+		return Ui.Build(playerGui)
+	end
+	-- Bind looks up the baked instances under the same names the builder above creates them with.
+	-- selene: allow(shadowing)
 	local function new(className, props, parent)
 		local inst = parent:FindFirstChild(props.Name or className)
 		assert(inst and inst:IsA(className), "Saved UI is missing " .. (props.Name or className))
 		return inst
 	end
+	-- selene: allow(shadowing)
 	local function corner(parent, _radius)
 		assert(parent:FindFirstChildOfClass("UICorner"), "Saved UI corner is missing")
 	end
@@ -1172,6 +1187,11 @@ function Ui.Bind(playerGui)
 			return
 		end
 		local height = camera.ViewportSize.Y
+		-- Studio can briefly report a placeholder 1x1 camera while PlayerGui is already laid out.
+		-- Use the live GUI height so the first fit does not clamp desktop UI to minimum scale.
+		if height <= 1 and gui.AbsoluteSize.Y > 1 then
+			height = gui.AbsoluteSize.Y
+		end
 		local phone = height <= 500
 		local k = if phone then math.clamp(height / 390, 0.85, 1.15) else math.clamp(height / 720, 0.6, 1.4)
 		for _, scale in ipairs(scales) do
@@ -1184,9 +1204,12 @@ function Ui.Bind(playerGui)
 		end
 	end
 	fit()
+	task.defer(fit)
+	task.delay(0.1, fit)
 	if workspace.CurrentCamera then
 		workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(fit)
 	end
+	gui:GetPropertyChangedSignal("AbsoluteSize"):Connect(fit)
 	return refs
 end
 

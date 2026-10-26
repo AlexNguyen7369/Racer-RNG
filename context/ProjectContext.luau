@@ -13,12 +13,14 @@ CODEBASE RE-AUDIT - 2026-10-26 (Claude, uncommitted, on feature/alex/race-progre
   are pcall-wrapped; server loops are throttled.
 - Fixed: BindToClose now saves in parallel and waits (25 s cap) for in-flight saves incl. PlayerRemoving ones
   (bug 53a825f0). InventoryTabs local `select` renamed `selectTab` (shadowed the builtin); unused `canvas` removed.
-- Lint: ui/tooling/gen_atlas.py now emits UDim2.fromOffset/fromScale; the same behaviour-identical rewrite
-  (numeric args only, 1065 calls) applied to the checked-in Ui modules. selene: 0 errors, 11 warnings (intentional
-  `new`/`corner` shadowing in generated Bind, `okb` in a test). verify.py passes; `verify.py --lune` fails with
-  "attempt to index nil with 'defer'" on the baseline tree too (pre-existing). The checked-in Ui modules have
-  drifted from generator output (thousands of lines): never regenerate over them without reconciling first.
-- UNVERIFIED in Studio (no Studio open): harness `data`, a real shutdown save, a UI-suite pass.
+- Lint: gen_atlas emits UDim2.fromOffset/fromScale and `selene: allow(shadowing)` on Bind's lookups. selene:
+  0 errors, 1 warning (`okb` shadowing in CarTest/Scenarios.luau: only test-writer edits tests).
+- UI drift reconciled (owner 2026-10-26: keep hand edits): the only hand edit was Rebirth's `x5.00` reward text,
+  now in ui/specs/RacerRebirth.ui.json; Upgrades' shipped muted/light shadow shades pinned in uispec.SHADOWS. All
+  seven modules regenerated and match the generator exactly. verify.py --lune now passes (task / property-signal
+  stubs, seven saved ScreenGuis). Baked StarterGui.rbxm is stale for Index/Stats/Settings/Rebirth/Upgrades: Bind
+  builds those from code until re-baked (manual item rebake-startergui-2026-10-26).
+- UNVERIFIED in Studio (no Studio open): harness `data`, a real shutdown save, the UI suite on the regenerated GUIs.
 
 OWNER REQUEST - STAGED REBIRTH MULTIPLIERS - 2026-10-22 (Codex, uncommitted)
 - Rebirth Speed Gain and Luck factors now compound as x5.00, x7.50, x7.50, x10.00, x10.00, then x7.50 repeating.

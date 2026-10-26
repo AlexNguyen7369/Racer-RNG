@@ -1,10 +1,10 @@
 {
   "name": "RacerHud",
-  "spec": "ui/specs/RacerHud.ui.json",
+  "spec": "RacerHud.ui.json",
   "specHash": "8087703805de",
   "files": {
-    "src/client/RollToast/Ui/RacerHud.luau": "250696064f3f",
-    "ui/generated/RacerHud.studio.luau": "b94e24d43af3",
+    "src/client/RollToast/Ui/RacerHud.luau": "9fac2069845f",
+    "ui/generated/RacerHud.studio.luau": "4e3486b5f875",
     "ui/preview/RacerHud.svg": "8b210932cdd6",
     "ui/preview/RacerHud_desktop.svg": "0346f6c0a734",
     "ui/preview/RacerHud_laptop.svg": "b5b0b67db28f",
