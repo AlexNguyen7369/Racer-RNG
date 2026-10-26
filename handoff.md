@@ -1,25 +1,16 @@
 # Agent handoff
 
-## Trail VFX draft — 2026-10-26 (Claude, uncommitted, paused)
+## Trail VFX — 2026-10-26 (Claude)
 
-- Goal: redesign all six Market cosmetics (Rainbow / Solar / Void trails, Azure / Ember / Galaxy auras) in
-  `Shared/VehicleEffects`; show them in Blender and in Studio. Draft only: game code unchanged, nothing uploaded.
-- Owner round-1 feedback (also in the roblox-vfx skill LESSONS.md #2): longer, more flamboyant; Void had no
-  particles; Rainbow thinner but long. Round 2 drafted: trails 1.9-2.3 s (85-105 studs) with 4-8 layers each,
-  auras with ground rings / sigil, locked flames or arcs, rising particles.
-- Files: `vfx/trails/textures.py` (16 textures in `vfx/trails/out/`; run with Blender's bundled python3.13, it has
-  numpy), `drafts/props/trail-vfx-redesign/build_scene.py` -> `trails.blend` (frozen particle frame; shots via
-  `shot("overview"|"rainbow"|"solar"|"void"|"auras")`), `vfx/trails/preview.luau` (round-1 profiles only).
-- Test Studio: `trailtest.rbxl` from `rojo build` (session scratchpad). Trail / ParticleEmitter TextureContent from
-  an EditableImage renders untextured white (Decal is fine), so in-game needs `vfxtex.py preview` (owner runs it)
-  or the real upload (16 images, irreversible).
-- Round 3 (owner: Solar more flamboyant, Void more particles / less static, auras eccentric) is in the Blender
-  scene and in `vfx/trails/preview.luau` (live Trails / ParticleEmitters, orbit and precessing host parts).
-  It runs in the test Studio playtest (pasted into the Client; loadstring is off in Play), effects untextured.
-- Blocker: macOS App Management blocks writing into RobloxStudio.app even with the sandbox off; owner steps are
-  in manual.json `vfx-preview-app-management-2026-10-26`. Then re-run preview.luau with the printed TEX folder.
-- Next: owner reviews live; port the approved profiles into VehicleEffects (keep the void_trail names the
-  vehicle_effects test checks) and upload the settled textures in one batch.
+- Committed + pushed 4871383: Rainbow + Void trails (VehicleEffects profiles, Client/VehicleEffectMotion, 16
+  uploaded textures, all load). Progress log 1bc5aa3.
+- Uncommitted (owner reviewing live): solar_trail tweak, calm azure / galaxy auras, Ember aura as a Dragon Ball Z
+  style ki sheath; Effects.Legacy removed. stylua / selene 0 / rojo build pass. Owner feedback in the roblox-vfx
+  skill LESSONS.md #2-3.
+- Showcase: in Play, a Client snippet builds 6 local cars (FxShowcase) with the real module.
+- Not verified: vehicle_effects via the harness (direct Scenarios.Run never seats the fake character; it passed in
+  the full harness earlier today). Particle budget with 7 players unmeasured.
+- Next: owner verdict on the auras / solar; then commit; run the full harness.
 
 ## Codebase re-audit — 2026-10-26 (Claude, uncommitted)
 

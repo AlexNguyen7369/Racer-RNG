@@ -127,11 +127,11 @@ ONE STEADY RACE SPEED - 2026-10-20 (Claude, uncommitted)
 - Tests: CarTest END pass=45 fail=2 (race max_speed lane checks = test lag, fixed by test-writer, unverified;
   track:Volcano never_tilted 0.811, bot lap not using RaceService, unexplained). Re-run pending (Studio closed).
 
-MARKET VFX REDESIGN - 2026-10-26 (Claude, owner-approved look; rainbow_trail + void_trail committed)
+MARKET VFX REDESIGN - 2026-10-26 (Claude, owner-approved look; all six committed)
 - Shared/VehicleEffects: data-driven PROFILES (rainbow_trail, void_trail) from 16 drawn textures (uploaded, ids in
   vfx/trails/asset_ids.json; drawing script vfx/trails/textures.py, run with Blender's bundled python3.13 for numpy).
-  Trails 2.0-2.3 s long with 5-10 particle layers. solar_trail and the auras keep their old look (Effects.Legacy)
-  until their redesign lands (owner: auras less flamboyant, Ember aura like a Dragon Ball Z aura).
+  Trails 2.0-2.3 s long with 5-10 particle layers. Auras are calm and close (owner: less flamboyant / eccentric):
+  azure glow + arcs, galaxy sigil + nebula, ember a Dragon Ball Z style ki sheath (short-lived rising flame tongues).
 - Server adds Attachments / Trails / ParticleEmitters only (no parts, no mass). New Client/VehicleEffectMotion plays
   tagged (VehicleFxMotion) attachment motion locally: orbits, precessing rings, box / ring volume emission; held at
   rest under reduced motion. void_trail keeps Core / EdgeL / EdgeR and Emitter -> Motes + Smoke (vehicle_effects test).

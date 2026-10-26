@@ -1,6 +1,6 @@
 --!nonstrict
 -- Authored cosmetic profiles; attachments follow the shared chassis, never the skin.
--- Redesign (owner 2026-10-26): long, layered trails from drawn textures (rainbow_trail, void_trail so far)
+-- Redesign (owner 2026-10-26): long, layered trails and calm auras (Ember in a Dragon Ball Z style) from drawn textures
 -- (vfx/trails/textures.py, ids in vfx/trails/asset_ids.json). The server only adds Attachments, Trails and
 -- ParticleEmitters (no parts, no mass); Client/VehicleEffectMotion moves the tagged attachments (orbits,
 -- precessing rings, volume emission) locally. Chassis space: x right, y up, z back.
@@ -32,6 +32,12 @@ Effects.MOTION_TAG = "VehicleFxMotion"
 local rgb, V = Color3.fromRGB, Vector3.new
 local WHITE, BLACK = rgb(255, 255, 255), rgb(0, 0, 0)
 local VIOLET, TEAL, DEEP, LILAC = rgb(104, 52, 220), rgb(34, 230, 210), rgb(24, 6, 52), rgb(200, 150, 255)
+local PALE, GOLD, ORANGE, RED = rgb(255, 245, 145), rgb(255, 188, 48), rgb(255, 120, 30), rgb(200, 40, 10)
+local CYAN, ICE = rgb(80, 190, 255), rgb(180, 245, 255)
+local EMBER, FLAMEY = rgb(255, 92, 38), rgb(255, 220, 75)
+local GALV, PINK, NAVY = rgb(137, 80, 255), rgb(255, 91, 220), rgb(40, 30, 120)
+local FIRE = { { 0, PALE }, { 0.3, GOLD }, { 0.6, ORANGE }, { 0.85, RED }, { 1, rgb(40, 10, 5) } }
+local WARM_SMOKE = { { 0, rgb(230, 140, 80) }, { 1, rgb(140, 125, 120) } }
 local HUES = {}
 for n = 0, 6 do
 	table.insert(HUES, { n / 6, Color3.fromHSV(n / 6, 0.65, 1) })
@@ -306,16 +312,399 @@ local PROFILES = {
 			},
 		},
 	},
+	-- A comet: heat glow, plasma, white-hot core, fast-rising flames with flame wings, an exhaust flare,
+	-- spat embers and warm smoke.
+	solar_trail = {
+		ribbons = {
+			{
+				"Glow",
+				half = 2.4,
+				y = -0.8,
+				life = 1.6,
+				tex = "SoftBand",
+				color = { { 0, ORANGE }, { 1, RED } },
+				le = 1,
+				br = 2.5,
+				transparency = { { 0, 0.1 }, { 1, 1 } },
+				width = { { 0, 1 }, { 1, 0.6 } },
+			},
+			{
+				"Plasma",
+				half = 0.95,
+				y = -0.75,
+				life = 2.0,
+				tex = "Plasma",
+				le = 0.3,
+				br = 5,
+				color = { { 0, PALE }, { 0.35, GOLD }, { 0.7, ORANGE }, { 1, RED } },
+				transparency = { { 0, 0 }, { 0.5, 0.15 }, { 1, 1 } },
+				width = { { 0, 1 }, { 1, 0.3 } },
+			},
+			{
+				"Core",
+				half = 0.25,
+				y = -0.72,
+				life = 0.6,
+				tex = "CoreStreak",
+				color = { { 0, WHITE }, { 1, PALE } },
+				le = 1,
+				br = 5,
+				transparency = { { 0, 0 }, { 1, 1 } },
+				width = { { 0, 1 }, { 1, 0 } },
+			},
+		},
+		emitters = {
+			{
+				"Flames",
+				tex = "Flame",
+				rate = 90,
+				life = { 0.4, 0.7 },
+				speed = { 3, 5 },
+				spread = 20,
+				acc = V(0, 6, 0),
+				size = { { 0, 1.8 }, { 1, 3.4 } },
+				color = FIRE,
+				br = 6,
+				at = V(0, -0.3, 3.2),
+				box = V(0.8, 0.1, 0.5),
+				upright = true,
+			},
+			{
+				"WingL",
+				tex = "Flame",
+				rate = 30,
+				life = { 0.4, 0.6 },
+				speed = { 5, 8 },
+				dir = V(-1, 0.8, 0.3),
+				spread = 12,
+				drag = 1.5,
+				acc = V(0, 4, 0),
+				size = { { 0, 1.2 }, { 1, 2.4 } },
+				color = FIRE,
+				br = 6,
+				at = V(-1.2, -0.3, 2.8),
+				upright = true,
+			},
+			{
+				"WingR",
+				tex = "Flame",
+				rate = 30,
+				life = { 0.4, 0.6 },
+				speed = { 5, 8 },
+				dir = V(1, 0.8, 0.3),
+				spread = 12,
+				drag = 1.5,
+				acc = V(0, 4, 0),
+				size = { { 0, 1.2 }, { 1, 2.4 } },
+				color = FIRE,
+				br = 6,
+				at = V(1.2, -0.3, 2.8),
+				upright = true,
+			},
+			{
+				"Flare",
+				tex = "Glint",
+				rate = 8,
+				life = { 0.15, 0.25 },
+				size = { { 0, 4 }, { 1, 2.5 } },
+				color = PALE,
+				le = 1,
+				br = 6,
+				locked = true,
+				at = V(0, -0.2, 3.4),
+			},
+			{
+				"Embers",
+				tex = "Spark",
+				rate = 70,
+				life = { 0.6, 1.2 },
+				speed = { 4, 10 },
+				dir = V(0, 1, 0.5),
+				spread = 60,
+				drag = 1,
+				acc = V(0, -6, 0),
+				size = { { 0, 0.6 }, { 1, 0.2 } },
+				color = { { 0, PALE }, { 1, ORANGE } },
+				le = 1,
+				br = 4,
+				streak = true,
+				at = V(0, -0.3, 3.2),
+				box = V(0.8, 0.1, 0.5),
+			},
+			{
+				"Smoke",
+				tex = "VoidWisp",
+				rate = 12,
+				life = { 1.2, 1.8 },
+				speed = { 1, 2 },
+				spread = 30,
+				acc = V(0, 1.5, 0),
+				size = { { 0, 1.8 }, { 1, 4 } },
+				transparency = { { 0, 0.55 }, { 1, 1 } },
+				color = WARM_SMOKE,
+				at = V(0, 0.5, 4),
+				box = V(0.9, 0.2, 0.6),
+			},
+		},
+	},
+	-- Calm charge: a soft ground glow that pulses, a few arcs crawling on the body, charge streaks and frost motes.
+	azure_aura = {
+		emitters = {
+			{
+				"Glow",
+				tex = "Dot",
+				rate = 3,
+				life = { 0.8, 0.8 },
+				size = 8,
+				transparency = { { 0, 0.8 }, { 0.5, 0.65 }, { 1, 1 } },
+				color = CYAN,
+				le = 1,
+				br = 1.5,
+				flat = true,
+				locked = true,
+				at = V(0, -1.24, 0),
+			},
+			{
+				"Pulse",
+				tex = "Ring",
+				rate = 1,
+				life = { 1.2, 1.2 },
+				size = { { 0, 3 }, { 1, 8 } },
+				transparency = { { 0, 0.35 }, { 1, 1 } },
+				color = CYAN,
+				le = 1,
+				br = 2,
+				flat = true,
+				locked = true,
+				at = V(0, -1.25, 0),
+			},
+			{
+				"Arcs",
+				tex = "Bolt",
+				rate = 8,
+				life = { 0.2, 0.3 },
+				size = { { 0, 2.5 }, { 1, 3.5 } },
+				color = ICE,
+				le = 1,
+				br = 5,
+				locked = true,
+				at = V(0, 0.2, 0),
+				box = V(1.6, 0.6, 3.2),
+			},
+			{
+				"Charge",
+				tex = "Spark",
+				rate = 15,
+				life = { 0.3, 0.5 },
+				speed = { 6, 9 },
+				spread = 10,
+				size = { { 0, 0.5 }, { 1, 0.2 } },
+				color = { { 0, WHITE }, { 1, CYAN } },
+				le = 1,
+				br = 4,
+				streak = true,
+				locked = true,
+				at = V(0, -0.8, 0),
+				ring = Vector2.new(1.7, 3.4),
+			},
+			{
+				"Frost",
+				tex = "Dot",
+				rate = 20,
+				life = { 0.8, 1.4 },
+				speed = { 0.5, 1.5 },
+				spread = 180,
+				size = { { 0, 0.2 }, { 1, 0 } },
+				color = ICE,
+				le = 1,
+				br = 2,
+				at = V(0, -0.5, 0),
+				box = V(1.8, 0.4, 3.3),
+			},
+		},
+	},
+	-- A Dragon Ball Z style ki aura: short-lived flame tongues hug the body and shoot upward, a white-hot inner
+	-- sheath inside an orange one, fast streaks rising, a ground glow that pulses, a few embers.
+	ember_aura = {
+		emitters = {
+			{
+				"SheathOuter",
+				tex = "Flame",
+				rate = 90,
+				life = { 0.3, 0.5 },
+				speed = { 5, 8 },
+				spread = 10,
+				acc = V(0, 8, 0),
+				size = { { 0, 1.4 }, { 0.6, 2.3 }, { 1, 1.2 } },
+				color = { { 0, FLAMEY }, { 0.35, ORANGE }, { 0.75, RED }, { 1, rgb(60, 10, 5) } },
+				le = 0.4,
+				br = 5,
+				locked = true,
+				upright = true,
+				at = V(0, -0.9, 0),
+				ring = Vector2.new(1.9, 3.6),
+			},
+			{
+				"SheathInner",
+				tex = "Flame",
+				rate = 70,
+				life = { 0.25, 0.4 },
+				speed = { 4, 7 },
+				spread = 8,
+				acc = V(0, 6, 0),
+				size = { { 0, 1 }, { 1, 1.6 } },
+				color = { { 0, WHITE }, { 0.5, PALE }, { 1, FLAMEY } },
+				le = 1,
+				br = 3,
+				locked = true,
+				upright = true,
+				at = V(0, -0.7, 0),
+				ring = Vector2.new(1.5, 3.1),
+				z = 0.5,
+			},
+			{
+				"Streaks",
+				tex = "Spark",
+				rate = 40,
+				life = { 0.25, 0.4 },
+				speed = { 14, 20 },
+				spread = 5,
+				size = { { 0, 0.5 }, { 1, 0.2 } },
+				color = { { 0, PALE }, { 1, ORANGE } },
+				le = 1,
+				br = 5,
+				streak = true,
+				locked = true,
+				at = V(0, -0.5, 0),
+				ring = Vector2.new(1.7, 3.4),
+			},
+			{
+				"Glow",
+				tex = "Dot",
+				rate = 4,
+				life = { 0.5, 0.7 },
+				size = 8,
+				transparency = { { 0, 0.75 }, { 0.5, 0.6 }, { 1, 1 } },
+				color = ORANGE,
+				le = 1,
+				br = 1.5,
+				flat = true,
+				locked = true,
+				at = V(0, -1.24, 0),
+			},
+			{
+				"Pulse",
+				tex = "Ring",
+				rate = 1.2,
+				life = { 0.6, 0.6 },
+				size = { { 0, 3 }, { 1, 8 } },
+				transparency = { { 0, 0.3 }, { 1, 1 } },
+				color = ORANGE,
+				le = 1,
+				br = 2,
+				flat = true,
+				locked = true,
+				at = V(0, -1.25, 0),
+			},
+			{
+				"Embers",
+				tex = "Dot",
+				rate = 20,
+				life = { 0.8, 1.4 },
+				speed = { 2, 4 },
+				spread = 30,
+				acc = V(0, 2, 0),
+				size = { { 0, 0.25 }, { 1, 0 } },
+				color = { { 0, FLAMEY }, { 1, EMBER } },
+				le = 1,
+				br = 3,
+				at = V(0, 0, 0),
+				box = V(1.6, 0.4, 3.2),
+			},
+		},
+	},
+	-- Quiet cosmos: a slow rune sigil on the ground, nebula wisps drifting off the car with a dark twin,
+	-- twinkling stars and the odd shooting star.
+	galaxy_aura = {
+		emitters = {
+			{
+				"Sigil",
+				tex = "RuneRing",
+				rate = 0.6,
+				life = { 2.5, 2.5 },
+				size = { { 0, 8 }, { 1, 8.6 } },
+				transparency = { { 0, 0.7 }, { 0.25, 0.3 }, { 1, 1 } },
+				color = PINK,
+				le = 1,
+				br = 2,
+				flat = true,
+				rotSpeed = 20,
+				locked = true,
+				at = V(0, -1.25, 0),
+			},
+			{
+				"Nebula",
+				tex = "Nebula",
+				rate = 8,
+				life = { 1.5, 2.5 },
+				speed = { 0.3, 1 },
+				spread = 180,
+				size = { { 0, 2.5 }, { 1, 4 } },
+				transparency = { { 0, 0.35 }, { 1, 1 } },
+				color = { { 0, GALV }, { 0.5, PINK }, { 1, NAVY } },
+				le = 0.8,
+				br = 2,
+				at = V(0, 0, 0),
+				box = V(1.8, 0.8, 3.3),
+			},
+			{
+				"NebulaDark",
+				tex = "Nebula",
+				rate = 3,
+				life = { 1.6, 2.6 },
+				speed = { 0.3, 1 },
+				spread = 180,
+				size = { { 0, 2.5 }, { 1, 3.8 } },
+				transparency = { { 0, 0.55 }, { 1, 1 } },
+				color = rgb(1, 0, 3),
+				br = 0,
+				at = V(0, 0, 0),
+				box = V(1.8, 0.8, 3.3),
+				z = -0.5,
+			},
+			{
+				"Stars",
+				tex = "Glint",
+				rate = 30,
+				life = { 0.8, 1.5 },
+				size = { { 0, 0 }, { 0.3, 0.7 }, { 1, 0 } },
+				color = { { 0, WHITE }, { 1, PINK } },
+				le = 1,
+				br = 4,
+				at = V(0, 0.6, 0),
+				box = V(2.4, 1.4, 3.8),
+			},
+			{
+				"Shooting",
+				tex = "Spark",
+				rate = 2,
+				life = { 0.3, 0.5 },
+				speed = { 15, 25 },
+				dir = V(1, 0.2, 0),
+				spread = 90,
+				size = { { 0, 1.1 }, { 1, 0.4 } },
+				color = WHITE,
+				le = 1,
+				br = 5,
+				streak = true,
+				locked = true,
+				at = V(0, 0.5, 0),
+				box = V(1, 0.5, 2),
+			},
+		},
+	},
 }
 Effects.Profiles = PROFILES
--- Legacy look (pre-2026-10-26) for items whose redesign is still in progress: solar_trail and the auras.
-local LEGACY = {
-	solar_trail = { Lifetime = 0.65, Width = 0.75, Ribbons = 1, Rate = 18 },
-	azure_aura = { Radius = 1.7, Height = 0.1, Tilt = 0, Rings = 1, Rate = 12 },
-	ember_aura = { Radius = 1.5, Height = -0.2, Tilt = 0.18, Rings = 1, Rate = 24 },
-	galaxy_aura = { Radius = 1.75, Height = 0.5, Tilt = 0.48, Rings = 2, Rate = 10 },
-}
-Effects.Legacy = LEGACY
 
 local function nseq(v)
 	if type(v) == "number" then
@@ -447,87 +836,6 @@ local function emitter(chassis, item, e, hosts)
 	end
 	p.Parent = parent
 end
-local function legacyAttachment(chassis, name, position)
-	return attachment(chassis, name, CFrame.new(position))
-end
-local function particles(parent, item, rate, aura)
-	if rate == 0 then
-		return
-	end
-	local sparks = Instance.new("ParticleEmitter")
-	sparks.Name = item.Id .. "Sparks"
-	sparks.Texture = "rbxasset://textures/particles/sparkles_main.dds"
-	sparks.Color = ColorSequence.new(item.Accent, item.Color)
-	sparks.LightEmission, sparks.Rate = 0.8, rate
-	sparks.Lifetime = NumberRange.new(0.4, 1)
-	sparks.Speed = aura and NumberRange.new(0.5, 1.5) or NumberRange.new(1, 3)
-	sparks.EmissionDirection = aura and Enum.NormalId.Top or Enum.NormalId.Back
-	sparks.SpreadAngle = Vector2.new(aura and 80 or 15, aura and 80 or 15)
-	sparks.Acceleration = aura and Vector3.new(0, 1, 0) or Vector3.zero
-	sparks.Size = NumberSequence.new({
-		NumberSequenceKeypoint.new(0, 0.13),
-		NumberSequenceKeypoint.new(0.4, 0.20),
-		NumberSequenceKeypoint.new(1, 0),
-	})
-	sparks.Transparency = NumberSequence.new(0.15, 1)
-	sparks.Rotation, sparks.RotSpeed = NumberRange.new(0, 360), NumberRange.new(-45, 45)
-	sparks.Parent = parent
-end
-local function legacyTrail(folder, chassis, item, profile)
-	for i = 1, profile.Ribbons do
-		local centre = (i - (profile.Ribbons + 1) / 2) * 0.6
-		local a = legacyAttachment(chassis, item.Id .. "Left" .. i, Vector3.new(centre - profile.Width / 2, -0.4, 2.5))
-		local b = legacyAttachment(chassis, item.Id .. "Right" .. i, Vector3.new(centre + profile.Width / 2, -0.4, 2.5))
-		local band = Instance.new("Trail")
-		band.Name = item.Id .. "Ribbon" .. i
-		band.Attachment0, band.Attachment1 = a, b
-		band.Lifetime, band.MinLength = profile.Lifetime, 0.1
-		band.LightEmission, band.FaceCamera = 0.85, true
-		band.WidthScale, band.Transparency = NumberSequence.new(1, 0), NumberSequence.new(0.15, 1)
-		if item.Id == "rainbow_trail" then
-			local points = {}
-			for n = 0, 6 do
-				table.insert(
-					points,
-					ColorSequenceKeypoint.new(n / 6, Color3.fromHSV((n / 6 + (i - 1) / 3) % 1, 0.7, 1))
-				)
-			end
-			band.Color = ColorSequence.new(points)
-		else
-			band.Color = ColorSequence.new(item.Accent, item.Color)
-		end
-		band.Parent = folder
-	end
-	particles(legacyAttachment(chassis, item.Id .. "Emitter", Vector3.new(0, -0.3, 2.5)), item, profile.Rate, false)
-end
-local function legacyRing(folder, chassis, item, radius, height, tilt, ordinal)
-	local nodes = {}
-	for i = 0, 15 do
-		local angle = i * math.pi / 8
-		local pos =
-			Vector3.new(math.cos(angle) * radius, height + math.sin(angle) * tilt, math.sin(angle) * radius * 1.25)
-		table.insert(nodes, legacyAttachment(chassis, item.Id .. "Orbit" .. ordinal .. "_" .. i, pos))
-	end
-	for i, a in nodes do
-		local beam = Instance.new("Beam")
-		beam.Name = item.Id .. "Arc" .. ordinal .. "_" .. i
-		beam.Attachment0, beam.Attachment1 = a, nodes[i % #nodes + 1]
-		beam.Width0, beam.Width1 = 0.065, 0.065
-		beam.FaceCamera = true
-		beam.Color = ColorSequence.new(i % 2 == 0 and item.Color or item.Accent)
-		beam.Transparency = NumberSequence.new(0.2)
-		beam.LightEmission = 1
-		beam.Parent = folder
-		if item.Id == "azure_aura" and i % 4 == 1 then
-			local top = legacyAttachment(chassis, item.Id .. "Charge" .. i, a.Position + Vector3.new(0.15, 1.4, -0.1))
-			local bolt = beam:Clone()
-			bolt.Name = "AzureCharge" .. i
-			bolt.Attachment1 = top
-			bolt.Width0, bolt.Width1 = 0.12, 0.025
-			bolt.Parent = folder
-		end
-	end
-end
 function Effects.Apply(car, player)
 	local chassis = car and car.PrimaryPart
 	if not chassis then
@@ -548,31 +856,7 @@ function Effects.Apply(car, player)
 	for _, kind in { "Aura", "Trail" } do
 		local item = MarketConfig.Get(kind, player and player:GetAttribute("Equipped" .. kind))
 		local profile = item and PROFILES[item.Id]
-		local legacy = item and not profile and LEGACY[item.Id]
-		if legacy then
-			folder:SetAttribute(kind, item.Id)
-			if kind == "Trail" then
-				legacyTrail(folder, chassis, item, legacy)
-			else
-				for n = 1, legacy.Rings do
-					legacyRing(
-						folder,
-						chassis,
-						item,
-						legacy.Radius,
-						legacy.Height,
-						legacy.Tilt * (n % 2 == 0 and -1 or 1),
-						n
-					)
-				end
-				particles(
-					legacyAttachment(chassis, item.Id .. "Emitter", Vector3.new(0, 0.6, 0)),
-					item,
-					legacy.Rate,
-					true
-				)
-			end
-		elseif profile then
+		if profile then
 			folder:SetAttribute(kind, item.Id)
 			for _, r in profile.ribbons or {} do
 				ribbon(folder, chassis, item, r)
