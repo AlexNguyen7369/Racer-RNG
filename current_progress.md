@@ -57,8 +57,9 @@
 54. 2026-10-26 — Alex Nguyen — Applied the owner's upgrade-tree decisions (full-screen overlay written into the specs, Walkspeed tiles shown again, gated "Reach Track N", non-overlapping tiles) and had ui-test-writer reconcile the stale UI tests (74048ed).
 55. 2026-10-26 — Alex Nguyen — Redesigned the Rainbow and Void trails with 16 drawn, uploaded VFX textures (data-driven VehicleEffects plus a client motion script; solar trail and auras keep the old look) (4871383).
 56. 2026-10-26 — Alex Nguyen — Redesigned the Solar trail and the three auras (calmer Azure and Galaxy, a Dragon Ball Z style Ember ki sheath) and removed the legacy effect look (9c91e1d).
+57. 2026-10-26 — Alex Nguyen — Added the VFX showcase area (a separate floor with one local car per trail and aura) and the admin commands `/tp vfxarea` and `/tp home`, written into the admin spec first.
 
 ## What's next
-**Build the separate VFX showcase area with the `/tp vfxarea` and `/tp home` admin commands.**
+**Run the full CarTest harness in Racer RNG and fix any red, with vehicle_effects and admin checked first.**
 
-**Why this is next:** the owner asked for it to review trails and auras without crowding the spawn; future VFX tuning rounds use it.
+**Why this is next:** the trail / aura rewrite and the new CarService.Teleport have only been checked by hand; the harness is the gate that proves nothing else broke before more VFX tuning.

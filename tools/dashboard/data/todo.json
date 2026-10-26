@@ -1037,6 +1037,14 @@
       "owner": "Claude",
       "updated": "2026-10-26",
       "done": "2026-10-26"
+    },
+    {
+      "id": "vfx-showcase-area",
+      "title": "VFX showcase area (/tp vfxarea, /tp home)",
+      "detail": "Owner 2026-10-26. Shared/VfxArea floor at (1600,0,0), Client/VfxShowcase local cars per trail/aura, CarService.Teleport + admin /tp vfxarea | home. Verified live. Next: run admin + vehicle_effects in the full harness; test-writer may add admin checks for the two new /tp forms.",
+      "status": "doing",
+      "owner": "Claude",
+      "updated": "2026-10-26"
     }
   ]
 }

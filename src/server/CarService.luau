@@ -169,8 +169,8 @@ end
 -- Puts the avatar at the walk spawn. A real player's client owns its character's physics and, right after it leaves
 -- the car, can send back its old position (beside where the car was) and undo a single server teleport: for
 -- PLACE_HOLD seconds the avatar is put back whenever it is far from the spot (unless a newer request arrived).
-local function placeAtWalkSpawn(player, character, gen)
-	local target = CarService.WalkSpawnCFrame()
+local function placeAtWalkSpawn(player, character, gen, target)
+	target = target or CarService.WalkSpawnCFrame()
 	character:PivotTo(target)
 	for _, d in character:GetDescendants() do
 		if d:IsA("BasePart") then
@@ -453,6 +453,22 @@ function CarService.SetAutoRace(player, enabled, duel)
 		standUp(player, gen) -- removing the car destroys its run; NPC wins were already paid at each finish
 	end
 	return CarService.IsAutoRacing(player)
+end
+
+-- Puts the avatar on foot at cf (admin /tp vfxarea and /tp home, ADMIN_COMMANDS_SPEC): stops auto racing first,
+-- then holds it there like the walk spawn. False when there is no live avatar.
+function CarService.Teleport(player, cf)
+	local character = CarService.GetCharacter(player)
+	if not isAlive(character) then
+		return false
+	end
+	if CarService.IsAutoRacing(player) then
+		CarService.SetAutoRace(player, false)
+	end
+	local gen = setState(player, false) -- a new generation ends the walk-spawn hold of that Stop
+	lastPadStart[player] = os.clock()
+	placeAtWalkSpawn(player, character, gen, cf)
+	return true
 end
 
 -- Releases a held duel car and starts its duel run (duel = { Track, OnFinish }). Returns the run, or nil.

@@ -127,6 +127,16 @@ ONE STEADY RACE SPEED - 2026-10-20 (Claude, uncommitted)
 - Tests: CarTest END pass=45 fail=2 (race max_speed lane checks = test lag, fixed by test-writer, unverified;
   track:Volcano never_tilted 0.811, bot lap not using RaceService, unexplained). Re-run pending (Studio closed).
 
+VFX SHOWCASE AREA - 2026-10-26 (Claude, owner request; uncommitted)
+- Shared/VfxArea: a 240 x 140 floor at (1600, 0, 0), east of everything (world parts end near x = 700), built by
+  Main. Client/VfxShowcase drives one local car per Market trail / aura there while the avatar is within 400 studs.
+- Admin `/tp vfxarea` and `/tp home` (ADMIN_COMMANDS_SPEC): CarService.Teleport(player, cf) stops auto racing, then
+  places the avatar on foot with the walk-spawn hold. Verified live in Racer RNG: arrive at (1600, 4.3, 58), 6
+  showcase cars / 42 effect instances built, home lands 0.9 studs from the walk spawn, bad name -> usage.
+- Note: execute_luau (Studio MCP / command bar) gets its own module instances, so CarService state from there is
+  empty (SetAutoRace does nothing, test scenarios called that way never seat a fake car). Run scenarios through the
+  harness (ReplicatedStorage CarTestRun) instead. NOT run: admin and vehicle_effects scenarios in the harness.
+
 MARKET VFX REDESIGN - 2026-10-26 (Claude, owner-approved look; all six committed)
 - Shared/VehicleEffects: data-driven PROFILES (rainbow_trail, void_trail) from 16 drawn textures (uploaded, ids in
   vfx/trails/asset_ids.json; drawing script vfx/trails/textures.py, run with Blender's bundled python3.13 for numpy).
@@ -138,8 +148,8 @@ MARKET VFX REDESIGN - 2026-10-26 (Claude, owner-approved look; all six committed
 - Drafts: drafts/props/trail-vfx-redesign/ (trails.blend + build_scene.py), vfx/trails/preview.luau (test Studio).
 - Verified 2026-10-26: stylua, selene 0/0, rojo build; live server in the real place: every trail + aura pair applies
   with no error, mass delta 0, no BasePart, only effect classes, void names / tags / Rate > 0, unequip leaves nothing.
-  NOT verified: the vehicle_effects scenario itself (called outside the harness its fake character never seats,
-  auto_toggle fails the same way; it passed in the 2026-10-26 full harness before this change), the motion script
+  NOT verified: the vehicle_effects scenario in the harness (called through execute_luau it runs on separate module
+  instances, so its fake car never seats; it passed in the 2026-10-26 full harness before this change), the motion script
   under load, particle budget with 7 players. Uploaded textures were still processing on Roblox at commit time.
 
 VOID TRAIL VFX - 2026-10-20 (superseded 2026-10-26) (Claude, uncommitted)

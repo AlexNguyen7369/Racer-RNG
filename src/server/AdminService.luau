@@ -13,6 +13,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local CarCatalog = require(Shared.CarCatalog)
 local RaceConfig = require(Shared.RaceConfig)
 local WeatherConfig = require(Shared.WeatherConfig)
+local VfxArea = require(Shared.VfxArea)
 local AdminConfig = require(script.Parent.AdminConfig)
 local CarService = require(script.Parent.CarService)
 local GachaService = require(script.Parent.GachaService)
@@ -421,15 +422,26 @@ AdminService.Commands = {
 		end,
 	},
 	tp = {
-		Usage = "/tp <track number> [player]",
-		Help = "move the racing car to the start of a track",
+		Usage = "/tp <track number | vfxarea | home> [player]",
+		Help = "move the racing car to a track, or walk to the VFX showcase area or back to spawn",
 		Min = 1,
 		Max = 1,
 		Check = function(args)
+			local place = string.lower(args[1] or "")
+			if place == "vfxarea" or place == "home" then
+				return place
+			end
 			local n = amount(args)
 			return n and n == math.floor(n) and n >= 1 and n or nil
 		end,
 		Apply = function(p, n)
+			if n == "vfxarea" or n == "home" then
+				local cf = n == "vfxarea" and VfxArea.SpawnCFrame() or CarService.WalkSpawnCFrame()
+				if CarService.Teleport(p, cf) then
+					return true, n == "vfxarea" and "in the VFX showcase area" or "back at the spawn"
+				end
+				return false, "no avatar to move"
+			end
 			local run = AdminService.RunOf(p)
 			if not run or type(run.JumpToTrack) ~= "function" then
 				return false, "no car is racing"

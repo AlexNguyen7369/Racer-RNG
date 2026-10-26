@@ -9,6 +9,7 @@ require(Shared.DraftCarModels).Ensure()
 local TrackBuilder = require(Shared.TrackBuilder)
 local TrackRegistry = require(Shared.TrackRegistry)
 local SpawnArea = require(Shared.SpawnArea)
+local VfxArea = require(Shared.VfxArea)
 local AdminService = require(script.Parent.AdminService)
 local CarService = require(script.Parent.CarService)
 local GachaService = require(script.Parent.GachaService)
@@ -57,6 +58,7 @@ for _, entry in entries do
 	table.insert(trackModels, entry.Model)
 end
 BiomeDressing.Prune(trackModels, { spawnArea }) -- scenery keeps clear of every road and the spawn area
+VfxArea.Build().Parent = Workspace -- the admin-only VFX showcase floor (/tp vfxarea)
 
 -- The player's car auto-races the whole chain at the speed from their saved stats
 RaceService.Start(RaceService.BuildRoute(entries))
