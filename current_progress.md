@@ -59,8 +59,9 @@
 56. 2026-10-26 — Alex Nguyen — Redesigned the Solar trail and the three auras (calmer Azure and Galaxy, a Dragon Ball Z style Ember ki sheath) and removed the legacy effect look (9c91e1d).
 57. 2026-10-26 — Alex Nguyen — Added the VFX showcase area (a separate floor with one local car per trail and aura) and the admin commands `/tp vfxarea` and `/tp home`, written into the admin spec first.
 58. 2026-10-26 — Alex Nguyen — Drafted the golden Ascended Aura (a Super Saiyan style ki aura after Dragon Ball Z, showcase only, not sold) with a new looping KiFlame texture, VehicleEffects.ApplyProfile and a seventh VFX-area lane.
+59. 2026-10-26 — Alex Nguyen — Added the rendering pass (lighting baseline, Asphalt/Concrete tracks, NPC shadow LOD), a glossy car finish and a stronger Blender geometry pass, re-uploading all 111 car skins (e3f752a).
 
 ## What's next
-**Run the full CarTest harness in Racer RNG and fix any red, with vehicle_effects and admin checked first.**
+**Restart Play in Racer RNG, check the re-uploaded cars and new lighting by eye, set Lighting.Technology to Future, then run the full CarTest harness (car_redesign, car_size, gacha, environment, npc, weather, race and vehicle_effects first) and fix any red.**
 
-**Why this is next:** the trail / aura rewrite and the new CarService.Teleport have only been checked by hand; the harness is the gate that proves nothing else broke before more VFX tuning.
+**Why this is next:** the rendering pass and the 111 new car meshes have only passed static checks; the harness and a live look prove nothing broke before further art or VFX tuning builds on them.
