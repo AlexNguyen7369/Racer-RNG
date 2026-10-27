@@ -1341,6 +1341,51 @@
       "foundBy": "ui-test-writer",
       "foundAt": "2026-10-26T01:44:38-07:00",
       "loggedBy": "Alex Nguyen"
+    },
+    {
+      "id": "442639b1",
+      "name": "Reduced motion reveals the roll result early",
+      "kind": "fault",
+      "status": "fixed",
+      "file": "src/client/RollToast/init.client.luau",
+      "line": 1095,
+      "endLine": 1109,
+      "snippet": {
+        "from": 1091,
+        "lines": [
+          "\t\tend",
+          "\tend",
+          "\tlocal started = os.clock()",
+          "\tlocal distance = (#reelIds - 1) * 0.86 - 0.18",
+          "\twhile alive() do",
+          "\t\tlocal alpha = reduceEffects() and 1 or math.clamp((os.clock() - started) / A.SPIN, 0, 1)",
+          "\t\tlocal travel = distance * (1 - (1 - alpha) ^ 3)",
+          "\t\tfor _, b in bodies do",
+          "\t\t\tfor i, tile in ipairs(tiles[b]) do",
+          "\t\t\t\tlocal x = 0.5 + (i - 1) * 0.86 - travel",
+          "\t\t\t\tlocal focus = math.clamp(1 - math.abs(x - 0.5) / 0.8, 0, 1)",
+          "\t\t\t\ttile.Position = UDim2.fromScale(x, 0.5)",
+          "\t\t\t\tlocal size = 0.72 + focus * (b.Full and 0.24 or 0.5)",
+          "\t\t\t\ttile.Size = UDim2.fromScale(size, size)",
+          "\t\t\t\ttile.Rotation = reduceEffects() and 0 or math.sin(alpha * math.pi) * -5 * focus",
+          "\t\t\tend",
+          "\t\tend",
+          "\t\tif alpha >= 1 then",
+          "\t\t\tbreak",
+          "\t\tend",
+          "\t\t-- Heartbeat also advances in Studio's client test viewport, where a",
+          "\t\t-- RenderStepped wait can remain suspended without a rendered frame.",
+          "\t\tRunService.Heartbeat:Wait()"
+        ]
+      },
+      "summary": "With motion reduced (Roblox Reduced Motion or REDUCED EFFECTS), the spin loop sets alpha = 1 on its first pass and breaks, so Land starts at once and Hold (the result reveal) comes SPIN (0.8 s) early. HUD_LAYOUT_SPEC section 7 says the reel skips its spin but the timing of the result reveal is unchanged. ui_reduced_motion reduced_reveal_at_normal_time stays red until the reduced reel holds its landed position for the rest of SPIN.",
+      "error": "",
+      "foundBy": "ui-test-writer",
+      "foundAt": "2026-10-27T00:27:34-07:00",
+      "loggedBy": "Alex Nguyen",
+      "fixedAt": "2026-10-27T00:28:42-07:00",
+      "fixedBy": "Alex Nguyen",
+      "fixNote": "Spin loop ends on elapsed SPIN, not alpha (RollToast init.client.luau). Verify with ui_reduced_motion."
     }
   ]
 }

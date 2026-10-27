@@ -199,14 +199,14 @@ updates automatically whenever the board changes; do not edit this block by hand
 - **Gamepad / console focus for panels**: Owner rule 2026-10-26 (HUD_LAYOUT_SPEC 7). Implemented in Client/PanelSwitch: first button selected, AddSelectionParent trap, ButtonB closes, selection restored. Needs a Controller Emulator check and ui-test-writer coverage.
 - **Safe-area policy for IgnoreGuiInset GUIs**: Owner rule 2026-10-26 (HUD_LAYOUT_SPEC 7). Implemented: Client/SafeInsets sets DeviceSafeInsets on every PlayerGui ScreenGui except PanelDim, LoserScreen, RollShowcase. Needs a notched-phone Device Simulator check.
 - **VFX showcase area (/tp vfxarea, /tp home)**: Owner 2026-10-26. Shared/VfxArea floor at (1600,0,0), Client/VfxShowcase local cars per trail/aura, CarService.Teleport + admin /tp vfxarea \| home. Verified live. Next: run admin + vehicle_effects in the full harness; test-writer may add admin checks for the two new /tp forms.
-- **Biome visual pass: scatter + ground patches, horizon fit, landmark particles, oriented-box Prune**: docs/BIOME_DRESSING_SPEC.md Layers 7-8 + rules (2026-10-26), budget 800 (owner). Shared/BiomeDressing + BiomeThemes. Full harness 50/0 (400 build); environment 328/328 at 800. Scenery 1515 -> 5142 parts, 78 landmark emitters. Left: owner visual review while racing; full harness at 800; phone frame cost; particle cost with 7 players.
+- **Bigger scenery in mass + detailed City skyscrapers**: Owner 2026-10-27: design doc Track environments (scale and detail), BIOME_DRESSING_SPEC Rules Budget 1200 / Scale (Landmarks x1.75, Horizon x2 with 0.25 shrink steps, Scatter x1.5) / City skyscrapers. BiomeThemes skyscraper helper (podium, setbacks, window bands, fins, neon crown, rooftop tank/spire/antenna), Billboard moved to City scatter. environment 338/338, full harness 50/0. Left: owner look while racing, device frame check (Needs you).
 
 ### Up next (9)
 
 - **Daily Quest System**: Add a daily quest system with rotating objectives and rewards; define the design/spec before implementation.
 - **Redeem Codes section**: Add a Redeem Codes section projected for the Shop area where the gamepasses are located.
 - **Friends-in-server boost**: +10% luck and Money per friend in the same server, up to +40%. Fits this game: Encourages inviting friends; one multiplier in GachaService and MoneyService. Inspired by: Common in 2025-2026 simulators
-- **roll_odds_* UI fixtures must close open panels first**: The offline RacerWelcome/Panel opens on join and hides the compact roll (correct behaviour), so roll_odds_compact_odds fails although the text is right. ui-test-writer: have the fixture or ui_roll_odds close every PanelSwitch panel before the planted roll.
+- **roll_odds_* UI fixtures must close open panels first**: The offline RacerWelcome/Panel opens on join and hides the compact roll (correct behaviour), so roll_odds_compact_odds fails although the text is right. ui-test-writer: have the fixture or ui_roll_odds close every PanelSwitch panel before the planted roll. 2026-10-27: ui-test-writer closes every PanelSwitch panel before the planted roll; not run live yet.
 - **DailyBoosts Status overlaps Daily Rewards / Bag on phones**: Bug 3a6d9cb3, found by ui-tester 2026-10-13 at 844x390 and 667x375. Older than the weather change.
 - **Run the UI suite for the removed world upgrade pad**: upgrade_no_world_pad and upgrade_no_spawn_area_pad (ui_upgrades) were written 2026-10-13 and never run. Run [UITEST] alone in Studio.
 - **Reconcile UI tests with Isaac's inventory/upgrade-tree UI (ccea607)**: ui-test-writer updates UiSpec/UiScenarios for INVENTORY tabs, removed Bag, full-screen hex upgrade tree; then ui-tester and /compat-check. Blocks the green stamp for main.
@@ -227,8 +227,9 @@ updates automatically whenever the board changes; do not edit this block by hand
 - **Build Server Luck (2x/4x/8x developer products)**: Design doc lists it; the Shop shows it as Coming soon (no Grants, receipt never granted).
 - **Gift buttons in the Shop**: References show gift buttons; not built.
 
-### Recently done (54)
+### Recently done (55)
 
+- ~~Biome visual pass: scatter + ground patches, horizon fit, landmark particles, oriented-box Prune~~ (2026-10-27)
 - ~~Market trail / aura VFX redesign (all six)~~ (2026-10-26)
 - ~~Rendering pass + car finish (lighting baseline, Asphalt/Concrete, LOD, glossy car finish)~~ (2026-10-26)
 - ~~Race progress map completion~~ (2026-10-21)
@@ -238,7 +239,6 @@ updates automatically whenever the board changes; do not edit this block by hand
 - ~~Decide: Shop/Market/Daily backdrops cover the HUD tiles~~ (2026-10-20)
 - ~~Smooth auto-race motion (soft rail)~~ (2026-10-15)
 - ~~Rebirth panel rebuild + 1 Rebirth Point per rebirth~~ (2026-10-15)
-- ~~Rotating weather / biome events that boost luck~~ (2026-10-13)
 
 <!-- TODO:END -->
 

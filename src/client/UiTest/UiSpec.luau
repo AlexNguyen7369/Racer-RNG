@@ -3061,4 +3061,81 @@ table.insert(UiSpec.Clicks, {
 	Expect = { Remote = false, After = { "shop_no_purchase_prompt" } },
 })
 
+-- Index header (reconcile 2026-10-27, Isaac's INVENTORY tabs, ccea607). docs/HUD_LAYOUT_SPEC.md sections 1 and 3:
+-- Index opens its existing panel and stays the discovery gallery of every car; consumables live in the Backpack's
+-- Misc tab (the old Bag is gone). The generated header keeps one visible tab, CarsTab, which shows the car gallery
+-- and asks the server nothing; the CONSUMABLES tab and its host stay hidden (ui_index index_no_consumables_view).
+UiSpec.IndexTabs = {
+	CarsTab = "RacerIndex/Panel/Face/Header/Face/CarsTab",
+	ConsumablesTab = "RacerIndex/Panel/Face/Header/Face/ConsumablesTab",
+	GridHost = "RacerIndex/Panel/Face/GridHost",
+	ConsumablesHost = "RacerIndex/Panel/Face/ConsumablesHost",
+}
+table.insert(UiSpec.Guis.RacerIndex.Buttons, {
+	Path = "Panel/Face/Header/Face/CarsTab/Face",
+	Does = "local",
+	Effect = "index_gallery_shown",
+})
+table.insert(UiSpec.Clicks, {
+	Id = "index_cars_tab",
+	Gui = "RacerIndex",
+	Path = "Panel/Face/Header/Face/CarsTab/Face",
+	Prepare = only("RacerIndex/Panel"),
+	NeedSetup = { "spy" },
+	Expect = { Panels = { ["RacerIndex/Panel"] = true }, Remote = false, After = { "index_gallery_shown" } },
+})
+
+-- Motion, safe area and gamepad (docs/HUD_LAYOUT_SPEC.md section 7, owner 2026-10-26; design doc "Owner decision,
+-- 2026-10-26 (accessibility and devices)"). Scenarios: ui_reduced_motion, ui_safe_insets, ui_panel_focus (in
+-- UiScenarios.Names) and the manual ui_safe_insets_notch / ui_gamepad_focus (UiSpec.ManualScenarios).
+UiSpec.Accessibility = {
+	MotionModule = "UiMotion", -- ModuleScript in StarterPlayerScripts.Client; Reduced() is the one check
+	ReduceAttr = "ReduceEffects", -- the in-game REDUCED EFFECTS toggle (LocalPlayer attribute, set by the client)
+	ProbeSeconds = 2, -- the probe tween's length when motion is NOT reduced
+	RollWait = 20, -- s to wait for the next auto roll while motion is reduced (ROLL_INTERVAL 3 s + one animation)
+	ReelStill = 1, -- px a reel tile or streak may move during Spin while motion is reduced ("skips its spin")
+	-- Full-screen ScreenGuis that may bleed under a notch (section 7 "Exempt"); every other player ScreenGui uses
+	-- ScreenInsets = DeviceSafeInsets
+	FullBleed = { PanelDim = true, LoserScreen = true, RollShowcase = true },
+	ProbeGui = "UiTestInsetProbe", -- a ScreenGui the test adds to PlayerGui for one frame (late guis get insets too)
+	-- Gamepad focus: a HUD button selected before a panel opens; closing must give the selection back to it
+	RestoreTarget = "HudChrome/Grid/Index",
+	-- Transparent full-screen click-catchers are not "visible buttons" (HUD_LAYOUT_SPEC section 6)
+	NotFocusable = { Backdrop = true },
+	FocusFrames = 4, -- rendered frames after Toggle before the selection is judged (PanelSwitch defers it)
+	ButtonB = Enum.KeyCode.ButtonB,
+}
+UiSpec.ManualScenarios = UiSpec.ManualScenarios or {}
+table.insert(UiSpec.ManualScenarios, {
+	Name = "ui_safe_insets_notch",
+	Manual = "needs a phone with a notch / rounded corners in Studio's Device Simulator (e.g. iPhone 14 landscape): "
+		.. "a desktop window has no unsafe area, so the safe-area rect equals the screen there",
+})
+table.insert(UiSpec.ManualScenarios, {
+	Name = "ui_gamepad_focus",
+	Manual = "needs UserInputService.PreferredInput = Gamepad (Studio Controller Emulator on, one gamepad input "
+		.. "sent first); scripts and the MCP can not make the preferred input a gamepad",
+})
+-- Gamepad presses (Key protocol; ui-tester's MCP sends no gamepad input, so MANUAL): with the Controller Emulator on,
+-- the owner opens the panel with the gamepad, then presses the button.
+local GAMEPAD_MANUAL = "needs a gamepad button press (Studio Controller Emulator); MCP and scripts can not send one"
+table.insert(UiSpec.Clicks, {
+	Id = "gamepad_b_closes_index",
+	Key = "ButtonB",
+	Manual = GAMEPAD_MANUAL,
+	Prepare = only("RacerIndex/Panel"),
+	NeedSetup = { "spy" },
+	Expect = { Panels = { ["RacerIndex/Panel"] = false }, Remote = false },
+})
+-- Selection trap: DPadUp from the panel's top-left button would leave the panel toward the Race button above it;
+-- the panel stays open and the selection stays inside it (After gamepad_selection_in_panel).
+table.insert(UiSpec.Clicks, {
+	Id = "gamepad_dpad_up_stays_in_index",
+	Key = "DPadUp",
+	Manual = GAMEPAD_MANUAL,
+	Prepare = only("RacerIndex/Panel"),
+	NeedSetup = { "spy" },
+	Expect = { Panels = { ["RacerIndex/Panel"] = true }, Remote = false, After = { "gamepad_selection_in_panel" } },
+})
+
 return UiSpec

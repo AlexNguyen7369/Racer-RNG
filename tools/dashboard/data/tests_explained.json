@@ -187,7 +187,7 @@
     "files": "Client/SpeedHud"
   },
   "ui_index": {
-    "checks": "The Index panel lists cars, owned state and opens below the Auto Race button.",
+    "checks": "The Index panel lists cars, owned state and opens below the Auto Race button. Open, it shows the car gallery (GridHost) and no consumables tab or view (index_open_index_gallery_shown, index_open_index_no_consumables_view); its one header tab, CarsTab, is declared and the index_cars_tab click keeps the gallery shown and fires no remote.",
     "why": "Panel placement rules.",
     "limits": "UiSpec",
     "files": "Client/IndexUi"
@@ -319,7 +319,7 @@
     "files": "Client/ProgressionUi, Client/RollToast, UiTest/UiProgression, UiTest/UiSpec"
   },
   "ui_roll_odds": {
-    "checks": "A planted roll with a known luck (RollResult's 6th argument) shows 1 in max(1, round(Chance / luck)) on the compact roll and on the enlarged card: luck 2, a rounded case, the 1 in 1 floor, luck 1, no luck sent, and the catch-all car (1 in ?).",
+    "checks": "A planted roll with a known luck (RollResult's 6th argument) shows 1 in max(1, round(Chance / luck)) on the compact roll and on the enlarged card: luck 2, a rounded case, the 1 in 1 floor, luck 1, no luck sent, and the catch-all car (1 in ?). When the fixture is planted the test client closes every PanelSwitch panel (the offline RacerWelcome included) so no panel hides the compact roll, checks roll_odds_compact_no_panel_open / roll_odds_enlarged_no_panel_open on each planted roll, and puts the panels back afterwards.",
     "why": "The odds a player reads must be the odds of that roll, not the car's base odds.",
     "limits": "UiSpec.RollOdds, car Chance values, HudFormat.Odds",
     "files": "Client/RollToast, UiTest/UiScenarios, CarTest/UiTestSetup"
@@ -349,9 +349,9 @@
     "files": "Client/MarketUi, Client/UiTest/UiShopMarket"
   },
   "environment": {
-    "checks": "Builds the full chain (and the spawn area) away from the play area, runs BiomeDressing.Prune, and checks per track: Biome spec/attribute and theme, Environment folder non-empty with a Gate at the start, every prop anchored and non-colliding/touching/querying, no prop within CLEARANCE of any road, wall, checkpoint, pad or spawn-area part, at most BUDGET parts, two builds identical, lights without shadows, and Lighting / Sky / Atmosphere / Clouds unchanged. Probe parts confirm Prune removes a prop on the road and keeps a far one. Baked meshes: every Shared/BiomeMeshData entry decodes (BiomeMeshCodec) to a valid buffer (length 4 + vc*10 + ic*2, whole triangles, at most 20000 triangles and 60000 vertices, indices < vc, positive Size), has an rbxassetid in BiomeMeshAssets and is returned by BiomeDressing.MeshFor; every built prop with data is a BiomeMesh-tagged model with Mesh attribute and an invisible visual-only MeshBounds at the theme height and mesh proportions, props without data have neither; each track's Ground top is -1 - 0.02 x Number (no z-fighting). Gate sign (owner 2026-10-21): GateSign / GateSignGui faces the oncoming car with labels Biome (upper-case, words split) and RecSpeed = \"REC. SPEED \" + the HUD format of RaceConfig.StatFor(NPC speed); the recommendation cruises at the NPC speed, is finite on every track and below 10,000 on Track 1. Visual pass (owner 2026-10-26, spec Layers 7-8): after Prune every track keeps at least 1 Landmark_*, 1 Horizon_*, 10 Scatter_* and 5 Patch_* children; every Patch_* part is at most 0.2 studs thick with its bottom on that track's Ground top; every ParticleEmitter is named BiomeParticles inside a Landmark_* model (at most one per landmark) with Rate <= 8, and each track has at least one.",
+    "checks": "Builds the full chain (and the spawn area) away from the play area, runs BiomeDressing.Prune, and checks per track: Biome spec/attribute and theme, Environment folder non-empty with a Gate at the start, every prop anchored and non-colliding/touching/querying, no prop within CLEARANCE of any road, wall, checkpoint, pad or spawn-area part, at most BUDGET (1200) parts, two builds identical, lights without shadows, and Lighting / Sky / Atmosphere / Clouds unchanged. Probe parts confirm Prune removes a prop on the road and keeps a far one. Baked meshes: every Shared/BiomeMeshData entry decodes (BiomeMeshCodec) to a valid buffer (length 4 + vc*10 + ic*2, whole triangles, at most 20000 triangles and 60000 vertices, indices < vc, positive Size), has an rbxassetid in BiomeMeshAssets and is returned by BiomeDressing.MeshFor; every built prop with data is a BiomeMesh-tagged model with Mesh attribute and an invisible visual-only MeshBounds at the prop's scaled height (theme Size.Y x BiomeDressing.SCALE[layer], layer from the Landmark_/Horizon_/Scatter_ prefix, Rhythm and gate x1; a Horizon_ piece may instead be at any 0.25 step from SCALE.Horizon down to x1, spec Rules Scale) and mesh proportions, props without data have neither; each track's Ground top is -1 - 0.02 x Number (no z-fighting). Gate sign (owner 2026-10-21): GateSign / GateSignGui faces the oncoming car with labels Biome (upper-case, words split) and RecSpeed = \"REC. SPEED \" + the HUD format of RaceConfig.StatFor(NPC speed); the recommendation cruises at the NPC speed, is finite on every track and below 10,000 on Track 1. Visual pass (owner 2026-10-26, spec Layers 7-8): after Prune every track keeps at least 1 Landmark_*, 1 Horizon_*, 10 Scatter_* and 5 Patch_* children; every Patch_* part is at most 0.2 studs thick with its bottom on that track's Ground top; every ParticleEmitter is named BiomeParticles inside a Landmark_* model (at most one per landmark) with Rate <= 8, and each track has at least one. Scale and detail (owner 2026-10-27, spec Rules Budget / Scale / City skyscrapers): BUDGET is 1200; BiomeDressing.SCALE is Landmarks 1.75, Horizon 2, Scatter 1.5; on Track 6 (City) no landmark, skyline or Skyscraper/SkyscraperPink/Block/Skyline scatter tower carries MeshBounds, a BiomeMesh tag or a City tower Mesh attribute; every City Landmark_ has at least 25 parts, a Glass part (window bands) and a Neon part (crown), and the tallest City landmark's bounding box is at least 100 studs high.",
     "why": "docs/BIOME_DRESSING_SPEC.md Acceptance: scenery is visual only and never blocks or clips the road.",
-    "limits": "CLEARANCE 8, BUDGET 800 (placeholders in BiomeDressing), gate within 60 studs of Start, 0.05 stud overlap tolerance, CFrame 1e-3, mesh sizes 1e-3, ground top 1e-3, patches 0.2 thick (+1e-3) within 0.05 of the ground top, PARTICLE_MAX_RATE 8, at least 10 scatter / 5 patches",
+    "limits": "CLEARANCE 8, BUDGET 1200 (placeholders in BiomeDressing), gate within 60 studs of Start, 0.05 stud overlap tolerance, CFrame 1e-3, mesh sizes 1e-3, ground top 1e-3, patches 0.2 thick (+1e-3) within 0.05 of the ground top, PARTICLE_MAX_RATE 8, SCALE Landmarks 1.75 / Horizon 2 / Scatter 1.5, City landmarks >= 25 parts and tallest >= 100 studs, at least 10 scatter / 5 patches",
     "files": "Shared/BiomeDressing, Shared/BiomeThemes, Tracks/*, TrackBuilder, SpawnArea, Shared/BiomeMeshData, BiomeMeshCodec, BiomeMeshAssets"
   },
   "car_expansion": {
@@ -407,5 +407,35 @@
     "why": "Players pick 3 cars whose duplicates raise workshop Speed gain (docs/WORKSHOP_SPEC.md 5b); the panel must show and send exactly the server's showcase.",
     "limits": "UiSpec.WorkshopShowcase, GachaConfig.SlotBonus / ShowcaseMulti, fixtures showcase_owned / showcase_filled / showcase_spy",
     "files": "Client/ProgressionUi, UiTest/UiProgression, UiTest/UiSpec"
+  },
+  "ui_reduced_motion": {
+    "checks": "Client/UiMotion: Reduced() equals GuiService.ReducedMotionEnabled OR the ReduceEffects attribute (with and without it). While reduced, UiMotion.Create on a looping 2 s tween gives Time 0, RepeatCount 0, Reverses false, and the property is on its goal and the tween Completed within 3 frames; not reduced, the tween keeps its TweenInfo (or, with Roblox Reduced Motion on, is still instant). Then the next auto roll with REDUCED EFFECTS on: no reel tile or streak moves during Spin (<= 1 px), the card lands on the server's result, and Hold starts POP + SPIN + LAND after PopIn (the reveal keeps its normal time). ReduceEffects is put back.",
+    "why": "HUD_LAYOUT_SPEC section 7 (owner 2026-10-26): reduced motion makes UI tweens land at once, stops looping tweens and the reel spin, but never changes the outcome or the timing of the result reveal.",
+    "limits": "UiSpec.Accessibility (ProbeSeconds 2, RollWait 20 s, ReelStill 1 px), UiSpec.RollAnim.PhaseTolerance 0.1 s, RollAnimConfig POP / SPIN / LAND",
+    "files": "Client/UiMotion, Client/RollToast, UiTest/UiAccessibility, UiTest/UiSpec"
+  },
+  "ui_safe_insets": {
+    "checks": "Every PlayerGui ScreenGui except PanelDim, LoserScreen and RollShowcase (and Roblox's own, UiSpec.IgnoreGuis) has ScreenInsets = DeviceSafeInsets; a ScreenGui added later gets it too (probe UiTestInsetProbe, removed again); every shown button and non-empty label (clipped by scrolling frames) lies inside its ScreenGui's safe-area rect.",
+    "why": "HUD_LAYOUT_SPEC section 7 (owner 2026-10-26): buttons and labels never sit under a notch or rounded corner; only full-screen dims and overlays may bleed.",
+    "limits": "UiSpec.Accessibility.FullBleed, UiSpec.Tolerance",
+    "files": "Client/SafeInsets, UiTest/UiAccessibility"
+  },
+  "ui_safe_insets_notch": {
+    "checks": "MANUAL (Device Simulator, notched phone): the ui_safe_insets checks, plus device_has_unsafe_area (the DeviceSafeInsets rect is smaller than the full screen) and guis_use_safe_area_rect (every inset IgnoreGuiInset gui is exactly the safe-area size).",
+    "why": "A desktop window has no unsafe area, so only a simulated notched device proves the insets move the UI.",
+    "limits": "UiSpec.Accessibility, UiSpec.ManualScenarios",
+    "files": "Client/SafeInsets, UiTest/UiAccessibility"
+  },
+  "ui_panel_focus": {
+    "checks": "For every PanelSwitch panel (UiSpec.PanelSwitch.Names) with mouse / keyboard / touch input: opening and closing it leaves GuiService.SelectedObject nil and binds no ButtonB action. If the preferred input is a gamepad it runs the ui_gamepad_focus checks instead.",
+    "why": "HUD_LAYOUT_SPEC section 7: gamepad focus must not change mouse, touch or keyboard behaviour.",
+    "limits": "UiSpec.Accessibility (FocusFrames 4)",
+    "files": "Client/PanelSwitch, UiTest/UiAccessibility"
+  },
+  "ui_gamepad_focus": {
+    "checks": "MANUAL (Controller Emulator, PreferredInput = Gamepad): for every PanelSwitch panel, with HudChrome/Grid/Index selected first: the panel opens, the selection is its top-left visible selectable button (clipped, Backdrops excluded), a ButtonB action is bound while it is open, and after Close the selection is back on Grid/Index and the ButtonB action is gone; with nothing selected before, closing clears the selection. Clicks gamepad_b_closes_index (ButtonB closes the Index) and gamepad_dpad_up_stays_in_index (selection stays inside the panel) are manual Key clicks.",
+    "why": "HUD_LAYOUT_SPEC section 7 (owner 2026-10-26): console players get the first button selected, focus trapped in the panel, B to close and their previous selection back.",
+    "limits": "UiSpec.Accessibility (RestoreTarget, NotFocusable, FocusFrames), UiSpec.Clicks gamepad_*",
+    "files": "Client/PanelSwitch, UiTest/UiAccessibility, UiTest/UiSpec"
   }
 }

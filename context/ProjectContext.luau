@@ -3,7 +3,23 @@
 PROJECT CONTEXT - Idle Vehicle Simulator (read me first)
 Shown in Studio at: ServerScriptService > ProjectContext   (source file: context/ProjectContext.luau)
 Do NOT edit this in Studio: edit the file on disk, Rojo syncs it. Claude updates it at the end of every loop.
-Last updated: 2026-10-26 (Claude: rendering pass + car finish / geometry pass)
+Last updated: 2026-10-27 (Claude: bigger scenery + detailed City skyscrapers)
+
+SCENERY SCALE + CITY SKYSCRAPERS - 2026-10-27 (Claude, owner: "bigger assets and buildings in mass", City dull)
+- Rules: design doc Track environments "Owner decision, 2026-10-27 (scale and detail)"; BIOME_DRESSING_SPEC Rules
+  Budget 800 -> 1200, Scale, City skyscrapers.
+- BiomeDressing: BUDGET 1200; SCALE = { Landmarks 1.75, Horizon 2, Scatter 1.5 } (placeholders) grows part sizes and
+  offsets in the prop (scaled copy, same Name so baked meshes follow); horizon pieces that fit nowhere shrink in 0.25
+  steps toward x1 (Forest TreeHill). Rhythm and gate unscaled.
+- BiomeThemes: skyscraper helper replaces the tower helper (podium + lobby, 1-2 setback tiers, glass bands, corner and
+  centre fins, neon crown per tier, AC units, antenna + lit tip, tank or spire). City Skyscraper / SkyscraperPink
+  (landmarks), Block (scatter), Skyline (horizon); Billboard moved to scatter; Kenney Tower meshes dropped from
+  props.json (stale City_Tower* entries stay in generated BiomeMeshData / BiomeMeshAssets until the next bake).
+- Results 2026-10-27 live: environment 338/338 (test-writer: budget 1200, scale_*, city_* checks, scaled mesh heights);
+  full harness [CARTEST] END pass=50 fail=0 (also 50/0 at budget 800 before the change). Scenery 5142 -> 5657 parts,
+  City 1191 parts, 15 landmarks, tallest 162 studs.
+- Unverified: device frame rate (Studio throttles to 15 fps unfocused; manual scenery-device-check-2026-10-27).
+- Also: RollToast spin loop ends on elapsed SPIN (bug 442639b1, reduced motion revealed 0.8 s early); not yet run live.
 
 RENDERING PASS + CAR FINISH - 2026-10-26 (Claude, owner request; uncommitted)
 - Rules first: design doc "Owner rendering pass" + car finish note, new docs/RENDERING_SPEC.md, CAR_REDESIGN_SPEC 8.

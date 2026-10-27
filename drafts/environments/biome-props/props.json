@@ -39,8 +39,6 @@
     "Streetlight": ["kaylousberg-city-builder-bits", "streetlight", 16],
     "Hydrant": ["kaylousberg-city-builder-bits", "firehydrant", 3],
     "Sign": ["kaylousberg-city-builder-bits", "trafficlight_A", 10],
-    "Tower": ["kenney-city-kit-commercial", "building-skyscraper-a", 60],
-    "TowerPink": ["kenney-city-kit-commercial", "building-skyscraper-c", 80],
     "Billboard": ["kenney-racing-kit", "billboard", 24]
   },
   "Desert": {

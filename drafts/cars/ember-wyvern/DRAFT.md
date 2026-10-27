@@ -1,8 +1,10 @@
 # Ember Wyvern
 
 - **Type:** car
-- **Status:** draft (concept + Part-built stand-in, no Blender file yet)
-- **Blender file:** none yet
+- **Status:** draft 2 (2026-10-27): organic Blender mesh + effects draft, owner review pending. The Part stand-in
+  still ships.
+- **Blender file:** `drafts/cars/ember_wyvern/redesign/ember_wyvern.blend` (built by `build_wyvern.py` here; details
+  in that folder's `DRAFT.md`). Effects draft: `vfx_profile.luau` here.
 - **Scale:** 1 Blender unit = 1 stud
 - **Matches spec:** `src/shared/Cars/ember_wyvern.luau`, `docs/GAMEPASS_CARS_SPEC.md`
 

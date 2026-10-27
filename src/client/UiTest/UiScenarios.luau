@@ -97,6 +97,10 @@ UiScenarios.Names = {
 	"ui_hitboxes",
 	"ui_buttons",
 	"ui_motion",
+	-- docs/HUD_LAYOUT_SPEC.md section 7 (owner 2026-10-26): UiAccessibility. ui_reduced_motion waits for one auto roll.
+	"ui_reduced_motion",
+	"ui_safe_insets",
+	"ui_panel_focus",
 	"ui_hud",
 	"ui_index",
 	"ui_stats",
@@ -1207,6 +1211,7 @@ local events = {
 	recs = {}, -- one roll-animation record per RollResult (UiScenarios.SampleRoll)
 	announces = {}, -- Remotes.RollAnnounce events
 	oddsFixtureAt = nil, -- os.clock() of the last UiSpec.RollOdds.Attr change (a displayed-odds fixture was planted)
+	oddsRestore = nil, -- puts back the panels the displayed-odds fixture closed (setPanels' restore function)
 	chat = {}, -- TextChatService.MessageReceived
 }
 
@@ -1298,6 +1303,16 @@ function UiScenarios.Init()
 	end)
 	player:GetAttributeChangedSignal(UiSpec.RollOdds.Attr):Connect(function()
 		events.oddsFixtureAt = os.clock()
+		-- A displayed-odds fixture was planted (restore clears the attribute): close every PanelSwitch panel now,
+		-- before the planted roll arrives (the fixture first waits out the longest roll animation). An open panel,
+		-- e.g. the offline RacerWelcome on join, rightly hides the compact roll (CLAUDE.md UI rules), which would
+		-- make roll_odds_compact_odds judge a hidden card. rollOddsChecks puts the panels back afterwards.
+		if player:GetAttribute(UiSpec.RollOdds.Attr) ~= nil and not events.oddsRestore then
+			events.oddsRestore = true -- claimed before setPanels yields
+			task.spawn(function()
+				events.oddsRestore = setPanels({})
+			end)
+		end
 	end)
 	pcall(function()
 		TextChatService.MessageReceived:Connect(function(msg)
@@ -1327,7 +1342,14 @@ function UiScenarios.Init()
 						luck = luck, -- as sent (6th argument, docs/ROLL_ANIMATION_CONTRACT.md); nil when not sent
 						rolls = player:GetAttribute("Rolls"), -- set by the server before it fires RollResult
 						t = os.clock(),
+						panelsOpen = {}, -- declared panels open when the roll arrived (roll_odds_*_no_panel_open)
 					}
+					for _, p in allPanels() do
+						local o = findPath(p)
+						if o and o:IsA("GuiObject") and o.Visible then
+							table.insert(ev.panelsOpen, p)
+						end
+					end
 					table.insert(events.rolls, ev)
 					ev.n = #events.rolls
 					if ev.turboMulti > 1 then
@@ -3624,6 +3646,28 @@ function S.ui_hud(res)
 	)
 end
 
+-- The open Index is the car gallery (docs/HUD_LAYOUT_SPEC.md sections 1 and 3, UiSpec.IndexTabs): its GridHost is
+-- shown and no consumables view or tab is (consumables live in the Backpack's Misc tab).
+local function indexViewChecks(res, prefix)
+	local cfg = UiSpec.IndexTabs
+	local grid = findPath(cfg.GridHost)
+	check(
+		res,
+		prefix .. "index_gallery_shown",
+		grid and effectivelyVisible(grid),
+		true,
+		grid ~= nil and effectivelyVisible(grid)
+	)
+	local shown = {}
+	for _, p in { cfg.ConsumablesTab, cfg.ConsumablesHost } do
+		local o = findPath(p)
+		if o and o:IsA("GuiObject") and effectivelyVisible(o) then
+			table.insert(shown, p)
+		end
+	end
+	checkList(res, prefix .. "index_no_consumables_view", shown)
+end
+
 function S.ui_index(res)
 	waitGuis()
 	local gui = playerGui:FindFirstChild("RacerIndex")
@@ -3777,6 +3821,7 @@ function S.ui_index(res)
 		want2,
 		progress ~= nil and string.find(progress.Text, want2, 1, true) ~= nil
 	)
+	indexViewChecks(res, "index_open_")
 	restore()
 end
 
@@ -5559,7 +5604,7 @@ local function rollOddsFixture()
 	return (ok and type(fx) == "table" and UiSpec.RollOdds.Fixtures[fx.fixture]) and fx or nil
 end
 
-local function rollOddsChecks(res)
+local function rollOddsJudge(res)
 	local cfg = UiSpec.RollOdds
 	local fx = rollOddsFixture()
 	if not fx then
@@ -5632,6 +5677,11 @@ local function rollOddsChecks(res)
 		)
 		local hold = rec and rec.hold[view.Key]
 		check(res, "roll_odds_" .. name .. "_reached_hold", hold ~= nil, true, hold ~= nil)
+		-- The fixture's precondition: no panel hid the roll (todo roll-odds-fixture-panels)
+		if rec then
+			local open = rec.ev.panelsOpen or {}
+			checkList(res, "roll_odds_" .. name .. "_no_panel_open", open)
+		end
 		if hold and view.Key == "Compact" then
 			check(
 				res,
@@ -5650,6 +5700,23 @@ local function rollOddsChecks(res)
 			)
 			check(res, "roll_odds_enlarged_odds_alias", hold.odds.text, wantText, hold.odds.text == wantText)
 		end
+	end
+end
+
+-- Judges the planted rolls, then puts back the panels the fixture closed (Init closes them when it is planted).
+local function rollOddsChecks(res)
+	if not events.oddsRestore and rollOddsFixture() then
+		events.oddsRestore = setPanels({}) -- the harness started after the fixture: close them now
+	end
+	rollOddsJudge(res)
+	local restore, deadline = events.oddsRestore, os.clock() + 5
+	while restore == true and os.clock() < deadline do -- Init's close is still settling
+		task.wait(0.05)
+		restore = events.oddsRestore
+	end
+	events.oddsRestore = nil
+	if type(restore) == "function" then
+		restore()
 	end
 end
 
@@ -5801,6 +5868,35 @@ local contracts = require(script.Parent.UiContracts).Build({
 	switch = require(script.Parent.Parent.PanelSwitch),
 })
 for name, fn in contracts.Scenarios do
+	S[name] = fn
+end
+
+-- Motion, safe area and gamepad focus (docs/HUD_LAYOUT_SPEC.md section 7; UiSpec.Accessibility)
+local access = require(script.Parent.UiAccessibility).Build({
+	check = check,
+	checkList = checkList,
+	stateMissing = stateMissing,
+	find = findPath,
+	frames = frames,
+	visible = effectivelyVisible,
+	rect = realRect,
+	clipped = clipped,
+	contains = contains,
+	R = R,
+	rstr = rstr,
+	pathOf = pathOf,
+	waitGuis = waitGuis,
+	panelSwitch = panelSwitch,
+	setPanels = setPanels,
+	player = player,
+	playerGui = playerGui,
+	events = events,
+	rollCards = rollCards,
+	partOf = partOf,
+	phaseSeq = phaseSeq,
+	animNum = animNum,
+})
+for name, fn in access.Scenarios do
 	S[name] = fn
 end
 
@@ -6122,6 +6218,14 @@ local function runKey(spec, res)
 		)
 	else
 		check(res, "fires_nothing", got, "nothing", #fired == 0)
+	end
+	-- Post-conditions of a key press (UiSpec.Clicks Key entries; gamepad ones come from UiAccessibility)
+	for _, cond in expect.After or {} do
+		if access.After[cond] then
+			access.After[cond](res, { spec = spec })
+		else
+			check(res, "unknown_condition_" .. tostring(cond), cond, "known", false)
+		end
 	end
 	restore()
 	return res
@@ -7172,6 +7276,10 @@ function UiScenarios.RunClick(id)
 		elseif cond == "normal_view_back" then
 			checkList(res, "normal_view_buttons_clickable", alwaysOnCovered())
 			checkList(res, "showcase_not_clickable_after_close", showcaseHits())
+		elseif cond == "index_gallery_shown" then
+			indexViewChecks(res, "")
+		elseif access.After[cond] then
+			access.After[cond](res, { pre = pre, spec = spec })
 		elseif extras.After[cond] then
 			extras.After[cond](res, { pre = pre })
 		elseif contracts.After[cond] then

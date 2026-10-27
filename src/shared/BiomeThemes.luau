@@ -53,11 +53,56 @@ local function pole(name, height, color, lamp)
 	}
 end
 
-local function tower(name, w, h, d, color, material, stripe)
-	return block(name, v(w, h, d), color, material, {
-		part(v(w + 0.2, 2, d + 0.2), v(0, h * 0.7, 0), stripe, M.Neon),
-		part(v(w + 0.2, 2, d + 0.2), v(0, h * 0.4, 0), stripe, M.Neon),
-	})
+-- Detailed City tower (owner 2026-10-27): podium + lobby, setback tiers with glass window bands, corner and centre
+-- fins, a neon crown ring per tier and rooftop gear. o = { Body, Trim, Glass, Neon, Tiers?, Floor?, MaxBands?, Roof? }
+local function skyscraper(name, w, h, d, o)
+	local parts = {}
+	local function add(size, pos, color, material, shape)
+		table.insert(parts, part(size, pos, color, material, shape))
+	end
+	local podium = math.max(4, h * 0.08)
+	add(v(w + 4, podium, d + 4), v(0, podium / 2, 0), o.Trim, M.Concrete)
+	add(v(w * 0.6, podium * 0.7, 0.4), v(0, podium * 0.35, -(d + 4) / 2 - 0.2), o.Glass, M.Glass) -- lobby
+	local tiers = o.Tiers or 2
+	local y, tw, td = podium, w, d
+	for t = 1, tiers do
+		local th = (h - podium) * (tiers == 1 and 1 or t == 1 and 0.62 or 0.38)
+		add(v(tw, th, td), v(0, y + th / 2, 0), o.Body, M.Concrete)
+		local bands = math.max(1, math.min(o.MaxBands or 10, math.floor(th / (o.Floor or 6))))
+		local step = th / bands
+		for b = 1, bands do
+			add(v(tw + 0.3, step * 0.55, td + 0.3), v(0, y + step * (b - 0.5), 0), o.Glass, M.Glass)
+		end
+		for _, sx in { -1, 1 } do
+			for _, sz in { -1, 1 } do
+				add(v(1.2, th, 1.2), v(sx * tw / 2, y + th / 2, sz * td / 2), o.Trim, M.Concrete)
+			end
+		end
+		add(v(0.8, th, td + 0.6), v(0, y + th / 2, 0), o.Trim, M.Concrete) -- centre fins, front and back
+		add(v(tw + 0.6, th, 0.8), v(0, y + th / 2, 0), o.Trim, M.Concrete) -- centre fins, sides
+		y += th
+		add(v(tw + 0.6, 1, td + 0.6), v(0, y, 0), o.Neon, M.Neon) -- crown ring
+		if t < tiers then
+			tw, td = tw * 0.7, td * 0.7
+		end
+	end
+	add(v(tw * 0.25, 2.5, td * 0.25), v(-tw * 0.2, y + 1.75, td * 0.15), o.Trim, M.Metal) -- AC units
+	add(v(tw * 0.2, 2, td * 0.3), v(tw * 0.15, y + 1.5, td * 0.2), o.Trim, M.Metal)
+	local top = y + 0.5
+	if o.Roof == "tank" then
+		add(v(tw * 0.22, tw * 0.25, tw * 0.22), v(tw * 0.2, top + tw * 0.125 + 2, -td * 0.2), o.Body, M.WoodPlanks)
+		add(v(tw * 0.24, 2, tw * 0.24), v(tw * 0.2, top + 1, -td * 0.2), o.Trim, M.Metal)
+		top += tw * 0.25 + 2
+	elseif o.Roof == "spire" then
+		for i, k in { 0.35, 0.2, 0.08 } do
+			add(v(tw * k, 4, td * k), v(0, top + 4 * i - 2, 0), o.Trim, M.Metal)
+		end
+		top += 12
+	end
+	local mast = h * 0.12
+	add(v(0.6, mast, 0.6), v(tw * 0.3, y + mast / 2, td * 0.3), rgb(160, 160, 170), M.Metal) -- antenna
+	add(v(1.4, 1.4, 1.4), v(tw * 0.3, y + mast, td * 0.3), o.Neon, M.Neon, Enum.PartType.Ball)
+	return { Name = name, Size = v(w + 4, math.max(top, y + mast + 0.7), d + 4), Parts = parts, Glow = o.Neon }
 end
 
 local function peak(name, size, rock, cap, capMaterial)
@@ -447,16 +492,34 @@ return {
 			Offset = 40,
 			Every = 10,
 			Props = {
-				tower("Tower", 24, 60, 30, rgb(35, 42, 70), M.Concrete, rgb(80, 220, 255)),
-				tower("TowerPink", 22, 80, 22, rgb(45, 35, 70), M.Glass, rgb(255, 80, 190)),
-				block("Billboard", v(30, 24, 2), rgb(30, 30, 40), M.Metal, {
-					part(v(30.2, 12, 2.2), v(0, 18, 0), rgb(255, 210, 60), M.Neon),
+				skyscraper("Skyscraper", 24, 60, 30, {
+					Body = rgb(70, 78, 104),
+					Trim = rgb(150, 156, 172),
+					Glass = rgb(60, 140, 200),
+					Neon = rgb(80, 220, 255),
+					Roof = "tank",
+				}),
+				skyscraper("SkyscraperPink", 22, 80, 22, {
+					Body = rgb(64, 50, 92),
+					Trim = rgb(170, 160, 190),
+					Glass = rgb(120, 90, 180),
+					Neon = rgb(255, 80, 190),
+					Roof = "spire",
 				}),
 			},
 		},
 		Horizon = {
 			Offset = 300,
-			Props = { tower("Skyline", 60, 140, 40, rgb(25, 30, 55), M.Concrete, rgb(80, 220, 255)) },
+			Props = {
+				skyscraper("Skyline", 60, 140, 40, {
+					Body = rgb(40, 46, 76),
+					Trim = rgb(90, 96, 120),
+					Glass = rgb(50, 110, 170),
+					Neon = rgb(80, 220, 255),
+					MaxBands = 8,
+					Roof = "spire",
+				}),
+			},
 		},
 		Gate = gate(rgb(30, 30, 40), M.Metal, rgb(255, 80, 190)),
 		Scatter = {
@@ -465,6 +528,9 @@ return {
 			Far = 160,
 			Props = {
 				"Sign",
+				block("Billboard", v(30, 24, 2), rgb(30, 30, 40), M.Metal, {
+					part(v(30.2, 12, 2.2), v(0, 18, 0), rgb(255, 210, 60), M.Neon),
+				}),
 				block("Bench", v(6, 2.5, 2), rgb(90, 60, 40), M.WoodPlanks),
 				block("Kiosk", v(6, 8, 6), rgb(40, 44, 60), M.Metal, {
 					part(v(6.4, 1, 6.4), v(0, 8, 0), rgb(80, 220, 255), M.Neon),
@@ -473,7 +539,14 @@ return {
 					part(v(5, 2, 5), v(0, 3.5, 0), rgb(60, 130, 70), M.Grass),
 				}),
 				"Hydrant",
-				tower("Block", 18, 36, 18, rgb(50, 56, 84), M.Concrete, rgb(255, 80, 190)),
+				skyscraper("Block", 18, 36, 18, {
+					Body = rgb(84, 90, 116),
+					Trim = rgb(140, 146, 160),
+					Glass = rgb(70, 150, 210),
+					Neon = rgb(255, 80, 190),
+					Tiers = 1,
+					MaxBands = 5,
+				}),
 			},
 			Patches = {
 				patch("Crosswalk", 22, 6, rgb(235, 235, 240), M.Concrete),

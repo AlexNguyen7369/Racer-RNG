@@ -1105,7 +1105,8 @@ local function play(roll)
 				tile.Rotation = reduceEffects() and 0 or math.sin(alpha * math.pi) * -5 * focus
 			end
 		end
-		if alpha >= 1 then
+		-- Elapsed time, not alpha: reduced motion lands at once but keeps the reveal timing (HUD_LAYOUT_SPEC 7)
+		if os.clock() - started >= A.SPIN then
 			break
 		end
 		-- Heartbeat also advances in Studio's client test viewport, where a

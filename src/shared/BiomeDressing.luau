@@ -11,7 +11,9 @@ local RaceConfig = require(script.Parent.RaceConfig)
 
 local BiomeDressing = {}
 BiomeDressing.CLEARANCE = 8 -- studs every prop keeps from any road, wall, checkpoint, pad or spawn-area part
-BiomeDressing.BUDGET = 800 -- BaseParts per track Environment (owner 2026-10-26)
+BiomeDressing.BUDGET = 1200 -- BaseParts per track Environment (owner 2026-10-27)
+-- Size factor per layer (owner 2026-10-27, placeholders); Rhythm and the gate keep their theme sizes
+BiomeDressing.SCALE = { Landmarks = 1.75, Horizon = 2, Scatter = 1.5 }
 BiomeDressing.GATE_HEIGHT = 28 -- studs from the road to the gate beam
 BiomeDressing.PARTICLE_MAX_RATE = 8 -- particles per second per landmark emitter
 
@@ -40,6 +42,29 @@ end
 local function footprint(biome, def)
 	local mesh = BiomeDressing.MeshFor(biome, def.Name)
 	return mesh and mesh.Size * (def.Size.Y / mesh.Size.Y) or def.Size
+end
+
+local scaledCache = setmetatable({}, { __mode = "k" })
+-- A prop grown by k: part sizes and offsets alike, same Name (so the same baked mesh, scaled to the new height).
+local function scaled(def, k)
+	if not k or k == 1 then
+		return def
+	end
+	local byK = scaledCache[def] or {}
+	scaledCache[def] = byK
+	if not byK[k] then
+		local copy = table.clone(def)
+		copy.Size = def.Size * k
+		copy.Parts = {}
+		for i, p in def.Parts do
+			local q = table.clone(p)
+			q.Size = p.Size * k
+			q.Pos = p.Pos * k
+			copy.Parts[i] = q
+		end
+		byK[k] = copy
+	end
+	return byK[k]
 end
 
 local function visual(part)
@@ -305,7 +330,7 @@ local function scatter(folder, layout, origin, theme, biome, ground, edge, count
 			for _, side in { -1, 1 } do
 				local tag = i .. (side < 0 and "L" or "R")
 				local def = s.Props[math.floor(hash(i, side, 1) * 1000) % #s.Props + 1]
-				def = named[def] or def
+				def = scaled(named[def] or def, BiomeDressing.SCALE.Scatter)
 				local size = footprint(biome, def)
 				local reach = Vector2.new(size.X, size.Z).Magnitude / 2
 				local distance = edge + s.Near + (s.Far - s.Near) * hash(i, side, 2) + reach
@@ -375,14 +400,26 @@ function BiomeDressing.Build(model, layout, spec, origin)
 		return math.abs(l.X) + reach <= ground.Size.X / 2 and math.abs(l.Z) + reach <= ground.Size.Z / 2
 	end
 	local function add(layer, n, i, side, glow, name, fits)
-		local def = layer.Props[n % #layer.Props + 1]
-		local size = footprint(biome, def)
-		for _, f in fits or { 1 } do
-			local offset = fits and math.max(layer.Offset * f, theme.Landmarks.Offset) or layer.Offset
-			local base = beside(layout, origin, i, side, edge + offset + size.Z / 2)
-			if onGround(base, math.max(size.X, size.Z) / 2) then
-				count += place(folder, biome, def, base, name, glow, glow and theme.Particles)
-				return
+		local k = layer == theme.Landmarks and BiomeDressing.SCALE.Landmarks
+			or layer == theme.Horizon and BiomeDressing.SCALE.Horizon
+		local raw = layer.Props[n % #layer.Props + 1]
+		-- A horizon piece that fits nowhere at its scale shrinks toward x1 (spec Rules, Scale)
+		local steps = { k }
+		if fits and k then
+			for s = k - 0.25, 1, -0.25 do
+				table.insert(steps, s)
+			end
+		end
+		for _, s in steps do
+			local def = scaled(raw, s)
+			local size = footprint(biome, def)
+			for _, f in fits or { 1 } do
+				local offset = fits and math.max(layer.Offset * f, theme.Landmarks.Offset) or layer.Offset
+				local base = beside(layout, origin, i, side, edge + offset + size.Z / 2)
+				if onGround(base, math.max(size.X, size.Z) / 2) then
+					count += place(folder, biome, def, base, name, glow, glow and theme.Particles)
+					return
+				end
 			end
 		end
 	end

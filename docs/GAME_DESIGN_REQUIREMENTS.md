@@ -302,6 +302,11 @@ Idle Vehicle Simulator — Game Design Requirements
        no stretch of the drive shows an empty plain), every track shows horizon silhouettes, and
        each biome has its own ambient particles (fireflies, dust, snowfall, embers ...) at its
        landmarks. Still cosmetic only, with the same no-Lighting rule.
+       Owner decision, 2026-10-27 (scale and detail): scenery is bigger and comes in mass.
+       Landmarks, horizon pieces and scattered props are built larger than their base sizes,
+       and each track may hold more scenery parts. The City (Track 6) buildings are detailed
+       skyscrapers (podium, setback tiers, window bands, corner fins, lit crown and rooftop
+       equipment), not plain boxes. Scale factors and the part budget are placeholders.
 
 
 

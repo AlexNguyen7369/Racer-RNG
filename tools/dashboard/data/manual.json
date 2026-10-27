@@ -517,6 +517,34 @@
         "Say approve (Claude uploads with tools/upload_car_meshes.py, refreshes meshes.json and RedesignCarModels) or ask for a stronger pass.",
         "To discard: git checkout drafts/cars."
       ]
+    },
+    {
+      "id": "scenery-device-check-2026-10-27",
+      "title": "Check frame rate and particles of the bigger scenery on a phone and with 7 players",
+      "why": "Owner 2026-10-27: bigger scenery in mass (BIOME_DRESSING_SPEC Scale, budget 1200, scenery ~5.7K parts, 77 emitters). Studio throttles an unfocused window to 15 fps, so frame cost cannot be measured from MCP.",
+      "blocks": "Tuning BiomeDressing.SCALE / BUDGET (placeholders) for low-end devices.",
+      "when": "2026-10-27",
+      "status": "open",
+      "steps": [
+        "Publish or use Team Test; join on a phone (or Device Simulator with a low-end phone).",
+        "Auto race through Track 6 (City) and Track 8 (Snow); open the Developer Console (F9) > Stats and note FPS and render time.",
+        "With 7 players in one server, watch the same tracks for frame drops from particles.",
+        "Tell Claude the numbers; it lowers SCALE or BUDGET if FPS falls below about 30."
+      ]
+    },
+    {
+      "id": "ui-rules-manual-2026-10-27",
+      "title": "Run the hand-only UI checks: gamepad focus and notched-phone safe insets",
+      "why": "HUD_LAYOUT_SPEC section 7 (owner 2026-10-26). ui-test-writer added ui_gamepad_focus, ui_safe_insets_notch and the gamepad_* clicks; they need a Controller Emulator or a notched Device Simulator, which scripts cannot drive.",
+      "blocks": "Closing todo ui-gamepad-focus and ui-safe-insets.",
+      "when": "2026-10-27",
+      "status": "open",
+      "steps": [
+        "Studio > Test > Device: pick a notched phone (e.g. iPhone 14). Start Play.",
+        "On the server set ReplicatedStorage attribute UiTestRun false then true; read the [UITEST] lines for ui_safe_insets_notch.",
+        "Test > Controller Emulator: connect a gamepad, rerun UiTestRun, then press B with the Index open and D-pad up inside it (clicks gamepad_b_closes_index, gamepad_dpad_up_stays_in_index).",
+        "Paste the [UITEST] END line to Claude."
+      ]
     }
   ]
 }

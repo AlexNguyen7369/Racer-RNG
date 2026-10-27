@@ -41,6 +41,14 @@ local MIN_SCATTER = 10
 local MIN_PATCHES = 5
 local PATCH_THICKNESS = 0.2
 local PATCH_GROUND_TOL = 0.05
+-- Scale and detail (owner 2026-10-27, design doc Track environments; spec Rules "Budget", "Scale", "City skyscrapers")
+local BUDGET = 1200 -- spec placeholder: BaseParts per track Environment
+local WANT_SCALE = { Landmarks = 1.75, Horizon = 2, Scatter = 1.5 } -- spec placeholders; Rhythm and gate unscaled
+local LAYER_OF_PREFIX = { Landmark_ = "Landmarks", Horizon_ = "Horizon", Scatter_ = "Scatter" }
+local CITY = 6
+local CITY_TOWER_PROPS = { Skyscraper = true, SkyscraperPink = true, Block = true, Skyline = true }
+local CITY_TOWER_MIN_PARTS = 25
+local CITY_TOWER_MIN_HEIGHT = 100 -- studs, model bounding box of the tallest City landmark
 
 local function module(parent, name)
 	local source = parent:FindFirstChild(name)
@@ -328,7 +336,19 @@ function Tests.environment()
 	local clearance = Dressing and Dressing.CLEARANCE
 	local budget = Dressing and Dressing.BUDGET
 	flag("clearance_value", clearance == 8, type(clearance) == "number" and clearance or -1, 8)
-	flag("budget_value", budget == 800, type(budget) == "number" and budget or -1, 800)
+	flag("budget_value", budget == BUDGET, type(budget) == "number" and budget or -1, BUDGET)
+	-- Scale rule (owner 2026-10-27): SCALE = { Landmarks = 1.75, Horizon = 2, Scatter = 1.5 }
+	local scale = Dressing and type(Dressing.SCALE) == "table" and Dressing.SCALE or nil
+	flag("scale_table", scale ~= nil)
+	for layer, want in WANT_SCALE do
+		local got = scale and scale[layer]
+		flag(
+			("scale_%s"):format(string.lower(layer)),
+			type(got) == "number" and math.abs(got - want) <= SIZE_TOL,
+			type(got) == "number" and got or -1,
+			want
+		)
+	end
 	flag("prune_api", Dressing ~= nil and type(Dressing.Prune) == "function")
 
 	local specs = TrackRegistry.Chain()
@@ -403,8 +423,23 @@ function Tests.environment()
 	r.metrics.mesh_problems = meshProblems
 
 	-- Built props (fresh build, before Prune): a prop with baked data is a tagged BiomeMesh model with an
-	-- invisible MeshBounds at the prop height and the mesh's proportions; a prop without data has neither
+	-- invisible MeshBounds at the prop's SCALED height (def.Size.Y * SCALE[layer], layer from the name prefix of the
+	-- prop's top-level Environment child; Rhythm_ and the gate x1; missing SCALE = red) and the mesh's proportions;
+	-- a prop without data has neither
 	local meshCounts = {}
+	local function layerScale(env, m)
+		local top = m
+		while top.Parent and top.Parent ~= env do
+			top = top.Parent
+		end
+		for prefix, layer in LAYER_OF_PREFIX do
+			if string.sub(top.Name, 1, #prefix) == prefix then
+				local v = scale and scale[layer]
+				return type(v) == "number" and v or nil, layer
+			end
+		end
+		return 1, nil
+	end
 	for _, t in chainB do
 		local n, biome = t.Spec.Number, BIOMES[t.Spec.Number]
 		local env = t.Model:FindFirstChild("Environment")
@@ -427,7 +462,18 @@ function Tests.environment()
 						and not bounds.CanTouch
 						and not bounds.CanQuery
 					if ok then
-						ok = math.abs(bounds.Size.Y - def.Size.Y) <= SIZE_TOL
+						-- Spec Rules "Scale" (owner 2026-10-27): a horizon piece that fits at no HORIZON_FIT offset
+						-- shrinks by 0.25 steps from SCALE.Horizon toward x1; every other layer is exact
+						local k, layer = layerScale(env, m)
+						local fits = false
+						if k ~= nil then
+							local s = k
+							repeat
+								fits = fits or math.abs(bounds.Size.Y - def.Size.Y * s) <= SIZE_TOL
+								s -= 0.25
+							until layer ~= "Horizon" or s < 1 - SIZE_TOL
+						end
+						ok = fits
 						local ratio = bounds.Size / data.Size
 						local lo = math.min(ratio.X, ratio.Y, ratio.Z)
 						local hi = math.max(ratio.X, ratio.Y, ratio.Z)
@@ -446,6 +492,83 @@ function Tests.environment()
 		flag(("mesh_props_%d"):format(n), env ~= nil and meshBad == 0, meshBad, 0)
 		flag(("meshless_props_plain_%d"):format(n), env ~= nil and plainBad == 0, plainBad, 0)
 		meshCounts[tostring(n)] = { meshed = meshed, first_bad = firstBad }
+
+		-- City skyscrapers (owner 2026-10-27, spec Rules "City skyscrapers"): landmark, scatter-block and skyline
+		-- towers have no baked mesh; every City landmark is a detailed tower (>= 25 parts, Glass window bands, a
+		-- Neon crown) and the tallest is at least 100 studs high (fresh build, before Prune)
+		if n == CITY then
+			local meshedTowers, towersFirst = 0, nil
+			local landmarks, thin, noGlass, noNeon, tallest, landmarkFirst = 0, 0, 0, 0, 0, nil
+			for _, c in (env and env:GetChildren() or {}) do
+				local isLayer = false
+				for prefix in LAYER_OF_PREFIX do
+					isLayer = isLayer or string.sub(c.Name, 1, #prefix) == prefix
+				end
+				if c:IsA("Model") and isLayer then
+					local propName = propNameOf(c, biome)
+					local isLandmark = string.sub(c.Name, 1, 9) == "Landmark_"
+					local isSkyline = string.sub(c.Name, 1, 8) == "Horizon_"
+					if isLandmark or isSkyline or CITY_TOWER_PROPS[propName] then
+						for _, d in c:GetDescendants() do
+							local meshAttr = d:GetAttribute("Mesh")
+							local towerMesh = type(meshAttr) == "string"
+								and CITY_TOWER_PROPS[string.sub(meshAttr, #biome + 2)]
+							if d.Name == "MeshBounds" or CollectionService:HasTag(d, "BiomeMesh") or towerMesh then
+								meshedTowers += 1
+								towersFirst = towersFirst or c.Name
+								break
+							end
+						end
+						local meshAttr = c:GetAttribute("Mesh")
+						if
+							c:FindFirstChild("MeshBounds") ~= nil
+							or CollectionService:HasTag(c, "BiomeMesh")
+							or (type(meshAttr) == "string" and CITY_TOWER_PROPS[string.sub(meshAttr, #biome + 2)])
+						then
+							meshedTowers += 1
+							towersFirst = towersFirst or c.Name
+						end
+					end
+					if isLandmark then
+						landmarks += 1
+						local parts = baseParts(c)
+						local glass, neon = false, false
+						for _, part in parts do
+							glass = glass or part.Material == Enum.Material.Glass
+							neon = neon or part.Material == Enum.Material.Neon
+						end
+						if #parts < CITY_TOWER_MIN_PARTS then
+							thin += 1
+							landmarkFirst = landmarkFirst or ("%s parts=%d"):format(c.Name, #parts)
+						end
+						if not glass then
+							noGlass += 1
+							landmarkFirst = landmarkFirst or (c.Name .. " no_glass")
+						end
+						if not neon then
+							noNeon += 1
+							landmarkFirst = landmarkFirst or (c.Name .. " no_neon")
+						end
+						if #parts > 0 then
+							local _, size = c:GetBoundingBox()
+							tallest = math.max(tallest, size.Y)
+						end
+					end
+				end
+			end
+			flag("city_towers_no_mesh", env ~= nil and meshedTowers == 0, meshedTowers, 0)
+			flag("city_landmarks_present", landmarks >= 1, landmarks, 1)
+			flag("city_landmarks_detailed", landmarks >= 1 and thin == 0, thin, 0)
+			flag("city_landmarks_glass_bands", landmarks >= 1 and noGlass == 0, noGlass, 0)
+			flag("city_landmarks_neon_crown", landmarks >= 1 and noNeon == 0, noNeon, 0)
+			flag(
+				"city_landmark_height",
+				tallest >= CITY_TOWER_MIN_HEIGHT,
+				math.round(tallest * 100) / 100,
+				CITY_TOWER_MIN_HEIGHT
+			)
+			r.metrics.city = { landmarks = landmarks, tallest = tallest, first_bad = towersFirst or landmarkFirst }
+		end
 
 		-- Ground top: TrackBuilder's GROUND_TOP lowered 0.02 per track number
 		local ground = t.Model:FindFirstChild("Ground")
@@ -525,9 +648,9 @@ function Tests.environment()
 		flag(("environment_nonempty_%d"):format(n), #parts > 0, #parts, 1)
 		flag(
 			("environment_budget_%d"):format(n),
-			#parts <= (type(budget) == "number" and budget or 800),
+			#parts <= BUDGET and #parts <= (type(budget) == "number" and budget or BUDGET),
 			#parts,
-			budget or 800
+			BUDGET
 		)
 
 		-- Gate (spec Layers 4): a Gate* part on the FIRST STRAIGHT, after Prune: its horizontal distance from Start along

@@ -637,7 +637,7 @@
     {
       "id": "roll-odds-fixture-panels",
       "title": "roll_odds_* UI fixtures must close open panels first",
-      "detail": "The offline RacerWelcome/Panel opens on join and hides the compact roll (correct behaviour), so roll_odds_compact_odds fails although the text is right. ui-test-writer: have the fixture or ui_roll_odds close every PanelSwitch panel before the planted roll.",
+      "detail": "The offline RacerWelcome/Panel opens on join and hides the compact roll (correct behaviour), so roll_odds_compact_odds fails although the text is right. ui-test-writer: have the fixture or ui_roll_odds close every PanelSwitch panel before the planted roll. 2026-10-27: ui-test-writer closes every PanelSwitch panel before the planted roll; not run live yet.",
       "status": "next",
       "source": "weather inspection 2026-10-13",
       "by": "Claude",
@@ -1061,13 +1061,25 @@
     {
       "id": "biome-visual-pass",
       "title": "Biome visual pass: scatter + ground patches, horizon fit, landmark particles, oriented-box Prune",
-      "status": "doing",
+      "status": "done",
       "source": "Owner",
       "by": "Claude",
       "added": "2026-10-26T14:30:00-07:00",
-      "updated": "2026-10-26T15:30:00-07:00",
+      "updated": "2026-10-27T09:00:00-07:00",
       "updatedBy": "Claude",
-      "detail": "docs/BIOME_DRESSING_SPEC.md Layers 7-8 + rules (2026-10-26), budget 800 (owner). Shared/BiomeDressing + BiomeThemes. Full harness 50/0 (400 build); environment 328/328 at 800. Scenery 1515 -> 5142 parts, 78 landmark emitters. Left: owner visual review while racing; full harness at 800; phone frame cost; particle cost with 7 players."
+      "detail": "docs/BIOME_DRESSING_SPEC.md Layers 7-8 + rules (2026-10-26), budget 800 (owner). Shared/BiomeDressing + BiomeThemes. Full harness 50/0 (400 build); environment 328/328 at 800. Scenery 1515 -> 5142 parts, 78 landmark emitters. Left: owner visual review while racing; full harness at 800; phone frame cost; particle cost with 7 players. 2026-10-27: full harness 50/0 at budget 800. Device frame / particle cost moved to Needs you (scenery-device-check-2026-10-27).",
+      "done": "2026-10-27"
+    },
+    {
+      "id": "scenery-scale-city",
+      "title": "Bigger scenery in mass + detailed City skyscrapers",
+      "status": "doing",
+      "source": "Owner",
+      "by": "Claude",
+      "added": "2026-10-27T09:00:00-07:00",
+      "updated": "2026-10-27T09:00:00-07:00",
+      "updatedBy": "Claude",
+      "detail": "Owner 2026-10-27: design doc Track environments (scale and detail), BIOME_DRESSING_SPEC Rules Budget 1200 / Scale (Landmarks x1.75, Horizon x2 with 0.25 shrink steps, Scatter x1.5) / City skyscrapers. BiomeThemes skyscraper helper (podium, setbacks, window bands, fins, neon crown, rooftop tank/spire/antenna), Billboard moved to City scatter. environment 338/338, full harness 50/0. Left: owner look while racing, device frame check (Needs you)."
     }
   ]
 }

@@ -59,8 +59,20 @@ Prop lists, sizes, colours and spacing are placeholders that can be tuned.
   toward the road (3/4, 1/2, then 1/3 of `Offset`, never nearer than the landmark `Offset`) before it is skipped.
 - **Short tracks (2026-10-26):** landmark spacing starts at `min(Landmarks.Every, #waypoints // 2)` and horizon
   spacing at `min(HORIZON_EVERY, #waypoints // 2)`, so a short straight track (Track 3) still gets both.
-- **Budget (placeholder):** at most 800 BaseParts per track `Environment` folder (owner 2026-10-26: was 400; the
-  scatter layer needs the room so the open ground beyond the road is not bare).
+- **Budget (placeholder):** at most 1200 BaseParts per track `Environment` folder (owner 2026-10-27: was 800, and
+  400 before 2026-10-26; bigger scenery in mass and the detailed City towers need the room).
+- **Scale (owner 2026-10-27, placeholders):** `BiomeDressing.SCALE` grows every prop of a layer, parts and offsets
+  within the prop alike: Landmarks x1.75, Horizon x2, Scatter x1.5. Rhythm and the gate keep their sizes (the
+  rhythm sits beside the wall and is the speed cue). A baked mesh follows its prop's scaled height. Placement
+  distances are measured to the scaled footprint, so clearance and the on-ground rule are unchanged.
+  A horizon piece that does not fit on its ground at any `HORIZON_FIT` offset shrinks by 0.25 steps toward x1
+  and tries again (Track 2's 160-stud tree hills only fit at about x1.25).
+- **City skyscrapers (owner 2026-10-27):** City landmarks, scatter blocks and the skyline are built by
+  `BiomeThemes`' `skyscraper` helper: a podium with a glass lobby on the road side, one or two setback tiers, a glass
+  window band every few studs on each tier, corner and centre fins, a neon crown ring and rooftop equipment (AC
+  units, an antenna with a lit tip, and a water tower or spire by variant). They have no baked mesh (the Kenney
+  skyscraper meshes were plain).
+  The City billboards stand in the scatter layer, so every City landmark is a skyscraper.
 - **On the ground (owner 2026-10-20):** a prop is only placed when its whole footprint lies on its own track's
   `Ground`; a prop that would hang past the ground's edge is skipped, so nothing floats over the void or the Baseplate.
 - **Deterministic:** no randomness. Variety comes from the waypoint index, so two builds are identical.
