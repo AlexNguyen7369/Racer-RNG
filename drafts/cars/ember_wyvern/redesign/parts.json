@@ -9,91 +9,107 @@
     "Wing_L",
     "Wing_R"
   ],
-  "tris": 5144,
+  "tris": 32044,
   "wheels": [],
   "min": [
-    -1.936,
-    -3.3,
-    0.16
+    -1.867,
+    -3.28,
+    0.181
   ],
   "max": [
-    1.936,
-    3.233,
-    3.96
+    1.867,
+    3.173,
+    4.731
   ],
   "materials": {
     "Body": {
       "material": "SmoothPlastic",
       "color": [
-        0.42,
-        0.05,
-        0.04
+        0.02,
+        0.022,
+        0.035
       ]
     },
     "Trim": {
       "material": "SmoothPlastic",
       "color": [
-        0.05,
-        0.04,
-        0.045
+        0.012,
+        0.014,
+        0.022
       ]
     },
     "Light2": {
       "material": "Neon",
       "color": [
+        0.75,
         1.0,
-        0.85,
-        0.35
+        1.0
       ]
     },
     "Light": {
       "material": "Neon",
       "color": [
-        1.0,
-        0.36,
-        0.05
+        0.12,
+        0.82,
+        1.0
       ]
     },
     "Accent": {
       "material": "SmoothPlastic",
       "color": [
-        0.16,
-        0.06,
-        0.04
+        0.08,
+        0.55,
+        0.7
       ]
     },
     "Wing_L": {
       "material": "SmoothPlastic",
       "color": [
-        0.24,
-        0.035,
-        0.03
+        0.12,
+        0.82,
+        1.0
       ]
     },
     "Wing_R": {
       "material": "SmoothPlastic",
       "color": [
-        0.24,
-        0.035,
-        0.03
+        0.12,
+        0.82,
+        1.0
       ]
     }
   },
   "mouth": [
     0.0,
-    3.12,
-    2.02
+    3.079789400100708,
+    3.3144688606262207
   ],
   "wing_hinge": {
     "Wing_L": [
-      -0.42,
-      0.75,
-      1.72
+      -0.3,
+      1.05,
+      1.75
     ],
     "Wing_R": [
-      0.42,
-      0.75,
-      1.72
+      0.3,
+      1.05,
+      1.75
     ]
+  },
+  "textures": {
+    "Body": "textures/Body.png",
+    "Trim": "textures/Trim.png",
+    "Accent": "textures/Accent.png",
+    "Wing_L": "textures/Wing_L.png",
+    "Wing_R": "textures/Wing_R.png"
+  },
+  "part_tris": {
+    "Body": 8164,
+    "Trim": 9164,
+    "Light2": 512,
+    "Light": 2140,
+    "Accent": 880,
+    "Wing_L": 5576,
+    "Wing_R": 5608
   }
 }

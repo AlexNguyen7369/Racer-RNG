@@ -639,6 +639,13 @@ Idle Vehicle Simulator — Game Design Requirements
        (glossy paint, reflective metal and glass, glowing parts cast no shadow) and a geometry
        pass in Blender (more bevels, panel lines and wheel detail) within the existing budget
        and identity. Delivered in waves the owner approves (docs/CAR_REDESIGN_SPEC.md section 8).
+       Owner, 2026-10-27 (Ember Wyvern draft): special-case rides such as the Ember Wyvern
+       may go over the per-car triangle budget and may use textures (painted scales); every
+       other car keeps the budget and flat colours. The Ember Wyvern follows the owner's
+       references: a black shadow-flame wyvern with glowing cyan markings, cyan wing
+       membranes with tattered flame edges and blue fire effects (owner, 2026-10-27, replacing
+       the earlier black-and-amber look). Inspiration only: the design stays original, no
+       existing character is copied.
 
   Owner rendering pass, 2026-10-26 (docs/RENDERING_SPEC.md):
        The world gets a richer lighting baseline (coloured ambient, colour grading, soft

@@ -140,6 +140,8 @@ The redesigned Racer UI, original car icon atlas, seven rounded Blender car mode
   odds, name and the player's name above it (`docs/LEADERBOARD_SPEC.md` 3a).
 - **Gamepass cars:** Ember Wyvern and Singularity on two pedestals beside the Best Roll pedestal; walk up to buy
   or equip (`docs/GAMEPASS_CARS_SPEC.md`). Passes not created yet.
+- **Ember Wyvern skin (2026-10-27):** a textured cyan shadow wyvern (MeshParts with colour + normal maps, flapping
+  wings on the pedestal), built in Blender by `drafts/cars/ember-wyvern/build_wyvern.py` (`docs/CAR_REDESIGN_SPEC.md` section 9).
 - **HUD and panels:** Speed HUD, Auto Race button, Index and Stats panels, turbo bar, roll toast and showcase,
   loser screen.
 - **Admin chat commands:** `/help /money /addmoney /givemoney /speed /addspeed /givespeed /resetspeed /luck /giveluck /resetluck /weather /give /equip /roll /wipe /tp` for admins only.
@@ -201,7 +203,7 @@ updates automatically whenever the board changes; do not edit this block by hand
 - **VFX showcase area (/tp vfxarea, /tp home)**: Owner 2026-10-26. Shared/VfxArea floor at (1600,0,0), Client/VfxShowcase local cars per trail/aura, CarService.Teleport + admin /tp vfxarea \| home. Verified live. Next: run admin + vehicle_effects in the full harness; test-writer may add admin checks for the two new /tp forms.
 - **Bigger scenery in mass + detailed City skyscrapers**: Owner 2026-10-27: design doc Track environments (scale and detail), BIOME_DRESSING_SPEC Rules Budget 1200 / Scale (Landmarks x1.75, Horizon x2 with 0.25 shrink steps, Scatter x1.5) / City skyscrapers. BiomeThemes skyscraper helper (podium, setbacks, window bands, fins, neon crown, rooftop tank/spire/antenna), Billboard moved to City scatter. environment 338/338, full harness 50/0. Left: owner look while racing, device frame check (Needs you).
 
-### Up next (9)
+### Up next (10)
 
 - **Daily Quest System**: Add a daily quest system with rotating objectives and rewards; define the design/spec before implementation.
 - **Redeem Codes section**: Add a Redeem Codes section projected for the Shop area where the gamepasses are located.
@@ -212,6 +214,7 @@ updates automatically whenever the board changes; do not edit this block by hand
 - **Reconcile UI tests with Isaac's inventory/upgrade-tree UI (ccea607)**: ui-test-writer updates UiSpec/UiScenarios for INVENTORY tabs, removed Bag, full-screen hex upgrade tree; then ui-tester and /compat-check. Blocks the green stamp for main.
 - **Checkpoint tests (harness + UiSpec)**: test-writer: checkpoint scenario (validation, start track, loss resets to checkpoint, loop). ui-test-writer: CheckpointUi in UiSpec (overlap, locked cards, phone landscape). docs/CHECKPOINT_SPEC.md.
 - **Shop/Market panels cover the compact roll toast**: ui_hitboxes button_topmost_at_centre_shop_open/market_open: RollToast/Toast under the panel. PanelBand top = below Race button; the compact roll also sits below Race. Owner: band below the compact roll, or panel over the dimmed toast?
+- **Ember Wyvern blue-fire effects + race wing flap**: Effects draft drafts/cars/ember-wyvern/vfx_profile.luau (fire breath, wake, wing-tip streams, smoke) needs a design-doc entry (always on or on boost), then Shared/VehicleEffects + vehicle_effects test. Wing flap while racing needs client code, a smaller stroke than the .blend cycle (downstroke passes \|x\| 1.95) and its own test round.
 
 ### Backlog (future work) (11)
 
@@ -227,9 +230,10 @@ updates automatically whenever the board changes; do not edit this block by hand
 - **Build Server Luck (2x/4x/8x developer products)**: Design doc lists it; the Shop shows it as Coming soon (no Grants, receipt never granted).
 - **Gift buttons in the Shop**: References show gift buttons; not built.
 
-### Recently done (55)
+### Recently done (56)
 
 - ~~Biome visual pass: scatter + ground patches, horizon fit, landmark particles, oriented-box Prune~~ (2026-10-27)
+- ~~Ember Wyvern skin: cyan shadow wyvern in Studio (draft 4 approved)~~ (2026-10-27)
 - ~~Market trail / aura VFX redesign (all six)~~ (2026-10-26)
 - ~~Rendering pass + car finish (lighting baseline, Asphalt/Concrete, LOD, glossy car finish)~~ (2026-10-26)
 - ~~Race progress map completion~~ (2026-10-21)
@@ -238,7 +242,6 @@ updates automatically whenever the board changes; do not edit this block by hand
 - ~~Rebalance NPC speeds vs cruise curve~~ (2026-10-21)
 - ~~Decide: Shop/Market/Daily backdrops cover the HUD tiles~~ (2026-10-20)
 - ~~Smooth auto-race motion (soft rail)~~ (2026-10-15)
-- ~~Rebirth panel rebuild + 1 Rebirth Point per rebirth~~ (2026-10-15)
 
 <!-- TODO:END -->
 

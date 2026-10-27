@@ -3,7 +3,21 @@
 PROJECT CONTEXT - Idle Vehicle Simulator (read me first)
 Shown in Studio at: ServerScriptService > ProjectContext   (source file: context/ProjectContext.luau)
 Do NOT edit this in Studio: edit the file on disk, Rojo syncs it. Claude updates it at the end of every loop.
-Last updated: 2026-10-27 (Claude: bigger scenery + detailed City skyscrapers)
+Last updated: 2026-10-27 (Claude: Ember Wyvern cyan shadow-wyvern skin in Studio)
+
+EMBER WYVERN SKIN - 2026-10-27 (Claude, owner approved draft 4: "this design is good, import into studio")
+- Rules: design doc "Owner car art redesign" entry 2026-10-27 (special-case rides over the triangle budget and
+  textured; cyan shadow look); CAR_REDESIGN_SPEC section 9 (Wing_L / Wing_R allowed, SurfaceAppearance, PivotOffset).
+- Built by drafts/cars/ember-wyvern/build_wyvern.py (Blender headless): 32044 tris, 7 MeshParts, baked colour +
+  normal maps, raised scutes, 24-frame flap in the .blend. Uploaded Model 103082461956401 (assets/meshes/cars/ids.json);
+  assets/studio/RedesignCarModels/ember_wyvern.rbxmx written by tools/write_redesign_rbxmx.py (now writes
+  SurfaceAppearance and wing PivotOffset). Replaces the DraftCarModels stand-in through RedesignCarModels.
+- Tests: test-writer updated RedesignTests (ember_wyvern no longer excluded; wings, SurfaceAppearance, pivots).
+  Results 2026-10-27: full harness END pass=48 fail=2 (car_redesign: SurfaceAppearance maps unreadable by game
+  scripts, test fixed; environment city_blocks_gap 0.431 < 0.7, bug ab037b16, not from this work); car_redesign alone
+  after the fix pass (1481 checks).
+- Unverified: effects draft (drafts/cars/ember-wyvern/vfx_profile.luau, blue fire) not wired; flap while racing not
+  built; pedestal flap with the new hinge not seen live.
 
 SCENERY SCALE + CITY SKYSCRAPERS - 2026-10-27 (Claude, owner: "bigger assets and buildings in mass", City dull)
 - Rules: design doc Track environments "Owner decision, 2026-10-27 (scale and detail)"; BIOME_DRESSING_SPEC Rules

@@ -6,13 +6,19 @@
 -- Update (owner, 2026-10-20, section 2): ALL catalog cars except starter and ember_wyvern are redesigned; part names
 -- are a base group name plus an optional number (Light2, Accent3); Light* is Neon, Glass* Glass, Metal* Metal;
 -- Singularity has a bright neon-gold Light* part.
+-- Update (owner, 2026-10-27, sections 1 and 9): only starter is excluded; ember_wyvern is a special-case ride whose
+-- part names may also be Wing_L / Wing_R (each with its PivotOffset on the flap hinge) and whose textured parts carry
+-- a SurfaceAppearance with ColorMap + NormalMap.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local H = require(script.Parent.AcceptanceSupport)
 local Tests = {}
 
 -- Every catalog car (index + gamepass) must be redesigned, except these (no reference image, spec section 1).
-local NOT_REDESIGNED = { starter = true, ember_wyvern = true }
+local NOT_REDESIGNED = { starter = true }
+-- Special-case rides (spec section 9): may add the skin spec's animated parts and use textures.
+local SPECIAL_CASE = { ember_wyvern = true }
+local WING_NAMES = { Wing_L = true, Wing_R = true }
 -- Wave 1 (spec section 6): a documented subset of the required set; each must also be in the derived list.
 local WAVE_1 = {
 	"rusty_hatchback",
@@ -31,8 +37,9 @@ local OWN_MODEL = { "midnight_kart", "golden_racer", "rain_runner" } -- spec sec
 local BASE_NAMES = { Body = true, Trim = true, Accent = true, Glass = true, Metal = true, Light = true }
 local WHEEL_NAMES = { Wheel_FL = true, Wheel_FR = true, Wheel_RL = true, Wheel_RR = true }
 -- Group a part name belongs to ("Light2" -> "Light"), or nil when the name is not allowed.
-local function groupOf(name)
-	if WHEEL_NAMES[name] then
+-- Wing_L / Wing_R are allowed only on special-case rides.
+local function groupOf(name, special)
+	if WHEEL_NAMES[name] or (special and WING_NAMES[name]) then
 		return name
 	end
 	local base = string.match(name, "^(%a+)%d*$")
@@ -110,7 +117,7 @@ function Tests.car_redesign()
 				end
 			end
 		end
-		flag("redesign_required_count", #required >= 111, #required, 111)
+		flag("redesign_required_count", #required >= 112, #required, 112)
 		for _, id in WAVE_1 do
 			flag("redesign_wave1_required_" .. id, isRequired[id] == true)
 		end
@@ -148,7 +155,7 @@ function Tests.car_redesign()
 				-- 2. Cosmetic only.
 				safe = safe and not part.CanCollide and not part.CanTouch and not part.CanQuery and part.Massless
 				-- 4. Material-group names only.
-				local group = groupOf(part.Name)
+				local group = groupOf(part.Name, SPECIAL_CASE[name] == true)
 				namesOk = namesOk and group ~= nil
 				-- Neon rule and group materials (spec section 2).
 				if string.sub(part.Name, 1, 5) == "Light" then
@@ -178,6 +185,39 @@ function Tests.car_redesign()
 			flag("redesign_bounds_x_" .. name, maxX <= MAX_X + TOLERANCE, maxX, MAX_X)
 			flag("redesign_bounds_z_" .. name, maxZ <= MAX_Z + TOLERANCE, maxZ, MAX_Z)
 			flag("redesign_bounds_floor_" .. name, minY >= MIN_Y - TOLERANCE, minY, MIN_Y)
+			-- Special-case rides (spec section 9): textured parts carry a SurfaceAppearance, wings hinge on a pivot.
+			if SPECIAL_CASE[name] then
+				local textured, texturedCount = true, 0
+				for _, part in parts do
+					if string.sub(part.Name, 1, 5) ~= "Light" and not WHEEL_NAMES[part.Name] then
+						texturedCount += 1
+						local sa = part:FindFirstChildOfClass("SurfaceAppearance")
+						-- ColorMap / NormalMap are plugin-only for game scripts: require the maps non-empty only
+						-- when one of the two property forms can be read; an unreadable property is not a failure.
+						local mapsSet = sa ~= nil
+						if sa then
+							local readOk, maps = pcall(function()
+								return sa.ColorMap ~= "" and sa.NormalMap ~= ""
+							end)
+							if not readOk then
+								readOk, maps = pcall(function()
+									local c, n = sa.ColorMapContent, sa.NormalMapContent
+									return c.SourceType ~= Enum.ContentSourceType.None
+										and n.SourceType ~= Enum.ContentSourceType.None
+								end)
+							end
+							mapsSet = not readOk or maps == true
+						end
+						textured = textured and mapsSet
+					end
+				end
+				flag("redesign_surface_appearance_" .. name, texturedCount > 0 and textured, texturedCount)
+				for _, wing in { "Wing_L", "Wing_R" } do
+					local part = template:FindFirstChild(wing, true)
+					local hinged = part ~= nil and part:IsA("BasePart") and part.PivotOffset.Position.Magnitude > 1e-3
+					flag("redesign_wing_pivot_" .. wing .. "_" .. name, hinged)
+				end
+			end
 		end
 
 		flag("redesign_singularity_neon_gold", singularityGold)

@@ -1080,6 +1080,29 @@
       "updated": "2026-10-27T09:00:00-07:00",
       "updatedBy": "Claude",
       "detail": "Owner 2026-10-27: design doc Track environments (scale and detail), BIOME_DRESSING_SPEC Rules Budget 1200 / Scale (Landmarks x1.75, Horizon x2 with 0.25 shrink steps, Scatter x1.5) / City skyscrapers. BiomeThemes skyscraper helper (podium, setbacks, window bands, fins, neon crown, rooftop tank/spire/antenna), Billboard moved to City scatter. environment 338/338, full harness 50/0. Left: owner look while racing, device frame check (Needs you)."
+    },
+    {
+      "id": "ember-wyvern-draft2",
+      "title": "Ember Wyvern skin: cyan shadow wyvern in Studio (draft 4 approved)",
+      "status": "done",
+      "source": "Owner",
+      "by": "Claude",
+      "added": "2026-10-27T12:00:00-07:00",
+      "updated": "2026-10-27T18:00:00-07:00",
+      "updatedBy": "Claude",
+      "detail": "Owner 2026-10-27: references (shape: front spread; look: cyan shadow wyvern), textures allowed, triangle budget may go over, cyan replaces amber (design doc + CAR_REDESIGN_SPEC section 9). drafts/cars/ember-wyvern/build_wyvern.py builds drafts/cars/ember_wyvern/redesign/: 30568 tris, aggressive angular head on a raised S-neck, glowing cyan chest and face lines, tattered cyan wings, smoke tendrils, baked textures, 24-frame wing flap. Effects draft vfx_profile.luau recoloured to blue fire (not re-checked in Studio). Not in the game. Left: owner review, FBX import, wing PivotOffsets, race flap, design-doc entry for the effects. Approved 2026-10-27; uploaded Model 103082461956401, RedesignCarModels/ember_wyvern.rbxmx.",
+      "done": "2026-10-27"
+    },
+    {
+      "id": "ember-wyvern-effects",
+      "title": "Ember Wyvern blue-fire effects + race wing flap",
+      "status": "next",
+      "source": "Owner",
+      "by": "Claude",
+      "added": "2026-10-27T18:00:00-07:00",
+      "updated": "2026-10-27T18:00:00-07:00",
+      "updatedBy": "Claude",
+      "detail": "Effects draft drafts/cars/ember-wyvern/vfx_profile.luau (fire breath, wake, wing-tip streams, smoke) needs a design-doc entry (always on or on boost), then Shared/VehicleEffects + vehicle_effects test. Wing flap while racing needs client code, a smaller stroke than the .blend cycle (downstroke passes |x| 1.95) and its own test round."
     }
   ]
 }

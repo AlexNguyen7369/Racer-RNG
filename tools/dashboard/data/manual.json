@@ -545,6 +545,36 @@
         "Test > Controller Emulator: connect a gamepad, rerun UiTestRun, then press B with the Index open and D-pad up inside it (clicks gamepad_b_closes_index, gamepad_dpad_up_stays_in_index).",
         "Paste the [UITEST] END line to Claude."
       ]
+    },
+    {
+      "id": "ember-wyvern-draft2-review",
+      "title": "Review the Ember Wyvern draft 4 (cyan shadow wyvern: model, textures, flap, effects)",
+      "why": "New dragon mesh and effects drafted 2026-10-27; only the owner approves art and new effects (design doc).",
+      "blocks": "Uploading the mesh, the RedesignCarModels export and wiring the effects (todo ember-wyvern-draft2).",
+      "when": "2026-10-27",
+      "status": "done",
+      "steps": [
+        "Open drafts/cars/ember_wyvern/redesign/preview.png and views/ (side, front, top, rear34, head, flap_cycle; studio_vfx*.jpg show the draft 2 orange effects).",
+        "Say what to change (shape, colours, wings, effects strength), or approve.",
+        "On approval: decide when the effects play (always, or only on boost) so the design doc can record it."
+      ],
+      "done": "2026-10-27",
+      "note": "Owner approved draft 4 (2026-10-27)."
+    },
+    {
+      "id": "rojo-reconnect-2026-10-27",
+      "title": "Reconnect Rojo in Studio and save the place",
+      "why": "Studio was restarted, so its Rojo plugin is disconnected. The Ember Wyvern was built into ReplicatedStorage.RedesignCarModels by hand; Rojo replaces it with assets/studio/RedesignCarModels/ember_wyvern.rbxmx once connected.",
+      "blocks": "Studio matching the files on disk (every later test run).",
+      "when": "2026-10-27",
+      "status": "done",
+      "steps": [
+        "Keep `rojo serve` running in the project root (it is).",
+        "In Studio: Plugins > Rojo > Connect.",
+        "Check ReplicatedStorage.RedesignCarModels.ember_wyvern has 7 MeshParts, then File > Save."
+      ],
+      "done": "2026-10-27",
+      "note": "Verified: Studio scripts match disk (RedesignTests synced live); RedesignCarModels.ember_wyvern present once."
     }
   ]
 }

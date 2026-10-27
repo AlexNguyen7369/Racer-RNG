@@ -20,6 +20,9 @@ in git history (`git log -p -- handoff.md`, last full version at 2d99d78) and in
 
 ## Open work
 
+0. Ember Wyvern skin (2026-10-27, approved): `RedesignCarModels/ember_wyvern` (Rojo-synced rbxmx). Next: blue-fire effects (design-doc entry first, `drafts/cars/ember-wyvern/vfx_profile.luau`) and the race flap
+   (todo ember-wyvern-effects).
+
 1. Owner look at the bigger scenery and City towers while racing; tune `SCALE` / `BUDGET` (placeholders).
 2. Live check of the loser screen after an NPC loss (Codex fix in `src/client/NpcRacerView.client.luau`, static
    checks only).

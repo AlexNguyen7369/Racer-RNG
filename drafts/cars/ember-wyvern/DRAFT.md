@@ -1,8 +1,8 @@
 # Ember Wyvern
 
 - **Type:** car
-- **Status:** draft 2 (2026-10-27): organic Blender mesh + effects draft, owner review pending. The Part stand-in
-  still ships.
+- **Status:** mesh approved and in the game 2026-10-27 (cyan shadow wyvern, `RedesignCarModels/ember_wyvern`); the
+  blue-fire effects draft and the race flap are still to do.
 - **Blender file:** `drafts/cars/ember_wyvern/redesign/ember_wyvern.blend` (built by `build_wyvern.py` here; details
   in that folder's `DRAFT.md`). Effects draft: `vfx_profile.luau` here.
 - **Scale:** 1 Blender unit = 1 stud

@@ -9,7 +9,8 @@ Owner decision, 2026-10-20. Design doc entry: `GAME_DESIGN_REQUIREMENTS.md`, "Ow
 - 111 PNG renders (one 3/4 view each, dark studio background). Each file name is a catalog `Name`
   (`src/shared/Cars/*.luau`); the match is exact, one image per car. `manifest.json` gives each car's design
   direction. The `*.png~` copies in the zip are editor backups and are not used.
-- Cars without a reference keep their current model: `ember_wyvern` (no image) and the built-in `starter`.
+- Cars without a reference keep their current model: the built-in `starter`. `ember_wyvern` has owner references
+  since 2026-10-27 (section 9).
 
 ## 2. Build rules
 - Modelled in Blender (Blender MCP), starting from the car's current blockout: `drafts/cars/<id>/recipe.json` for
@@ -21,7 +22,7 @@ Owner decision, 2026-10-20. Design doc entry: `GAME_DESIGN_REQUIREMENTS.md`, "Ow
   Wheeled cars have four separate tyre MeshParts `Wheel_FL`, `Wheel_FR`, `Wheel_RL`, `Wheel_RR`, each centred on its
   axle; hub caps are in `Metal`. (The skin is welded static, `Shared/CarAppearance`, so the hubs need not spin.)
 - Colour comes from the MeshPart's `Color` and `Material` (Light = Neon, Glass = Glass, Metal = Metal, others
-  SmoothPlastic). No textures. A car with more than one colour in a group gets numbered groups (`Light`, `Light2`,
+  SmoothPlastic). No textures (exception: special-case rides, section 9). A car with more than one colour in a group gets numbered groups (`Light`, `Light2`,
   `Accent2`, ...): a part name is one of the base names, optionally followed by a number.
 - **Neon (owner, 2026-10-20):** every glowing detail (lamps, light strips, neon trim, Singularity's gold) is a `Light*`
   part in `Neon` at full brightness, never a solid colour. Singularity's gold is bright neon gold.
@@ -32,7 +33,7 @@ Owner decision, 2026-10-20. Design doc entry: `GAME_DESIGN_REQUIREMENTS.md`, "Ow
   pale neon halo, standing on the engine deck. It must never be removed.
 - The 100 expansion cars start from their `recipe.json` blockout, converted part by part (same layout, colours and
   wheel spokes as the reference) with bevelled edges, chunkier tyres and the neon rule above.
-- At most 6,000 triangles per car.
+- At most 6,000 triangles per car (exception: special-case rides, section 9).
 - Every part: `Anchored`, `CanCollide = false`, `CanTouch = false`, `CanQuery = false`, `Massless`,
   `CollisionFidelity = Box` (baked in the file; it cannot be set at runtime).
 - Original artwork: no brands, logos or extracted assets.
@@ -85,3 +86,15 @@ The existing `car_size`, `gacha`, `index`, `race`, `lap:*` and `vehicle_effects`
   hand-built wheels, and 24-side tyres with a 1-segment shoulder. A car over 6,000 triangles steps down to level 1
   (lighter: panels >= 0.35, no seams / flares / spokes), then level 0 (pre-pass). 2026-10-26: 110 cars level 2,
   `golden_racer` level 1. Silhouette, colours, bounds and part names unchanged.
+
+## 9. Special-case rides (owner, 2026-10-27)
+- Special-case rides (first: `ember_wyvern`) may go over the 6,000-triangle budget and may use textures (an image per
+  MeshPart, baked in Blender, `TextureID` / FBX-embedded). Each MeshPart still stays under Roblox's per-mesh limit
+  (20,000 triangles). Bounds, collision and massless rules of section 2 still apply; part names are the section 2
+  groups plus the skin spec's animated parts (`Wing_L`, `Wing_R`, `docs/VEHICLE_SKINS_SPEC.md`), each wing with its
+  `PivotOffset` on the flap hinge. Textured parts carry a `SurfaceAppearance` (ColorMap + NormalMap).
+- Ember Wyvern references (git-ignored, `references/ember_wyvern/images/`): shape from `owner_ref_front_spread.png`
+  (finger-bone wings, belly plates from chin to tail, horned crown, long spiked tail, clawed hind legs); look from
+  `owner_ref_shadow_wyvern_a.png` / `_b.png` (owner 2026-10-27, replacing amber): black shadow body with glowing cyan
+  crevices and chest, cyan wing membranes with tattered flame edges, a raised S-curved neck, glowing face lines, smoke
+  tendrils, blue fire effects. Inspiration only: original design, no existing character copied.

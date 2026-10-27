@@ -1386,6 +1386,34 @@
       "fixedAt": "2026-10-27T00:28:42-07:00",
       "fixedBy": "Alex Nguyen",
       "fixNote": "Spin loop ends on elapsed SPIN, not alpha (RollToast init.client.luau). Verify with ui_reduced_motion."
+    },
+    {
+      "id": "ab037b16",
+      "name": "city_blocks_gap below limit in full run",
+      "kind": "failure",
+      "status": "open",
+      "file": "src/server/CarTest/EnvironmentTests.luau",
+      "line": 941,
+      "endLine": 941,
+      "snippet": {
+        "from": 937,
+        "lines": [
+          "\t\t\t\tend",
+          "\t\t\tend",
+          "\t\t\tlocal coverage = probes > 0 and covered / probes or 0",
+          "\t\t\tflag(",
+          "\t\t\t\t\"city_blocks_gap\",",
+          "\t\t\t\tprobes > 0 and coverage >= BLOCK_MIN_COVERAGE,",
+          "\t\t\t\tmath.round(coverage * 1000) / 1000,",
+          "\t\t\t\tBLOCK_MIN_COVERAGE",
+          "\t\t\t)"
+        ]
+      },
+      "summary": "Full harness 2026-10-27: environment fails city_blocks_gap (0.431 vs 0.7): under 70% of the row-1 probes along City's straight road land inside a Block_ footprint, so the street walls have gaps. Comes from the uncommitted City Blocks work (BiomeDressing / BiomeThemes / EnvironmentTests in the working tree, BIOME_DRESSING_SPEC Layers 9), not the Ember Wyvern.",
+      "error": "environment: city_blocks_gap value=0.431 limit=0.7",
+      "foundBy": "claude",
+      "foundAt": "2026-10-27T13:02:08-07:00",
+      "loggedBy": "Alex Nguyen"
     }
   ]
 }

@@ -361,9 +361,9 @@
     "files": "CarExpansionManifest, Cars/*, DraftCarModels, ExpansionCarModels"
   },
   "car_redesign": {
-    "checks": "Every catalog car except starter and ember_wyvern (111) has a redesign; every delivered redesign wins in CarModels with Redesign = true, is MeshParts with a MeshId, non-colliding/non-touch/non-query/massless, fits |x| <= 1.95, |z| <= 3.3, y >= 0, uses only material-group part names (Body/Trim/Accent/Glass/Metal/Light plus an optional number) with all four Wheel_* or none, Light* parts are Neon, Glass* Glass, Metal* Metal, Singularity has a neon-gold Light part, is applied without the catalog Tint, and midnight_kart / golden_racer / rain_runner use their own model.",
+    "checks": "Every catalog car except starter (112, incl. the ember_wyvern gamepass ride) has a redesign; every delivered redesign wins in CarModels with Redesign = true, is MeshParts with a MeshId, non-colliding/non-touch/non-query/massless, fits |x| <= 1.95, |z| <= 3.3, y >= 0, uses only material-group part names (Body/Trim/Accent/Glass/Metal/Light plus an optional number) with all four Wheel_* or none, Light* parts are Neon, Glass* Glass, Metal* Metal, Singularity has a neon-gold Light part, is applied without the catalog Tint, and midnight_kart / golden_racer / rain_runner use their own model. Special-case rides (ember_wyvern) may also name parts Wing_L / Wing_R, each with a non-zero PivotOffset (flap hinge), and every textured (non-Light, non-Wheel) part has a SurfaceAppearance with ColorMap and NormalMap.",
     "why": "Redesigned car skins must look like their reference and never touch physics, collisions or the size budget.",
-    "limits": "docs/CAR_REDESIGN_SPEC.md sections 2, 4, 5, 7",
+    "limits": "docs/CAR_REDESIGN_SPEC.md sections 1, 2, 4, 5, 7, 9",
     "files": "RedesignCarModels, DraftCarModels, CarAppearance, Cars/*"
   },
   "gifting": {
