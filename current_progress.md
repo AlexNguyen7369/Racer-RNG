@@ -62,8 +62,9 @@
 59. 2026-10-26 — Alex Nguyen — Added the rendering pass (lighting baseline, Asphalt/Concrete tracks, NPC shadow LOD), a glossy car finish and a stronger Blender geometry pass, re-uploading all 111 car skins (e3f752a).
 60. 2026-10-27 — Alex Nguyen — Committed the biome visual pass (denser per-biome scenery, budget 800), the loser screen fix and the shared Roblox skill packs (2d99d78), and trimmed handoff.md to current state and open work.
 61. 2026-10-27 — Alex Nguyen — Made the scenery bigger and denser (layer scale factors, budget 1200) and rebuilt the City track's buildings as detailed skyscrapers, with new UI checks and the reduced-motion reveal fix; full harness 50/0 (940bea3).
+62. 2026-10-27 — Alex Nguyen — Shipped the Ember Wyvern as a textured cyan shadow-wyvern skin (Blender build, colour + normal maps, uploaded Model 103082461956401, RedesignCarModels rbxmx, car_redesign coverage) and pushed it to main (820cd25).
 
 ## What's next
-**Run the live UI suite (`[UITEST]`) through ui-tester, see the new reduced-motion / safe-inset / panel-focus checks red then green, and live-check the loser screen after an NPC loss.**
+**Give the Ember Wyvern its flight: a bigger skin (SkinScale) while racing and on the pedestal, a Blender rig and dynamic wing, neck, tail and body animation from a shared pose module, with a `wyvern_flight` test suite written first.**
 
-**Why this is next:** the new UI checks and the loser screen fix have only static checks; the hand-only gamepad and notched-phone checks and the compat refresh before merging this branch build on that run.
+**Why this is next:** the owner asked for it on 2026-10-27 (no flying animation while auto racing); the spec, the red tests and the rigged re-export all build on the skin shipped in 820cd25.
