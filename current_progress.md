@@ -60,8 +60,9 @@
 57. 2026-10-26 — Alex Nguyen — Added the VFX showcase area (a separate floor with one local car per trail and aura) and the admin commands `/tp vfxarea` and `/tp home`, written into the admin spec first.
 58. 2026-10-26 — Alex Nguyen — Drafted the golden Ascended Aura (a Super Saiyan style ki aura after Dragon Ball Z, showcase only, not sold) with a new looping KiFlame texture, VehicleEffects.ApplyProfile and a seventh VFX-area lane.
 59. 2026-10-26 — Alex Nguyen — Added the rendering pass (lighting baseline, Asphalt/Concrete tracks, NPC shadow LOD), a glossy car finish and a stronger Blender geometry pass, re-uploading all 111 car skins (e3f752a).
+60. 2026-10-27 — Alex Nguyen — Committed the biome visual pass (denser per-biome scenery, budget 800), the loser screen fix and the shared Roblox skill packs (2d99d78), and trimmed handoff.md to current state and open work.
 
 ## What's next
-**Restart Play in Racer RNG, check the re-uploaded cars and new lighting by eye, set Lighting.Technology to Future, then run the full CarTest harness (car_redesign, car_size, gacha, environment, npc, weather, race and vehicle_effects first) and fix any red.**
+**Run the full CarTest harness at scenery budget 800 in a fresh Play session, check the loser screen after an NPC loss, and measure the denser scenery's frame and particle cost; fix any red.**
 
-**Why this is next:** the rendering pass and the 111 new car meshes have only passed static checks; the harness and a live look prove nothing broke before further art or VFX tuning builds on them.
+**Why this is next:** only the `environment` scenario has run at budget 800 and the loser screen fix has only static checks; owner visual review and merging this branch build on a green run.
