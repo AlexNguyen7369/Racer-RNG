@@ -297,6 +297,11 @@ Idle Vehicle Simulator — Game Design Requirements
        for that track (the shown Speed whose cruise speed matches the track's NPC; see Core
        stat model). The number is computed from the live speed and NPC settings, so it stays
        correct when they are tuned, and it uses the same suffixes as the HUD.
+       Owner decision, 2026-10-26 (visual pass): the drive must feel rewarding to watch. Every
+       track's ground is filled beyond the roadside (scattered props and flat ground patches, so
+       no stretch of the drive shows an empty plain), every track shows horizon silhouettes, and
+       each biome has its own ambient particles (fireflies, dust, snowfall, embers ...) at its
+       landmarks. Still cosmetic only, with the same no-Lighting rule.
 
 
 

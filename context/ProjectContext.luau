@@ -13,7 +13,10 @@ RENDERING PASS + CAR FINISH - 2026-10-26 (Claude, owner request; uncommitted)
 - Geometry pass (tools/build_redesign_cars.py, headless Blender -b, levels 2/1/0 by triangle budget): owner asked for
   a stronger pass, then upload. 110 cars level 2, golden_racer level 1; all 111 re-uploaded, meshes.json and
   RedesignCarModels regenerated (part sets unchanged).
-- Not run: environment, car_redesign, npc, weather, race scenarios (Studio was in the owner's Play session).
+- TEST 2026-10-26 live Studio (fresh Play, Rojo synced, after e3f752a; tree also had Codex's NpcRacerView fix and
+  an uncommitted biome visual pass): full CarTest harness END pass=50 fail=0. Visual check: new meshes load (spoked
+  rims, rounder panels, gloss, Singularity ring), Asphalt roads and lighting baseline live. Lighting.Technology is
+  not readable/settable by MCP scripts: owner sets Future by hand (manual item lighting-future-2026-10-26).
 
 UPGRADE TREE + UI TESTS - 2026-10-26 (Claude, owner decisions; static checks only, live [UITEST] pending)
 - Owner: the upgrade tree stays a full-screen overlay (UPGRADE_TREE_SPEC 5, HUD_LAYOUT_SPEC 1 + 6 updated: exempt
@@ -23,6 +26,19 @@ UPGRADE TREE + UI TESTS - 2026-10-26 (Claude, owner decisions; static checks onl
 - ui-test-writer reconciled stale UI tests: ui_rebirth expects NextMultiplier, ui_upgrades tiles under
   Panel/Canvas/TreeWorld, UiResponsive generated table regenerated + HudChrome model, PanelDim float tolerance,
   RacerUpgrades declared a full-screen panel. Run [UITEST] next (Racer RNG place, Rojo connected).
+
+BIOME VISUAL PASS - 2026-10-26 (Claude, owner: "make the auto race a visually rewarding environment", uncommitted)
+- Rules: design doc Track environments "Owner decision, 2026-10-26 (visual pass)"; BIOME_DRESSING_SPEC Layers 7 Scatter,
+  8 Particles, rules Oriented boxes / Horizon fit / Short tracks, Budget 400 -> 800 (owner), Acceptance "Added 2026-10-26".
+- BiomeDressing: Prune uses oriented boxes (SAT, same as the test; the AABB shortcut dropped ~50% of roadside props on
+  tracks 1-5); horizon pieces step in (1, 3/4, 1/2, 1/3 of Offset) until they fit on the ground; landmark / horizon
+  spacing min(Every, #wps // 2) so Track 3 gets both; Scatter layer (props + 0.2-thick ground patches, hashed by
+  waypoint, interleaved passes, built last into the budget); one BiomeParticles emitter per landmark (Rate <= 8);
+  BUDGET 800.
+- BiomeThemes: Scatter + Particles for all 10 biomes.
+- Results: full harness [CARTEST] END pass=50 fail=0 (400-budget build, same logic); environment 328/328 PASS at budget
+  800 (new checks seen red first: 34 fails). Live scenery 1515 -> 5142 parts, 78 emitters.
+- Unverified: full harness at budget 800 (only environment rerun), frame cost on phones, particle cost at 7 players.
 
 TEST RESULTS - 2026-10-26 live Studio (Claude, Rojo synced, after the re-audit)
 - harness: [CARTEST] END pass=48 fail=2 -> economy (stale test: MAX_SPEED 80/196; owner kept 88, doc 1M example

@@ -11,14 +11,18 @@ local RaceConfig = require(script.Parent.RaceConfig)
 
 local BiomeDressing = {}
 BiomeDressing.CLEARANCE = 8 -- studs every prop keeps from any road, wall, checkpoint, pad or spawn-area part
-BiomeDressing.BUDGET = 400 -- BaseParts per track Environment
+BiomeDressing.BUDGET = 800 -- BaseParts per track Environment (owner 2026-10-26)
 BiomeDressing.GATE_HEIGHT = 28 -- studs from the road to the gate beam
+BiomeDressing.PARTICLE_MAX_RATE = 8 -- particles per second per landmark emitter
 
 local GROUND_Y = -1 -- TrackBuilder GROUND_TOP: props stand on the grass
 local GROUND_STEP = 0.02 -- studs each later track's ground sits below the previous one
 local WALL = 2 -- studs of wall outside the road edge
 local GATE_INDEX = 4 -- waypoint of the start gate (past the previous track's checkpoint)
 local HORIZON_EVERY = 30 -- waypoints between horizon pieces on long runs without corners
+local HORIZON_FIT = { 1, 0.75, 0.5, 1 / 3 } -- fractions of the horizon Offset tried until the piece fits on the ground
+local PATCH_THICKNESS = 0.2 -- studs: ground patches are flat slabs
+local SCATTER_PASSES = 4 -- scatter spots are visited in interleaved passes so a full budget still covers the whole track
 local GRID = 64 -- studs per broad-phase cell in Prune
 
 local MeshData = script.Parent:WaitForChild("BiomeMeshData")
@@ -45,8 +49,37 @@ local function visual(part)
 	part.CanQuery = false
 end
 
+-- Theme particle settings -> a ParticleEmitter (spec Layers 8: one per landmark, capped Rate).
+local function emitter(parent, cfg)
+	local e = Instance.new("ParticleEmitter")
+	e.Name = "BiomeParticles"
+	e.Texture = cfg.Texture
+	e.Color = typeof(cfg.Color) == "ColorSequence" and cfg.Color or ColorSequence.new(cfg.Color)
+	e.Size = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0),
+		NumberSequenceKeypoint.new(0.15, cfg.Size),
+		NumberSequenceKeypoint.new(1, cfg.Size * 0.6),
+	})
+	e.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 1),
+		NumberSequenceKeypoint.new(0.2, cfg.Transparency or 0),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	e.Lifetime = NumberRange.new(cfg.Lifetime * 0.7, cfg.Lifetime)
+	e.Rate = math.min(cfg.Rate, BiomeDressing.PARTICLE_MAX_RATE)
+	e.Speed = NumberRange.new(cfg.Speed * 0.5, cfg.Speed)
+	e.SpreadAngle = Vector2.new(cfg.Spread or 180, cfg.Spread or 180)
+	e.Acceleration = cfg.Acceleration or Vector3.zero
+	e.EmissionDirection = cfg.Direction or Enum.NormalId.Top
+	e.LightEmission = cfg.LightEmission or 0
+	e.RotSpeed = NumberRange.new(-40, 40)
+	e.Shape = Enum.ParticleEmitterShape.Box
+	e.ShapeStyle = Enum.ParticleEmitterShapeStyle.Volume
+	e.Parent = parent
+end
+
 -- One prop as a Model whose base centre is `base` and whose -Z faces the road.
-local function place(folder, biome, def, base, name, glow)
+local function place(folder, biome, def, base, name, glow, particles)
 	local model = Instance.new("Model")
 	model.Name = name
 	for i, p in def.Parts do
@@ -87,6 +120,9 @@ local function place(folder, biome, def, base, name, glow)
 		light.Range = 24
 		light.Shadows = false
 		light.Parent = model:GetChildren()[1]
+	end
+	if particles then
+		emitter(model:GetChildren()[1], particles)
 	end
 	if def.Tag then
 		CollectionService:AddTag(model, def.Tag)
@@ -246,6 +282,68 @@ local function gate(folder, layout, origin, theme, spec)
 	return #model:GetChildren()
 end
 
+-- 0..1 from a waypoint, a side and a salt: variety without randomness, so two builds are identical.
+local function hash(i, side, salt)
+	local x = math.sin(i * 12.9898 + side * 78.233 + salt * 37.719) * 43758.5453
+	return x - math.floor(x)
+end
+
+-- Scatter layer (spec Layers 7): props and flat ground patches between Near and Far studs from the road edge,
+-- built last into whatever budget is left. Returns the new part count.
+local function scatter(folder, layout, origin, theme, biome, ground, edge, count, onGround)
+	local s, wps = theme.Scatter, layout.Waypoints
+	local named = {}
+	for _, layer in { theme.Rhythm, theme.Landmarks } do
+		for _, def in layer.Props do
+			named[def.Name] = def
+		end
+	end
+	local groundTop = ground and ground.Position.Y + ground.Size.Y / 2 or GROUND_Y
+	local stride = s.Every * SCATTER_PASSES
+	for pass = 0, SCATTER_PASSES - 1 do
+		for i = 2 + pass * s.Every, #wps - 1, stride do
+			for _, side in { -1, 1 } do
+				local tag = i .. (side < 0 and "L" or "R")
+				local def = s.Props[math.floor(hash(i, side, 1) * 1000) % #s.Props + 1]
+				def = named[def] or def
+				local size = footprint(biome, def)
+				local reach = Vector2.new(size.X, size.Z).Magnitude / 2
+				local distance = edge + s.Near + (s.Far - s.Near) * hash(i, side, 2) + reach
+				local base = beside(layout, origin, i, side, distance)
+					* CFrame.Angles(0, hash(i, side, 3) * 2 * math.pi, 0)
+				-- The patch (one part) goes first, so a tight budget still covers the ground.
+				if (i // s.Every) % 2 == 0 and count + 1 <= BiomeDressing.BUDGET then
+					local p = s.Patches[math.floor(hash(i, side, 4) * 1000) % #s.Patches + 1]
+					local patchReach = Vector2.new(p.Size.X, p.Size.Z).Magnitude / 2
+					local at = edge + s.Near + (s.Far - s.Near) * hash(i, side, 5) + patchReach
+					local cf = beside(layout, origin, i, side, at) * CFrame.Angles(0, hash(i, side, 6) * math.pi, 0)
+					if onGround(cf, patchReach) then
+						local slab = Instance.new("Part")
+						slab.Name = p.Name .. "1"
+						slab.Size = Vector3.new(p.Size.X, PATCH_THICKNESS, p.Size.Z)
+						slab.CFrame = cf - Vector3.new(0, cf.Position.Y - groundTop - PATCH_THICKNESS / 2, 0)
+						slab.Color = p.Color
+						slab.Material = p.Material
+						slab.TopSurface = Enum.SurfaceType.Smooth
+						slab.BottomSurface = Enum.SurfaceType.Smooth
+						slab.CastShadow = false
+						visual(slab)
+						local patch = Instance.new("Model")
+						patch.Name = "Patch_" .. tag
+						slab.Parent = patch
+						patch.Parent = folder
+						count += 1
+					end
+				end
+				if count + #def.Parts + 1 <= BiomeDressing.BUDGET and onGround(base, reach) then
+					count += place(folder, biome, def, base, "Scatter_" .. tag, false)
+				end
+			end
+		end
+	end
+	return count
+end
+
 function BiomeDressing.Build(model, layout, spec, origin)
 	local biome = spec.Biome
 	local theme = type(biome) == "string" and Themes[biome]
@@ -268,20 +366,24 @@ function BiomeDressing.Build(model, layout, spec, origin)
 	local edge = layout.Width / 2 + WALL
 	local count = gate(folder, layout, origin, theme, spec)
 	-- A prop whose footprint leaves this track's ground would hang over the void (or the Baseplate below it).
-	local function onGround(base, size)
+	-- `reach` is the prop's half-width on the ground (its half-diagonal when it is turned).
+	local function onGround(base, reach)
 		if not ground then
 			return true
 		end
 		local l = ground.CFrame:PointToObjectSpace(base.Position)
-		local reach = math.max(size.X, size.Z) / 2
 		return math.abs(l.X) + reach <= ground.Size.X / 2 and math.abs(l.Z) + reach <= ground.Size.Z / 2
 	end
-	local function add(layer, n, i, side, glow, name)
+	local function add(layer, n, i, side, glow, name, fits)
 		local def = layer.Props[n % #layer.Props + 1]
 		local size = footprint(biome, def)
-		local base = beside(layout, origin, i, side, edge + layer.Offset + size.Z / 2)
-		if onGround(base, size) then
-			count += place(folder, biome, def, base, name, glow)
+		for _, f in fits or { 1 } do
+			local offset = fits and math.max(layer.Offset * f, theme.Landmarks.Offset) or layer.Offset
+			local base = beside(layout, origin, i, side, edge + offset + size.Z / 2)
+			if onGround(base, math.max(size.X, size.Z) / 2) then
+				count += place(folder, biome, def, base, name, glow, glow and theme.Particles)
+				return
+			end
 		end
 	end
 	local function alternate(n)
@@ -293,7 +395,7 @@ function BiomeDressing.Build(model, layout, spec, origin)
 	local spots, n = {}, 0
 	for _, c in corners do
 		add(theme.Landmarks, n, c.Index, c.Side, true, "Landmark_" .. c.Index)
-		add(theme.Horizon, n, c.Index, c.Side, false, "Horizon_" .. c.Index)
+		add(theme.Horizon, n, c.Index, c.Side, false, "Horizon_" .. c.Index, HORIZON_FIT)
 		table.insert(spots, c.Index)
 		n += 1
 	end
@@ -305,17 +407,19 @@ function BiomeDressing.Build(model, layout, spec, origin)
 		end
 	end
 	local every = theme.Landmarks.Every
-	for i = every, #wps - every, every do
+	local first = math.min(every, #wps // 2) -- a short straight track still gets one
+	for i = first, #wps - first, every do
 		if not near(spots, i, every // 2) then
 			add(theme.Landmarks, n, i, alternate(n), true, "Landmark_" .. i)
 			table.insert(spots, i)
 			n += 1
 		end
 	end
-	for i = HORIZON_EVERY, #wps, HORIZON_EVERY do
-		if not near(spots, i, HORIZON_EVERY // 2) then
-			local h = i // HORIZON_EVERY
-			add(theme.Horizon, h, i, alternate(h), false, "Horizon_" .. i)
+	local horizonEvery = math.min(HORIZON_EVERY, #wps // 2)
+	for i = horizonEvery, #wps, horizonEvery do
+		if not near(spots, i, horizonEvery // 2) then
+			local h = i // horizonEvery
+			add(theme.Horizon, h, i, alternate(h), false, "Horizon_" .. i, HORIZON_FIT)
 		end
 	end
 
@@ -329,10 +433,12 @@ function BiomeDressing.Build(model, layout, spec, origin)
 			k += 1
 		end
 	end
+	if theme.Scatter then
+		count = scatter(folder, layout, origin, theme, biome, ground, edge, count, onGround)
+	end
 end
 
--- shortcut: axis-aligned boxes only, so a few props beside diagonal road pieces are pruned that an
--- exact oriented-box test would keep; switch to oriented boxes if too much scenery goes missing.
+-- World axis-aligned box of an oriented box: the broad phase only.
 local function bounds(cf, size)
 	local r, u, b = cf.RightVector * size.X / 2, cf.UpVector * size.Y / 2, cf.LookVector * size.Z / 2
 	local e = Vector3.new(
@@ -341,6 +447,39 @@ local function bounds(cf, size)
 		math.abs(r.Z) + math.abs(u.Z) + math.abs(b.Z)
 	)
 	return cf.Position - e, cf.Position + e
+end
+
+-- Oriented box overlap (separating axis test), the same test as the `environment` scenario. Touching is no overlap.
+local function overlaps(cfA, halfA, cfB, halfB)
+	local a = { cfA.RightVector, cfA.UpVector, cfA.LookVector }
+	local b = { cfB.RightVector, cfB.UpVector, cfB.LookVector }
+	local ha, hb = { halfA.X, halfA.Y, halfA.Z }, { halfB.X, halfB.Y, halfB.Z }
+	local t = cfB.Position - cfA.Position
+	local function separated(axis)
+		if axis.Magnitude < 1e-6 then
+			return false
+		end
+		axis = axis.Unit
+		local ra, rb = 0, 0
+		for k = 1, 3 do
+			ra += math.abs(a[k]:Dot(axis)) * ha[k]
+			rb += math.abs(b[k]:Dot(axis)) * hb[k]
+		end
+		return math.abs(t:Dot(axis)) >= ra + rb
+	end
+	for k = 1, 3 do
+		if separated(a[k]) or separated(b[k]) then
+			return false
+		end
+	end
+	for i = 1, 3 do
+		for j = 1, 3 do
+			if separated(a[i]:Cross(b[j])) then
+				return false
+			end
+		end
+	end
+	return true
 end
 
 local function blockers(trackModels, extra)
@@ -385,7 +524,7 @@ function BiomeDressing.Prune(trackModels, extra)
 	end
 	for _, part in blockers(trackModels, extra) do
 		local lo, hi = bounds(part.CFrame, part.Size)
-		local box = { lo, hi }
+		local box = { lo, hi, part.CFrame, part.Size / 2 }
 		cells(lo, hi, function(key)
 			grid[key] = grid[key] or {}
 			table.insert(grid[key], box)
@@ -400,8 +539,8 @@ function BiomeDressing.Prune(trackModels, extra)
 			-- Each part on its own: a gate's posts and beam are clear even though their joint box spans the road.
 			for _, part in prop:IsA("BasePart") and { prop } or prop:GetDescendants() do
 				if part:IsA("BasePart") and not hit then
-					local lo, hi = bounds(part.CFrame, part.Size)
-					lo, hi = lo - grow, hi + grow
+					local half = part.Size / 2 + grow -- grown in the part's own axes
+					local lo, hi = bounds(part.CFrame, half * 2)
 					cells(lo, hi, function(key)
 						for _, box in grid[key] or {} do
 							hit = hit
@@ -412,6 +551,7 @@ function BiomeDressing.Prune(trackModels, extra)
 									and hi.Y > box[1].Y
 									and lo.Z < box[2].Z
 									and hi.Z > box[1].Z
+									and overlaps(part.CFrame, half, box[3], box[4])
 								)
 						end
 					end)

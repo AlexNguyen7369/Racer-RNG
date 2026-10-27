@@ -1,5 +1,24 @@
 # Agent handoff
 
+## Biome visual pass — 2026-10-26 (Claude, uncommitted)
+
+- Owner: make the auto race a visually rewarding environment. Rules: design doc Track environments (2026-10-26),
+  `docs/BIOME_DRESSING_SPEC.md` Layers 7-8 and the 2026-10-26 rules.
+- Files: `src/shared/BiomeDressing.luau`, `src/shared/BiomeThemes.luau`; tests by test-writer in
+  `src/server/CarTest/EnvironmentTests.luau` (+ tests_explained.json).
+- Result: full harness `END pass=50 fail=0` (400-budget build); owner raised the budget to 800; `environment` 328/328
+  PASS at 800 (34 new checks were red first). Scenery 1515 -> 5142 parts, 78 emitters.
+- Next: owner visual review while racing; full harness at budget 800; phone frame cost; particle cost with 7 players.
+  After a Studio restart the Rojo plugin must be reconnected (it was not, once, this session).
+
+## Loser screen regression — 2026-10-26 (Codex)
+
+- Owner report: loser screen no longer appears after losing an NPC race.
+- Cause: `RaceService` emits `Result/Lose` followed immediately by authoritative `Reset` and `Start`; `src/client/NpcRacerView.client.luau` was hiding `LoserScreen` and cancelling its timer on both events.
+- Fix: `Reset` still clears the client-only NPC, but preserves the loser overlay for `NpcConfig.LOSE_SCREEN_SECONDS`; `Start` rebuilds the NPC without dismissing the overlay; `Stop` still clears it.
+- Verification: `git diff --check`, `stylua --check src/client/NpcRacerView.client.luau`, and `lune run tools/compile-ui.luau src/client/NpcRacerView.client.luau` pass. Live Studio UI verification not run in this session.
+- Active file: `src/client/NpcRacerView.client.luau` (uncommitted; preserve alongside Claude's car/rendering edits).
+
 ## Rendering pass + car finish / geometry — 2026-10-26 (Claude, uncommitted)
 
 - Owner: improve all car models (finish + geometry pass) and in-game rendering (lighting, materials, LOD).
@@ -11,8 +30,8 @@
   `Blender -b --python` (scratchpad run_build.py pattern: exec the file, call build(id)).
 - Uploaded all 111 (ids.json), Studio LoadAsset dump via a local HTTP receiver -> meshes.json, write_redesign_rbxmx.py
   -> RedesignCarModels (Rojo synced). Part sets unchanged; bounds within spec.
-- Next: restart Play (Studio was in the owner's session, not restarted), look at the cars, run car_redesign, car_size,
-  gacha, index, vehicle_effects, environment, npc, weather, race; Technology = Future (manual item); commit.
+- Committed + pushed e3f752a (progress 36f3748). Verified 2026-10-26 in a fresh Play: full harness END pass=50 fail=0,
+  cars and lighting checked by eye. Left: owner sets Lighting.Technology = Future by hand (MCP cannot), saves place.
 
 ## Trail VFX — 2026-10-26 (Claude)
 

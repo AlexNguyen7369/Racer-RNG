@@ -10,6 +10,9 @@
 --   Glow   Color3 of a local PointLight (landmarks and gate only)
 -- Layers: Rhythm { Every, Offset, Props }, Landmarks { Offset, Every, Props }, Horizon { Offset, Props },
 -- Gate { Color, Material, Glow?, Index? (waypoint, default BiomeDressing GATE_INDEX) }, Ground { Color, Material }. Offset is studs from the road edge.
+-- Scatter { Every, Near, Far, Props, Patches } (owner 2026-10-26): Props are prop tables or the Name of a rhythm or
+--   landmark prop (same table, so the same mesh); Patches are flat slabs { Name, Size (X, Z), Color, Material }.
+-- Particles: one ParticleEmitter setting per biome, put on every landmark (Rate is capped by BiomeDressing).
 
 local M = Enum.Material
 local rgb = Color3.fromRGB
@@ -72,6 +75,23 @@ local function gate(color, material, glow, index)
 	return { Color = color, Material = material, Glow = glow, Index = index }
 end
 
+local function ball(name, d, color, material, tag)
+	return {
+		Name = name,
+		Size = v(d, d, d),
+		Tag = tag,
+		Parts = { part(v(d, d, d), v(0, d / 2, 0), color, material, Enum.PartType.Ball) },
+	}
+end
+
+local function patch(name, x, z, color, material)
+	return { Name = name, Size = v(x, 0.2, z), Color = color, Material = material }
+end
+
+-- Built-in particle textures only (spec Layers 8)
+local SPARKLE = "rbxasset://textures/particles/sparkles_main.dds"
+local SMOKE = "rbxasset://textures/particles/smoke_main.dds"
+
 return {
 	Speedway = {
 		Ground = { Color = rgb(74, 112, 72), Material = M.Grass },
@@ -106,6 +126,40 @@ return {
 			Props = { pole("StadiumLight", 70, rgb(140, 145, 155), rgb(255, 250, 220)) },
 		},
 		Gate = gate(rgb(210, 40, 45), M.SmoothPlastic, rgb(255, 240, 200), 18), -- past the spawn-area floor
+		Scatter = {
+			Every = 2,
+			Near = 30,
+			Far = 170,
+			Props = {
+				"TyreStack",
+				block("Bush", v(8, 5, 8), rgb(62, 122, 56), M.Grass),
+				block("Banner", v(14, 8, 1), rgb(30, 32, 40), M.Metal, {
+					part(v(14.2, 4, 1.2), v(0, 6, 0), rgb(230, 40, 40), M.SmoothPlastic),
+				}),
+				tree("Poplar", 26, rgb(90, 64, 44), rgb(52, 112, 52)),
+				"Flag",
+			},
+			Patches = {
+				patch("MownStripe", 44, 12, rgb(96, 142, 86), M.Grass),
+				patch("Dirt", 24, 14, rgb(122, 94, 64), M.Ground),
+				patch("Flowers", 16, 12, rgb(236, 204, 72), M.Grass),
+			},
+		},
+		Particles = { -- confetti over the stands
+			Texture = SPARKLE,
+			Color = ColorSequence.new({
+				ColorSequenceKeypoint.new(0, rgb(255, 70, 70)),
+				ColorSequenceKeypoint.new(0.5, rgb(255, 220, 60)),
+				ColorSequenceKeypoint.new(1, rgb(70, 140, 255)),
+			}),
+			Size = 0.6,
+			Lifetime = 3,
+			Rate = 6,
+			Speed = 8,
+			Spread = 50,
+			Acceleration = v(0, -4, 0),
+			LightEmission = 0.3,
+		},
 	},
 
 	Forest = {
@@ -137,6 +191,42 @@ return {
 			Props = { peak("TreeHill", v(160, 70, 120), rgb(50, 96, 52), rgb(34, 80, 46), M.Grass) },
 		},
 		Gate = gate(rgb(110, 75, 45), M.Wood, nil, 9), -- past the race-start pavilion
+		Scatter = {
+			Every = 2,
+			Near = 25,
+			Far = 160,
+			Props = {
+				"Pine",
+				"Birch",
+				block("Bush", v(7, 5, 7), rgb(48, 104, 50), M.Grass),
+				"Pine",
+				block("Log", v(10, 2.5, 2.5), rgb(104, 72, 46), M.Wood),
+				{
+					Name = "Mushroom",
+					Size = v(4, 5, 4),
+					Parts = {
+						part(v(1.4, 3, 1.4), v(0, 1.5, 0), rgb(240, 232, 214), M.SmoothPlastic),
+						part(v(4, 2, 4), v(0, 3.8, 0), rgb(210, 50, 45), M.SmoothPlastic),
+					},
+				},
+				"Rock",
+			},
+			Patches = {
+				patch("Moss", 26, 18, rgb(44, 92, 46), M.Grass),
+				patch("Bluebells", 16, 12, rgb(120, 110, 220), M.Grass),
+				patch("Dirt", 20, 14, rgb(104, 78, 52), M.Ground),
+			},
+		},
+		Particles = { -- fireflies
+			Texture = SPARKLE,
+			Color = rgb(210, 255, 120),
+			Size = 0.5,
+			Lifetime = 5,
+			Rate = 6,
+			Speed = 1.2,
+			Acceleration = v(0, 0.3, 0),
+			LightEmission = 1,
+		},
 	},
 
 	Docks = {
@@ -174,6 +264,35 @@ return {
 			},
 		},
 		Gate = gate(rgb(240, 180, 30), M.Metal),
+		Scatter = {
+			Every = 1, -- one short straight: dense
+			Near = 25,
+			Far = 150,
+			Props = {
+				"Container",
+				block("Crate", v(4, 4, 4), rgb(150, 110, 62), M.WoodPlanks),
+				block("Pallet", v(6, 1, 6), rgb(170, 130, 80), M.WoodPlanks, {
+					part(v(4, 3, 4), v(0, 2.5, 0), rgb(70, 90, 120), M.Fabric),
+				}),
+				block("Bollard", v(2, 3, 2), rgb(240, 180, 30), M.Metal),
+				"ContainerStack",
+			},
+			Patches = {
+				patch("Oil", 14, 10, rgb(28, 28, 34), M.SmoothPlastic),
+				patch("LoadingBay", 30, 4, rgb(232, 192, 44), M.Concrete),
+				patch("Puddle", 18, 12, rgb(70, 92, 112), M.Glass),
+			},
+		},
+		Particles = { -- steam
+			Texture = SMOKE,
+			Color = rgb(220, 224, 230),
+			Size = 4,
+			Lifetime = 5,
+			Rate = 3,
+			Speed = 4,
+			Spread = 15,
+			Transparency = 0.6,
+		},
 	},
 
 	Suburb = {
@@ -207,6 +326,37 @@ return {
 			Props = { block("Rooftops", v(120, 24, 40), rgb(170, 90, 70), M.Slate) },
 		},
 		Gate = gate(rgb(240, 240, 240), M.SmoothPlastic),
+		Scatter = {
+			Every = 2,
+			Near = 25,
+			Far = 160,
+			Props = {
+				"Oak",
+				tree("Cherry", 16, rgb(96, 64, 46), rgb(246, 170, 200)),
+				block("Mailbox", v(2, 4, 2), rgb(60, 60, 70), M.Metal, {
+					part(v(2, 1.6, 3), v(0, 4, 0), rgb(40, 90, 200), M.SmoothPlastic),
+				}),
+				block("PicketFence", v(12, 3, 1), rgb(245, 245, 240), M.WoodPlanks),
+				"Hedge",
+				block("Playhouse", v(8, 6, 8), rgb(250, 210, 90), M.SmoothPlastic, {
+					part(v(9, 3, 9), v(0, 7.5, 0), rgb(220, 70, 60), M.SmoothPlastic),
+				}),
+			},
+			Patches = {
+				patch("FlowerBed", 14, 6, rgb(240, 120, 170), M.Grass),
+				patch("Path", 30, 5, rgb(200, 196, 186), M.Concrete),
+				patch("Lawn", 32, 22, rgb(110, 166, 84), M.Grass),
+			},
+		},
+		Particles = { -- drifting petals
+			Texture = SPARKLE,
+			Color = rgb(255, 180, 210),
+			Size = 0.5,
+			Lifetime = 5,
+			Rate = 5,
+			Speed = 2,
+			Acceleration = v(1.5, -0.6, 0),
+		},
 	},
 
 	PirateCoast = {
@@ -245,6 +395,39 @@ return {
 			Props = { peak("Island", v(140, 40, 100), rgb(80, 140, 70), rgb(60, 150, 70), M.Grass) },
 		},
 		Gate = gate(rgb(110, 70, 40), M.WoodPlanks),
+		Scatter = {
+			Every = 2,
+			Near = 25,
+			Far = 170,
+			Props = {
+				"Palm",
+				block("Boulder", v(8, 5, 6), rgb(130, 120, 110), M.Slate),
+				block("Chest", v(4, 3, 3), rgb(120, 76, 40), M.WoodPlanks, {
+					part(v(4.2, 0.6, 3.2), v(0, 2.2, 0), rgb(230, 190, 60), M.Metal),
+				}),
+				"Barrel",
+				"Palm",
+				block("Anchor", v(6, 8, 2), rgb(70, 72, 80), M.CorrodedMetal, {
+					part(v(6, 1.5, 2), v(0, 1, 0), rgb(70, 72, 80), M.CorrodedMetal),
+				}),
+			},
+			Patches = {
+				patch("TidePool", 22, 16, rgb(60, 176, 206), M.Glass),
+				patch("WetSand", 28, 18, rgb(196, 168, 118), M.Sand),
+				patch("Seaweed", 12, 10, rgb(60, 120, 70), M.Grass),
+			},
+		},
+		Particles = { -- sea spray
+			Texture = SPARKLE,
+			Color = rgb(235, 250, 255),
+			Size = 0.7,
+			Lifetime = 2,
+			Rate = 6,
+			Speed = 6,
+			Spread = 40,
+			Acceleration = v(0, -6, 0),
+			LightEmission = 0.4,
+		},
 	},
 
 	City = {
@@ -276,6 +459,37 @@ return {
 			Props = { tower("Skyline", 60, 140, 40, rgb(25, 30, 55), M.Concrete, rgb(80, 220, 255)) },
 		},
 		Gate = gate(rgb(30, 30, 40), M.Metal, rgb(255, 80, 190)),
+		Scatter = {
+			Every = 2,
+			Near = 25,
+			Far = 160,
+			Props = {
+				"Sign",
+				block("Bench", v(6, 2.5, 2), rgb(90, 60, 40), M.WoodPlanks),
+				block("Kiosk", v(6, 8, 6), rgb(40, 44, 60), M.Metal, {
+					part(v(6.4, 1, 6.4), v(0, 8, 0), rgb(80, 220, 255), M.Neon),
+				}),
+				block("Planter", v(6, 3, 6), rgb(150, 150, 160), M.Concrete, {
+					part(v(5, 2, 5), v(0, 3.5, 0), rgb(60, 130, 70), M.Grass),
+				}),
+				"Hydrant",
+				tower("Block", 18, 36, 18, rgb(50, 56, 84), M.Concrete, rgb(255, 80, 190)),
+			},
+			Patches = {
+				patch("Crosswalk", 22, 6, rgb(235, 235, 240), M.Concrete),
+				patch("NeonPuddle", 14, 10, rgb(80, 220, 255), M.Glass),
+				patch("Asphalt", 30, 20, rgb(30, 32, 40), M.Asphalt),
+			},
+		},
+		Particles = { -- neon sparkle
+			Texture = SPARKLE,
+			Color = ColorSequence.new(rgb(255, 80, 190), rgb(80, 220, 255)),
+			Size = 0.6,
+			Lifetime = 3,
+			Rate = 5,
+			Speed = 2,
+			LightEmission = 1,
+		},
 	},
 
 	Desert = {
@@ -317,6 +531,35 @@ return {
 			Props = { block("CanyonWall", v(200, 60, 40), rgb(170, 95, 55), M.Sandstone) },
 		},
 		Gate = gate(rgb(156, 91, 48), M.Sandstone),
+		Scatter = {
+			Every = 2,
+			Near = 25,
+			Far = 170,
+			Props = {
+				"Cactus",
+				ball("Tumbleweed", 4, rgb(150, 112, 64), M.Wood, "BiomeSpin"),
+				block("Boulder", v(10, 7, 9), rgb(184, 120, 70), M.Sandstone),
+				block("DeadTree", v(1.5, 12, 1.5), rgb(110, 80, 56), M.Wood, {
+					part(v(6, 1, 1), v(1.5, 9, 0), rgb(110, 80, 56), M.Wood),
+				}),
+				"Rock",
+			},
+			Patches = {
+				patch("CrackedEarth", 26, 20, rgb(204, 150, 92), M.Ground),
+				patch("DryGrass", 16, 12, rgb(182, 164, 92), M.Grass),
+				patch("RedSand", 30, 18, rgb(206, 126, 76), M.Sand),
+			},
+		},
+		Particles = { -- dust devils
+			Texture = SMOKE,
+			Color = rgb(226, 190, 140),
+			Size = 5,
+			Lifetime = 5,
+			Rate = 3,
+			Speed = 3,
+			Acceleration = v(3, 0.5, 0),
+			Transparency = 0.7,
+		},
 	},
 
 	Snow = {
@@ -350,6 +593,35 @@ return {
 			Props = { peak("Peak", v(180, 120, 140), rgb(110, 120, 135), rgb(245, 250, 255)) },
 		},
 		Gate = gate(rgb(110, 70, 45), M.WoodPlanks, rgb(160, 210, 255)),
+		Scatter = {
+			Every = 2,
+			Near = 25,
+			Far = 160,
+			Props = {
+				"SnowPine",
+				block("SnowDrift", v(10, 3, 6), rgb(244, 250, 255), M.Snow),
+				block("IceShard", v(4, 10, 4), rgb(170, 220, 245), M.Ice),
+				"SnowPine",
+				block("SnowRock", v(7, 4, 6), rgb(120, 126, 140), M.Slate, {
+					part(v(6, 1, 5), v(0, 4.3, 0), rgb(245, 250, 255), M.Snow),
+				}),
+			},
+			Patches = {
+				patch("FrozenPond", 26, 18, rgb(178, 222, 248), M.Ice),
+				patch("BlueSnow", 30, 20, rgb(214, 232, 250), M.Snow),
+				patch("Tracks", 24, 4, rgb(200, 214, 228), M.Snow),
+			},
+		},
+		Particles = { -- snowfall
+			Texture = SPARKLE,
+			Color = rgb(255, 255, 255),
+			Size = 0.6,
+			Lifetime = 6,
+			Rate = 8,
+			Speed = 2,
+			Acceleration = v(0.5, -3, 0),
+			LightEmission = 0.2,
+		},
 	},
 
 	Volcano = {
@@ -380,6 +652,37 @@ return {
 			Props = { peak("Volcano", v(200, 130, 200), rgb(50, 42, 48), rgb(255, 80, 20), M.Neon) },
 		},
 		Gate = gate(rgb(42, 38, 48), M.Basalt, rgb(255, 110, 40)),
+		Scatter = {
+			Every = 2,
+			Near = 25,
+			Far = 160,
+			Props = {
+				"BasaltSpike",
+				block("Boulder", v(9, 6, 8), rgb(52, 46, 56), M.Basalt, {
+					part(v(9.2, 0.4, 2), v(0, 3, 0), rgb(255, 90, 20), M.Neon),
+				}),
+				block("SteamVent", v(5, 2, 5), rgb(60, 52, 58), M.Basalt, {
+					part(v(2, 0.4, 2), v(0, 2.1, 0), rgb(255, 140, 40), M.Neon),
+				}),
+				block("Obsidian", v(4, 8, 4), rgb(20, 18, 28), M.Glass),
+			},
+			Patches = {
+				patch("LavaPool", 20, 14, rgb(255, 92, 22), M.Neon),
+				patch("Ash", 28, 20, rgb(72, 66, 72), M.Slate),
+				patch("Cooling", 16, 10, rgb(150, 40, 20), M.CrackedLava),
+			},
+		},
+		Particles = { -- rising embers
+			Texture = SPARKLE,
+			Color = ColorSequence.new(rgb(255, 210, 80), rgb(255, 60, 20)),
+			Size = 0.5,
+			Lifetime = 3,
+			Rate = 8,
+			Speed = 6,
+			Spread = 30,
+			Acceleration = v(0, 3, 0),
+			LightEmission = 1,
+		},
 	},
 
 	Space = {
@@ -426,5 +729,33 @@ return {
 			},
 		},
 		Gate = gate(rgb(80, 95, 130), M.Metal, rgb(80, 240, 255)),
+		Scatter = {
+			Every = 2,
+			Near = 25,
+			Far = 170,
+			Props = {
+				block("Crystal", v(4, 9, 4), rgb(190, 110, 255), M.Neon),
+				block("MoonRock", v(8, 4, 7), rgb(110, 116, 140), M.Slate),
+				block("Antenna", v(1, 14, 1), rgb(160, 170, 200), M.Metal, {
+					part(v(2, 2, 2), v(0, 14, 0), rgb(255, 60, 90), M.Neon),
+				}),
+				"Pylon",
+				ball("Orb", 5, rgb(80, 240, 255), M.ForceField, "BiomeBob"),
+			},
+			Patches = {
+				patch("Crater", 26, 26, rgb(20, 24, 52), M.Slate),
+				patch("GlowPad", 12, 12, rgb(80, 240, 255), M.Neon),
+				patch("Stardust", 30, 18, rgb(120, 100, 180), M.Sand),
+			},
+		},
+		Particles = { -- star twinkle
+			Texture = SPARKLE,
+			Color = ColorSequence.new(rgb(120, 240, 255), rgb(200, 140, 255)),
+			Size = 0.7,
+			Lifetime = 3,
+			Rate = 6,
+			Speed = 0.6,
+			LightEmission = 1,
+		},
 	},
 }

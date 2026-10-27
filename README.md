@@ -199,7 +199,7 @@ updates automatically whenever the board changes; do not edit this block by hand
 - **Gamepad / console focus for panels**: Owner rule 2026-10-26 (HUD_LAYOUT_SPEC 7). Implemented in Client/PanelSwitch: first button selected, AddSelectionParent trap, ButtonB closes, selection restored. Needs a Controller Emulator check and ui-test-writer coverage.
 - **Safe-area policy for IgnoreGuiInset GUIs**: Owner rule 2026-10-26 (HUD_LAYOUT_SPEC 7). Implemented: Client/SafeInsets sets DeviceSafeInsets on every PlayerGui ScreenGui except PanelDim, LoserScreen, RollShowcase. Needs a notched-phone Device Simulator check.
 - **VFX showcase area (/tp vfxarea, /tp home)**: Owner 2026-10-26. Shared/VfxArea floor at (1600,0,0), Client/VfxShowcase local cars per trail/aura, CarService.Teleport + admin /tp vfxarea \| home. Verified live. Next: run admin + vehicle_effects in the full harness; test-writer may add admin checks for the two new /tp forms.
-- **Rendering pass + car finish (lighting baseline, Asphalt/Concrete, LOD, glossy car finish)**: docs/RENDERING_SPEC.md + CAR_REDESIGN_SPEC section 8. Code: Shared/LightingConfig (applied in Main before WeatherService.Start), TrackBuilder road Asphalt / walls + supports Concrete, NpcRacer shadows, CarAppearance.FINISH. Previewed live in client only. Left: restart Play and run environment, car_redesign, npc, weather, race; set Technology=Future (manual item); geometry pass (level 2: rounded panels, door seams, arch flares, rim lips, spoked hand-built wheels, cheaper 24-side tyres) on all 111 cars, uploaded (assets/meshes/cars/ids.json) and synced to RedesignCarModels; not yet seen in a fresh Play session.
+- **Biome visual pass: scatter + ground patches, horizon fit, landmark particles, oriented-box Prune**: docs/BIOME_DRESSING_SPEC.md Layers 7-8 + rules (2026-10-26), budget 800 (owner). Shared/BiomeDressing + BiomeThemes. Full harness 50/0 (400 build); environment 328/328 at 800. Scenery 1515 -> 5142 parts, 78 landmark emitters. Left: owner visual review while racing; full harness at 800; phone frame cost; particle cost with 7 players.
 
 ### Up next (9)
 
@@ -227,9 +227,10 @@ updates automatically whenever the board changes; do not edit this block by hand
 - **Build Server Luck (2x/4x/8x developer products)**: Design doc lists it; the Shop shows it as Coming soon (no Grants, receipt never granted).
 - **Gift buttons in the Shop**: References show gift buttons; not built.
 
-### Recently done (53)
+### Recently done (54)
 
 - ~~Market trail / aura VFX redesign (all six)~~ (2026-10-26)
+- ~~Rendering pass + car finish (lighting baseline, Asphalt/Concrete, LOD, glossy car finish)~~ (2026-10-26)
 - ~~Race progress map completion~~ (2026-10-21)
 - ~~Gate signs: biome + recommended Speed~~ (2026-10-21)
 - ~~Shown Speed = base x car multi; cruise from shown Speed~~ (2026-10-21)
@@ -238,7 +239,6 @@ updates automatically whenever the board changes; do not edit this block by hand
 - ~~Smooth auto-race motion (soft rail)~~ (2026-10-15)
 - ~~Rebirth panel rebuild + 1 Rebirth Point per rebirth~~ (2026-10-15)
 - ~~Rotating weather / biome events that boost luck~~ (2026-10-13)
-- ~~Duels: challenge another player to a race (request, accept/decline, track pick)~~ (2026-10-13)
 
 <!-- TODO:END -->
 

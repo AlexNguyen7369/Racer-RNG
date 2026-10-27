@@ -1049,13 +1049,25 @@
     {
       "id": "rendering-pass",
       "title": "Rendering pass + car finish (lighting baseline, Asphalt/Concrete, LOD, glossy car finish)",
-      "status": "doing",
+      "status": "done",
       "source": "Owner",
       "by": "Claude",
       "added": "2026-10-26T13:10:00-07:00",
-      "updated": "2026-10-26T13:45:00-07:00",
+      "updated": "2026-10-26T14:20:00-07:00",
       "updatedBy": "Claude",
-      "detail": "docs/RENDERING_SPEC.md + CAR_REDESIGN_SPEC section 8. Code: Shared/LightingConfig (applied in Main before WeatherService.Start), TrackBuilder road Asphalt / walls + supports Concrete, NpcRacer shadows, CarAppearance.FINISH. Previewed live in client only. Left: restart Play and run environment, car_redesign, npc, weather, race; set Technology=Future (manual item); geometry pass (level 2: rounded panels, door seams, arch flares, rim lips, spoked hand-built wheels, cheaper 24-side tyres) on all 111 cars, uploaded (assets/meshes/cars/ids.json) and synced to RedesignCarModels; not yet seen in a fresh Play session."
+      "detail": "docs/RENDERING_SPEC.md + CAR_REDESIGN_SPEC section 8. Code: Shared/LightingConfig (applied in Main before WeatherService.Start), TrackBuilder road Asphalt / walls + supports Concrete, NpcRacer shadows, CarAppearance.FINISH. Previewed live in client only. Left: restart Play and run environment, car_redesign, npc, weather, race; set Technology=Future (manual item); geometry pass (level 2: rounded panels, door seams, arch flares, rim lips, spoked hand-built wheels, cheaper 24-side tyres) on all 111 cars, uploaded (assets/meshes/cars/ids.json) and synced to RedesignCarModels; not yet seen in a fresh Play session. Verified 2026-10-26: full harness 50/0 in a fresh Play; cars and lighting checked by eye. Technology=Future left to the owner (manual item).",
+      "done": "2026-10-26"
+    },
+    {
+      "id": "biome-visual-pass",
+      "title": "Biome visual pass: scatter + ground patches, horizon fit, landmark particles, oriented-box Prune",
+      "status": "doing",
+      "source": "Owner",
+      "by": "Claude",
+      "added": "2026-10-26T14:30:00-07:00",
+      "updated": "2026-10-26T15:30:00-07:00",
+      "updatedBy": "Claude",
+      "detail": "docs/BIOME_DRESSING_SPEC.md Layers 7-8 + rules (2026-10-26), budget 800 (owner). Shared/BiomeDressing + BiomeThemes. Full harness 50/0 (400 build); environment 328/328 at 800. Scenery 1515 -> 5142 parts, 78 landmark emitters. Left: owner visual review while racing; full harness at 800; phone frame cost; particle cost with 7 players."
     }
   ]
 }

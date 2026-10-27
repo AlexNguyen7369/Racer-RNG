@@ -108,15 +108,16 @@ remote.OnClientEvent:Connect(function(event)
 	end
 	if event.Type == "Start" then
 		startNpc(event)
-		-- A new race clears any previous loss before the NPC becomes visible.
-		loseToken += 1
-		gui.Enabled = false
+		-- A loss is followed immediately by Reset + Start. Keep the presentation
+		-- overlay alive for its configured duration while the new NPC is rebuilt.
 	elseif event.Type == "Result" and event.Result == "Lose" then
 		showLoser(event)
-	elseif event.Type == "Reset" or event.Type == "Stop" then
+	elseif event.Type == "Reset" then
 		clearNpc()
-		-- A reset or stop clears the previous loss immediately; the server's next
-		-- Result event is the only thing allowed to show it again.
+		-- Reset is authoritative and immediate, but must not cancel the loser
+		-- presentation: RaceService sends it in the same frame as Result/Lose.
+	elseif event.Type == "Stop" then
+		clearNpc()
 		loseToken += 1
 		gui.Enabled = false
 	end

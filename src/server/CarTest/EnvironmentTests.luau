@@ -35,6 +35,12 @@ local GROUND_TOP = -1 -- TrackBuilder GROUND_TOP (world Y of the grass top)
 local GROUND_STEP = 0.02 -- contract: track N's ground top sits 0.02 * N below GROUND_TOP (no z-fighting)
 local MAX_TRIANGLES = 20000
 local MAX_VERTICES = 60000
+-- Visual pass (owner 2026-10-26, spec Layers 7-8 and Acceptance "Added 2026-10-26")
+local PARTICLE_MAX_RATE = 8 -- spec placeholder PARTICLE_MAX_RATE
+local MIN_SCATTER = 10
+local MIN_PATCHES = 5
+local PATCH_THICKNESS = 0.2
+local PATCH_GROUND_TOL = 0.05
 
 local function module(parent, name)
 	local source = parent:FindFirstChild(name)
@@ -322,7 +328,7 @@ function Tests.environment()
 	local clearance = Dressing and Dressing.CLEARANCE
 	local budget = Dressing and Dressing.BUDGET
 	flag("clearance_value", clearance == 8, type(clearance) == "number" and clearance or -1, 8)
-	flag("budget_value", budget == 400, type(budget) == "number" and budget or -1, 400)
+	flag("budget_value", budget == 800, type(budget) == "number" and budget or -1, 800)
 	flag("prune_api", Dressing ~= nil and type(Dressing.Prune) == "function")
 
 	local specs = TrackRegistry.Chain()
@@ -507,7 +513,7 @@ function Tests.environment()
 	local grid, obstacles = obstacleGrid(models, spawnModel)
 	r.metrics.obstacles = obstacles
 	local grow = (type(clearance) == "number" and clearance or 8) - GEOM_TOL
-	local counts, worstHits = {}, {}
+	local counts, worstHits, visualCounts = {}, {}, {}
 	for _, t in chainA do
 		local n = t.Spec.Number
 		local model = t.Model
@@ -519,9 +525,9 @@ function Tests.environment()
 		flag(("environment_nonempty_%d"):format(n), #parts > 0, #parts, 1)
 		flag(
 			("environment_budget_%d"):format(n),
-			#parts <= (type(budget) == "number" and budget or 400),
+			#parts <= (type(budget) == "number" and budget or 800),
 			#parts,
-			budget or 400
+			budget or 800
 		)
 
 		-- Gate (spec Layers 4): a Gate* part on the FIRST STRAIGHT, after Prune: its horizontal distance from Start along
@@ -619,9 +625,81 @@ function Tests.environment()
 		end
 		flag(("lights_no_shadows_%d"):format(n), badLights == 0, badLights, 0)
 		flag(("no_sky_or_atmosphere_%d"):format(n), skyLike == 0, skyLike, 0)
+
+		-- Visual pass (owner 2026-10-26): after Prune each track keeps landmarks, horizon, scatter and flat patches
+		local prefixCount = { Landmark_ = 0, Horizon_ = 0, Scatter_ = 0, Patch_ = 0 }
+		local patchBad, patchFirst = 0, nil
+		local ground = model:FindFirstChild("Ground")
+		local groundTop = ground and ground:IsA("BasePart") and ground.Position.Y + ground.Size.Y / 2 or nil
+		for _, c in (env and env:GetChildren() or {}) do
+			for prefix, k in prefixCount do
+				if string.sub(c.Name, 1, #prefix) == prefix then
+					prefixCount[prefix] = k + 1
+				end
+			end
+			if string.sub(c.Name, 1, 6) == "Patch_" then
+				local patchParts = baseParts(c)
+				if c:IsA("BasePart") then
+					table.insert(patchParts, c)
+				end
+				for _, part in patchParts do
+					local bottom = part.Position.Y - part.Size.Y / 2
+					local ok = part.Size.Y <= PATCH_THICKNESS + SIZE_TOL
+						and groundTop ~= nil
+						and math.abs(bottom - groundTop) <= PATCH_GROUND_TOL
+					if not ok then
+						patchBad += 1
+						patchFirst = patchFirst or ("%s y=%.3f h=%.3f"):format(part:GetFullName(), bottom, part.Size.Y)
+					end
+				end
+			end
+		end
+		flag(("landmark_present_%d"):format(n), prefixCount.Landmark_ >= 1, prefixCount.Landmark_, 1)
+		flag(("horizon_present_%d"):format(n), prefixCount.Horizon_ >= 1, prefixCount.Horizon_, 1)
+		flag(("scatter_present_%d"):format(n), prefixCount.Scatter_ >= MIN_SCATTER, prefixCount.Scatter_, MIN_SCATTER)
+		flag(("patches_present_%d"):format(n), prefixCount.Patch_ >= MIN_PATCHES, prefixCount.Patch_, MIN_PATCHES)
+		flag(("patches_flat_on_ground_%d"):format(n), env ~= nil and patchBad == 0, patchBad, 0)
+
+		-- Particles (spec Layer 8): only BiomeParticles, inside a Landmark_* model, Rate <= 8, one per landmark
+		local emitters, particlesBad, particlesFirst, perLandmark = 0, 0, nil, {}
+		for _, d in (env and env:GetDescendants() or {}) do
+			if d:IsA("ParticleEmitter") then
+				local top = d
+				while top.Parent and top.Parent ~= env do
+					top = top.Parent
+				end
+				local inLandmark = top ~= d and top:IsA("Model") and string.sub(top.Name, 1, 9) == "Landmark_"
+				if d.Name == "BiomeParticles" then
+					emitters += 1
+				end
+				if inLandmark then
+					perLandmark[top] = (perLandmark[top] or 0) + 1
+				end
+				local ok = d.Name == "BiomeParticles"
+					and inLandmark
+					and d.Rate <= PARTICLE_MAX_RATE
+					and perLandmark[top] <= 1
+				if not ok then
+					particlesBad += 1
+					particlesFirst = particlesFirst or ("%s rate=%g"):format(d:GetFullName(), d.Rate)
+				end
+			end
+		end
+		flag(("particles_rules_%d"):format(n), env ~= nil and particlesBad == 0, particlesBad, 0)
+		flag(("particles_present_%d"):format(n), emitters >= 1, emitters, 1)
+		visualCounts[tostring(n)] = {
+			landmarks = prefixCount.Landmark_,
+			horizon = prefixCount.Horizon_,
+			scatter = prefixCount.Scatter_,
+			patches = prefixCount.Patch_,
+			particles = emitters,
+			first_patch_bad = patchFirst,
+			first_particle_bad = particlesFirst,
+		}
 	end
 	r.metrics.parts = counts
 	r.metrics.first_overlap = worstHits
+	r.metrics.visual = visualCounts
 
 	local after = lightingSnapshot()
 	local lightOk = math.abs(after.ClockTime - before.ClockTime) <= LIGHT_TOL

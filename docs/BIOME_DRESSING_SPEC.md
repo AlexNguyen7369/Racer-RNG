@@ -32,6 +32,17 @@ Prop lists, sizes, colours and spacing are placeholders that can be tuned.
 4. **Gate:** a themed arch over the road on the track's first straight. It stands at waypoint `GATE_INDEX` (4), or at the theme's `Gate.Index` when that spot is not clear (Track 1 uses 18, past the spawn-area floor; Track 2 uses 9, past the race-start pavilion). It marks the biome change along the chain. **Sign (owner 2026-10-21):** a `SurfaceGui` on the `GateSign` faces the oncoming car and shows the biome name (big) and `REC. SPEED <n>` using a universal 1x cruise baseline, independent of the equipped car or aura. The number is the base Speed whose cruise speed equals `NpcConfig.For(Number).Speed`, inverted from `RaceConfig.SpeedFor`, formatted like the HUD Speed. Visual only, like the rest of the gate.
 5. **Ambient motion (client only):** `Client/BiomeAmbience` spins parts tagged `BiomeSpin` and bobs parts tagged `BiomeBob`. It only animates props within `AMBIENCE_DISTANCE` (300 studs) of the camera. Server parts never move.
 6. **Ground:** the theme sets the track's `Ground` material and colour.
+7. **Scatter (owner 2026-10-26):** fills the ground beyond the rhythm so the view is never an empty plain. Theme
+   `Scatter = { Every, Near, Far, Props, Patches }`. Every `Every` waypoints, on each side, one prop stands between
+   `Near` and `Far` studs from the road edge; the waypoint index picks the prop, its distance and its yaw (no
+   randomness). Every other spot also lays a flat ground patch from `Patches` (`{ Name, Size, Color, Material }`: a
+   slab 0.2 studs thick on the ground, such as flowers, dirt, puddles, lava pools or ice). Scatter is built last and only
+   fills what the budget leaves, so it never displaces the other layers. A scatter prop may reuse a rhythm or landmark
+   prop (same table, so the same mesh).
+8. **Particles (owner 2026-10-26):** theme `Particles` (one `ParticleEmitter` setting per biome: fireflies, dust,
+   snowfall, embers, star twinkle ...). One emitter per landmark, on its first part, named `BiomeParticles`, with
+   `Rate` at most `PARTICLE_MAX_RATE` (placeholder 8 per second). Built-in particle textures only. Particles are local
+   to the landmark: no screen-wide or Lighting effect.
 
 ## Rules
 
@@ -41,8 +52,15 @@ Prop lists, sizes, colours and spacing are placeholders that can be tuned.
   prop whose box, grown by `CLEARANCE` (placeholder 8 studs) on every side, touches a road, wall,
   checkpoint or win pad part of ANY track, or the spawn area. The gate follows the same rule. Its posts
   stand outside the clearance, and its beam spans the road at `GATE_HEIGHT` (placeholder 28) studs, high
-  above the road and walls.
-- **Budget (placeholder):** at most 400 BaseParts per track `Environment` folder.
+  above the road and walls. **Oriented boxes (2026-10-26):** the test is an oriented-box (separating axis)
+  overlap of each prop part, grown in its own axes, against each blocker part, the same test as the acceptance
+  scenario. The earlier axis-aligned shortcut removed about half the roadside props beside diagonal roads.
+- **Horizon fit (2026-10-26):** a horizon piece that does not fit on its track's ground at its `Offset` moves in
+  toward the road (3/4, 1/2, then 1/3 of `Offset`, never nearer than the landmark `Offset`) before it is skipped.
+- **Short tracks (2026-10-26):** landmark spacing starts at `min(Landmarks.Every, #waypoints // 2)` and horizon
+  spacing at `min(HORIZON_EVERY, #waypoints // 2)`, so a short straight track (Track 3) still gets both.
+- **Budget (placeholder):** at most 800 BaseParts per track `Environment` folder (owner 2026-10-26: was 400; the
+  scatter layer needs the room so the open ground beyond the road is not bare).
 - **On the ground (owner 2026-10-20):** a prop is only placed when its whole footprint lies on its own track's
   `Ground`; a prop that would hang past the ground's edge is skipped, so nothing floats over the void or the Baseplate.
 - **Deterministic:** no randomness. Variety comes from the waypoint index, so two builds are identical.
@@ -86,3 +104,7 @@ For every chain track: an `Environment` folder exists and the `Biome` attribute 
 anchored and has `CanCollide`, `CanTouch` and `CanQuery` false; after `Prune` no prop is within `CLEARANCE` of any road,
 wall, checkpoint, pad or spawn-area part; the part count is within the budget; two builds give the same prop names
 and CFrames; and `Lighting` is unchanged. The full harness (chain, race, laps, npc) stays green.
+Added 2026-10-26: after `Prune` every track keeps at least one landmark, at least one horizon piece and at least
+10 scatter props (`Scatter_*`) and 5 ground patches (`Patch_*`); every patch is at most 0.2 studs thick and sits on its
+track's ground top; every `ParticleEmitter` in an Environment is named `BiomeParticles`, sits inside a `Landmark_*`
+model (one at most per landmark) and has a `Rate` of at most 8.
