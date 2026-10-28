@@ -628,7 +628,9 @@ UiSpec.Shop = {
 	Bundle = "Bundle",
 	BuyName = "Buy",
 	ComingSoon = "Coming soon", -- id 0 (GamepassId / ProductId)
-	Owned = "Owned", -- an owned gamepass car (attribute Pass_<carId>)
+	-- An owned gamepass car (attribute Pass_<carId>): its Featured button equips it (docs/GAMEPASS_CARS_SPEC.md, owner
+	-- 2026-10-20, later than GAMEPASS_SHOP_SPEC section 2's "Owned"): "Equipped" while it is EquippedCar, else "Equip".
+	OwnedCar = { Equip = "Equip", Equipped = "Equipped" },
 	ThanksText = "Thanks for your support!",
 	Codes = { Input = "Input", Redeem = "Redeem", Status = "Status" },
 	-- The text the redeem click types: never a real code (Server/CodeConfig keys are upper case words; this has a
@@ -670,6 +672,12 @@ UiSpec.Market = {
 	SelectId = "SpeedII",
 	-- The price text inside Detail/Price
 	PriceText = "Value",
+	-- Owner 2026-10-28 (docs/HUD_LAYOUT_SPEC.md section 6): on phones (viewport height <= PhoneMaxHeight) the Market
+	-- shows its Grid only (Detail hidden); tapping a tile swaps Grid for Detail, whose Back button (a TextButton whose
+	-- label contains BackText) swaps back. Desktop keeps Grid and Detail side by side.
+	PhoneMaxHeight = 500,
+	Back = "MarketUi/Backdrop/Panel/Detail/Back",
+	BackText = "BACK",
 	-- Client/MarketUi fitTabs: a UIScale "Scale" in each side tab (not on the rail), fitted to the rail's height.
 	-- Mirrored so the layout solver models it at every viewport (UiScenarios marketTabScale).
 	TabFit = { ScaleName = "Scale", RailWidth = 96, TabSize = 96, Gap = 10, Min = 0.4, Max = 1 },
@@ -703,11 +711,12 @@ UiSpec.Band = {
 -- margin, and this far above the TURBO bar (ui_progression_layout).
 UiSpec.PanelTopMargin = 4
 
--- The four Racer panels (owner decision 2026-10-08, RacerUiController.fitPanels): centred in the band between the
--- Race button and the TURBO LUCK bar, Gap px below the Race Face's bottom, Gap px above the TURBO bar's top and at
--- least Gap px right of the INDEX / STATS / REBIRTH column (the same margin on the right), their UIScale shrinking
--- below the generated k only when the band is too small. ui_layout <panel>_centred_x / _below_autorace /
--- _above_turbo / _clear_of_nav / _band_centred_y check it at every viewport.
+-- The four Racer panels (owner decision 2026-10-08; band since docs/HUD_LAYOUT_SPEC.md 2026-10-15 sections 1 and 6:
+-- RacerUiController.fitPanels reads Client/PanelBand.Rect, the Shop / Market band): centred in the band, Gap px below
+-- the Race Face's bottom, Gap px above the TURBO LUCK bar's top, inside the band (past the icon grid and the Shop
+-- column, the wider margin on both sides, above Money when Money reaches into it), centred vertically in it, their
+-- UIScale shrinking below the generated k only when the band is too small. ui_layout <panel>_centred_x /
+-- _below_autorace / _above_turbo / _clear_of_nav / _inside_band / _band_centred_y check it at every viewport.
 UiSpec.RacerPanelBand = {
 	Panels = {
 		["RacerIndex/Panel"] = "index_panel",
@@ -725,6 +734,8 @@ UiSpec.RacerPanelBand = {
 -- When = "any": any PanelSwitch panel open; "other_than:<panel>": any panel but that one.
 UiSpec.HiddenWhilePanelOpen = {
 	["DailyBoosts/Status"] = "any",
+	-- Owner 2026-10-28 (docs/HUD_LAYOUT_SPEC.md section 6): the compact roll hides under every panel
+	["RollToast/Toast"] = "any",
 }
 -- ProgressionUi applies its visibility on a 0.25 s poll: the checks wait up to this long for it.
 UiSpec.HiddenWhilePanelOpenWait = 1
@@ -1045,6 +1056,7 @@ UiSpec.Waits = {
 	NpcStart = 20, -- an NPC must be on track (or start) within this while auto racing
 	ClickDone = 60, -- click protocol: ui-tester must click within this
 	ClickSettle = 1.5, -- after the click, the server answer must show within this (Race has a 1 s pending lock)
+	MotionRest = 3, -- s ui_hud waits for a payout Pop (UiMotion MotionScale) to settle before measuring the Money plate
 	LoseEvent = 30, -- ui_loser waits this long for a Result Lose (ServerSetup lose_event)
 	LoserShowGrace = 0.2, -- the loser screen must be shown this soon after the Lose
 	LoserHideGrace = 0.5, -- and hidden this soon after the next Reset / Start / Stop
@@ -1098,7 +1110,9 @@ UiSpec.ServerSetup = {
 	},
 	{
 		Id = "on_foot",
-		When = "before the ui_speed_dial fixture run (UiSpec.Progression.FixtureChecks); needs 'snapshot' first",
+		When = "before the ui_speed_dial fixture run (UiSpec.Progression.FixtureChecks) and first in the NeedSetup of "
+			.. "every click whose After pins Money (progression_not_optimistic: a racing car's pad payouts would move "
+			.. "it mid-check); needs 'snapshot' first",
 		What = "Stops auto race (AutoRacing == false, avatar on foot at the walk spawn, no car). 'restore' puts "
 			.. "AutoRacing back.",
 	},
@@ -1156,6 +1170,9 @@ UiSpec.ClickSpace = "below_topbar"
 --     "click space mismatch", it does not click. The harness still verifies where the press really landed
 --     (click_landed_on_button), so a wrong space can never pass as a click on the target.
 UiSpec.ClickNeedsUnemulatedView = true
+-- Phone-height clicks (Prepare.PhoneOnly, e.g. the compact phone Market): ui-tester resizes the REAL game view to a
+-- height <= PhoneMaxHeight (UiSpec.LegacyControls.ResizeProtocol, no emulation), runs them, then restores the view.
+UiSpec.PhoneMaxHeight = 500
 
 --[[
 Clicks ui-tester performs with mcp__Roblox_Studio__user_mouse_input (a LocalScript can not fire Activated).
@@ -1297,6 +1314,31 @@ UiSpec.Clicks = {
 		Path = "Backdrop/Panel/Grid/Potion_SpeedII",
 		Prepare = only("MarketUi/Backdrop"),
 		Expect = { Panels = { ["MarketUi/Backdrop"] = true }, Remote = false, After = { "market_detail_shows_tile" } },
+	},
+	-- Phone Market (owner 2026-10-28, HUD_LAYOUT_SPEC section 6): a tile tap swaps the Grid for the Detail view
+	-- (nothing bought), and Back swaps back; run in this order at a phone-height game view (Prepare.PhoneOnly).
+	{
+		Id = "market_phone_tile_opens_detail",
+		Gui = "MarketUi",
+		Path = "Backdrop/Panel/Grid/Potion_SpeedII",
+		Prepare = (function()
+			local p = only("MarketUi/Backdrop")
+			p.PhoneOnly = true
+			p.LeavePanels = true
+			return p
+		end)(),
+		Expect = {
+			Panels = { ["MarketUi/Backdrop"] = true },
+			Remote = false,
+			After = { "market_phone_detail_view", "market_detail_shows_tile" },
+		},
+	},
+	{
+		Id = "market_phone_back",
+		Gui = "MarketUi",
+		Path = "Backdrop/Panel/Detail/Back",
+		Prepare = { KeepPanels = true, Showcase = false, PhoneOnly = true, RequireShown = true },
+		Expect = { Panels = { ["MarketUi/Backdrop"] = true }, Remote = false, After = { "market_phone_grid_view" } },
 	},
 	-- BUY on the selected potion invokes MarketPurchase("Potion", "SpeedII") once; the real handler never runs
 	-- (Intercept: ServerSetup progression_spy must proxy MarketPurchase and MarketEquip, else the click is refused).
@@ -2062,6 +2104,10 @@ UiSpec.RemoteFunctions = {
 	"MarketPurchase",
 	"MarketEquip",
 	"RedeemCode",
+	-- Checkpoints (Client/CheckpointUi Detail/Start) and gifting (Client/GiftPicker Confirm): the checkpoint_* and
+	-- gift_* clicks Intercept them, so progression_spy must proxy them too
+	"SetCheckpoint",
+	"PrepareGift",
 }
 table.insert(UiSpec.Remotes, "WorkshopOpen")
 for _, item in
@@ -2125,7 +2171,7 @@ table.insert(UiSpec.Clicks, {
 	Gui = "RacerUpgrades",
 	Path = "Panel/Canvas/TreeWorld/Start",
 	Prepare = only("RacerUpgrades/Panel"),
-	NeedSetup = { "spy", "progression_spy" },
+	NeedSetup = { "on_foot", "spy", "progression_spy" },
 	Expect = { Panels = { ["RacerUpgrades/Panel"] = true }, Remote = false, After = { "progression_not_optimistic" } },
 })
 table.insert(UiSpec.Clicks, {
@@ -2136,14 +2182,9 @@ table.insert(UiSpec.Clicks, {
 	NeedSetup = { "spy" },
 	Expect = { Panels = { ["RacerUpgrades/Panel"] = true }, Remote = false },
 })
-table.insert(UiSpec.Clicks, {
-	Id = "toggle_upgrades_closed",
-	Gui = "HudChrome",
-	Path = "UpgradeSlot/Upgrade",
-	Prepare = only("RacerUpgrades/Panel"),
-	NeedSetup = { "spy" },
-	Expect = { Panels = { ["RacerUpgrades/Panel"] = false }, Remote = false },
-})
+-- No toggle_upgrades_closed click: the tree is a full-screen overlay that need not leave the HUD tiles clickable
+-- (docs/UPGRADE_TREE_SPEC.md section 5, HUD_LAYOUT_SPEC.md sections 1 and 6, owner 2026-10-26); it closes through
+-- its own Close (close_upgrades) and EXIT (exit_upgrades) buttons.
 -- The weather Card toggles on a click (tap): the first click shows it, the second hides it, even while the pointer
 -- still rests on the icon (hover shows it again only on the next MouseEnter). Run the two in this order.
 for _, open in { true, false } do
@@ -2161,7 +2202,7 @@ table.insert(UiSpec.Clicks, {
 	Gui = "RacerUpgrades",
 	Path = "Panel/Canvas/TreeWorld/money_1",
 	Prepare = only("RacerUpgrades/Panel"),
-	NeedSetup = { "progression_buyable", "spy", "progression_spy" },
+	NeedSetup = { "on_foot", "progression_buyable", "spy", "progression_spy" },
 	Expect = { Remote = { Name = "BuyUpgrade", Arg = "upgrade_id" }, After = { "progression_not_optimistic" } },
 })
 table.insert(UiSpec.Clicks, {
@@ -2169,7 +2210,7 @@ table.insert(UiSpec.Clicks, {
 	Gui = "RacerUpgrades",
 	Path = "Panel/Canvas/TreeWorld/money_1",
 	Prepare = only("RacerUpgrades/Panel"),
-	NeedSetup = { "progression_no_money", "spy", "progression_spy" },
+	NeedSetup = { "on_foot", "progression_no_money", "spy", "progression_spy" },
 	Expect = { Remote = false, After = { "progression_not_optimistic" } },
 })
 table.insert(UiSpec.Clicks, {
@@ -2177,7 +2218,7 @@ table.insert(UiSpec.Clicks, {
 	Gui = "RacerWorkshop",
 	Path = "Panel/Buy",
 	Prepare = only("RacerWorkshop/Panel"),
-	NeedSetup = { "progression_buyable", "spy", "progression_spy" },
+	NeedSetup = { "on_foot", "progression_buyable", "spy", "progression_spy" },
 	Expect = {
 		Remote = { Name = "WorkshopUpgrade", Arg = "none" },
 		After = { "progression_not_optimistic", "workshop_rejection_shown" },
@@ -2421,6 +2462,8 @@ UiSpec.Progression.FixtureChecks = {
 	-- The speedometer at rest: on foot the needle reads 0 (docs/HUD_LAYOUT_SPEC.md section 9). The main run is
 	-- auto_racing, where ui_speed_dial judges the racing needle.
 	{ Setup = "on_foot", Scenario = "ui_speed_dial" },
+	-- The Speed float sums real gains too: judged on foot only (HUD_LAYOUT_SPEC section 10; main run is auto_racing)
+	{ Setup = "on_foot", Scenario = "ui_speed_float" },
 	{ Setup = "offline_welcome", Scenario = "ui_offline_welcome" },
 	{ Setup = "offline_zero", Scenario = "ui_offline_zero" },
 	{ Setup = "weather_rain", Scenario = "ui_weather" },

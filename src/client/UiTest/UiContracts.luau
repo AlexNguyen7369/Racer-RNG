@@ -579,12 +579,19 @@ function Contracts.Build(h)
 	local function rank(rarity)
 		return table.find(B.RarityOrder, rarity) or math.huge
 	end
-	-- Owned catalog cars (LocalPlayer.GachaData), least rare first, then catalog Order: the spec's order.
+	-- Owned cars, least rare first, then catalog Order: the spec's order. Index cars are owned through
+	-- LocalPlayer.GachaData; gamepass cars through the attribute Pass_<carId> and sort by their catalog rarity
+	-- (docs/HUD_LAYOUT_SPEC.md section 3, docs/GAMEPASS_CARS_SPEC.md "the Backpack Cars tab lists owned gamepass cars").
 	local function ownedInOrder()
 		local data = h.player:FindFirstChild("GachaData")
 		local list = {}
 		for _, car in Catalog.All() do
 			if data and data:FindFirstChild(car.Id) then
+				table.insert(list, car)
+			end
+		end
+		for _, car in Catalog.Passes() do
+			if h.player:GetAttribute("Pass_" .. car.Id) == true then
 				table.insert(list, car)
 			end
 		end
@@ -636,7 +643,7 @@ function Contracts.Build(h)
 			if child:IsA("GuiObject") then
 				table.insert(tiles, child)
 				if not wanted[child.Name] then
-					table.insert(p.backpack_cars_owned_only, child.Name .. ": shown but not an owned catalog car")
+					table.insert(p.backpack_cars_owned_only, child.Name .. ": shown but not an owned car")
 				end
 			end
 		end

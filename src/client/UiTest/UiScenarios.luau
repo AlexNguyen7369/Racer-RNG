@@ -103,8 +103,8 @@ UiScenarios.Names = {
 	"ui_reduced_motion",
 	-- docs/HUD_LAYOUT_SPEC.md section 10 (owner 2026-10-27): UiMotion presets land at once while reduced
 	"ui_motion_reduced",
-	-- docs/HUD_LAYOUT_SPEC.md section 10 (owner 2026-10-27): "+12,345" Speed gain float (HudFormat.SpeedText, full digits below 1m) (UiSpec.SpeedFloat)
-	"ui_speed_float",
+	-- (ui_speed_float, HUD_LAYOUT_SPEC section 10, runs only through UiSpec.Progression.FixtureChecks on_foot: the
+	-- main run races, and live Speed gains would mix into its planted floats)
 	"ui_safe_insets",
 	"ui_panel_focus",
 	"ui_hud",
@@ -613,13 +613,14 @@ local function sameSize(a, b)
 	return math.abs(a.X - b.X) < 0.5 and math.abs(a.Y - b.Y) < 0.5
 end
 
--- MarketUi's per-tab fit (Client/MarketUi fitTabs, mirrored in UiSpec.Market.TabFit): each side tab's UIScale "Scale"
--- = clamp((rail height / rail scale - (n - 1) x gap) / (n x tab size), Min, Max), the rail scale being its rendered
--- width / design width. nil for any other UIScale.
+-- MarketUi's and BackpackUi's per-tab fit (Client/MarketUi and Client/BackpackUi fitTabs, the same formula, mirrored in
+-- UiSpec.Market.TabFit): each side tab's UIScale "Scale" = clamp((rail height / rail scale - (n - 1) x gap) / (n x
+-- tab size), Min, Max), the rail scale being its rendered width / design width. nil for any other UIScale.
 local function marketTabScale(obj, child, ctx)
 	local fit = UiSpec.Market.TabFit
 	local rail = obj.Parent
-	if child.Name ~= fit.ScaleName or not (rail and pathOf(rail) == UiSpec.Market.Tabs) then
+	local railPath = rail and pathOf(rail)
+	if child.Name ~= fit.ScaleName or not (railPath == UiSpec.Market.Tabs or railPath == UiSpec.Backpack.Tabs) then
 		return nil
 	end
 	local rr = simRect(rail, ctx)
@@ -716,9 +717,19 @@ local function liveScaleOf(obj)
 	return s
 end
 
+local autoHeight
+
+-- A GuiObject with AutomaticSize Y that has no text of its own (Client/ShopUi sections, grids and rows): its height is
+-- solved from its children (autoHeight). Text objects and the X axis stay unsupported.
+local function solvedAutoY(obj)
+	return obj.AutomaticSize == Enum.AutomaticSize.Y
+		and not (obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox"))
+end
+
 -- obj's size in `base` (Offsets are design pixels scaled by the inherited UIScale c; UISizeConstraint limits the
 -- design size; obj's own UIScale scales it about its anchor). A LiveAutoSize node's automatic axes take its live
--- size in design pixels (AbsoluteSize / live UIScale factors).
+-- size in design pixels (AbsoluteSize / live UIScale factors); a solvedAutoY node grows to its content's height
+-- (AutomaticSize never shrinks a node below its Size).
 local function sizeIn(obj, size, base, ctx, c)
 	local own = ownScale(obj, ctx)
 	local w = base.w * size.X.Scale + c * size.X.Offset
@@ -737,6 +748,9 @@ local function sizeIn(obj, size, base, ctx, c)
 				h = obj.AbsoluteSize.Y / live
 			end
 		end
+	elseif solvedAutoY(obj) then
+		local fixed = h * c * own
+		return w * c * own, math.max(fixed, autoHeight(obj, w * c * own, fixed, ctx, c * own))
 	end
 	return w * c * own, h * c * own
 end
@@ -875,6 +889,55 @@ local function listCell(obj, parent, list, base, ctx, scale)
 	return R(x, base.y + align(list.VerticalAlignment, base.h, me.h), me.w, me.h)
 end
 
+-- A solvedAutoY node's content height in screen px when it is w x h px before AutomaticSize grows it and its
+-- children's offsets scale by c: a UIGridLayout's rows, a vertical UIListLayout's run (children and gaps), a
+-- horizontal one's tallest child, else the lowest child bottom; plus its UIPadding. Cached per node in ctx.
+autoHeight = function(obj, w, h, ctx, c)
+	ctx.autoHeights = ctx.autoHeights or {}
+	local cached = ctx.autoHeights[obj]
+	if cached then
+		return cached
+	end
+	local inner = contentBox(obj, R(0, 0, w, h), c)
+	local content = 0
+	local grid = obj:FindFirstChildWhichIsA("UIGridLayout")
+	local list = obj:FindFirstChildWhichIsA("UIListLayout")
+	if grid then
+		local items = layoutItems(obj, grid)
+		if #items > 0 then
+			local cw = inner.w * grid.CellSize.X.Scale + c * grid.CellSize.X.Offset
+			local ch = inner.h * grid.CellSize.Y.Scale + c * grid.CellSize.Y.Offset
+			local px = inner.w * grid.CellPadding.X.Scale + c * grid.CellPadding.X.Offset
+			local py = inner.h * grid.CellPadding.Y.Scale + c * grid.CellPadding.Y.Offset
+			local cols = math.max(1, math.floor((inner.w + px) / (cw + px) + 1e-9))
+			if grid.FillDirectionMaxCells > 0 then
+				cols = math.min(cols, grid.FillDirectionMaxCells)
+			end
+			local rows = math.ceil(#items / cols)
+			content = rows * ch + (rows - 1) * py
+		end
+	elseif list then
+		local items = layoutItems(obj, list)
+		local vertical = list.FillDirection == Enum.FillDirection.Vertical
+		local gap = (vertical and inner.h or inner.w) * list.Padding.Scale + c * list.Padding.Offset
+		for k, item in items do
+			local _, ih = sizeIn(item, variantProps(item, ctx), inner, ctx, c)
+			content = vertical and content + ih + (k < #items and gap or 0) or math.max(content, ih)
+		end
+	else
+		for _, child in obj:GetChildren() do
+			if child:IsA("GuiObject") and child.Visible then
+				local size, position, anchor = variantProps(child, ctx)
+				local _, ih = sizeIn(child, size, inner, ctx, c)
+				content = math.max(content, inner.h * position.Y.Scale + c * position.Y.Offset - anchor.Y * ih + ih)
+			end
+		end
+	end
+	local total = content + (h - inner.h)
+	ctx.autoHeights[obj] = total
+	return total
+end
+
 -- The Speed group's visible dial + number width at a viewport (RacerUiController centres exactly that, from SpeedDial's
 -- left edge to the end of SpeedValue's text; docs/HUD_LAYOUT_SPEC.md section 9): the number's live TextBounds in design
 -- pixels (live UIScale and TextSize divided out, the variant's TextSize and UIScale applied), or nil while the number
@@ -1006,7 +1069,7 @@ simRect = function(obj, ctx)
 			end
 		end
 		local c = inheritedScale(parent, ctx)
-		if obj.AutomaticSize ~= Enum.AutomaticSize.None and not liveAutoSized(obj) then
+		if obj.AutomaticSize ~= Enum.AutomaticSize.None and not liveAutoSized(obj) and not solvedAutoY(obj) then
 			ctx.unsupported[pathOf(obj)] = "AutomaticSize"
 		end
 		local base = parent:IsA("GuiObject") and contentBox(parent, pr, c) or pr
@@ -1025,7 +1088,8 @@ simRect = function(obj, ctx)
 			local isRacerPanel = UiResponsive.IsRacerPanel(path)
 			local bandMax = UiSpec.BandPanels[path] -- Client/PanelBand.Fit panels (Shop, Market)
 			local wanted = {}
-			if bandMax then
+			-- The Racer panels read the same PanelBand.Rect as the Band.Fit panels (RacerUiController.fitPanels)
+			if bandMax or isRacerPanel then
 				wanted = {
 					Race = UiSpec.Band.Race,
 					Turbo = UiSpec.Band.Turbo,
@@ -1035,9 +1099,6 @@ simRect = function(obj, ctx)
 				}
 			elseif isRate then
 				wanted = { Speed = UiSpec.Hud.Speed, Toast = "RollToast/Toast" }
-			elseif isRacerPanel then
-				wanted =
-					{ Race = UiSpec.Hud.Race, Turbo = UiSpec.Hud.Turbo, Navigation = UiSpec.RacerPanelBand.Navigation }
 			end
 			local missing = false
 			for key, dependencyPath in wanted do
@@ -1062,14 +1123,16 @@ simRect = function(obj, ctx)
 			local fitted = nil
 			if missing then
 				ctx.unsupported[path] = "missing runtime layout dependency"
-			elseif bandMax then
+			elseif bandMax or isRacerPanel then
 				local money = findPath(UiSpec.Band.Money)
 				dependencies.MoneyShown = money ~= nil and money:IsA("GuiObject") and money.Visible
-				fitted = UiShopMarket.BandFit(ctx.vp, dependencies, bandMax)
-			elseif isRacerPanel then
-				local size = variantProps(obj, ctx)
-				fitted = UiResponsive.RacerPanelFit(ctx.vp, dependencies, size)
-				ctx.scaleOverride[obj] = fitted.Scale
+				if bandMax then
+					fitted = UiShopMarket.BandFit(ctx.vp, dependencies, bandMax)
+				else
+					local size = variantProps(obj, ctx)
+					fitted = UiResponsive.RacerPanelFit(ctx.vp, { UiShopMarket.Band(ctx.vp, dependencies) }, size)
+					ctx.scaleOverride[obj] = fitted.Scale
+				end
 			elseif isRate or path == UiSpec.Weather.Icon then
 				fitted = UiResponsive.Progression(path, ctx.vp, dependencies)
 			end
@@ -1303,12 +1366,18 @@ local function recordLose(event)
 	end
 end
 
+-- docs/NPC_RACER_SPEC.md "Loser screen": shown for LOSE_SCREEN_SECONDS, hidden at once on the next Stop, and on the
+-- next Start / Reset once that time is up (they never cut the recap short). So a Start / Reset that arrives early
+-- (a real race's next Start, or network timing) is judged LoserHideGrace after the recap's time, not after it.
 local function recordAfterLose(kind)
 	local rec = events.loses[#events.loses]
 	if not rec or rec.after then
 		return
 	end
 	rec.after = kind
+	if kind ~= "Stop" then
+		task.wait(math.max(0, rec.t + NpcConfig.LOSE_SCREEN_SECONDS - os.clock()))
+	end
 	task.wait(UiSpec.Waits.LoserHideGrace)
 	local gui = playerGui:FindFirstChild("LoserScreen")
 	rec.hiddenAfter = gui ~= nil and gui.Enabled == false
@@ -1506,8 +1575,11 @@ local function allText(obj)
 		return ""
 	end
 	local list = {}
+	-- The Stats tile's free-points badge (UiSpec.Hud.PointsBadge, HUD_LAYOUT_SPEC section 1) is not its label
+	local badge = findPath(UiSpec.Hud.PointsBadge)
 	for _, o in { obj, table.unpack(obj:GetDescendants()) } do
-		if o.Name ~= "PointsBadge" and (o:IsA("TextLabel") or o:IsA("TextButton")) and o.Text ~= "" and o.Visible then
+		local inBadge = o.Name == "PointsBadge" or (badge ~= nil and (o == badge or o:IsDescendantOf(badge)))
+		if not inBadge and (o:IsA("TextLabel") or o:IsA("TextButton")) and o.Text ~= "" and o.Visible then
 			table.insert(list, o.Text)
 		end
 	end
@@ -2578,12 +2650,8 @@ end
 
 -- a, b: element paths; ra, rb: their (clipped) rects; rectOf: the viewport's rect provider. Returns allowed, why-not.
 local function overlapAllowed(a, b, ra, rb, rectOf)
-	local panelPath, readout = panelReadoutPair(a, b)
-	if panelPath then
-		local problem = panelCoverProblem(panelPath, readout, ra and rb and intersection(ra, rb), rectOf)
-		return problem == nil, problem
-	end
 	-- While a full-screen overlay panel is open (UiSpec.FullScreenPanels), its ScreenGui may cover other ScreenGuis
+	-- (docs/HUD_LAYOUT_SPEC.md section 6); checked first, so its panel surface is not judged as a band panel's
 	local guiA, guiB = string.match(a, "^[^/]+"), string.match(b, "^[^/]+")
 	if guiA ~= guiB then
 		for panel in UiSpec.FullScreenPanels do
@@ -2592,6 +2660,11 @@ local function overlapAllowed(a, b, ra, rb, rectOf)
 				return true
 			end
 		end
+	end
+	local panelPath, readout = panelReadoutPair(a, b)
+	if panelPath then
+		local problem = panelCoverProblem(panelPath, readout, ra and rb and intersection(ra, rb), rectOf)
+		return problem == nil, problem
 	end
 	for _, pair in UiSpec.AllowOverlap do
 		if (pair[1] == a and pair[2] == b) or (pair[1] == b and pair[2] == a) then
@@ -3227,9 +3300,10 @@ function S.ui_layout(res)
 				end
 			end
 			-- An open panel never covers the top controls (Race top centre, Settings top right): both stay clickable
+			-- (A full-screen overlay, UiSpec.FullScreenPanels, is exempt: docs/UPGRADE_TREE_SPEC.md section 5.)
 			for _, panelPath in state.Open do
 				local panel = panelBody(panelPath)
-				for _, key in { "Race", "Settings" } do
+				for _, key in not UiSpec.FullScreenPanels[panelPath] and { "Race", "Settings" } or {} do
 					local name = "panel_clear_of_top_controls_" .. panelPath .. "_" .. key .. "_" .. vpSpec.Name
 					local control = findPath(UiSpec.TopControls[key])
 					if panel and control then
@@ -3240,21 +3314,23 @@ function S.ui_layout(res)
 					end
 				end
 			end
-			-- The four Racer panels sit in the band between the Race button and the TURBO LUCK bar (owner decision
-			-- 2026-10-08, RacerUiController.fitPanels; the compact roll is hidden while they are open): centred
-			-- horizontally, Gap below the Race Face, Gap above the TURBO bar, clear of the INDEX / STATS / REBIRTH column
-			-- by Gap (the same margin on the right), centred vertically in the band.
+			-- The four Racer panels sit in the PanelBand (docs/HUD_LAYOUT_SPEC.md sections 1 and 6, Client/PanelBand.Rect,
+			-- read by RacerUiController.fitPanels): centred horizontally, Gap below the Race Face, Gap above the TURBO
+			-- LUCK bar, inside the band (past the icon grid and what sticks out of it and the Shop column, the wider
+			-- margin on both sides; above Money when Money reaches into it), centred vertically in the band.
 			for _, panelPath in state.Open do
 				local prefix = UiSpec.RacerPanelBand.Panels[panelPath]
 				if prefix then
 					local p = findPath(panelPath)
 					local race, turbo = findPath(UiSpec.Hud.Race), findPath(UiSpec.Hud.Turbo)
 					local nav = findPath(UiSpec.RacerPanelBand.Navigation)
+					local raceBox, shop = findPath(UiSpec.Band.Race), findPath(UiSpec.Band.ShopColumn)
+					local money = findPath(UiSpec.Band.Money)
 					local tagV = "_" .. vpSpec.Name
-					if p and race and turbo and nav then
+					if p and race and turbo and nav and raceBox and shop and money then
 						local gap = UiSpec.RacerPanelBand.Gap
 						local r, root = rectOf(p), rootRect(guiOf(p), vp)
-						local ar, br, nr = rectOf(race), rectOf(turbo), rectOf(nav)
+						local ar, br = rectOf(race), rectOf(turbo)
 						local cx, cy = centre(r)
 						local dx = math.abs(cx - (root.x + root.w / 2))
 						check(res, prefix .. "_centred_x" .. tagV, dx, TOL, dx <= TOL)
@@ -3268,30 +3344,57 @@ function S.ui_layout(res)
 							"<= " .. maxBottom,
 							r.y + r.h <= maxBottom + TOL
 						)
-						-- the column includes what sticks out of it (the STATS PointsBadge): every GuiObject
-						-- descendant with Visible = true, as fitPanels reads it (UiResponsive.ColumnRight)
+						-- the grid includes what sticks out of it (the STATS PointsBadge): every GuiObject descendant
+						-- with Visible = true, as PanelBand.Rect reads it
 						local parts = {}
 						for _, d in nav:GetDescendants() do
 							if d:IsA("GuiObject") and d.Visible then
 								table.insert(parts, rectOf(d))
 							end
 						end
-						local side = UiResponsive.ColumnRight(nr, parts) + gap
+						local left, top, right, bottom = UiShopMarket.Band(vp, {
+							Race = rectOf(raceBox),
+							Turbo = br,
+							Navigation = rectOf(nav),
+							NavigationParts = parts,
+							ShopColumn = rectOf(shop),
+							Money = rectOf(money),
+							MoneyShown = money:IsA("GuiObject") and money.Visible,
+						})
 						check(
 							res,
 							prefix .. "_clear_of_nav" .. tagV,
 							("%s..%s"):format(math.floor(r.x + 0.5), math.floor(r.x + r.w + 0.5)),
-							("%s..%s"):format(math.floor(side + 0.5), math.floor(vp.X - side + 0.5)),
-							r.x >= side - TOL and r.x + r.w <= vp.X - side + TOL
+							("%s..%s"):format(math.floor(left + 0.5), math.floor(right + 0.5)),
+							r.x >= left - TOL and r.x + r.w <= right + TOL
 						)
-						local mid = (minTop + maxBottom) / 2
+						check(
+							res,
+							prefix .. "_inside_band" .. tagV,
+							rstr(r),
+							rstr(R(left, top, right - left, bottom - top)),
+							r.y >= top - TOL and r.y + r.h <= bottom + TOL
+						)
+						local mid = (top + bottom) / 2
 						check(res, prefix .. "_band_centred_y" .. tagV, cy, mid, math.abs(cy - mid) <= TOL)
 						if prefix == "index_panel" then
-							local bottom = root.y + root.h
-							check(res, "index_panel_above_bottom" .. tagV, r.y + r.h, bottom, r.y + r.h <= bottom + TOL)
+							local rootBottom = root.y + root.h
+							check(
+								res,
+								"index_panel_above_bottom" .. tagV,
+								r.y + r.h,
+								rootBottom,
+								r.y + r.h <= rootBottom + TOL
+							)
 						end
 					else
-						check(res, prefix .. "_centred_x" .. tagV, "missing", "panel, Race, Turbo, Navigation", false)
+						check(
+							res,
+							prefix .. "_centred_x" .. tagV,
+							"missing",
+							"panel, Race, Turbo, Grid, ShopColumn, Money",
+							false
+						)
 					end
 				end
 			end
@@ -3363,6 +3466,22 @@ function S.ui_layout(res)
 		end
 		restore()
 	end
+end
+
+-- docs/HUD_LAYOUT_SPEC.md section 6 / UPGRADE_TREE_SPEC.md section 5: while a full-screen overlay panel
+-- (UiSpec.FullScreenPanels) is open, a button of ANOTHER ScreenGui may lie under that overlay's ScreenGui.
+local function underOverlay(button, top, open)
+	local g, tg = guiOf(button), guiOf(top)
+	if g == tg then
+		return false
+	end
+	for _, panelPath in open do
+		local panel = UiSpec.FullScreenPanels[panelPath] and findPath(panelPath)
+		if panel and effectivelyVisible(panel) and guiOf(panel) == tg then
+			return true
+		end
+	end
+	return false
 end
 
 function S.ui_hitboxes(res)
@@ -3471,7 +3590,7 @@ function S.ui_hitboxes(res)
 					end
 					if top == nil then
 						table.insert(covered, path .. " not hit at its centre")
-					elseif top ~= b and not b:IsAncestorOf(top) then
+					elseif top ~= b and not b:IsAncestorOf(top) and not underOverlay(b, top, state.Open) then
 						table.insert(covered, path .. " under " .. pathOf(top))
 					end
 				elseif r.w > 0 and r.h > 0 then
@@ -3714,7 +3833,21 @@ function S.ui_hud(res)
 			end
 		end
 		checkList(res, "money_plate_behind_labels", behind)
-		renderFrame()
+		-- Measured at rest: a payout Pops MoneyValue (UiMotion MotionScale, +12% for ~0.18 s, HUD_LAYOUT_SPEC section
+		-- 10), the spec'd motion, not its layout. Waits (at most Waits.MotionRest s) until no MotionScale is off 1.
+		local function popping()
+			for _, l in { plate, moneyValue, unbankedValue } do
+				local m = l and l:FindFirstChild("MotionScale")
+				if m and m:IsA("UIScale") and math.abs(m.Scale - 1) > 1e-3 then
+					return true
+				end
+			end
+			return false
+		end
+		local restBy = os.clock() + UiSpec.Waits.MotionRest
+		repeat
+			renderFrame()
+		until not popping() or os.clock() > restBy
 		local pr, outside = realRect(plate), {}
 		for _, l in { moneyValue, unbankedValue } do
 			if l and not contains(pr, realRect(l)) then
@@ -4337,8 +4470,9 @@ function S.ui_toast(res)
 		return
 	end
 
-	-- The compact roll remains visible while a panel is open: HUD buttons and the roll
-	-- stay available as background UI. The roll keeps playing and is not restarted.
+	-- Owner 2026-10-28 (docs/HUD_LAYOUT_SPEC.md section 6, replaces the 2026-10-20 wording): the compact roll HIDES
+	-- while a panel is open, so it never covers a panel or takes its clicks: hidden and not clickable in every sampled
+	-- frame, shown again when the panel closes. The roll keeps playing underneath and is not restarted.
 	local switchModule = script.Parent.Parent:FindFirstChild(UiSpec.PanelSwitch.Module)
 	local Switch = nil
 	if switchModule and switchModule:IsA("ModuleScript") then
@@ -4369,27 +4503,33 @@ function S.ui_toast(res)
 			setPanel(p, true)
 			local panelObj = findPath(p)
 			local opened = panelObj ~= nil and panelObj.Visible
-			-- PanelSwitch.Changed -> refreshToast runs as the panel's Visible changes: hidden in the same frame
-			local shownFrames, samples = effectivelyVisible(toast) and 1 or 0, 1
+			-- PanelSwitch.Changed -> refreshToast runs as the panel's Visible changes: hidden in the next frame
+			RunService.Heartbeat:Wait()
+			local shownFrames, clickFrames, samples = 0, 0, 0
 			local untilT = os.clock() + animNum("SPIN") + animNum("LAND")
 			repeat
-				RunService.Heartbeat:Wait()
 				samples += 1
 				if effectivelyVisible(toast) then
 					shownFrames += 1
 				end
+				local cx, cy = centre(realRect(toast))
+				if table.find(hitsAt(cx, cy), toast) then
+					clickFrames += 1
+				end
+				RunService.Heartbeat:Wait()
 			until os.clock() > untilT or toast:GetAttribute("Phase") == "Hold"
 			check(
 				res,
-				"toast_visible_while_" .. p .. "_open",
-				("panel opened=%s, shown before=%s, %d of %d frames shown"):format(
+				"toast_hidden_while_" .. p .. "_open",
+				("panel opened=%s, shown before=%s, %d of %d frames shown, %d clickable"):format(
 					tostring(opened),
 					tostring(shownBefore),
 					shownFrames,
-					samples
+					samples,
+					clickFrames
 				),
-				"panel opened=true, shown before=true, all sampled frames shown",
-				opened and shownBefore and shownFrames == samples
+				"panel opened=true, shown before=true, no sampled frame shown or clickable",
+				opened and shownBefore and shownFrames == 0 and clickFrames == 0
 			)
 			setPanel(p, false)
 			frames(2)
@@ -4423,23 +4563,24 @@ function S.ui_toast(res)
 				type(serial0) == "number" and serial1 == serial0 and hold.rollId == ev0.id
 			)
 		else
-			stateMissing(res, "toast_visible_while_" .. p .. "_open", "auto_racing", "no Remotes.RollResult")
+			stateMissing(res, "toast_hidden_while_" .. p .. "_open", "auto_racing", "no Remotes.RollResult")
 		end
 		setPanel(p, true)
 		if waitNewRoll(UiSpec.Waits.RollToast) then
 			task.wait(UiSpec.Waits.ToastShown)
 			frames(2)
-			local phaseNow = toast:GetAttribute("Phase")
 			local shown = effectivelyVisible(toast)
+			local cx, cy = centre(realRect(toast))
+			local clickable = table.find(hitsAt(cx, cy), toast) ~= nil
 			check(
 				res,
-				"toast_visible_on_roll_while_" .. p .. "_open",
-				("Phase %s, shown=%s"):format(tostring(phaseNow), tostring(shown)),
-				"roll playing (not Idle), shown=true",
-				phaseNow ~= nil and phaseNow ~= "Idle" and shown
+				"toast_hidden_on_roll_while_" .. p .. "_open",
+				("shown=%s, clickable=%s"):format(tostring(shown), tostring(clickable)),
+				"shown=false, clickable=false",
+				not shown and not clickable
 			)
 		else
-			stateMissing(res, "toast_visible_on_roll_while_" .. p .. "_open", "auto_racing", "no Remotes.RollResult")
+			stateMissing(res, "toast_hidden_on_roll_while_" .. p .. "_open", "auto_racing", "no Remotes.RollResult")
 		end
 		setPanel(p, false)
 		restorePanel()
@@ -5337,16 +5478,30 @@ function S.ui_billboards(res)
 		check(res, prefix .. "_not_clickable", bb.Active, false, not bb.Active and #buttonsIn(bb) == 0)
 	end
 
+	-- Workspace.StreamingEnabled streams the pedestal parts (and their billboards / prompts) out while the car races
+	-- far away. Ask for the area around each pedestal model (Player:RequestStreamAroundAsync: client-side, changes no
+	-- game state) and wait for each part, so the check judges the pedestal, not the streaming radius.
+	local function streamNear(model)
+		if model and Workspace.StreamingEnabled then
+			pcall(function()
+				player:RequestStreamAroundAsync(model:GetPivot().Position, UiSpec.Waits.GuiAppear)
+			end)
+		end
+	end
+	local function waitIn(root, name)
+		return root and root:WaitForChild(name, UiSpec.Waits.GuiAppear)
+	end
 	local best = spawnArea and spawnArea:FindFirstChild("BestRoll")
-	local bestPedestal = best and best:FindFirstChild("Pedestal")
-	local bestStats = bestPedestal and bestPedestal:FindFirstChild("Stats")
+	streamNear(best)
+	local bestPedestal = waitIn(best, "Pedestal")
+	local bestStats = waitIn(bestPedestal, "Stats")
 	pedestalStats(
 		"best_roll_stats",
 		bestStats,
 		LeaderboardConfig.BEST_ROLL.TEXT_DISTANCE,
 		{ Title = "BEST ROLL EVER", Odds = true, Car = true, Player = true }
 	)
-	local mount = bestPedestal and bestPedestal:FindFirstChild("CarMount")
+	local mount = waitIn(bestPedestal, "CarMount")
 	check(
 		res,
 		"best_roll_stats_adornee",
@@ -5360,15 +5515,16 @@ function S.ui_billboards(res)
 		local spec = CarCatalog.Get(entry.CarId)
 		local carName = spec and spec.Name or entry.CarId
 		local model = passCars and passCars:FindFirstChild("Pass_" .. entry.CarId)
-		local pedestal = model and model:FindFirstChild("Pedestal")
+		streamNear(model)
+		local pedestal = waitIn(model, "Pedestal")
 		local prefix = "pass_" .. entry.CarId
 		pedestalStats(
 			prefix .. "_stats",
-			pedestal and pedestal:FindFirstChild("Stats"),
+			waitIn(pedestal, "Stats"),
 			PassCarConfig.TEXT_DISTANCE,
 			{ Title = carName, Tag = "GAMEPASS" }
 		)
-		local prompt = pedestal and pedestal:FindFirstChild("Buy")
+		local prompt = waitIn(pedestal, "Buy")
 		local isPrompt = prompt ~= nil and prompt:IsA("ProximityPrompt")
 		local wantAction = (spec and (spec.GamepassId or 0) > 0) and "Unlock" or "Coming soon"
 		check(
@@ -5681,7 +5837,7 @@ function S.ui_panels(res)
 	-- UiSpec.HiddenWhilePanelOpen: each declared element really is hidden while a panel that hides it is open (the
 	-- overlap lists leave it out then), and shown again once no panel is open. ProgressionUi polls every 0.25 s, so
 	-- each state is waited for (UiSpec.HiddenWhilePanelOpenWait). The compact roll is also checked during a playing
-	-- roll by ui_toast, since the compact roll stays visible while panels are open.
+	-- roll by ui_toast (it hides under every panel, owner 2026-10-28).
 	local function waitFor(cond)
 		local deadline = os.clock() + UiSpec.HiddenWhilePanelOpenWait
 		repeat
@@ -6185,6 +6341,7 @@ local shopMarket = UiShopMarket.Build({
 	realRect = realRect,
 	topAt = topAt,
 	allText = allText,
+	viewport = viewport,
 })
 for name, fn in shopMarket.Scenarios do
 	S[name] = fn
@@ -6322,6 +6479,24 @@ S.ui_daily_boosts = function(res)
 end
 
 -- The UiSpec.Clicks entries marked Manual (owner decision 2026-10-08), in order.
+-- Panels only a server fixture opens (the duel_* fixtures fire Remotes.Duel at this client; nothing closes them
+-- otherwise): closed locally through PanelSwitch after every scenario, click and full run, so no fixture leaves
+-- one open for the next check (a left-over DuelUi InvitePanel was seen 2026-10-28). Fires nothing.
+function UiScenarios.CloseFixturePanels()
+	local switch = panelSwitch()
+	for _, path in { UiSpec.Duel.Pick, UiSpec.Duel.Invite } do
+		local object = findPath(path)
+		local name = UiSpec.PanelSwitch.Names[path]
+		if object and object:IsA("GuiObject") and object.Visible then
+			if switch and name and type(switch.Close) == "function" then
+				switch.Close(name)
+			else
+				object.Visible = false
+			end
+		end
+	end
+end
+
 function UiScenarios.ManualClicks()
 	local list = {}
 	for _, c in UiSpec.Clicks do
@@ -6604,6 +6779,19 @@ function UiScenarios.RunClick(id)
 	local index = table.find(UiSpec.Clicks, spec)
 	local previous = index and index > 1 and ("click:" .. UiSpec.Clicks[index - 1].Id) or "none"
 
+	-- Phone-only clicks (Prepare.PhoneOnly): the live game view must be phone height (UiSpec.PhoneMaxHeight)
+	if prep.PhoneOnly and viewport().Y > UiSpec.PhoneMaxHeight then
+		stateMissing(
+			res,
+			"phone_viewport_before_click",
+			"phone_viewport",
+			("viewport height %d > %d (resize the real game view, never emulate)"):format(
+				viewport().Y,
+				UiSpec.PhoneMaxHeight
+			)
+		)
+		return res
+	end
 	-- Player attributes this click starts from (set by earlier clicks or ServerSetup, never forced here)
 	for name, want in prep.AttrIs or {} do
 		if attr(name) ~= want then

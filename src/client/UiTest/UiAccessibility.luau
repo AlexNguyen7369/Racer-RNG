@@ -379,6 +379,12 @@ function Access.Build(h)
 			h.stateMissing(res, "speed_float_motion_on", "reduced_motion_off", "Roblox Reduced Motion is on")
 			return
 		end
+		-- The floats sum every Speed gain of a 0.25 s window: a racing car's (or a workshop's) real gains would mix
+		-- into the planted ones, so this runs on foot (UiSpec.Progression.FixtureChecks on_foot) and outside a workshop
+		if player:GetAttribute("AutoRacing") == true or player:GetAttribute("InWorkshop") == true then
+			h.stateMissing(res, "speed_float_no_live_gain", "on_foot", "AutoRacing or InWorkshop: live Speed gains")
+			return
+		end
 		local floats, misplaced = {}, 0
 		local conns = {
 			host.ChildAdded:Connect(function(c)

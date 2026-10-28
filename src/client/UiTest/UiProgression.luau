@@ -167,7 +167,7 @@ function Progression.Build(h)
 		end
 		restore()
 		-- Owner 2026-10-13: the spawn-area upgrade pad is removed; the tree opens only from the HUD Upgrade button
-		-- (clicks open_upgrades / toggle_upgrades_closed). Only the workshop plots keep an UpgradePad.
+		-- (clicks open_upgrades / close_upgrades / exit_upgrades). Only the workshop plots keep an UpgradePad.
 		local plots = workspace:FindFirstChild("Workshops")
 		local worldPads = 0
 		for _, pad in CollectionService:GetTagged("UpgradePad") do
