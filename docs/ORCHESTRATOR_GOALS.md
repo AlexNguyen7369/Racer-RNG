@@ -26,7 +26,7 @@ Owner answers 2026-10-28:
 ## test-debt: Test suites trustworthy
 Status: active
 Priority: 1
-Owner-confirmed: pending
+Owner-confirmed: 2026-10-28
 Branch: feature/alex/test-debt (created on the first task)
 Deliverables:
 - td1 | UI tests match Isaac's inventory / upgrade-tree UI (todo `isaac-ui-tests-reconcile`) | UiSpec/UiScenarios updated by ui-test-writer; [UITEST] END fail=0
@@ -41,7 +41,7 @@ Out of scope: changing what a test checks to make it pass (only test-writer / ui
 ## world1-ship: Ship-ready World 1
 Status: active
 Priority: 2
-Owner-confirmed: pending
+Owner-confirmed: 2026-10-28
 Branch: feature/alex/world1-ship (created on the first task)
 Deliverables:
 - w1a | Payout + price curves, Speed float landed (todo `f65d9146`) | economy + ui_speed_float green; pad billboard short-format question answered by owner
@@ -55,7 +55,7 @@ Out of scope: World 2 content
 ## world2: World 2 split
 Status: active
 Priority: 3
-Owner-confirmed: pending
+Owner-confirmed: 2026-10-28
 Branch: feature/alex/world2 (created on the first task)
 Deliverables:
 - w2a | World 1 / World 2 split per docs/WORLDS_SPEC.md (todo `worlds-split`) | WorldConfig, per-world TrackRegistry, PlayerData VERSION 13, WorldService portal + teleport; data, rebirth and new world scenarios green
@@ -65,7 +65,7 @@ Out of scope: anything WORLDS_SPEC does not state (asked, not guessed)
 ## new-features: New player features
 Status: active
 Priority: 4
-Owner-confirmed: pending
+Owner-confirmed: 2026-10-28
 Branch: feature/alex/new-features (created on the first task)
 Deliverables (each one is blocked until the owner writes its rule into the design doc and a spec):
 - nf1 | Daily quest system (todo `9c8021bf`) | spec written by owner; quest scenarios + UI tests green
@@ -76,7 +76,7 @@ Out of scope: monetization changes not in a spec
 ## improvements: Suggested features, optimizations and fixes (in parallel)
 Status: active
 Priority: parallel (files never overlap a higher-priority open task)
-Owner-confirmed: pending
+Owner-confirmed: 2026-10-28
 Branch: feature/alex/improvements (created on the first approved item)
 Deliverables:
 - The orchestrator proposes items from `tools/dashboard/data/suggestions.json`, open bugs in `bugs.json`, and performance / code-quality audits, through the owner channel.
