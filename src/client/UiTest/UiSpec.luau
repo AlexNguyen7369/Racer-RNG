@@ -707,8 +707,9 @@ UiSpec.Band = {
 }
 
 -- CLAUDE.md: panels open BELOW the Race (Auto Race) button and end ABOVE the bottom TURBO LUCK bar. The progression
--- panels (Upgrades / Workshop / Welcome) keep their rule: below the Race button and the compact roll's rect by this
--- margin, and this far above the TURBO bar (ui_progression_layout).
+-- panels (Upgrades / Workshop / Welcome) keep their rule: below the Race button by this margin (and in the PanelBand,
+-- Band.Gap below it; the compact roll hides under panels, owner 2026-10-28), and this far above the TURBO bar
+-- (ui_progression_layout).
 UiSpec.PanelTopMargin = 4
 
 -- The four Racer panels (owner decision 2026-10-08; band since docs/HUD_LAYOUT_SPEC.md 2026-10-15 sections 1 and 6:
@@ -2778,7 +2779,8 @@ table.insert(UiSpec.Clicks, {
 	Id = "open_daily_claimed",
 	Gui = "HudChrome",
 	Path = "TopRight/Daily",
-	Prepare = { Open = { DAILY }, Showcase = false },
+	-- Starts closed (the Daily pill toggles: pressing it with Daily open closes it), then the click opens it
+	Prepare = { Closed = CLOSED, Showcase = false },
 	NeedSetup = { "daily_claimed", "spy", "progression_spy" },
 	Expect = { Panels = { [DAILY] = true }, Remote = false, After = { "daily_rewards_view" } },
 })

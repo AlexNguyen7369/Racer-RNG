@@ -242,13 +242,11 @@ function Progression.Build(h)
 			local rect, vp = h.provider(vpSpec)
 			for _, name in { "Upgrades", "Workshop", "Welcome" } do
 				local panel = h.find("Racer" .. name .. "/Panel")
-				local race, roll, turbo = h.find(Spec.Hud.Race), h.find("RollToast/Toast"), h.find(Spec.Hud.Turbo)
+				local race, turbo = h.find(Spec.Hud.Race), h.find(Spec.Hud.Turbo)
 				local lower = string.lower(name) .. "_" .. vpSpec.Name
 				if Spec.FullScreenPanels["Racer" .. name .. "/Panel"] then
 					-- Owner 2026-10-26 (HUD_LAYOUT_SPEC sections 1 and 6): a full-screen overlay, exempt from the band
-					for _, rule in
-						{ "panel_below_roll_", "panel_below_race_", "panel_compact_no_overlap_", "panel_above_turbo_" }
-					do
+					for _, rule in { "panel_in_band_top_", "panel_below_race_", "panel_above_turbo_" } do
 						h.check(res, rule .. lower, "exempt", "exempt (full-screen overlay)", true)
 					end
 				end
@@ -261,16 +259,18 @@ function Progression.Build(h)
 						"positive viewport-contained area",
 						p.w > 0 and p.h > 0 and p.x >= 0 and p.x + p.w <= vp.X and p.y + p.h <= vp.Y
 					)
-				elseif panel and race and roll and turbo then
-					local p, a, r, t = rect(panel), rect(race), rect(roll), rect(turbo)
-					local minimum = math.max(a.y + a.h, r.y + r.h) + Spec.PanelTopMargin
-					local beside = p.x >= r.x + r.w - Spec.Tolerance or p.x + p.w <= r.x + Spec.Tolerance
+				elseif panel and race and turbo then
+					local p, a, t = rect(panel), rect(race), rect(turbo)
+					-- Owner 2026-10-28 (HUD_LAYOUT_SPEC section 6): the compact roll HIDES while a panel is open, so
+					-- the panel no longer has to clear it (ui_toast checks the hiding). The panel opens in the
+					-- PanelBand: top at least Band.Gap below the Race button (Client/PanelBand.Rect).
+					local bandTop = a.y + a.h + Spec.Band.Gap
 					h.check(
 						res,
-						"panel_below_roll_" .. string.lower(name) .. "_" .. vpSpec.Name,
+						"panel_in_band_top_" .. string.lower(name) .. "_" .. vpSpec.Name,
 						p.y,
-						minimum,
-						beside or p.y >= minimum - Spec.Tolerance
+						">= " .. bandTop,
+						p.y >= bandTop - Spec.Tolerance
 					)
 					h.check(
 						res,
@@ -278,13 +278,6 @@ function Progression.Build(h)
 						p.y,
 						a.y + a.h + Spec.PanelTopMargin,
 						p.y >= a.y + a.h + Spec.PanelTopMargin - Spec.Tolerance
-					)
-					h.check(
-						res,
-						"panel_compact_no_overlap_" .. string.lower(name) .. "_" .. vpSpec.Name,
-						h.intersects(p, r),
-						false,
-						not h.intersects(p, r)
 					)
 					h.check(
 						res,

@@ -4534,11 +4534,15 @@ function S.ui_toast(res)
 			local untilT = os.clock() + animNum("SPIN") + animNum("LAND")
 			repeat
 				samples += 1
-				if effectivelyVisible(toast) then
+				local shownNow = effectivelyVisible(toast)
+				if shownNow then
 					shownFrames += 1
 				end
+				-- GetGuiObjectsAtPosition keeps listing a just-hidden object for ~2 frames (live debugging
+				-- 2026-10-28), though a hidden GuiObject takes no input: a hit counts only while it is shown
+				-- (any shown frame already fails through shownFrames).
 				local cx, cy = centre(realRect(toast))
-				if table.find(hitsAt(cx, cy), toast) then
+				if shownNow and table.find(hitsAt(cx, cy), toast) then
 					clickFrames += 1
 				end
 				RunService.Heartbeat:Wait()
