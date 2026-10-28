@@ -826,7 +826,14 @@ local function checkCheckpoint(checks, spec, layout, expect)
 		check(checks, "pad_billboard", gui and 1 or 0, 1, gui ~= nil)
 		if gui then
 			local label = gui:FindFirstChildWhichIsA("TextLabel", true)
-			local want = cash and ("$" .. cash) or "?"
+			-- owner 2026-10-28 (track rule 6): billboard shows HUD short money; Cash attribute stays full
+			local hudMod = Shared:FindFirstChild("HudFormat")
+			local HudFormat = hudMod and require(hudMod)
+			local want = (cash and HudFormat) and HudFormat.MoneyText(pad:GetAttribute("Cash")) or "?"
+			local literal = ({ [1] = "$100", [10] = "$31.6b" })[spec.Number]
+			if literal then
+				check(checks, "pad_text_literal", label and 1 or 0, 1, label ~= nil and label.Text == literal)
+			end
 			check(checks, "pad_text", label and 1 or 0, 1, label ~= nil and label.Text == want)
 			local d = gui.MaxDistance
 			-- user asked for +20 studs: 40 -> 60
@@ -5845,7 +5852,8 @@ end
 -- HUD: pure formatting and smoothing (Shared/HudFormat).
 function Scenarios.hud()
 	local checks = {}
-	local HudFormat = sharedModule("HudFormat")
+	local hudMod = Shared:FindFirstChild("HudFormat")
+	local HudFormat = hudMod and require(hudMod)
 	local RaceConfig = sharedModule("RaceConfig")
 	local apiOk = HudFormat ~= nil
 		and RaceConfig ~= nil
