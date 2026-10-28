@@ -779,6 +779,12 @@ local function progressionSpy()
 				local log = HttpService:JSONDecode(folder:GetAttribute(name) or "[]")
 				table.insert(log, { user = player.UserId, args = { ... } })
 				folder:SetAttribute(name, HttpService:JSONEncode(log))
+				-- shop_redeem_invalid_code must see the server's real reply: a UiSpec.Shop.TestCode-style code (prefix
+				-- "UITEST-", never a real code) goes to the real ShopService.Redeem, which answers and saves nothing.
+				local text = ...
+				if name == "RedeemCode" and type(text) == "string" and string.sub(text, 1, 7) == "UITEST-" then
+					return live("ShopService").Redeem(player, text)
+				end
 				return false, "money"
 			end
 			proxy.Parent = remotes
