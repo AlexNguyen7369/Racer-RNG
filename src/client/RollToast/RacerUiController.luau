@@ -69,6 +69,10 @@ local stats = require(Ui.RacerStats).Bind(playerGui)
 local settings = require(Ui.RacerSettings).Bind(playerGui)
 local rebirth = require(Ui.RacerRebirth).Bind(playerGui)
 local rebirthConfig = require(Shared.RebirthConfig)
+-- FredokaOne and token radii on the code-built parts inside the generated screens too (HUD_LAYOUT_SPEC section 8).
+for _, refs in { hud, index, stats, settings, rebirth } do
+	UiTheme.Apply(refs.Gui)
+end
 -- Catalog additions extend the saved gallery without waiting forever for an old seven-car bake.
 local gallery = index.GridHost:FindFirstChild("Gallery")
 for _, spec in catalog.All() do

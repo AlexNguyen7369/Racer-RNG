@@ -50,9 +50,16 @@ function Tabs.Attach(refs, player, refreshCars)
 		ScrollBarThickness = 5,
 		ScrollBarImageColor3 = Color3.fromRGB(30, 216, 255),
 	}, refs.ConsumablesHost)
-	-- Holdables are opened from the standalone Bag HUD button; Index is car discovery only.
-	refs.ConsumablesTab.Visible = false
-	refs.ConsumablesHost.Visible = false
+	-- Holdables are opened from the standalone Bag HUD button; Index is car discovery only. The generated fit
+	-- re-applies the authored Visible = true on every refit, so the tab and its host are held hidden.
+	for _, retired in { refs.ConsumablesTab, refs.ConsumablesHost } do
+		retired.Visible = false
+		retired:GetPropertyChangedSignal("Visible"):Connect(function()
+			if retired.Visible then
+				retired.Visible = false
+			end
+		end)
+	end
 	make("UIListLayout", "Layout", { Padding = UDim.new(0, 12), SortOrder = Enum.SortOrder.LayoutOrder }, list)
 	make("UIPadding", "Padding", {
 		PaddingLeft = UDim.new(0, 6),

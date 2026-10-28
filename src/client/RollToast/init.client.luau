@@ -27,6 +27,7 @@ local CarCatalog = require(Shared.CarCatalog)
 local GachaConfig = require(Shared.GachaConfig)
 local HudFormat = require(Shared.HudFormat)
 local RollAnimConfig = require(Shared.RollAnimConfig)
+local UiTheme = require(Shared.UiTheme)
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
 local rollRemote = remotes:WaitForChild("RollResult")
 local autoRollRemote = remotes:WaitForChild("SetAutoRoll")
@@ -43,8 +44,9 @@ local BLACK = Color3.new(0, 0, 0)
 local CARD_BG = Color3.fromRGB(20, 28, 48)
 local GOLD = Color3.fromRGB(255, 200, 60)
 local TURBO_BLUE = Color3.fromRGB(60, 170, 255)
-local ITALIC = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Heavy, Enum.FontStyle.Italic)
-local BOLD = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Heavy)
+-- FredokaOne everywhere (docs/HUD_LAYOUT_SPEC.md section 8)
+local ITALIC = Font.new("rbxasset://fonts/families/FredokaOne.json", Enum.FontWeight.Heavy, Enum.FontStyle.Italic)
+local BOLD = Font.new("rbxasset://fonts/families/FredokaOne.json", Enum.FontWeight.Heavy)
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -1305,8 +1307,14 @@ end
 workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(function()
 	task.defer(fitRollArt)
 end)
+-- The generated fit also re-runs on its own (a delayed first fit, ScreenGui size changes): follow every change, so
+-- the car art never keeps the other variant's rect and spills out of the card.
+rollRefs.PreviewCar:GetPropertyChangedSignal("Position"):Connect(fitRollArt)
+rollRefs.PreviewCar:GetPropertyChangedSignal("Size"):Connect(fitRollArt)
 fitRollArt()
 autoButton.Font = Enum.Font.FredokaOne
 autoButton:FindFirstChildOfClass("UIStroke").Thickness = 3
+UiTheme.Apply(gui)
+UiTheme.Apply(showcase)
 fillResult(enlarged, { Spec = CarCatalog.Get("rusty_hatchback"), IsNew = false, Turbo = 1 })
 fillResult(compact, { Spec = CarCatalog.Get("rusty_hatchback"), IsNew = false, Turbo = 1 })
