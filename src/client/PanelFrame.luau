@@ -94,11 +94,35 @@ end
 
 -- Owner 2026-10-20 (HUD_LAYOUT_SPEC section 6): a panel's dim backdrop is a non-interactive Frame so the HUD
 -- tiles behind it stay clickable; a click that no GUI handled (empty screen) closes the panel instead.
+-- "Handled" is judged from the PlayerGui objects under the pointer (a GuiButton, TextBox or Active GuiObject takes
+-- the click), not only from gameProcessedEvent, which can report true for a click on empty screen.
+local function shown(object)
+	while object do
+		if
+			(object:IsA("GuiObject") and not object.Visible) or (object:IsA("LayerCollector") and not object.Enabled)
+		then
+			return false
+		end
+		object = object.Parent
+	end
+	return true
+end
+
+local function takesClick(playerGui, position)
+	for _, hit in playerGui:GetGuiObjectsAtPosition(position.X, position.Y) do
+		if (hit:IsA("GuiButton") or hit:IsA("TextBox") or hit.Active) and shown(hit) then
+			return true
+		end
+	end
+	return false
+end
+
 function Frame.CloseOnOutsideClick(backdrop, close)
-	game:GetService("UserInputService").InputBegan:Connect(function(input, processed)
+	local playerGui = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+	game:GetService("UserInputService").InputBegan:Connect(function(input)
 		local click = input.UserInputType == Enum.UserInputType.MouseButton1
 			or input.UserInputType == Enum.UserInputType.Touch
-		if click and not processed and backdrop.Visible then
+		if click and backdrop.Visible and not takesClick(playerGui, input.Position) then
 			close()
 		end
 	end)

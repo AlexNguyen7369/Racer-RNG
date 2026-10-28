@@ -14,6 +14,7 @@ local PanelSwitch = require(script.Parent:WaitForChild("PanelSwitch"))
 local UiMotion = require(script.Parent:WaitForChild("UiMotion"))
 local UiTheme = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("UiTheme"))
 local Palette = UiTheme.Palette
+local DuelConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("DuelConfig"))
 
 local function make(className, name, parent, properties)
 	local object = Instance.new(className)
@@ -216,6 +217,7 @@ local function showPick(message)
 	showPanel("DuelPick")
 end
 
+local inviteToken = 0
 local function showInvite(message)
 	inviteText.Text = ("%s challenges you on Track %d"):format(
 		tostring(message.Opponent or "opponent"),
@@ -223,6 +225,15 @@ local function showInvite(message)
 	)
 	toast.Visible = false
 	showPanel("DuelInvite")
+	-- An unanswered invite is a decline after INVITE_TIMEOUT (docs/DUEL_SPEC.md): if the server's Cancelled never
+	-- arrives, the modal still closes instead of blocking the HUD.
+	inviteToken += 1
+	local token = inviteToken
+	task.delay(DuelConfig.INVITE_TIMEOUT + 1, function()
+		if token == inviteToken then
+			PanelSwitch.Close("DuelInvite")
+		end
+	end)
 end
 
 local function showCountdown(message)

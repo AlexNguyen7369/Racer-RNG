@@ -164,6 +164,19 @@ local _potionLayout = make("UIListLayout", "Layout", potionStatus, {
 	Padding = UDim.new(0, 10),
 })
 
+-- docs/WEATHER_EVENTS_SPEC.md "Weather icon": 8 px from the right edge; on phones (viewport height <= 500) its right
+-- edge is 140 px in, left of the Market button. The potion bottles stay left of it (HUD_LAYOUT_SPEC section 5).
+local function placeCorner()
+	local camera = workspace.CurrentCamera
+	local right = camera and camera.ViewportSize.Y <= 500 and 140 or 8
+	weather.Position = UDim2.new(1, -right, 1, -8)
+	potionStatus.Position = UDim2.new(1, -(right + 52), 1, -8)
+end
+placeCorner()
+if workspace.CurrentCamera then
+	workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(placeCorner)
+end
+
 local potionButtons = {}
 local PotionIcons = require(script.Parent.RollToast.Ui.PotionIcons)
 -- "9m 33s" under each bottle (docs/HUD_LAYOUT_SPEC.md section 5).
@@ -266,6 +279,7 @@ end
 local treeView = require(script.Parent.RollToast.Ui.UpgradeTreeView).Create(gui, Tree, Format)
 local treePanel, feedback, tiles = treeView.Panel, treeView.Feedback, treeView.Tiles
 Switch.Register("Upgrades", treePanel)
+table.insert(themed, treeView.Refs.Gui)
 panels.Upgrades = treePanel
 for _, close in { treeView.Refs.Close, treeView.Refs.Exit } do
 	close.Activated:Connect(function()

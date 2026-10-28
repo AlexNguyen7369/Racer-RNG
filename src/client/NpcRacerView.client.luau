@@ -71,6 +71,7 @@ gui.ResetOnSpawn = false
 gui.IgnoreGuiInset = true
 gui.Enabled = false
 gui.Parent = playerGui
+UiTheme.Apply(gui) -- FredokaOne on every recap label, rows added later included (HUD_LAYOUT_SPEC section 8)
 local shade = Instance.new("Frame")
 shade.Name = "Shade"
 shade.Size = UDim2.fromScale(1, 1)
