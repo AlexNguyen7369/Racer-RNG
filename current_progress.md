@@ -69,8 +69,9 @@
 66. 2026-10-27 — Alex Nguyen — Merged car redesign v3 (toy racer skins for all 111 cars and the Singularity orb) into main (6ad9717).
 67. 2026-10-28 — Alex Nguyen — Added the orchestrator setup (`.claude/orchestrator.md`, `rules-auditor` agent, `/orchestrate`, goals draft in `docs/ORCHESTRATOR_GOALS.md`) and the dashboard orchestration flow page (`/api/flow`, `static/flow.html`) on `feature/alex/orchestrator-and-flow-dashboard` (68ab0c4).
 68. 2026-10-28 — Alex Nguyen — Confirmed the five orchestrator goals in `docs/ORCHESTRATOR_GOALS.md` (test debt first, then World 1 ship, World 2, new features, improvements in parallel; done = full green) (ccd89db).
+69. 2026-10-28 — Alex Nguyen — Added the orchestrator context-window settings (warn 60%, handoff 75%) and a context gauge on the dashboard flow page's orchestrator node; the overseer hook and 24/7 runner live in the global orchestrator skill.
 
 ## What's next
-**Run `/orchestrate tick` to start test-debt td1: ui-test-writer reconciles UiSpec / UiScenarios with Isaac's inventory and upgrade-tree UI, then ui-tester runs [UITEST] to fail=0.**
+**Install the 24/7 runner (`bash ~/.claude/skills/orchestrator/scripts/install_launchd.sh ~/Documents/RobloxGames`); its first fresh-window tick starts test-debt td1 (ui-test-writer reconciles UiSpec / UiScenarios with the inventory and upgrade-tree UI, ui-tester runs [UITEST] to fail=0).**
 
-**Why this is next:** the owner confirmed test debt as priority 1, and every later goal is verified by the UI suite, which is currently out of date with the shipped UI.
+**Why this is next:** the owner confirmed test debt as priority 1 and asked for the orchestrator to run around the clock; every later goal is verified by the UI suite, which is out of date with the shipped UI.

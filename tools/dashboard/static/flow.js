@@ -84,10 +84,11 @@ function layout(d) {
 
   // orchestrator
   const queue = (d.studioQueue || []).map((id, i) => `${i + 1}. ${esc(id)}`).join("<br>") || '<span class="muted">empty</span>';
-  const orchH = 150;
+  const orchH = 170;
   specs.push({ id: "orch", col: "orch", y: Math.max(TOP, mid - orchH / 2), h: orchH, cls: `orch${o.active ? " active" : ""}`,
     html: `<div class="k">${o.active ? "Orchestrator" : "Claude (no orchestrator state)"}</div><b>${esc(o.phase)}</b>
       <div class="muted">${o.tick != null ? `tick ${esc(o.tick)} · ` : ""}${esc(ago(o.updated))}</div>
+      ${o.context ? `<div class="ctx${o.context.pct >= 0.75 ? " hi" : o.context.pct >= 0.6 ? " mid" : ""}" title="${esc(o.context.tokens)} of ${esc(o.context.window)} tokens, ${esc(ago(o.context.at))}"><span style="width:${Math.min(100, Math.round(o.context.pct * 100))}%"></span><em>context ${Math.round(o.context.pct * 100)}%</em></div>` : ""}
       <div class="k" style="margin-top:6px">Shared Studio queue</div><div class="mono">${queue}</div>` });
 
   // people / other sessions
@@ -415,7 +416,7 @@ const demo = (() => {
     if (s.tick % 11 === 2) s.messages.push({ id: `d${s.n++}`, at: now(), from: "user", to: "claude", text: "Target 45 s, add it to TRACKS spec." });
     const tasks = s.tasks.map((x) => ({ ...x }));
     const overlaps = overlapping && OPEN.includes(s.tasks[1].status) ? [{ a: "shop-ui", b: "engine-sfx", files: ["src/client/EngineAudio.luau"] }] : [];
-    return { orchestrator: { active: true, phase: s.phase, tick: s.tick, updated: now(), age: 0 }, goals: s.goals, tasks, overlaps,
+    return { orchestrator: { active: true, phase: s.phase, tick: s.tick, updated: now(), age: 0, context: { pct: (s.tick % 30) / 36, tokens: 0, window: 200000, at: now() } }, goals: s.goals, tasks, overlaps,
       studioQueue: s.queue, events: s.events.slice(-200), outside: [], branch: "feature/alex/juice",
       bus: { messages: s.messages.slice(-80), status: { codex: { task: "Loser screen recap", files: ["src/client/NpcRacerView.luau"] } } } };
   };

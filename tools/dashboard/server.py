@@ -764,7 +764,7 @@ def flow_view():
     data = {
         "generated": now_iso(),
         "orchestrator": {"active": bool(st), "phase": st.get("phase") or ("idle" if st else "not running"),
-                         "tick": st.get("tick"), "updated": updated, "age": age,
+                         "tick": st.get("tick"), "updated": updated, "age": age, "context": st.get("context"),
                          "stale": bool(age and age > 600 and any(t.get("status") in OPEN_TASK for t in tasks))},
         "goals": goals,
         "tasks": tasks,

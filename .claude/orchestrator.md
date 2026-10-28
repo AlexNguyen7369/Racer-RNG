@@ -7,6 +7,9 @@ rules:
 handoff: handoff.md
 goals: docs/ORCHESTRATOR_GOALS.md               # owner-confirmed end goals + deliverables (orchestrator asks, then writes)
 state: .agents/orchestrator.json                # git-ignored; drawn by the dashboard Orchestration tab
+context_window: 200000                           # tokens; set to the model's window (1000000 for 1M-context models)
+context_warn: 0.60
+context_handoff: 0.75
 worktrees_dir: ../RobloxGames-orch               # one worktree per task: ../RobloxGames-orch/<task-id>
 board: tools/dashboard/data/todo.json            # statuses: doing, next, backlog, done
 bugs: python3 tools/dashboard/bugs.py add --name ... --kind fault|failure --file <path> --line N --found-by <agent> --summary "..."
