@@ -14197,6 +14197,7 @@ Scenarios.leaderboard = require(script.Parent.LeaderboardTests).leaderboard
 Scenarios.duel = require(script.Parent.DuelTests).duel -- docs/DUEL_SPEC.md section 4
 Scenarios.pass_cars = require(script.Parent.PassCarTests).pass_cars -- docs/GAMEPASS_CARS_SPEC.md section 7
 Scenarios.shop_purchases = require(script.Parent.ShopPurchaseTests).shop_purchases -- docs/SHOP_PURCHASES_SPEC.md
+Scenarios.offline_double = require(script.Parent.OfflineDoubleTests).offline_double -- docs/OFFLINE_DOUBLE_SPEC.md
 Scenarios.environment = require(script.Parent.EnvironmentTests).environment -- docs/BIOME_DRESSING_SPEC.md
 Scenarios.car_expansion = require(script.Parent.ExpansionTests).car_expansion
 Scenarios.car_redesign = require(script.Parent.RedesignTests).car_redesign -- docs/CAR_REDESIGN_SPEC.md section 7

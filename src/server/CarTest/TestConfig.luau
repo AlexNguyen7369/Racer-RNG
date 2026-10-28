@@ -41,6 +41,7 @@ return {
 		"duel",
 		"pass_cars",
 		"shop_purchases",
+		"offline_double",
 		"environment",
 		"car_expansion",
 		"car_redesign",

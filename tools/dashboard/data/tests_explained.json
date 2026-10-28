@@ -336,6 +336,12 @@
     "limits": "docs/SHOP_PURCHASES_SPEC.md, docs/GAMEPASS_SHOP_SPEC.md section 2, docs/SAVE_SPEC.md 2a, docs/GAME_DESIGN_REQUIREMENTS.md Monetization (Shop, Codes)",
     "files": "Server/ShopService, Server/CodeConfig, Shared/MonetizationConfig, Server/BoostService, Server/PlayerData"
   },
+  "offline_double": {
+    "checks": "MonetizationConfig.OfflineDouble has Id 'offline_double', a whole ProductId >= 0, a whole RobuxPrice > 0, WINDOW_SECONDS 300 and is not in Products. ShopService.SetOfflineReward with 0, a negative, NaN or infinite gain closes the window (OfflineDoubleOpen false) and a receipt then returns NotProcessedYet with nothing added; a positive gain opens it. With a made-up ProductId and a fake save (SetSave), via ProcessReceipt: player absent, DataLoaded false or DataFailed -> NotProcessedYet, nothing added, no save; a failed save -> NotProcessedYet with the Speed, PurchaseId and OfflineDoubled undone and the window still open; a valid receipt adds exactly the offline amount to Speed, leaves Money and every potion unchanged, saves once, records the PurchaseId, closes the window and sets OfflineDoubled; the same PurchaseId again -> PurchaseGranted with nothing added; a second purchase for the same reward -> NotProcessedYet, nothing added, no save. With a shortened window the reward closes on its own (OfflineDoubleOpen false) and a late receipt is still granted once. All state is restored afterwards.",
+    "why": "Robux can not be refunded by the game: the double must add exactly the server's offline amount once, only after a successful save, never Money or potions, and never be granted without an undoubled reward.",
+    "limits": "docs/OFFLINE_DOUBLE_SPEC.md sections 1-4, docs/SHOP_PURCHASES_SPEC.md section 2, docs/GAME_DESIGN_REQUIREMENTS.md Monetization (Offline reward double)",
+    "files": "Server/ShopService, Shared/MonetizationConfig, Server/PlayerData"
+  },
   "ui_shop": {
     "checks": "The Shop panel has its sections in order (Featured, Gamepasses, Potions with the Bundle, Server Luck, Codes, Thanks), one card per gamepass car / gamepass / product, prices with thousands separators plus 'Coming soon' for id 0 or 'Owned' for an owned car, a square red X, and stays inside the panel band with no overlaps at every tested viewport. Clicks: Coming soon buttons do nothing; Redeem with a bad code shows the server's reply.",
     "why": "docs/GAMEPASS_SHOP_SPEC.md (owner 2026-10-16): the Shop must look like the references and never prompt a purchase for an item without a Roblox id.",
