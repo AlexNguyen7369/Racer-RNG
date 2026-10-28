@@ -68,8 +68,9 @@
 65. 2026-10-27 — Alex Nguyen — Verified car redesign v3 in Studio: full harness 50/3 with every car and Singularity orb scenario green (the 3 failures come from the uncommitted giant-scenery work, bug b99e2c0b logged) (c390103).
 66. 2026-10-27 — Alex Nguyen — Merged car redesign v3 (toy racer skins for all 111 cars and the Singularity orb) into main (6ad9717).
 67. 2026-10-28 — Alex Nguyen — Added the orchestrator setup (`.claude/orchestrator.md`, `rules-auditor` agent, `/orchestrate`, goals draft in `docs/ORCHESTRATOR_GOALS.md`) and the dashboard orchestration flow page (`/api/flow`, `static/flow.html`) on `feature/alex/orchestrator-and-flow-dashboard` (68ab0c4).
+68. 2026-10-28 — Alex Nguyen — Confirmed the five orchestrator goals in `docs/ORCHESTRATOR_GOALS.md` (test debt first, then World 1 ship, World 2, new features, improvements in parallel; done = full green) (ccd89db).
 
 ## What's next
-**Owner confirms the goals in `docs/ORCHESTRATOR_GOALS.md` (order, deliverables, done = full green), then `/orchestrate tick` starts the first test-debt task (td1: reconcile UI tests with the inventory / upgrade-tree UI).**
+**Run `/orchestrate tick` to start test-debt td1: ui-test-writer reconciles UiSpec / UiScenarios with Isaac's inventory and upgrade-tree UI, then ui-tester runs [UITEST] to fail=0.**
 
-**Why this is next:** the owner put test debt first, and every later goal (World 1 ship, World 2, new features) is verified by these suites, so they must be trustworthy before the orchestrator lands anything else.
+**Why this is next:** the owner confirmed test debt as priority 1, and every later goal is verified by the UI suite, which is currently out of date with the shipped UI.
