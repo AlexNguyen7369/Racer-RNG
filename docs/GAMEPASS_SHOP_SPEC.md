@@ -30,7 +30,7 @@ from the references `images/UI_ShopReference1-4.png`. Purchases and codes: `docs
   background) and shows its `PriceInRobux` instead. A failure keeps `RobuxPrice`.
 - Id 0: the button shows "Coming soon" under the price, and clicking does nothing.
 - Id > 0: a gamepass button calls `PromptGamePassPurchase`, a product button `PromptProductPurchase`. Roblox shows
-  the real price and asks. An owned gamepass car (player attribute `Pass_<carId>`) shows "Owned".
+  the real price and asks. An owned gamepass car (player attribute `Pass_<carId>`) shows "Owned" (REPLACED: GAMEPASS_CARS_SPEC 2026-10-20, it shows Equip / Equipped).
 - Potion packs/bundle have Gift controls (owner 2026-10-20,
   `PANEL_ART_GIFTING_SPEC.md`). Gamepasses, cars and Server Luck display a disabled Gift
   control with the account-bound/server-wide reason. The frame uses `Client/PanelFrame`.
