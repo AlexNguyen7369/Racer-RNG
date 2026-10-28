@@ -938,8 +938,8 @@ function Progression.Build(h)
 				h.check(
 					res,
 					"weather_icon_size_" .. tag,
-					{ r.w, r.h },
-					{ W.IconSize.X, W.IconSize.Y },
+					("%gx%g"):format(r.w, r.h),
+					("%gx%g"):format(W.IconSize.X, W.IconSize.Y),
 					math.abs(r.w - W.IconSize.X) <= Spec.Tolerance and math.abs(r.h - W.IconSize.Y) <= Spec.Tolerance
 				)
 				local right, bottom = vp.X - (r.x + r.w), vp.Y - (r.y + r.h)
@@ -948,7 +948,7 @@ function Progression.Build(h)
 					h.check(
 						res,
 						"weather_icon_bottom_right_" .. tag,
-						{ right, bottom },
+						("right %g, bottom %g"):format(right, bottom),
 						("phone: right edge %d px, bottom edge 0..%d px from the screen's"):format(
 							W.PhoneRight,
 							W.CornerMargin
@@ -960,15 +960,16 @@ function Progression.Build(h)
 					h.check(
 						res,
 						"weather_icon_left_of_market_" .. tag,
-						m and { r.x + r.w, m.x } or "MarketButton missing",
-						"icon right edge <= Market button left edge",
+						-- px the icon's right edge passes the Market button's left edge (a number, not a table)
+						m and (r.x + r.w) - m.x or "MarketButton missing",
+						"<= " .. Spec.Tolerance .. " (icon right edge - Market button left edge)",
 						m ~= nil and r.x + r.w <= m.x + Spec.Tolerance and not h.intersects(r, m)
 					)
 				else
 					h.check(
 						res,
 						"weather_icon_bottom_right_" .. tag,
-						{ right, bottom },
+						("right %g, bottom %g"):format(right, bottom),
 						"right and bottom edge 0.." .. W.CornerMargin .. " px from the screen's",
 						right >= -Spec.Tolerance and right <= W.CornerMargin and bottomOk
 					)

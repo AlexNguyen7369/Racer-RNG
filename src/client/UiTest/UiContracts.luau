@@ -93,7 +93,7 @@ function Contracts.Build(h)
 		check(res, prefix .. "_biome", label("Biome"), biomeTitle(spec.Biome))
 		local rec = RaceConfig.StatFor(NpcConfig.For(n).Speed)
 		check(res, prefix .. "_rec_speed", label("RecSpeed"), C.RecPrefix .. Format.SpeedText(rec))
-		check(res, prefix .. "_cash", label("Cash"), Format.MoneyText(TrackBuilder.CashFor(n)))
+		check(res, prefix .. "_cash", label("Cash"), C.CashPrefix .. Format.MoneyText(TrackBuilder.CashFor(n)))
 		-- YOUR SPEED and the status chip, from one Speed value between speedFrom and now
 		local lo, hi = speedFrom or speedNow(), speedNow()
 		local your, status = label("YourSpeed"), label("Status")
@@ -179,11 +179,13 @@ function Contracts.Build(h)
 			local unlocked = n <= best
 			if lock then
 				check(res, prefix .. "_lock_visible", lock.Visible, not unlocked)
-				check(
+				-- (BackgroundTransparency is a float32: 0.4 reads back as 0.40000000596; equal within float precision only)
+				h.check(
 					res,
 					prefix .. "_lock_transparency",
 					lock.BackgroundTransparency,
-					Spec.Checkpoints.LockTransparency
+					Spec.Checkpoints.LockTransparency,
+					math.abs(lock.BackgroundTransparency - Spec.Checkpoints.LockTransparency) <= 1e-6
 				)
 				check(res, prefix .. "_lock_reason", text(lock:FindFirstChild("Need")), "Beat Track " .. n)
 				local icon = required(res, h.pathOf(lock) .. "/Icon", "TextLabel")
