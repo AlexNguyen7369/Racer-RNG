@@ -125,3 +125,49 @@ adds the shared white highlight and slight enlargement; its Claim button remains
   panel's top-left visible button is selected, `GuiService` selection is limited to that panel, and ButtonB
   closes it (bound only while a panel is open). Closing the panel removes the limit and restores the selection
   that was active before it opened (or clears it). Mouse, touch and keyboard behaviour is unchanged.
+
+## 8. Theme tokens (owner 2026-10-27)
+
+- One theme for every screen, baked or code-built: `Shared/UiTheme` holds the tokens and the spec `theme` block
+  (`ui/specs/*.ui.json`, `ui/tooling/uispec.py`) carries the same values.
+- Text: FredokaOne with a dark outline (`UiTheme.Outline`, rgb 18, 22, 43) on every player-facing label and button,
+  billboards included. No Gotham, GothamBlack or BuilderSans text remains.
+- Corner radii come from the tokens only: `S` 8, `M` 12, `L` 16 (pills and round buttons stay fully round).
+- Multipliers are written `x1.5` everywhere (`HudFormat.Multi`; up to 2 decimals, trailing zeros dropped).
+- Numbers use `HudFormat` (lowercase suffixes from 1,000, design doc "Speed"); no screen formats them by hand.
+- Colours: money green, speed yellow, unbanked amber, danger red, panel navy and the stat colours in
+  `UiTheme.Palette` (placeholders, tunable).
+
+## 9. Counters and speedometer (owner 2026-10-27)
+
+- **Money** (`RacerHud/Money`) keeps its place bottom left. `MoneyValue` and `Unbanked` sit on a rounded navy
+  gradient plate (`MoneyPlate`, non-interactive, behind the text) with a thin green glow stroke. `MoneyValue` has a
+  light-to-deep green text gradient, `Unbanked` a gold one and keeps its `UNBANKED ` prefix.
+- **Speed** (`RacerHud/Speed`) keeps its place bottom centre. A round speedometer (`SpeedDial`, 270-degree arc,
+  ticks, needle and hub) replaces the plain icon slot on the left; the speed icon is the dial's hub. The Speed
+  stat (`SpeedValue`, e.g. `10.2m SPEED`, yellow-to-orange gradient) stays beside it on the right; the dial's
+  centre is too small for the stat on phones, so the dial shows the car's speed (`45`, small, under the hub).
+- The needle and the arc fill show the car's REAL speed in studs/s (the local player's car chassis velocity)
+  while auto racing; on foot or without a car the needle rests at 0 and the dial dims. The full scale is
+  `max(RaceConfig.SpeedFor(stat) * 1.25, RaceConfig.BASE_SPEED * 2)` (placeholder). The dial is presentation
+  only: the displayed number stays the base Speed stat (design doc, owner 2026-10-21) and the server values are
+  unchanged.
+- The numbers count up smoothly (`HudFormat.Approach`); when a value grows the label pops (section 10). The shown
+  value never lags the server by more than one count-up step (about 0.5 s).
+- Money and Speed stay non-interactive read-outs (no button, nothing `Active`).
+
+## 10. Motion graphics (owner 2026-10-27)
+
+- Every UI animation goes through `Client/UiMotion` (section 7): `Create` for single tweens and the presets
+  `Pop` (scale up about 12% and back, about 0.18 s), `SlideIn` (offset plus fade, Back easing, about 0.25 s),
+  `Shine` (a light band swept across a plate once), `Pulse` (a soft looping glow; returns a stop function) and
+  `Shake`. While motion is reduced every preset lands on its end state at once and no loop runs.
+- Uses: panels scale from 92% and fade in when opened (`PanelSwitch`), and close at once; HUD buttons keep their
+  hover / press feedback (`RacerMotion`) and code-built panels' buttons get the same; Money, Unbanked and Speed
+  pop when they grow, and a cash payout shows a rising `+$1.2m` that fades; Unbanked pulses while above 0; the
+  Money plate shines every few seconds; the speed dial glows once when the stat reaches a new suffix tier
+  (k, m, b, ...); red badges pop when their count changes; the Race button breathes slowly while the player is on
+  foot; the TURBO bar fill shines and "TURBO xN!" punches in; notifications slide in from their edge.
+- Budget: tweens and gradient offsets only, no per-frame animation loop except the dial needle; a looping effect
+  stops while its screen is hidden. No exit animation may delay a hide that another rule times (loser screen,
+  `PanelSwitch`).

@@ -5557,15 +5557,16 @@ function Scenarios.hud()
 	end
 
 	local textCases = {
-		{ 1234.9, "1,234" },
+		{ 1234.9, "1.23k" },
 		{ 0.4, "0" },
 		{ 0, "0" },
 		{ 999, "999" },
-		{ 1000, "1,000" },
+		{ 999.9, "999" },
+		{ 1000, "1k" },
 		{ 12.345, "12" },
-		{ 1e6, "1,000,000" },
-		{ 123456789, "123,456,789" },
-		{ 1e9, "1,000,000,000" },
+		{ 1e6, "1m" },
+		{ 123456789, "123m" },
+		{ 1e9, "1b" },
 	}
 	local textOk = true
 	for _, c in textCases do
@@ -5582,14 +5583,15 @@ function Scenarios.hud()
 	end
 	check(checks, "speed_text_bad_input_is_zero", badOk and 1 or 0, 1, badOk)
 	-- owner 2026-10-20: the Speed stat has no cap; infinity is not a stat and shows 0. Owner 2026-10-21 (design doc
-	-- Core stat model): below HudFormat.SUFFIX_FROM (placeholder, 1e15 = 1 Qd) the number shows in full digits, from it
-	-- on with suffixes (HudFormat.Short) instead of endless digits.
+	-- Core stat model; owner 2026-10-27 "Large Speed numbers are abbreviated", HUD_LAYOUT_SPEC section 8): below
+	-- HudFormat.SUFFIX_FROM (placeholder, 1e3 = 1k) the number shows in full digits, from it on with lowercase suffixes
+	-- (HudFormat.Short, 3 significant digits) instead of endless digits.
 	local from = HudFormat.SUFFIX_FROM
 	local fromOk = type(from) == "number" and from == from and from >= 1000 and from < math.huge
-	check(checks, "speed_text_suffix_from_set", fromOk and from or -1, 1e15, fromOk)
-	local hugeOk = call(HudFormat.SpeedText, 5e9) == "5,000,000,000"
-		and call(HudFormat.SpeedText, 1e12) == "1,000,000,000,000"
-		and call(HudFormat.SpeedText, 999999999999999) == "999,999,999,999,999"
+	check(checks, "speed_text_suffix_from_set", fromOk and from or -1, 1e3, fromOk)
+	local hugeOk = call(HudFormat.SpeedText, 5e9) == "5b"
+		and call(HudFormat.SpeedText, 1e12) == "1t"
+		and call(HudFormat.SpeedText, 999999999999999) == "1qd"
 		and call(HudFormat.SpeedText, math.huge) == "0"
 	check(checks, "speed_text_huge_not_clamped", hugeOk and 1 or 0, 1, hugeOk)
 	local sciOk = true
@@ -5607,22 +5609,23 @@ function Scenarios.hud()
 			{ 0, "0" },
 			{ 999, "999" },
 			{ 12.7, "12" },
-			{ 1000, "1K" },
-			{ 1500, "1.5K" },
-			{ 123456, "123K" },
-			{ 999960, "1M" }, -- 999.96K rounds up to the next suffix, never "1000K"
-			{ 10.2e6, "10.2M" },
-			{ 1e9, "1B" },
-			{ 1e12, "1T" },
-			{ 1e15, "1Qd" },
-			{ 4.5e15, "4.5Qd" },
-			{ 2.5e18, "2.5Qt" },
-			{ 1e21, "1Sx" },
-			{ 1e24, "1Sp" },
-			{ 1e27, "1Oc" },
-			{ 1e30, "1No" },
-			{ 1.5e33, "1.5Dc" },
-			{ 1.2e45, "1.2e45" }, -- past Dc: scientific
+			{ 1000, "1k" },
+			{ 1500, "1.5k" },
+			{ 1234, "1.23k" }, -- 3 significant digits
+			{ 123456, "123k" },
+			{ 999960, "1m" }, -- 999.96k rounds up to the next suffix, never "1000k"
+			{ 10.2e6, "10.2m" },
+			{ 1e9, "1b" },
+			{ 1e12, "1t" },
+			{ 1e15, "1qd" },
+			{ 4.5e15, "4.5qd" },
+			{ 2.5e18, "2.5qt" },
+			{ 1e21, "1sx" },
+			{ 1e24, "1sp" },
+			{ 1e27, "1oc" },
+			{ 1e30, "1no" },
+			{ 1.5e33, "1.5dc" },
+			{ 1.2e45, "1.2e45" }, -- past dc: scientific
 			{ math.huge, "inf" },
 		}
 		local shortOk, firstBad = true, nil
@@ -5653,8 +5656,8 @@ function Scenarios.hud()
 			switchOk = switchOk and type(below) == "string" and string.match(below, "^[%d,]+$") ~= nil
 		end
 		switchOk = switchOk
-			and call(HudFormat.SpeedText, 1e15) == "1Qd"
-			and call(HudFormat.SpeedText, 2.5e18) == "2.5Qt"
+			and call(HudFormat.SpeedText, 1e15) == "1qd"
+			and call(HudFormat.SpeedText, 2.5e18) == "2.5qt"
 		check(checks, "speed_text_suffix_from_switch", switchOk and 1 or 0, 1, switchOk)
 	end
 
@@ -5733,13 +5736,16 @@ function Scenarios.hud()
 		{ 0, "$0" },
 		{ 5, "$5" },
 		{ 999, "$999" },
-		{ 1000, "$1,000" },
-		{ 1234, "$1,234" },
+		{ 999.99, "$999" },
+		{ 1000, "$1k" }, -- owner 2026-10-27: Money shortens with the same lowercase suffixes as Speed
+		{ 1234, "$1.23k" },
 		{ 99.9, "$99" },
-		{ 1234.99, "$1,234" },
-		{ 1e6, "$1,000,000" },
-		{ 123456789, "$123,456,789" },
-		{ 1e12, "$1,000,000,000,000" },
+		{ 1234.99, "$1.23k" },
+		{ 1e6, "$1m" },
+		{ 1.2e6, "$1.2m" },
+		{ 123456789, "$123m" },
+		{ 1e12, "$1t" },
+		{ 4.5e15, "$4.5qd" },
 	}
 	local moneyOk = true
 	for _, c in moneyCases do
@@ -5755,6 +5761,32 @@ function Scenarios.hud()
 		end
 	end
 	check(checks, "money_text_bad_input_is_zero", moneyBadOk and 1 or 0, 1, moneyBadOk)
+
+	-- Multiplier text (owner 2026-10-27, HUD_LAYOUT_SPEC section 8): "x1.5", "x2", "x1.25"; not a real number -> "x1"
+	local multiApi = type(HudFormat.Multi) == "function"
+	check(checks, "multi_api_exists", multiApi and 1 or 0, 1, multiApi)
+	if multiApi then
+		local multiOk = true
+		for _, c in
+			{
+				{ 1.5, "x1.5" },
+				{ 2, "x2" },
+				{ 1.25, "x1.25" },
+				{ 1, "x1" },
+				{ 10, "x10" },
+				{ 0 / 0, "x1" },
+				{ math.huge, "x1" },
+				{ -math.huge, "x1" },
+				{ "2", "x1" },
+			}
+		do
+			if call(HudFormat.Multi, c[1]) ~= c[2] then
+				multiOk = false
+			end
+		end
+		multiOk = multiOk and call(HudFormat.Multi, nil) == "x1"
+		check(checks, "multi_text_format", multiOk and 1 or 0, 1, multiOk)
+	end
 
 	-- Gacha odds text for the index ("1 in N" with thousands separators)
 	local oddsApiOk = type(HudFormat.Odds) == "function"

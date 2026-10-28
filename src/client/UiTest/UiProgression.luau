@@ -500,9 +500,11 @@ function Progression.Build(h)
 		h.check(res, "showcase_at_most_slots", #ids, "<= " .. SC.Slots, #ids <= SC.Slots)
 		local multiLabel = root:FindFirstChild("Multi")
 		if present(res, "showcase_multi_label_present", multiLabel, "TextLabel") then
-			local want = SC.MultiFormat:format(type(multi) == "number" and multi or 1)
+			local want = Format.Multi(type(multi) == "number" and multi or 1)
 			local text = h.text(multiLabel)
-			h.check(res, "showcase_multi_text", text, want, string.find(text, want, 1, true) ~= nil)
+			local at = string.find(text, want, 1, true)
+			local after = at and string.sub(text, at + #want, at + #want) or ""
+			h.check(res, "showcase_multi_text", text, want, at ~= nil and not string.match(after, "[%d%.]"))
 		end
 		present(res, "showcase_best3_present", root:FindFirstChild("Best3"), "TextButton")
 		for i = 1, SC.Slots do

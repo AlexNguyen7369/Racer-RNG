@@ -6,7 +6,7 @@
 -- Player, then ReplicatedStorage UiTestSetupDone = the same string. On error UiTestSetupError =
 -- "<id>:<nonce>:<message>" is set first, and Done is still set.
 --
--- Ids: snapshot, restore, spy, index_states, stat_points, no_stat_points, auto_racing, lose_event, turbo_next,
+-- Ids: snapshot, restore, spy, index_states, stat_points, no_stat_points, auto_racing, on_foot, lose_event, turbo_next,
 -- emphasized_next, auto_roll_on, rebirth_eligible, rebirth_not_eligible, duel_* (every id: UiSpec.ServerSetup), roll_odds_*, weather_* (rain, night, gold, aurora, clear, clear_event, rain_roll).
 -- (Ported from the ServerSetup snippets in Client/UiTest/UiSpec.luau.)
 
@@ -211,6 +211,26 @@ function setups.auto_racing(player)
 	local CarService = live("CarService")
 	if CarService.IsAutoRacing(player) ~= true then
 		CarService.SetAutoRace(player, true)
+	end
+end
+
+-- UiSpec.ServerSetup on_foot (ui_speed_dial at rest): auto race stopped through the real Stop path, avatar on foot
+-- with no car. Done is only set once that holds; 'restore' puts AutoRacing back (snap.autoRacing).
+local ON_FOOT_TIMEOUT = 5 -- seconds
+function setups.on_foot(player)
+	assert(snapshots[player], "snapshot required before on_foot ('restore' consumes it: take a fresh 'snapshot')")
+	local CarService = live("CarService")
+	CarService.SetAutoRace(player, false)
+	local start = os.clock()
+	while
+		CarService.IsAutoRacing(player)
+		or player:GetAttribute("AutoRacing") == true
+		or CarService.GetCar(player) ~= nil
+	do
+		if player.Parent ~= Players or os.clock() - start > ON_FOOT_TIMEOUT then
+			error("on_foot: player still racing or still has a car after " .. ON_FOOT_TIMEOUT .. " s")
+		end
+		RunService.Heartbeat:Wait()
 	end
 end
 

@@ -18,9 +18,9 @@ local function commas(n)
 	return text
 end
 
-HudFormat.SUFFIX_FROM = 1e15 -- placeholder: from 1 Qd the Speed number switches to suffixes (owner 2026-10-21)
+HudFormat.SUFFIX_FROM = 1e3 -- placeholder: from 1k Speed and Money switch to suffixes (owner 2026-10-27)
 
--- "1,234" (whole number, thousands separators); from SUFFIX_FROM on "1Qd", "2.5Qt" (HudFormat.Short).
+-- Whole number below SUFFIX_FROM ("999"); from there on "1.5k", "10.2m", "2.5qt" (HudFormat.Short).
 -- Anything that is not a real stat shows 0.
 function HudFormat.SpeedText(stat)
 	if type(stat) ~= "number" or stat ~= stat or stat < 0 or stat == math.huge then
@@ -29,9 +29,9 @@ function HudFormat.SpeedText(stat)
 	return stat >= HudFormat.SUFFIX_FROM and HudFormat.Short(stat) or commas(stat)
 end
 
-local SUFFIXES = { "K", "M", "B", "T", "Qd", "Qt", "Sx", "Sp", "Oc", "No", "Dc" }
+local SUFFIXES = { "k", "m", "b", "t", "qd", "qt", "sx", "sp", "oc", "no", "dc" }
 
--- Short number with suffixes, "10.2M", "4.5Qd" (owner 2026-10-21); past the last suffix "1.2e45", "inf" when infinite.
+-- Short number with lowercase suffixes, "10.2m", "4.5qd" (owner 2026-10-27); past the last suffix "1.2e45", "inf" when infinite.
 function HudFormat.Short(n)
 	if type(n) ~= "number" or n ~= n or n < 0 then
 		return "0"
@@ -45,18 +45,27 @@ function HudFormat.Short(n)
 		return string.format("%.1fe%d", n / 10 ^ math.floor(math.log10(n)), math.floor(math.log10(n)))
 	end
 	local text = string.format("%.3g", n / 10 ^ (tier * 3))
-	if tonumber(text) >= 1000 then -- 999.96K rounds to 1000K
+	if tonumber(text) >= 1000 then -- 999.96k rounds to 1000k
 		return tier < #SUFFIXES and "1" .. SUFFIXES[tier + 1] or string.format("1.0e%d", tier * 3 + 3)
 	end
 	return text .. SUFFIXES[tier]
 end
 
--- "$1,234" for the Money row. Anything that is not a real, finite, non-negative amount shows $0.
+-- "$999", "$1.2m" for the Money row (same suffixes as Speed). Anything that is not a real, finite, non-negative amount shows $0.
 function HudFormat.MoneyText(money)
 	if type(money) ~= "number" or money ~= money or money < 0 or money == math.huge then
 		return "$0"
 	end
-	return "$" .. commas(money)
+	return "$" .. (money >= HudFormat.SUFFIX_FROM and HudFormat.Short(money) or commas(money))
+end
+
+-- Multiplier text, the one style for every screen (docs/HUD_LAYOUT_SPEC.md section 8): "x1.5", "x2", "x1.25".
+function HudFormat.Multi(n)
+	if type(n) ~= "number" or n ~= n or n == math.huge or n == -math.huge then
+		return "x1"
+	end
+	local text = string.format("%.2f", n):gsub("0+$", ""):gsub("%.$", "")
+	return "x" .. text
 end
 
 -- Gacha odds, "1 in 1,000". Anything that is not a real chance shows "1 in ?".

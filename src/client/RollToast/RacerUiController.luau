@@ -53,6 +53,17 @@ hud.SpeedIcon.ImageRectSize = Vector2.new(256, 256)
 hud.MoneyValue.TextXAlignment = Enum.TextXAlignment.Left
 hud.Unbanked.TextXAlignment = Enum.TextXAlignment.Left
 hud.SpeedValue.TextXAlignment = Enum.TextXAlignment.Left
+-- Read-out look (docs/HUD_LAYOUT_SPEC.md section 9): Money plate, gradient numbers, the speedometer.
+local UiTheme = require(Shared.UiTheme)
+local palette = UiTheme.Palette
+UiTheme.Plate(hud.MoneyPlate, palette.MoneyDeep)
+UiTheme.Gradient(hud.MoneyValue, Color3.fromRGB(190, 255, 170), palette.MoneyDeep)
+UiTheme.Gradient(hud.Unbanked, Color3.fromRGB(255, 240, 150), palette.UnbankedDeep)
+UiTheme.Gradient(hud.SpeedValue, Color3.fromRGB(255, 250, 170), palette.SpeedDeep)
+hud.MoneyValue.TextColor3 = Color3.new(1, 1, 1)
+hud.Unbanked.TextColor3 = Color3.new(1, 1, 1)
+hud.SpeedValue.TextColor3 = Color3.new(1, 1, 1)
+local speedDial = require(Ui.SpeedDial).Attach(hud.SpeedDial)
 local index = require(Ui.RacerIndex).Bind(playerGui)
 local stats = require(Ui.RacerStats).Bind(playerGui)
 local settings = require(Ui.RacerSettings).Bind(playerGui)
@@ -364,7 +375,7 @@ local function refreshProfile()
 	profileValues.CarsDiscovered.Text = format.SpeedText(#data:GetChildren())
 	profileValues.Level.Text = format.SpeedText(player:GetAttribute("Level") or 1)
 	profileValues.Speed.Text = format.SpeedText(speed.Value)
-	profileValues.Luck.Text = string.format("x%.2f · %d pts", multis.Luck, allocations.Luck)
+	profileValues.Luck.Text = format.Multi(multis.Luck) .. string.format(" · %d pts", allocations.Luck)
 	profileValues.SessionTime.Text = formatDuration(os.time() - sessionStartedAt)
 end
 for _, attr in { "Rolls", "Level", "Alloc_Luck" } do
@@ -384,7 +395,7 @@ end)
 -- Rebirth panel (docs/REBIRTH_SPEC.md): the generated layout shows the reset warning, the next rebirth's rewards
 -- and the level requirement; the server decides the rebirth, this only displays its numbers and replies.
 local function multiplierText(value)
-	return string.format("x%.2f", value)
+	return format.Multi(value)
 end
 rebirth.PointRewardCaption.Text = string.format(
 	rebirthConfig.POINTS_PER_REBIRTH == 1 and "+%d Stat Point" or "+%d Stat Points",
@@ -583,10 +594,10 @@ local function refreshStats()
 	for stat, row in pairs(rows) do
 		local available = free > 0
 		row.Value.Text = string.format(
-			"%d pts  x%.2f  >  x%.2f",
+			"%d pts  %s  >  %s",
 			allocations[stat],
-			multis[stat],
-			multis[stat] + config.PER_POINT[stat]
+			format.Multi(multis[stat]),
+			format.Multi(multis[stat] + config.PER_POINT[stat])
 		)
 		row.Plus.Active = available
 		row.Plus.Selectable = available
@@ -631,6 +642,38 @@ hud.Race.Activated:Connect(function()
 end)
 player:GetAttributeChangedSignal("AutoRacing"):Connect(refreshRace)
 refreshRace()
+-- The Race button breathes (a soft glow behind it) while the player is on foot (section 10).
+local raceGlow = Instance.new("Frame")
+raceGlow.Name = "BreathGlow"
+raceGlow.AnchorPoint = Vector2.new(0.5, 0.5)
+raceGlow.Position = UDim2.fromScale(0.5, 0.5)
+raceGlow.Size = UDim2.new(1, 10, 1, 10)
+raceGlow.BackgroundColor3 = Color3.fromRGB(120, 255, 150)
+raceGlow.BackgroundTransparency = 1
+raceGlow.ZIndex = 0
+raceGlow.Parent = hud.Race.Parent
+UiTheme.Corner(raceGlow, "M")
+local stopBreath
+local function refreshBreath()
+	local onFoot = player:GetAttribute("AutoRacing") ~= true
+	if onFoot and not stopBreath then
+		raceGlow.BackgroundTransparency = 0.85
+		stopBreath = UiMotion.Pulse(raceGlow, { BackgroundTransparency = 0.45 }, 1.1)
+	elseif not onFoot and stopBreath then
+		stopBreath()
+		stopBreath = nil
+		raceGlow.BackgroundTransparency = 1
+	end
+end
+player:GetAttributeChangedSignal("AutoRacing"):Connect(refreshBreath)
+player:GetAttributeChangedSignal("ReduceEffects"):Connect(function()
+	if stopBreath then
+		stopBreath()
+		stopBreath = nil
+	end
+	refreshBreath()
+end)
+refreshBreath()
 
 task.spawn(function()
 	playerGui:WaitForChild("RollToast")
@@ -682,6 +725,8 @@ remotes.RollResult.OnClientEvent:Connect(function(_, _, turbo)
 	if type(turbo) == "number" and turbo > 1 then
 		turboPopUntil = os.clock() + 1.2
 		hud.TurboLabel.Text = "TURBO x" .. tostring(turbo) .. "!"
+		UiMotion.Pop(hud.TurboLabel, 0.25)
+		UiMotion.Shine(hud.TurboFill)
 		task.delay(1.2, function()
 			if os.clock() >= turboPopUntil then
 				turboPopUntil = 0
@@ -717,6 +762,8 @@ end
 refreshLevel()
 
 local shownSpeed, shownMoney, shownBank = speed.Value, money.Value, player:GetAttribute("Unbanked") or 0
+local lastSpeedPop, speedTier = 0, nil
+local stopBankPulse
 local function readable(value, isMoney)
 	return isMoney and format.MoneyText(value) or format.SpeedText(value)
 end
@@ -776,23 +823,73 @@ local function clearSpeedOfToast(group)
 	group.Position = UDim2.new(position.X.Scale, position.X.Offset, position.Y.Scale, speedSetOffset)
 end
 
-local function refreshReadouts()
-	shownSpeed = speed.Value
-	shownMoney = money.Value
-	shownBank = player:GetAttribute("Unbanked") or 0
+-- The numbers count up towards the server's values (HudFormat.Approach) and pop when they grow (section 9, 10).
+local function refreshReadouts(dt)
+	shownSpeed = format.Approach(shownSpeed, speed.Value, dt)
+	shownMoney = format.Approach(shownMoney, money.Value, dt)
+	shownBank = format.Approach(shownBank, player:GetAttribute("Unbanked") or 0, dt)
 	hud.SpeedValue.Text = readable(shownSpeed, false) .. " SPEED"
 	hud.MoneyValue.Text = readable(shownMoney, true)
 	hud.Unbanked.Text = "UNBANKED " .. readable(shownBank, true)
 end
-speed.Changed:Connect(refreshReadouts)
-money.Changed:Connect(refreshReadouts)
-player:GetAttributeChangedSignal("Unbanked"):Connect(refreshReadouts)
+local lastMoney = money.Value
+money.Changed:Connect(function(value)
+	if value > lastMoney then
+		UiMotion.Pop(hud.MoneyValue)
+		UiMotion.Float(
+			hud.MoneyValue.Parent,
+			"+" .. format.MoneyText(value - lastMoney),
+			palette.Money,
+			UDim2.fromOffset(hud.MoneyValue.Position.X.Offset, hud.MoneyValue.Position.Y.Offset)
+		)
+	end
+	lastMoney = value
+end)
+speed.Changed:Connect(function(value)
+	-- Speed grows all the time while racing: pop at most every 1.5 s, glow the dial on a new suffix tier.
+	local tier = value >= 1000 and math.floor(math.log10(value) / 3) or 0
+	if speedTier and tier > speedTier then
+		UiMotion.Pop(hud.SpeedDial, 0.18)
+		UiMotion.Shine(hud.MoneyPlate)
+	elseif os.clock() - lastSpeedPop > 1.5 then
+		lastSpeedPop = os.clock()
+		UiMotion.Pop(hud.SpeedValue, 0.06)
+	end
+	speedTier = tier
+end)
+local function refreshBank()
+	local banked = (player:GetAttribute("Unbanked") or 0) > 0
+	if banked and not stopBankPulse then
+		UiMotion.Pop(hud.Unbanked)
+		stopBankPulse = UiMotion.Pulse(hud.Unbanked, { TextTransparency = 0.35 }, 0.7)
+	elseif not banked and stopBankPulse then
+		stopBankPulse()
+		stopBankPulse = nil
+	end
+end
+player:GetAttributeChangedSignal("Unbanked"):Connect(refreshBank)
+refreshBank()
+task.spawn(function()
+	while true do
+		task.wait(6)
+		if hud.Gui.Enabled then
+			UiMotion.Shine(hud.MoneyPlate)
+		end
+	end
+end)
 
-RunService.Heartbeat:Connect(function(_dt)
+local function carSpeed()
+	local car = autoRaceCar()
+	local chassis = car and car.PrimaryPart
+	return chassis and chassis.AssemblyLinearVelocity.Magnitude or 0
+end
+
+RunService.Heartbeat:Connect(function(dt)
 	fitPanels()
-	refreshReadouts()
-	-- Align to the visible icon + left-aligned text, not the label's unused width.
-	local icon = hud.SpeedIcon
+	refreshReadouts(dt)
+	speedDial.Update(dt, carSpeed(), speed.Value)
+	-- Align to the visible dial + left-aligned text, not the label's unused width.
+	local icon = hud.SpeedDial
 	local right = hud.SpeedValue.AbsolutePosition.X + hud.SpeedValue.TextBounds.X
 	if hud.SpeedValue.TextBounds.X > 0 then
 		local group = icon.Parent

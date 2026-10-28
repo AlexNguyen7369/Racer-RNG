@@ -84,14 +84,9 @@ local function wyvern()
 	return m
 end
 
--- A black hypercar around a small black hole. The Blender-authored wedge supercar
--- (tools/build_expansion_cars.py singularity_recipe, owner 2026-10-20) wins; the void_racer recolour is the fallback.
+-- A black hypercar around a small black hole: the void_racer recolour, used only when RedesignCarModels has no
+-- singularity (the toy-racer redesign always wins, docs/CAR_REDESIGN_SPEC.md).
 local function singularity(templates)
-	local exports = ReplicatedStorage:FindFirstChild("ExpansionCarModels")
-	local authored = exports and exports:FindFirstChild("singularity")
-	if authored then
-		return authored:Clone()
-	end
 	local source = templates:FindFirstChild("void_racer")
 	if not (source and source:IsA("Model")) then
 		return nil
@@ -218,9 +213,7 @@ function DraftCarModels.Ensure()
 	end
 	for _, spec in CarExpansionManifest.Cars do
 		if not templates:FindFirstChild(spec.Model) then
-			local exports = ReplicatedStorage:FindFirstChild("ExpansionCarModels")
-			local authored = exports and exports:FindFirstChild(spec.Model)
-			local model = authored and authored:Clone() or expansion(spec)
+			local model = expansion(spec) -- stand-in only: every manifest car has a RedesignCarModels model
 			model.WorldPivot = CFrame.new()
 			model.Name = spec.Model
 			model.Parent = templates

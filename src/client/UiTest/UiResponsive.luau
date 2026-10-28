@@ -290,32 +290,48 @@ local generated = {
 				Visible = true,
 			},
 		},
-		["RacerHud/Speed/SpeedIcon"] = {
+		-- Speedometer layout (owner brief 2026-10-27, docs/HUD_LAYOUT_SPEC.md section 9): dial on the left, the icon is
+		-- its hub (ZIndex above the dial), the Speed stat on the right; the group keeps its authored place and size.
+		["RacerHud/Speed/SpeedDial"] = {
 			Desktop = {
 				AnchorPoint = Vector2.new(0, 0),
 				Position = UDim2.fromOffset(0, 0),
-				Size = UDim2.fromOffset(88, 88),
+				Size = UDim2.fromOffset(108, 108),
 				Visible = true,
 			},
 			Phone = {
 				AnchorPoint = Vector2.new(0, 0),
 				Position = UDim2.fromOffset(0, 0),
-				Size = UDim2.fromOffset(64, 64),
+				Size = UDim2.fromOffset(90, 90),
+				Visible = true,
+			},
+		},
+		["RacerHud/Speed/SpeedIcon"] = {
+			Desktop = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(34, 30),
+				Size = UDim2.fromOffset(40, 40),
+				Visible = true,
+			},
+			Phone = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(28, 25),
+				Size = UDim2.fromOffset(34, 34),
 				Visible = true,
 			},
 		},
 		["RacerHud/Speed/SpeedValue"] = {
 			Desktop = {
 				AnchorPoint = Vector2.new(0, 0),
-				Position = UDim2.fromOffset(100, 33),
-				Size = UDim2.fromOffset(206, 42),
+				Position = UDim2.fromOffset(116, 33),
+				Size = UDim2.fromOffset(190, 42),
 				TextSize = 34,
 				Visible = true,
 			},
 			Phone = {
 				AnchorPoint = Vector2.new(0, 0),
-				Position = UDim2.fromOffset(76, 23),
-				Size = UDim2.fromOffset(174, 34),
+				Position = UDim2.fromOffset(96, 23),
+				Size = UDim2.fromOffset(154, 34),
 				TextSize = 28,
 				Visible = true,
 			},
@@ -345,6 +361,21 @@ local generated = {
 				AnchorPoint = Vector2.new(0, 0),
 				Position = UDim2.fromOffset(0, 0),
 				Size = UDim2.fromOffset(56, 56),
+				Visible = true,
+			},
+		},
+		-- Money plate behind MoneyValue and Unbanked (owner brief 2026-10-27, HUD spec section 9)
+		["RacerHud/Money/MoneyPlate"] = {
+			Desktop = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(94, 22),
+				Size = UDim2.fromOffset(188, 92),
+				Visible = true,
+			},
+			Phone = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(62, 12),
+				Size = UDim2.fromOffset(138, 72),
 				Visible = true,
 			},
 		},
@@ -1689,7 +1720,8 @@ Model.Scales = generated.Scales
 Model.Nodes = generated.Nodes
 
 -- Runtime changes the scripts make on top of the generated layout:
--- RacerUiController moves the Speed group horizontally every frame to centre its visible icon + text (X is live on the
+-- RacerUiController moves the Speed group horizontally every frame to centre its visible dial + text (SpeedDial's left
+-- edge to SpeedValue's text end, HUD spec section 9) (X is live on the
 -- live viewport; Model.SpeedGroup applies the same rule at a simulated one).
 Model.DynamicX = { ["RacerHud/Speed"] = true }
 
@@ -1700,12 +1732,12 @@ function Model.K(viewport)
 end
 
 -- RacerUiController (owner decision 2026-10-08, R3 clearSpeedOfToast + the centring above), every Heartbeat:
---  X: Position = UDim2(0.5, (group width - visible width) / 2, ...), so the visible icon + left-aligned number are
---     centred on the screen (AnchorPoint 0.5: the icon's left edge is screen centre - visible width / 2).
+--  X: Position = UDim2(0.5, (group width - visible width) / 2, ...), so the visible dial + left-aligned number are
+--     centred on the screen (AnchorPoint 0.5: the dial's left edge is screen centre - visible width / 2).
 --  Y: after centring the group moves DOWN by max(0, min(need, room)), need = Toast bottom + SPEED_TOAST_GAP - group
 --     top, room = Turbo top - SPEED_TURBO_GAP - group bottom. The Toast keeps its rect while hidden.
 Model.SpeedRule = { ToastGap = 4, TurboGap = 2 }
--- `group` is the generated rect (ScaledHudRect), `visibleWidth` the icon + number width at that viewport, `toast` and
+-- `group` is the generated rect (ScaledHudRect), `visibleWidth` the dial + number width at that viewport, `toast` and
 -- `turbo` the screen rects the rule reads. Returns the group's screen rect.
 function Model.SpeedGroup(viewport, group, visibleWidth, toast, turbo)
 	local r = { x = viewport.X / 2 - visibleWidth / 2, y = group.y, w = group.w, h = group.h }

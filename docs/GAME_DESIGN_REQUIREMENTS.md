@@ -205,6 +205,11 @@ Idle Vehicle Simulator — Game Design Requirements
        Large Speed numbers are abbreviated with suffixes (K, M, B, T, Qd = quadrillion,
        Qt = quintillion, and onward) instead of growing endless digits. The exact point where
        the HUD switches from full digits to suffixes is a placeholder.
+       Owner decision, 2026-10-27 (replaces the capital suffixes above): every displayed Speed,
+       Money and Unbanked number (HUD, panels, gate signs, leaderboards) uses LOWERCASE suffixes
+       k, m, b, t, qd (quadrillion), qt (quintillion), sx, sp, oc, no, dc with 3 significant
+       digits ("1.5k", "10.2m", "$3.4b", "10qd", "10sp"). Money is shortened too ("$1.2m").
+       Shortening starts at 1,000 (placeholder); below that the full number is shown.
        Historical decision, 2026-10-21 (superseded later the same day): Track 1 must not need ~10M Speed.
        Placeholders: MAX_SPEED 22 (was 18; +5 studs/s per Speed doubling), Track 1 NPC 15 studs/s
        (was 45), x1.37 per track (was x2.5). Recommended Speed: Track 1 ~2.6K, Track 5 ~1.4M,
@@ -925,6 +930,21 @@ Idle Vehicle Simulator — Game Design Requirements
        gamepad selects its first button, focus stays inside the panel, B closes it and closing
        restores the previous selection.
 
+       Owner decision, 2026-10-27 (UI visual pass; details in docs/HUD_LAYOUT_SPEC.md sections
+       8-10, docs/NPC_RACER_SPEC.md "Loser screen" and docs/RACE_PROGRESS_MAP_SPEC.md):
+       every screen shares one theme (Fredoka text with a dark outline, the theme's corner radii,
+       gradient plates, multipliers written "x1.5"). Money and UNBANKED sit on gradient plates and
+       count up smoothly with a pop on gain. The Speed stat sits in the centre of a speedometer
+       dial whose needle shows the car's real speed (studs/s) while auto racing and rests at 0 on
+       foot; the dial is presentation-only and the displayed number stays the base Speed stat.
+       The loser screen is a full race recap. The progress map gets a smooth route, a heading
+       arrow, the NPC's name and the time gap. The UI uses motion graphics (pops, slide-ins,
+       shines, pulses) that all respect reduced motion.
+       Owner decision, 2026-10-27 (checkpoint panel, docs/CHECKPOINT_SPEC.md section 4): each
+       checkpoint card shows a small 3D preview of its biome, the track number and biome name; clicking a
+       card shows its recommended Speed (as on the gate sign) against the player's Speed in a detail pane
+       with a START HERE button.
+
        Owner plan, 2026-10-20: Daily Rewards, Quests, Shop and Market share the Backpack
        frame vocabulary (header/icon/title, red X, rounded frame, backdrop, tabs, PanelBand).
        Daily retains its red styling and all existing panel contents/remotes remain.
@@ -954,8 +974,8 @@ Idle Vehicle Simulator — Game Design Requirements
        grant fails, return NotProcessedYet so Roblox retries next join. Roblox doesn't store
        per-player product history, so save it yourself (Creator Hub).
        Big numbers. Luau numbers are 64-bit floats: exact up to about 9 quadrillion, max
-       about 1.8e308. Stacked multipliers will get there. Build number abbreviations (1.2K,
-       3.4M, 5.6Qa) from day one.
+       about 1.8e308. Stacked multipliers will get there. Build number abbreviations (1.2k,
+       3.4m, 5.6qd; owner 2026-10-27) from day one.
        Saving. Use DataStores with session locking so data can't duplicate across servers;
        libraries like ProfileStore handle this. Save on leave, on an interval and on server
        shutdown ( BindToClose ).

@@ -22,6 +22,20 @@ in git history (`git log -p -- handoff.md`, last full version at 2d99d78) and in
 
 ## Open work
 
+000. **UI visual pass** (owner 2026-10-27; branch `feature/alex/ui-visual-pass`, git WORKTREE
+   `/Users/alexnguyen7369/Documents/RobloxGames-ui` so the car-redesign tree stays untouched). Rules: design doc
+   (lowercase suffixes from 1k incl. Money; "UI visual pass" entry), HUD_LAYOUT_SPEC 8-10, NPC_RACER_SPEC "Loser
+   screen", RACE_PROGRESS_MAP_SPEC "Look". Code: `Shared/UiTheme` (new), `Client/UiMotion` presets
+   (Pop/SlideIn/Shine/Pulse/Shake/Float/Cascade), `HudFormat` (lowercase, SUFFIX_FROM 1e3, MoneyText short, Multi),
+   RacerHud spec (`SpeedDial`, `MoneyPlate`; regenerated + baked), `RollToast/Ui/SpeedDial` (Path2D arc + needle,
+   real car speed), RacerUiController (count-up, pops, +$ float, bank pulse, Race breathing, turbo punch-in),
+   NpcRacerView loser recap, RaceProgressMap Path2D route, restyle of HudChrome/Backpack/Market/Shop/BoostDaily/
+   Progression/Checkpoint/Duel/GiftPicker/PanelSwitch open motion, billboards to Fredoka + UIStroke.
+   Tests written first (test-writer: HudFormat, TimeAt, on_foot fixture; ui-test-writer: ui_hud, ui_speed_dial,
+   ui_theme, ui_motion_reduced, loser recap, map). NOT RUN in Studio yet (Studio was busy with the car-redesign
+   suite). Next: serve the worktree with rojo (stop the other rojo only when robloxgames-e7 says Studio is free),
+   run [CARTEST] (hud/format, race_progress_map, environment, npc) and [UITEST], screenshot desktop + phone, fix,
+   then ProjectContext/todo, commit, progress-tracker.
 00000. **Rebirth curve rev. 2 + lost race gain** (2026-10-27, uncommitted). Owner: x10 per rebirth too high, and
    multi "not applied" while racing. Rules: design doc "Rebirth system" (rev. 2), REBIRTH_SPEC "Automatic bonus".
    Code: `RebirthConfig` (+EARLY_STEP 5 per rebirth, capped at x100 from ADD_UNTIL 20), `RaceService` commitStat caps

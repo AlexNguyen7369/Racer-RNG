@@ -100,6 +100,21 @@ Also returns `StartIndices[i]` and `FinishIndices[i]` (route waypoint index of e
   own Workspace (removing the previous one) and moves it each frame with `PoseAt(GetServerTimeNow() - ServerStart)`.
   On `Result Lose` shows a ScreenGui `LoserScreen` for `LOSE_SCREEN_SECONDS`. On `Reset` removes the NPC.
 
+### Loser screen (owner 2026-10-27)
+- `LoserScreen` is a full race recap, shown for `LOSE_SCREEN_SECONDS` after `Result Lose`. Its first child is a
+  full-screen dark red shade; above it a centred card (theme of docs/HUD_LAYOUT_SPEC.md section 8):
+  - a red `YOU LOST` banner that slides in and shakes once;
+  - the NPC's label and car (`NpcConfig.Tracks[n]`, never a generic "The NPC" when the track has an NPC) and the
+    track title (`TRACK n · Name`);
+  - `YOUR TIME` and `NPC TIME` (`mm:ss.cc`, from the Result's `PlayerTime` / `NpcTime`) and the gap
+    (`+1.32s`), the rows appearing one after another;
+  - `PB mm:ss.cc` or `PB --` for that track;
+  - `Back to checkpoint s` (the run's start track; `Back to the start` for Track 1) above a countdown bar that
+    drains over `LOSE_SCREEN_SECONDS`.
+- It stays non-interactive (no buttons), full-screen (`IgnoreGuiInset`, exempt from safe insets), DisplayOrder 20,
+  and hides at once on the next `Start`, `Reset` (after its time) or `Stop` with no exit animation; it never
+  delays the authoritative reset. Motion follows docs/HUD_LAYOUT_SPEC.md section 10 (reduced motion respected).
+
 ### Multiplayer
 - The server Workspace never contains a model with `IsNpc` (so nothing replicates to other players).
 - Player cars stay in the `Cars` collision group, which does not collide with itself: two players' cars on the

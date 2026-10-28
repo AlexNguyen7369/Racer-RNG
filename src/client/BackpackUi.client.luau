@@ -18,8 +18,12 @@ local MarketArt = require(script.Parent:WaitForChild("MarketArt"))
 local CarCatalog = require(shared.CarCatalog)
 local GachaConfig = require(shared.GachaConfig)
 local Components = require(Ui.RacerComponents)
+local UiTheme = require(shared:WaitForChild("UiTheme"))
+local HudFormat = require(shared:WaitForChild("HudFormat"))
+local UiMotion = require(script.Parent:WaitForChild("UiMotion"))
 
-local OUTLINE = Color3.fromRGB(17, 19, 31)
+local OUTLINE = UiTheme.Outline
+local PALETTE = UiTheme.Palette
 local BODY = Color3.fromRGB(32, 27, 36)
 local TILE_BLUE = Color3.fromRGB(47, 107, 255)
 local TILE_GREEN = Color3.fromRGB(60, 220, 90)
@@ -52,7 +56,10 @@ local function caption(name, parent, props)
 	return label
 end
 local function count(n)
-	return n >= 1000 and string.format("x%.1fk", n / 1000) or ("x" .. n)
+	return "x" .. HudFormat.Short(n)
+end
+local function cascade(tiles)
+	UiMotion.Cascade(tiles, "Stroke")
 end
 
 local root = make("ScreenGui", "RacerBackpack", gui, {
@@ -119,11 +126,12 @@ local function tab(name, order, art)
 	local b = make("TextButton", name .. "Tab", rail, {
 		LayoutOrder = order,
 		Size = UDim2.fromOffset(96, 96),
-		BackgroundColor3 = Color3.fromRGB(44, 52, 60),
+		BackgroundColor3 = Color3.new(1, 1, 1),
 		Text = "",
 		AutoButtonColor = true,
 	})
 	corner(b, 12)
+	UiTheme.Gradient(b, Color3.fromRGB(58, 68, 80), Color3.fromRGB(34, 40, 48))
 	local edge = stroke(b, OUTLINE, 4)
 	art(b)
 	caption("Label", b, {
@@ -229,18 +237,29 @@ local hint = caption("Hint", panel, {
 	TextXAlignment = Enum.TextXAlignment.Left,
 	ZIndex = 5,
 })
+local hintHome = hint.Position
+-- A server answer (equip / use) slides in from the bottom edge; hover text just appears.
+local function notify(text)
+	hint.Text = text
+	hint.Position = hintHome
+	UiMotion.SlideIn(hint, Vector2.new(0, 14))
+end
 
 local current = "Misc"
 local busy = false
+local entering = false -- the next render is the panel opening: cascade its tiles
+local shownTiles = {}
 local function tile(id, order, highlighted)
 	local b = make("TextButton", id, grid, {
 		LayoutOrder = order,
-		BackgroundColor3 = Color3.fromRGB(14, 24, 52),
+		BackgroundColor3 = Color3.new(1, 1, 1),
 		Text = "",
 		AutoButtonColor = true,
 	})
 	corner(b, 12)
+	UiTheme.Gradient(b, PALETTE.Row, PALETTE.PanelDeep)
 	stroke(b, highlighted and TILE_GREEN or TILE_BLUE, 4)
+	table.insert(shownTiles, b)
 	return b
 end
 
@@ -254,7 +273,7 @@ local function equip(kind, item)
 		return remotes:WaitForChild("MarketEquip"):InvokeServer(kind, item.Id)
 	end)
 	busy = false
-	hint.Text = ok and (done and ("Equipped " .. item.Name) or tostring(message)) or "Connection error"
+	notify(ok and (done and ("Equipped " .. item.Name) or tostring(message)) or "Connection error")
 	render()
 end
 local function use(item)
@@ -266,7 +285,7 @@ local function use(item)
 		return remotes:WaitForChild("UseBoost"):InvokeServer(item.Id)
 	end)
 	busy = false
-	hint.Text = ok and (used and (item.Name .. " activated") or tostring(message)) or "Connection error"
+	notify(ok and (used and (item.Name .. " activated") or tostring(message)) or "Connection error")
 	render()
 end
 
@@ -280,6 +299,7 @@ function render()
 		refs.Edge.Color = name == current and Color3.new(1, 1, 1) or OUTLINE
 	end
 	local shown = 0
+	table.clear(shownTiles)
 	if current == "Cars" then
 		local equipped = player:GetAttribute("EquippedCar")
 		for order, spec in ownedCars() do
@@ -299,23 +319,23 @@ function render()
 				AnchorPoint = Vector2.new(0.5, 1),
 				Position = UDim2.new(0.5, 0, 1, -2),
 				Size = UDim2.new(1, -8, 0, 18),
-				Text = "x" .. tostring(spec.SpeedMulti),
+				Text = HudFormat.Multi(spec.SpeedMulti),
 				TextSize = 14,
 				TextColor3 = GachaConfig.RARITY_COLORS[spec.Rarity] or Color3.new(1, 1, 1),
 				ZIndex = 5,
 			})
 			b.MouseEnter:Connect(function()
 				hint.Text = string.format(
-					"%s (%s) x%s speed. Click to equip.",
+					"%s (%s) %s speed. Click to equip.",
 					spec.Name,
 					spec.Rarity,
-					tostring(spec.SpeedMulti)
+					HudFormat.Multi(spec.SpeedMulti)
 				)
 			end)
 			b.Activated:Connect(function()
 				if spec.Id ~= player:GetAttribute("EquippedCar") then
 					remotes.EquipCar:FireServer(spec.Id)
-					hint.Text = "Equipping " .. spec.Name
+					notify("Equipping " .. spec.Name)
 				end
 			end)
 		end
@@ -389,9 +409,9 @@ function render()
 					})
 					b.MouseEnter:Connect(function()
 						hint.Text = string.format(
-							"%s: x%.2f %s for %ds. Click to use.",
+							"%s: %s %s for %ds. Click to use.",
 							item.Name,
-							item.Multiplier,
+							HudFormat.Multi(item.Multiplier),
 							category,
 							item.Duration
 						)
@@ -405,6 +425,10 @@ function render()
 		empty.Text = "No potions. Win races and claim daily rewards!"
 	end
 	empty.Visible = shown == 0
+	if entering then
+		entering = false
+		cascade(shownTiles)
+	end
 end
 
 for name, refs in tabs do
@@ -420,6 +444,7 @@ end)
 panel:GetPropertyChangedSignal("Visible"):Connect(function()
 	if panel.Visible then
 		hint.Text = ""
+		entering = true
 		render()
 	end
 end)
@@ -460,3 +485,4 @@ local function fitTabs()
 end
 rail:GetPropertyChangedSignal("AbsoluteSize"):Connect(fitTabs)
 fitTabs()
+UiTheme.Apply(root)

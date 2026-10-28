@@ -739,6 +739,9 @@ function Tests.environment()
 		local rec = RaceConfig.StatFor(npcSpeed)
 		local recText = rec == math.huge and HudFormat.Short(rec) or HudFormat.SpeedText(rec)
 		flag(("gate_sign_rec_speed_%d"):format(n), recLabel ~= nil and recLabel.Text == "REC. SPEED " .. recText)
+		-- owner 2026-10-27: the number uses the lowercase suffixes (k m b t qd ...), never "10K" / "1Qd"
+		local recNum = recLabel and string.sub(recLabel.Text, #"REC. SPEED " + 1) or "?"
+		flag(("gate_sign_rec_lowercase_%d"):format(n), recLabel ~= nil and not string.find(recNum, "%u"))
 		-- The recommended shown Speed really cruises at the NPC's speed (finite cases)
 		local cruise = rec < math.huge and RaceConfig.SpeedFor(rec) or npcSpeed
 		flag(

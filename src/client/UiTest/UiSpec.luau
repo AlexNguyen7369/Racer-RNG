@@ -46,8 +46,10 @@ UiSpec.Viewports = {
 }
 
 -- UIScale objects that are transient visual feedback, not layout: Racer UI's hover / press scale
--- (Client/RollToast/Ui/RacerMotion, 1.035 on hover, 0.97 while pressed). Geometry is measured with them at 1x.
-UiSpec.TransientScales = { HoverScale = true }
+-- (Client/RollToast/Ui/RacerMotion, 1.035 on hover, 0.97 while pressed) and Client/UiMotion's MotionScale (Pop, the
+-- PanelSwitch open scale 0.92 -> 1; docs/HUD_LAYOUT_SPEC.md section 10). Geometry is measured with them at 1x, after
+-- the open motion settled (UiSpec.Waits.PanelMotion).
+UiSpec.TransientScales = { HoverScale = true, MotionScale = true }
 
 -- Roblox's own top-bar buttons. The Racer UI guis ignore the inset (IgnoreGuiInset = true), so nothing of theirs may
 -- sit on the area Roblox's buttons use: the live GuiService.TopbarInset (everything left of Min.X / right of Max.X in
@@ -398,8 +400,9 @@ UiSpec.Rebirth = {
 	-- = SpeedGainMulti(RebirthLevel + 1), the NEXT TOTAL (x5 at level 0, x10 at level 1; +5 per rebirth up to 20 = x100,
 	-- then capped at x100; owner 2026-10-27 rev. 2, docs/REBIRTH_SPEC.md "Panel"), others RebirthConfig[Config].
 	Tiles = {
-		{ Name = "LuckReward", Multiplier = true, Format = "x%.2f Luck" },
-		{ Name = "SpeedReward", Multiplier = true, Format = "x%.2f Speed Gain" },
+		-- %s = HudFormat.Multi(next multiplier) ("x7.5", HUD spec section 8, owner 2026-10-27; was "x%.2f")
+		{ Name = "LuckReward", Multiplier = true, Format = "%s Luck" },
+		{ Name = "SpeedReward", Multiplier = true, Format = "%s Speed Gain" },
 		{ Name = "PointReward", Config = "POINTS_PER_REBIRTH", Format = "+%d Stat Point", Plural = "+%d Stat Points" },
 	},
 	-- The panel's sections, shown together: no two may overlap (at every viewport).
@@ -459,12 +462,24 @@ UiSpec.Hud = {
 	NavLabels = { "Index", "Stats", "Rebirth" }, -- stacked top to bottom on the LEFT edge
 	NavMaxLeftGap = 32, -- px from the screen's left edge to the column
 	Speed = "RacerHud/Speed",
+	-- The speed icon is the speedometer's hub (docs/HUD_LAYOUT_SPEC.md section 9, owner 2026-10-27): a child of Speed,
+	-- drawn above the dial (higher ZIndex), its centre inside the dial.
 	SpeedIcon = "RacerHud/Speed/SpeedIcon",
+	-- Round speedometer on the left of the Speed group (section 9): Frame (or CanvasGroup), non-interactive, holds a
+	-- needle object Needle (attribute DialValue = the car's real speed in studs/s, 0 on foot) and a TextLabel DialSpeed.
+	SpeedDial = "RacerHud/Speed/SpeedDial",
+	DialNeedle = "Needle",
+	DialText = "DialSpeed",
+	DialValueAttr = "DialValue",
 	SpeedValue = "RacerHud/Speed/SpeedValue",
 	SpeedSuffix = " SPEED",
 	SpeedCentreTolerance = 2, -- px: the visible icon + number are centred on the screen (brief 2026-10-06: Speed centred; CLAUDE.md still says left)
 	Money = "RacerHud/Money",
 	MoneyValue = "RacerHud/Money/MoneyValue",
+	-- Rounded navy plate behind MoneyValue and Unbanked (section 9): lower ZIndex than both, non-interactive, holds both.
+	MoneyPlate = "RacerHud/Money/MoneyPlate",
+	-- Counters with a text gradient (section 9): a UIGradient child on each.
+	GradientLabels = { "RacerHud/Money/MoneyValue", "RacerHud/Money/Unbanked", "RacerHud/Speed/SpeedValue" },
 	Unbanked = "RacerHud/Money/Unbanked",
 	UnbankedPrefix = "UNBANKED ",
 	Turbo = "RacerHud/Turbo",
@@ -833,7 +848,10 @@ UiSpec.Showcase = {
 		"TurboBadge",
 		"ScrapBadge",
 	},
-	SpeedText = "x%s SPEED MULTIPLIER", -- %s = the car's SpeedMulti (Racer UI; the old contract said "25x Speed")
+	-- %s = HudFormat.Multi(SpeedMulti) (docs/HUD_LAYOUT_SPEC.md section 8, owner 2026-10-27; was "x%s SPEED MULTIPLIER")
+	SpeedText = "%s SPEED",
+	-- The contract alias (Aliases.Speed, also named SpeedMulti): "Speed " .. HudFormat.Multi(SpeedMulti) (was "25x Speed")
+	SpeedAliasText = "Speed %s",
 	TurboBadgeText = "TURBO x%s", -- %s = the roll's turbo multi
 	-- Duplicates are kept as copies and pay $0 (docs/WORKSHOP_SPEC.md "5b. Showcase", owner 2026-10-22): the card's
 	-- ScrapBadge shows this on a duplicate roll (never a Money amount), and is hidden on a new car. RollResult's
@@ -1008,6 +1026,11 @@ UiSpec.Billboards = {
 UiSpec.Waits = {
 	GuiAppear = 15, -- each ScreenGui must exist in PlayerGui within this
 	HudSettle = 2.5, -- HUD counters must reach the server value within this
+	-- s: a panel's open motion (scale 0.92 -> 1 or a 12 px slide, 0.2 s) and its tile cascade (about 0.55 s) have
+	-- settled; setPanels waits this after opening a panel unless motion is reduced (HUD spec section 10)
+	PanelMotion = 0.65,
+	HudLag = 0.5, -- s: a HUD counter may show any server value from this long ago up to now (count-up, HUD spec 9)
+	HudFollow = 2, -- s: ui_hud re-samples a counter every frame for this long before it fails
 	RollsStable = 15, -- allow the turbo meter to settle after the latest server roll
 	RollToast = 12, -- a Remotes.RollResult must arrive within this (GachaConfig.ROLL_INTERVAL = 3 s)
 	ToastShown = 0.3, -- the compact roll must be showing (Visible, drawn) this soon after a RollResult
@@ -1069,6 +1092,12 @@ UiSpec.ServerSetup = {
 		Id = "auto_racing",
 		When = "before UiTestRun and the showcase clicks (NPC on track, auto-rolls)",
 		What = "Puts the player in auto race (AutoRacing == true).",
+	},
+	{
+		Id = "on_foot",
+		When = "before the ui_speed_dial fixture run (UiSpec.Progression.FixtureChecks); needs 'snapshot' first",
+		What = "Stops auto race (AutoRacing == false, avatar on foot at the walk spawn, no car). 'restore' puts "
+			.. "AutoRacing back.",
 	},
 	{
 		Id = "lose_event",
@@ -1166,6 +1195,9 @@ Prepare:
                 put back afterwards
  ScrollIntoView the harness scrolls the target's ScrollingFrame so the target is fully shown; put back afterwards
  WaitSeconds    extra wait before publishing
+ KeepPanels     no panel is closed, reopened or restored: the click starts from the view the previous click left
+                (Checkpoints Detail after a card click; a reopen shows the current checkpoint again)
+ LeavePanels    panels prepared as usual but NOT restored after the click (the next click uses KeepPanels)
 ClickAt: where to click when it is not the target's centre: "corner" (UiSpec.Showcase.CornerInset px in from the
  bottom-right corner, off the card) or a "<Gui>/<Path>" whose centre is used. The target must be topmost there.
  "empty": the target is a click-through panel (UiSpec.ClickThroughBackdrops); the harness picks the first point of a
@@ -2170,7 +2202,9 @@ UiSpec.WorkshopShowcase = {
 	EmptyText = "EMPTY",
 	ShowText = "SHOW",
 	ShownText = "SHOWN",
-	MultiFormat = "x%.2f", -- ShowcaseMulti, 2 decimals, somewhere in the Multi text
+	-- ShowcaseMulti as HudFormat.Multi ("x1.37", trailing zeros dropped; docs/HUD_LAYOUT_SPEC.md section 8, owner
+	-- 2026-10-27, was "x%.2f"), somewhere in the Multi text and not followed by another digit
+	MultiFormat = "HudFormat.Multi", -- label "SHOWCASE  " .. HudFormat.Multi(ShowcaseMulti) .. " Speed gain"
 	RowPrefix = "Car_",
 	-- The old controls: in the left part of the panel (right edge <= LeftShare of its width; brief "~42%", bound
 	-- 45%) and never on the Showcase frame. Close keeps its own place but may not touch any showcase control.
@@ -2381,6 +2415,9 @@ Fixture run protocol (ui-tester), per FixtureChecks entry, in order:
   5. Restore the setup (snapshot restore) after the scenario's result arrived.
 ]]
 UiSpec.Progression.FixtureChecks = {
+	-- The speedometer at rest: on foot the needle reads 0 (docs/HUD_LAYOUT_SPEC.md section 9). The main run is
+	-- auto_racing, where ui_speed_dial judges the racing needle.
+	{ Setup = "on_foot", Scenario = "ui_speed_dial" },
 	{ Setup = "offline_welcome", Scenario = "ui_offline_welcome" },
 	{ Setup = "offline_zero", Scenario = "ui_offline_zero" },
 	{ Setup = "weather_rain", Scenario = "ui_weather" },
@@ -2924,12 +2961,15 @@ UiSpec.Guis.CheckpointUi = {
 	Panels = { "Panel" },
 	Buttons = {
 		{ Path = "Panel/Header/Close", Does = "close_panel", Panel = "CheckpointUi/Panel", Text = "X" },
+		-- CHECKPOINT_SPEC section 4 (owner 2026-10-27): a card click (locked ones too) only shows its track in Detail
+		{ Path = "Panel/Cards/*", Does = "local", Count = "tracks" },
+		-- Detail/Start: "START HERE" (open, not current) calls SetCheckpoint(the shown track); "SELECTED" / "LOCKED"
+		-- are disabled (Active false) and fire nothing
 		{
-			Path = "Panel/Cards/*",
+			Path = "Panel/Detail/Start",
 			Does = "remote",
 			Remote = "SetCheckpoint",
-			Arg = "track_number",
-			Count = "tracks",
+			Arg = "detail_track",
 			DisabledWhen = "locked_or_selected",
 		},
 	},
@@ -2940,6 +2980,16 @@ UiSpec.Checkpoints = {
 	LockTransparency = 0.4,
 	Prompt = "OpenCheckpoints",
 	PanelTheme = "Checkpoints", -- PanelFrame.Attach theme (owner 2026-10-20)
+	-- Detail pane (CHECKPOINT_SPEC section 4, owner 2026-10-27): Preview (ViewportFrame), Title "TRACK n · NAME",
+	-- Biome (upper case), RecSpeed, YourSpeed, Status, Cash, Start (TextButton)
+	Detail = "CheckpointUi/Panel/Detail",
+	RecPrefix = "REC. SPEED ", -- .. HudFormat.SpeedText(RaceConfig.StatFor(NpcConfig.For(n).Speed))
+	YourPrefix = "YOUR SPEED ", -- .. HudFormat.SpeedText(leaderstats.Speed)
+	Ready = "READY",
+	NeedFormat = "NEED %s MORE", -- %s = HudFormat.SpeedText(rec - speed)
+	StartOpen = "START HERE",
+	StartSelected = "SELECTED",
+	StartLocked = "LOCKED",
 }
 table.insert(CLOSED, UiSpec.Checkpoints.Panel)
 for _, fixture in
@@ -2951,35 +3001,97 @@ do
 	fixture.When = "After snapshot; restore all attributes afterwards. Owned by server fixture writer."
 	table.insert(UiSpec.ServerSetup, fixture)
 end
+local CHECKPOINT_TRACK2 = (function()
+	local chain =
+		require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("TrackRegistry")).Chain()
+	return chain[2] and ("TRACK 2 · " .. string.upper(chain[2].Name)) or "TRACK 2"
+end)()
+-- Checkpoint clicks (CHECKPOINT_SPEC section 4), run in this order: a card click shows its track in Detail and never
+-- calls SetCheckpoint; Detail/Start does the pick. LeavePanels / KeepPanels keep the Detail pane a card click set up
+-- for the Start click right after it (a reopen would show the current checkpoint again).
 for _, case in
 	{
-		{ Id = "checkpoint_selected_no_remote", Track = 1, Best = 0, Setup = "checkpoint_locked", Remote = false },
-		{ Id = "checkpoint_locked_no_remote", Track = 2, Best = 0, Setup = "checkpoint_locked", Remote = false },
+		-- Selected card: shows Track 1, Start "SELECTED"
 		{
-			Id = "checkpoint_select_track",
-			Track = 2,
+			Id = "checkpoint_selected_no_remote",
+			Path = "Panel/Cards/Track_1",
+			Best = 0,
+			Setup = "checkpoint_locked",
+			After = { "checkpoint_detail_shows_card", "checkpoint_not_optimistic" },
+		},
+		-- Locked card: clickable, shows Track 2 with Start "LOCKED"
+		{
+			Id = "checkpoint_locked_no_remote",
+			Path = "Panel/Cards/Track_2",
+			Best = 0,
+			Setup = "checkpoint_locked",
+			Leave = true,
+			After = { "checkpoint_detail_shows_card" },
+		},
+		{
+			Id = "checkpoint_start_locked_no_remote",
+			Path = "Panel/Detail/Start",
+			Best = 0,
+			Setup = "checkpoint_locked",
+			Keep = true,
+			Label = "LOCKED",
+			Active = false,
+			After = { "checkpoint_not_optimistic" },
+		},
+		-- Freshly opened: Detail shows the current checkpoint (Track 1), Start "SELECTED"
+		{
+			Id = "checkpoint_start_selected_no_remote",
+			Path = "Panel/Detail/Start",
+			Best = 0,
+			Setup = "checkpoint_locked",
+			Label = "SELECTED",
+			Active = false,
+			After = { "checkpoint_not_optimistic" },
+		},
+		-- Open card: shows Track 2, Start "START HERE"
+		{
+			Id = "checkpoint_card_shows_detail",
+			Path = "Panel/Cards/Track_2",
 			Best = 2,
 			Setup = "checkpoint_open",
+			Leave = true,
+			After = { "checkpoint_detail_shows_card" },
+		},
+		{
+			Id = "checkpoint_select_track",
+			Path = "Panel/Detail/Start",
+			Best = 2,
+			Setup = "checkpoint_open",
+			Keep = true,
+			Label = "START HERE",
+			Active = true,
 			Remote = { Name = "SetCheckpoint", Args = { 2 } },
+			After = { "checkpoint_not_optimistic" },
 		},
 	}
 do
+	local prepare = {
+		Open = not case.Keep and { UiSpec.Checkpoints.Panel } or nil,
+		KeepPanels = case.Keep,
+		LeavePanels = case.Leave,
+		Showcase = false,
+		AttrIs = { Checkpoint = 1, BestTrack = case.Best },
+		Intercept = "SetCheckpoint", -- refuse the click unless the server logging proxy is installed
+		ScrollIntoView = not case.Keep and string.find(case.Path, "Cards", 1, true) ~= nil or nil,
+		LabelIs = case.Label,
+		TargetActive = case.Active,
+		TextIs = case.Keep and { [UiSpec.Checkpoints.Detail .. "/Title"] = CHECKPOINT_TRACK2 } or nil,
+	}
 	table.insert(UiSpec.Clicks, {
 		Id = case.Id,
 		Gui = "CheckpointUi",
-		Path = "Panel/Cards/Track_" .. case.Track,
-		Prepare = {
-			Open = { UiSpec.Checkpoints.Panel },
-			Showcase = false,
-			AttrIs = { Checkpoint = 1, BestTrack = case.Best },
-			Intercept = "SetCheckpoint", -- refuse the click unless the server logging proxy is installed
-			ScrollIntoView = true,
-		},
+		Path = case.Path,
+		Prepare = prepare,
 		NeedSetup = { case.Setup, "spy", "progression_spy" },
 		Expect = {
 			Panels = { [UiSpec.Checkpoints.Panel] = true },
-			Remote = case.Remote,
-			After = { "checkpoint_not_optimistic" },
+			Remote = case.Remote or false,
+			After = case.After,
 		},
 	})
 end
@@ -3138,5 +3250,44 @@ table.insert(UiSpec.Clicks, {
 	NeedSetup = { "spy" },
 	Expect = { Panels = { ["RacerIndex/Panel"] = true }, Remote = false, After = { "gamepad_selection_in_panel" } },
 })
+
+-- UI visual pass (owner 2026-10-27): docs/HUD_LAYOUT_SPEC.md sections 8-10, docs/NPC_RACER_SPEC.md "Loser screen",
+-- docs/RACE_PROGRESS_MAP_SPEC.md "Look". Numbers are measurement tolerances, not layout values.
+UiSpec.SpeedDial = {
+	SampleSeconds = 0.6, -- ui_speed_dial measures the car's real speed (seat displacement / time) over this window
+	Tolerance = 3, -- studs/s: DialValue and DialSpeed vs the measured car speed ...
+	RelTolerance = 0.15, -- ... or this share of it, whichever is larger
+	CarWait = 5, -- s: while AutoRacing the avatar must sit in its car's seat within this
+}
+-- Every TextLabel / TextButton in the game's ScreenGuis (not UiSpec.IgnoreGuis, not the UiTest's own) uses this font
+-- family (section 8: FredokaOne everywhere; Enum.Font.FredokaOne's FontFace family is ".../FredokaOne.json").
+UiSpec.Theme = {
+	FontFamily = "Fredoka",
+	-- Every multiplier token is HudFormat.Multi style: "x" + digits, at most 2 decimals, no trailing zero after the
+	-- point; never the old "25x" (number before x). Labels that show a multi (ui_theme theme_multi_format):
+	MultiLabels = {
+		{ Gui = "RollShowcase", Name = "SpeedMulti" }, -- the card's "x25 SPEED" and its contract alias "Speed x25"
+		{ Gui = "RacerIndex", Name = "Info", Under = "Panel/Face/GridHost/Gallery" }, -- index tiles "Rare · x1.5"
+		{ Gui = "RacerBackpack", Name = "Multi", Under = "Panel/Items" }, -- Backpack Cars tiles
+	},
+}
+-- The loser recap (docs/NPC_RACER_SPEC.md "Loser screen (owner 2026-10-27)"): TextLabels anywhere under LoserScreen.
+UiSpec.Loser = {
+	RecapAt = 1.2, -- s after the Result Lose: the rows have appeared (they appear one after another); < LOSE_SCREEN_SECONDS
+	Banner = { Name = "Banner", Text = "YOU LOST" }, -- the banner's text contains this
+	Labels = { "Banner", "NpcName", "TrackTitle", "YourTime", "NpcTime", "Gap", "Pb", "BackTo" },
+	Time = "%d%d:%d%d%.%d%d", -- mm:ss.cc inside YourTime / NpcTime (RaceProgressMap.FormatTime of the Result's times)
+	Gap = "^%+%d+%.%d%ds$", -- "+1.32s"
+	GapTolerance = 0.011, -- s: the gap vs Result PlayerTime - NpcTime
+	Pb = { "^PB %-%-$", "^PB %d%d:%d%d%.%d%d$" },
+	Countdown = "Countdown", -- Frame with child Fill
+	Generic = "The NPC", -- never shown when NpcConfig.Tracks has the track
+}
+-- docs/RACE_PROGRESS_MAP_SPEC.md "Look": Path2D route lines (UiRaceProgressMap).
+UiSpec.RaceMapLook = {
+	Lines = { "RouteOutline", "RouteDriven", "RouteAhead" },
+	FadeGroup = "RouteFade", -- optional CanvasGroup inside the canvas that holds the lines
+	Status = { "^AHEAD %d+%.%ds$", "^BEHIND %d+%.%ds$", "^EVEN$" },
+}
 
 return UiSpec

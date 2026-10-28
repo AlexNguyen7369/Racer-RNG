@@ -120,4 +120,4 @@ longer spans the road centre or touches Track 1's Start: walking onto it starts 
       ("TURBO x5" on a turbo roll).
     - Opening it closes any open panel (Index / Stats). While it is open the toast does not show.
 - Panels (Index, Stats) end above the bottom strip (toast area excluded: the toast hides while a panel is open).
-- `Client/NpcRacerView` / loser screen wording: "Banked $X" instead of "Paid $X".
+- `Client/NpcRacerView` loser screen: a full race recap, see `docs/NPC_RACER_SPEC.md` "Loser screen" (owner 2026-10-27; banking is deprecated).

@@ -6,6 +6,9 @@
 -- print(game.HttpService:JSONEncode(r))
 -- Uses a fresh Hud.Build and BindableEvent remote in an isolated, unparented
 -- container. Never touches the live HUD, a real remote, player stats or saves.
+-- Look (docs/RACE_PROGRESS_MAP_SPEC.md "Look", owner 2026-10-27; UiSpec.RaceMapLook): the route is three Path2D
+-- lines RouteOutline / RouteDriven / RouteAhead (in the canvas or its CanvasGroup RouteFade with a UIGradient),
+-- split at YOU; YouDot has a Heading chevron; the NPC caption is NpcConfig.For(n).Label; the status is a pill.
 local Tests = {}
 
 function Tests.Run()
@@ -27,6 +30,7 @@ function Tests.Run()
 	local config = require(shared.NpcConfig)
 	local carConfig = require(shared.CarConfig)
 	local registry = require(shared.TrackRegistry)
+	local look = require(script.Parent.UiSpec).RaceMapLook
 	local controllerModule = require(client.RaceProgressMap)
 	local hudModule = require(client.RollToast.Ui.RacerHud)
 	local root = Instance.new("Folder")
@@ -85,6 +89,63 @@ function Tests.Run()
 			end
 			return count
 		end
+		-- The Path2D route lines, wherever they sit under the canvas: { [name] = count }.
+		local function lineCounts()
+			local counts = {}
+			for _, d in canvas:GetDescendants() do
+				if d:IsA("Path2D") then
+					counts[d.Name] = (counts[d.Name] or 0) + 1
+				end
+			end
+			return counts
+		end
+		local function oneRoute()
+			local counts = lineCounts()
+			for _, name in look.Lines do
+				if counts[name] ~= 1 then
+					return false
+				end
+			end
+			return true
+		end
+		local function line(name)
+			for _, d in canvas:GetDescendants() do
+				if d:IsA("Path2D") and d.Name == name then
+					return d
+				end
+			end
+			return nil
+		end
+		-- A control point in canvas pixels, relative to the canvas centre (YOU).
+		local function px(point)
+			local size = canvas.AbsoluteSize
+			local p = point.Position
+			return Vector2.new(
+				p.X.Scale * size.X + p.X.Offset - size.X / 2,
+				p.Y.Scale * size.Y + p.Y.Offset - size.Y / 2
+			)
+		end
+		local function points(name)
+			local l = line(name)
+			return l and l:GetControlPoints() or {}
+		end
+		-- Nothing left but an empty RouteFade group (its UIGradient / UICorner only).
+		local function emptyCanvas()
+			for _, child in canvas:GetChildren() do
+				if child.Name ~= look.FadeGroup then
+					return false
+				end
+				for _, d in child:GetDescendants() do
+					if not (d:IsA("UIGradient") or d:IsA("UICorner")) then
+						return false
+					end
+				end
+			end
+			return true
+		end
+		local function statusIs(pattern)
+			return string.match(hud.RaceMapStatus.Text, pattern) ~= nil
+		end
 		local function youCentered(label)
 			flag(label, canvas.YouDot.Position == UDim2.fromScale(0.5, 0.5))
 		end
@@ -98,39 +159,79 @@ function Tests.Run()
 		)
 		flag("missing_pb_placeholder", hud.RaceMapPB.Text == "PB --")
 		flag("initial_time_and_status", hud.RaceMapTime.Text == "TIME 00:00.00" and hud.RaceMapStatus.Text == "EVEN")
-		flag("single_current_track_route", childrenNamed("RouteSegment") == #center.Points - 1)
+		flag("single_current_track_route", oneRoute(), center and #center.Points)
+		local outline = line("RouteOutline")
+		local host = outline and outline.Parent
+		flag(
+			"route_in_fading_canvas_group",
+			host ~= nil
+				and host:IsA("CanvasGroup")
+				and (host == canvas or host.Name == look.FadeGroup)
+				and host:FindFirstChildOfClass("UIGradient") ~= nil
+		)
+		local pill = hud.RaceMapStatus:FindFirstChildOfClass("UICorner")
+			or (hud.RaceMapStatus.Parent and hud.RaceMapStatus.Parent:FindFirstChildOfClass("UICorner"))
+		flag("status_is_pill", pill ~= nil)
 		flag(
 			"markers_once",
 			childrenNamed("YouDot") == 1 and childrenNamed("NpcDot") == 1 and childrenNamed("Finish") == 1
 		)
 		local you, rival = canvas.YouDot, canvas.NpcDot
-		flag("markers_labeled", you.Label.Text == "YOU" and rival.Label.Text == "NPC")
+		local npcLabel = config.For(first.Number).Label
+		flag(
+			"markers_labeled",
+			you.Label.Text == "YOU" and rival.Label.Text == npcLabel,
+			rival.Label.Text .. " want " .. npcLabel
+		)
+		flag("you_heading_chevron", you:FindFirstChild("Heading") ~= nil)
 		flag(
 			"avatar_or_colored_fallback",
 			you:IsA("ImageLabel") and (you.Image ~= "" or you.BackgroundTransparency < 1)
 		)
 		youCentered("you_centered_at_start")
 		flag("route_clipped_to_viewport", canvas.ClipsDescendants)
-		local firstSegment = canvas:FindFirstChild("RouteSegment")
 		local north = Vector3.new(0, 0, -1)
 		local startPosition = map.Point(playerRoute, 0) + up
 		controller.Update(0, startPosition, north)
-		local initialRotation, initialNpc = firstSegment.Rotation, rival.Position
+		-- The route's far end (last outline point) relative to YOU: a 180 degree turn mirrors it through the centre
+		local function farEnd()
+			local pts = points("RouteOutline")
+			return #pts > 0 and px(pts[#pts]) or nil
+		end
+		local initialEnd, initialNpc = farEnd(), rival.Position
 		controller.Update(0, startPosition, -north)
-		local rotationChange = math.abs((firstSegment.Rotation - initialRotation + 180) % 360 - 180)
-		flag("opposite_heading_rotates_route", near(rotationChange, 180))
+		local turnedEnd = farEnd()
+		flag(
+			"opposite_heading_rotates_route",
+			initialEnd ~= nil
+				and turnedEnd ~= nil
+				and initialEnd.Magnitude > 1
+				and (initialEnd + turnedEnd).Magnitude <= 1.5
+		)
 		flag("opposite_heading_rotates_npc", rival.Position ~= initialNpc)
 		youCentered("you_centered_after_heading_change")
 		controller.Update(0, startPosition, north)
-		local routeBeforeMovement = firstSegment.Position
+		local routeBeforeMovement = farEnd()
 		-- Advance along the right-hand lane in small increments. Chassis positions
 		-- include ride height, while route projection must use the road's height.
 		for i = 1, 10 do
 			controller.Update(0, map.Point(playerRoute, i / 100) + up)
 		end
 		youCentered("you_centered_while_advancing")
-		flag("update_redraws_route_while_moving", firstSegment.Position ~= routeBeforeMovement)
-		flag("ahead_status", hud.RaceMapStatus.Text == "AHEAD")
+		local endAfterMovement = farEnd()
+		flag(
+			"update_redraws_route_while_moving",
+			routeBeforeMovement ~= nil
+				and endAfterMovement ~= nil
+				and (endAfterMovement - routeBeforeMovement).Magnitude > 0.01
+		)
+		-- Driven (violet) ends and ahead (cyan) starts exactly at YOU, the canvas centre
+		local driven, ahead = points("RouteDriven"), points("RouteAhead")
+		flag(
+			"route_split_at_you",
+			#driven > 0 and #ahead > 0 and px(driven[#driven]).Magnitude <= 1.5 and px(ahead[1]).Magnitude <= 1.5
+		)
+		flag("ahead_status", statusIs(look.Status[1]), hud.RaceMapStatus.Text)
 		controller.Update(0, map.Point(playerRoute, 0.02) + up)
 		youCentered("you_centered_when_position_moves_backwards")
 		controller.Update(61.239, nil)
@@ -166,7 +267,7 @@ function Tests.Run()
 			"restart_no_marker_accumulation",
 			childrenNamed("YouDot") == 1 and childrenNamed("NpcDot") == 1 and childrenNamed("Finish") == 1
 		)
-		flag("restart_no_route_accumulation", childrenNamed("RouteSegment") == #center.Points - 1)
+		flag("restart_no_route_accumulation", oneRoute())
 		flag("pb_exact_format", hud.RaceMapPB.Text == "PB 01:05.43")
 		flag("restart_resets_time", hud.RaceMapTime.Text == "TIME 00:00.00")
 		controller.Update(0, map.Point(playerRoute, 0) + up)
@@ -174,7 +275,7 @@ function Tests.Run()
 		local npcPath = npc.LanePath(first)
 		local profile = npc.Profile(npcPath, start.Speed)
 		controller.Update(profile.TotalTime / 2, map.Point(playerRoute, 0) + up)
-		flag("behind_status", hud.RaceMapStatus.Text == "BEHIND")
+		flag("behind_status", statusIs(look.Status[2]), hud.RaceMapStatus.Text)
 		youCentered("you_centered_while_npc_advances")
 
 		-- A resized tactical view keeps the player centered and one route alive.
@@ -182,10 +283,7 @@ function Tests.Run()
 		task.wait()
 		controller.Update(profile.TotalTime / 2, nil)
 		youCentered("resize_keeps_you_centered")
-		flag(
-			"resize_keeps_single_route",
-			childrenNamed("RouteSegment") == #center.Points - 1 and childrenNamed("Finish") == 1
-		)
+		flag("resize_keeps_single_route", oneRoute() and childrenNamed("Finish") == 1)
 		showcase.Enabled = true
 		controller.Update(12.34, nil)
 		flag("showcase_hides_map", not card.Visible)
@@ -205,22 +303,18 @@ function Tests.Run()
 			hud.RaceMapTitle.Text == string.format("TRACK %d · %s", second.Number, string.upper(specs[2].Name))
 				and hud.RaceMapPB.Text == "PB 02:00.01"
 		)
-		local secondCenter = route(second, 0)
-		flag(
-			"track_transition_replaces_geometry",
-			childrenNamed("RouteSegment") == #secondCenter.Points - 1 and childrenNamed("YouDot") == 1
-		)
+		flag("track_transition_replaces_geometry", oneRoute() and childrenNamed("YouDot") == 1)
 		for _, kind in { "Result", "Reset", "Stop" } do
 			controller.Handle(event(first))
 			controller.Handle({ Type = kind, Track = first.Number, Result = "Win" })
-			flag(string.lower(kind) .. "_hides_and_cleans", not card.Visible and #canvas:GetChildren() == 0)
+			flag(string.lower(kind) .. "_hides_and_cleans", not card.Visible and emptyCanvas())
 			controller.Update(99, map.Point(playerRoute, 0.2) + up)
 			flag(string.lower(kind) .. "_stays_hidden", not card.Visible)
 		end
 		controller.Handle({ Type = "Start", Track = 999, ServerStart = start.ServerStart, Speed = 1 })
 		controller.Handle("malformed")
 		controller.Handle({ Type = "DuelStart", Track = first.Number })
-		flag("invalid_or_duel_events_cannot_show_map", not card.Visible and #canvas:GetChildren() == 0)
+		flag("invalid_or_duel_events_cannot_show_map", not card.Visible and emptyCanvas())
 
 		-- Hills retain centered YOU while world-space route geometry moves.
 		local testedHill = false
@@ -269,10 +363,10 @@ function Tests.Run()
 		)
 		remoteEvent:Fire({ Type = "Stop" })
 		task.wait()
-		flag("injected_remote_stop_connected", not card.Visible and #canvas:GetChildren() == 0)
+		flag("injected_remote_stop_connected", not card.Visible and emptyCanvas())
 		controller.Handle(event(first))
 		controller.Destroy()
-		flag("destroy_hides_and_cleans", not card.Visible and #canvas:GetChildren() == 0)
+		flag("destroy_hides_and_cleans", not card.Visible and emptyCanvas())
 		local text = hud.RaceMapTime.Text
 		remoteEvent:Fire(event(second))
 		task.wait()
@@ -280,7 +374,7 @@ function Tests.Run()
 		controller.Update(200, Vector3.zero)
 		flag(
 			"destroy_disconnects_remote_and_render",
-			not card.Visible and #canvas:GetChildren() == 0 and hud.RaceMapTime.Text == text
+			not card.Visible and emptyCanvas() and hud.RaceMapTime.Text == text
 		)
 		local destroyAgain = pcall(controller.Destroy)
 		flag("destroy_idempotent", destroyAgain)

@@ -34,9 +34,11 @@ local NpcConfig = require(Shared:WaitForChild("NpcConfig"))
 local WeatherConfig = require(Shared:WaitForChild("WeatherConfig"))
 local QuestConfig = require(Shared:WaitForChild("QuestConfig"))
 local TrackBuilder = require(Shared:WaitForChild("TrackBuilder"))
+local TrackRegistry = require(Shared:WaitForChild("TrackRegistry"))
 local LeaderboardConfig = require(Shared:WaitForChild("LeaderboardConfig"))
 local PassCarConfig = require(Shared:WaitForChild("PassCarConfig"))
 local UpgradeTree = require(Shared:WaitForChild("UpgradeTree"))
+local RaceProgressMap = require(Shared:WaitForChild("RaceProgressMap"))
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -99,9 +101,14 @@ UiScenarios.Names = {
 	"ui_motion",
 	-- docs/HUD_LAYOUT_SPEC.md section 7 (owner 2026-10-26): UiAccessibility. ui_reduced_motion waits for one auto roll.
 	"ui_reduced_motion",
+	-- docs/HUD_LAYOUT_SPEC.md section 10 (owner 2026-10-27): UiMotion presets land at once while reduced
+	"ui_motion_reduced",
 	"ui_safe_insets",
 	"ui_panel_focus",
 	"ui_hud",
+	-- docs/HUD_LAYOUT_SPEC.md sections 8-9 (owner 2026-10-27): speedometer, theme fonts and multis
+	"ui_speed_dial",
+	"ui_theme",
 	"ui_index",
 	"ui_stats",
 	"ui_settings_profile",
@@ -447,6 +454,15 @@ local function setPanels(open)
 	end
 	applyPanelState(open)
 	frames(2)
+	-- A newly opened panel animates in (UiMotion, HUD spec section 10): measure it once settled, unless reduced
+	local opened = false
+	for _, p in open do
+		opened = opened or not table.find(savedOpen, p)
+	end
+	if opened and not (GuiService.ReducedMotionEnabled or player:GetAttribute("ReduceEffects") == true) then
+		task.wait(UiSpec.Waits.PanelMotion)
+		frames(1)
+	end
 	return function()
 		applyPanelState(savedOpen)
 		frames(1)
@@ -857,13 +873,14 @@ local function listCell(obj, parent, list, base, ctx, scale)
 	return R(x, base.y + align(list.VerticalAlignment, base.h, me.h), me.w, me.h)
 end
 
--- The Speed group's visible icon + number width at a viewport (RacerUiController centres exactly that): the number's
--- live TextBounds in design pixels (live UIScale and TextSize divided out, the variant's TextSize and UIScale applied),
--- or nil while the number draws nothing (the controller then does not move the group).
+-- The Speed group's visible dial + number width at a viewport (RacerUiController centres exactly that, from SpeedDial's
+-- left edge to the end of SpeedValue's text; docs/HUD_LAYOUT_SPEC.md section 9): the number's live TextBounds in design
+-- pixels (live UIScale and TextSize divided out, the variant's TextSize and UIScale applied), or nil while the number
+-- draws nothing or the dial is missing (the controller then does not move the group). Second result: the dial's x.
 local function speedVisibleWidth(vp)
-	local group, icon, value =
-		findPath(UiSpec.Hud.Speed), findPath(UiSpec.Hud.SpeedIcon), findPath(UiSpec.Hud.SpeedValue)
-	if not (group and icon and value) or value.TextBounds.X <= 0 then
+	local group, dial, value =
+		findPath(UiSpec.Hud.Speed), findPath(UiSpec.Hud.SpeedDial), findPath(UiSpec.Hud.SpeedValue)
+	if not (group and dial and value) or value.TextBounds.X <= 0 then
 		return nil
 	end
 	local liveScale = group:FindFirstChild("UIScale")
@@ -871,15 +888,15 @@ local function speedVisibleWidth(vp)
 	local nodes = UiResponsive.Nodes
 	local liveVariant, variant = UiResponsive.VariantOf(viewport()), UiResponsive.VariantOf(vp)
 	local valueNode = nodes[UiSpec.Hud.SpeedValue]
-	local iconNode = nodes[UiSpec.Hud.SpeedIcon]
+	local dialNode = nodes[UiSpec.Hud.SpeedDial]
 	local textDesign = value.TextBounds.X / liveScale
 	if valueNode and valueNode[liveVariant].TextSize and valueNode[variant].TextSize then
 		textDesign *= valueNode[variant].TextSize / valueNode[liveVariant].TextSize
 	end
 	local valueX = valueNode and valueNode[variant].Position.X.Offset or value.Position.X.Offset
-	local iconX = iconNode and iconNode[variant].Position.X.Offset or icon.Position.X.Offset
+	local dialX = dialNode and dialNode[variant].Position.X.Offset or dial.Position.X.Offset
 	local s = UiResponsive.ScaleAt(UiSpec.Hud.Speed, vp) or 1
-	return s * (valueX + textDesign - iconX), s * iconX
+	return s * (valueX + textDesign - dialX), s * dialX
 end
 
 -- The two roll cards animate (PopIn grows from 0, LAND_POP, Exit shrink, the 0.3 s SWITCH), so their live Size /
@@ -1235,8 +1252,8 @@ end
 
 -- Samples the loser screen around a Result Lose: shown and on top shortly after it, hidden after the next
 -- Reset / Start / Stop (UiSpec.Waits.LoserHideGrace later).
-local function recordLose()
-	local rec = { t = os.clock() }
+local function recordLose(event)
+	local rec = { t = os.clock(), event = event }
 	table.insert(events.loses, rec)
 	task.wait(UiSpec.Waits.LoserShowGrace)
 	local gui = playerGui:FindFirstChild("LoserScreen")
@@ -1258,6 +1275,29 @@ local function recordLose()
 		rec.highestOther = ("%s (%s)"):format(tostring(highest), who)
 		rec.onTop = gui.DisplayOrder > highest
 		rec.coverMissed = coversButtons(gui)
+	end
+	-- The recap (docs/NPC_RACER_SPEC.md "Loser screen", owner 2026-10-27), read once its rows have appeared
+	task.wait(math.max(0, UiSpec.Loser.RecapAt - (os.clock() - rec.t)))
+	gui = playerGui:FindFirstChild("LoserScreen")
+	if gui and gui.Enabled then
+		local recap = { texts = {}, fonts = {} }
+		for _, name in UiSpec.Loser.Labels do
+			local l = gui:FindFirstChild(name, true)
+			recap.texts[name] = l and l:IsA("TextLabel") and l.Text or nil
+		end
+		local countdown = gui:FindFirstChild(UiSpec.Loser.Countdown, true)
+		recap.countdown = countdown ~= nil
+			and countdown:IsA("Frame")
+			and countdown:FindFirstChild("Fill") ~= nil
+			and countdown.Fill:IsA("GuiObject")
+		for _, o in gui:GetDescendants() do
+			if
+				(o:IsA("TextLabel") or o:IsA("TextButton")) and not string.find(o.FontFace.Family, "Fredoka", 1, true)
+			then
+				table.insert(recap.fonts, pathOf(o))
+			end
+		end
+		rec.recap = recap
 	end
 end
 
@@ -1385,7 +1425,7 @@ function UiScenarios.Init()
 					end
 					if event.Type == "Result" and event.Result == "Lose" then
 						events.lastLose = os.clock()
-						task.spawn(recordLose)
+						task.spawn(recordLose, event)
 					elseif event.Type == "Reset" or event.Type == "Start" or event.Type == "Stop" then
 						task.spawn(recordAfterLose, event.Type)
 					end
@@ -1415,11 +1455,6 @@ end
 -- RollResult payload for diagnostics and compatibility.
 local function oddsText(chance, _luck)
 	return HudFormat.Odds(chance)
-end
-
-local function digits(text)
-	local s = string.gsub(text or "", "[^%d]", "")
-	return tonumber(s)
 end
 
 local function hasNumber(text, n)
@@ -1453,6 +1488,14 @@ end
 
 local function fmtNum(n)
 	return ("%g"):format(n)
+end
+
+-- HudFormat.Multi(n) ("x1.5", docs/HUD_LAYOUT_SPEC.md section 8) appears in text and is not followed by another digit
+-- or point (so "x1.50" or "x1.375" never pass for x1.5 / x1.38).
+local function multiIn(text, n)
+	local want = HudFormat.Multi(n)
+	local at = string.find(text or "", want, 1, true)
+	return at ~= nil and not string.match(string.sub(text, at + #want, at + #want), "[%d%.]"), want
 end
 
 -- Every visible text inside obj (itself included), joined: a button may draw its label with child labels.
@@ -1651,10 +1694,10 @@ local function cardProblems(card, ev, skipGeometry)
 	end
 	local multi = part("SpeedMulti")
 	local m = spec.SpeedMulti or 1
-	local wantMulti = fmtNum(m) .. "x Speed" -- contract: "25x Speed"
-	if
-		not (multi and multi:IsA("TextLabel") and (multi.Text == wantMulti or multi.Text == tostring(m) .. "x Speed"))
-	then
+	-- The card's SpeedMulti ("x25 SPEED") or its contract alias ("Speed x25"), both HudFormat.Multi (section 8)
+	local wantMulti = UiSpec.Showcase.SpeedText:format(HudFormat.Multi(m))
+	local wantAlias = UiSpec.Showcase.SpeedAliasText:format(HudFormat.Multi(m))
+	if not (multi and multi:IsA("TextLabel") and (multi.Text == wantMulti or multi.Text == wantAlias)) then
 		table.insert(bad, ("SpeedMulti %q want %q"):format(multi and multi.Text or "nil", wantMulti))
 	end
 	local newBadge = part("NewBadge")
@@ -2737,6 +2780,9 @@ function S.ui_inventory(res)
 				want = #UpgradeTree.Tiles()
 			elseif spec.Count == "duel_tracks" then
 				want = UiDuel.OfferedTracks()
+			elseif spec.Count == "tracks" then
+				-- One per track in the chain (Checkpoints cards); "tracks" used to fall through to 1 (got 10, want 1)
+				want = #TrackRegistry.Chain()
 			end
 			local got = counts[guiName .. "#" .. i] or 0
 			-- "dynamic": the count depends on the view last rendered; ui_daily_boosts and its clicks count the rows
@@ -3054,15 +3100,16 @@ function S.ui_layout(res)
 				else
 					check(res, "settings_top_right_" .. vpSpec.Name, "missing", "present", false)
 				end
-				-- The VISIBLE icon + number are centred (not the Speed frame, whose number label is wider than its text):
-				-- live from the engine (icon left edge .. number's left edge + TextBounds.X), simulated from the model
+				-- The VISIBLE dial + number are centred (not the Speed frame, whose number label is wider than its text):
+				-- live from the engine (SpeedDial's left edge .. number's left edge + TextBounds.X, HUD spec section 9),
+				-- simulated from the model
 				local hud = findPath(UiSpec.Hud.Speed)
-				local icon, value = findPath(UiSpec.Hud.SpeedIcon), findPath(UiSpec.Hud.SpeedValue)
-				if hud and icon and value then
+				local dial, value = findPath(UiSpec.Hud.SpeedDial), findPath(UiSpec.Hud.SpeedValue)
+				if hud and dial and value then
 					local root = rootOf(UiSpec.Hud.Speed)
 					local left, right = nil, nil
 					if not vpSpec.Size then
-						left = realRect(icon).x
+						left = realRect(dial).x
 						right = value.TextBounds.X > 0 and realRect(value).x + value.TextBounds.X or nil
 					else
 						local visible, iconX = speedVisibleWidth(vp)
@@ -3590,44 +3637,51 @@ function S.ui_hud(res)
 	if not (speed and money and value and moneyValue) then
 		return
 	end
-	local s0, t0 = speed.Value, os.clock()
 	task.wait(UiSpec.Waits.HudSettle)
-	renderFrame()
-	local s1, m1 = speed.Value, money.Value
-	if unbankedValue then
-		local u1 = attr("Unbanked")
-		local shownUnbanked = digits(unbankedValue.Text)
-		local ok = type(u1) == "number"
-			and string.sub(unbankedValue.Text, 1, #UiSpec.Hud.UnbankedPrefix) == UiSpec.Hud.UnbankedPrefix
-			and shownUnbanked ~= nil
-			and math.abs(shownUnbanked - math.floor(u1)) <= 1
-		check(
-			res,
-			"hud_unbanked_matches_server",
-			unbankedValue.Text,
-			type(u1) == "number" and HudFormat.MoneyText(u1) or "attribute Unbanked missing",
-			ok
-		)
+	-- The shown text is exactly HudFormat of a server value from the last HudLag s (the count-up may trail the
+	-- server by about one 0.5 s step, docs/HUD_LAYOUT_SPEC.md section 9; never above it, never hand-formatted).
+	-- Re-sampled every frame for up to HudFollow s. `read` gives the server value, `fmt` its text, `prefix` /
+	-- `suffix` the fixed parts around it. Returns ok, shown text, wanted text.
+	local function followsServer(label, read, fmt, prefix, suffix)
+		local hist, want = {}, "?"
+		local deadline = os.clock() + UiSpec.Waits.HudFollow
+		repeat
+			renderFrame()
+			local now, v = os.clock(), read()
+			if type(v) ~= "number" then
+				return false, label.Text, "server value missing"
+			end
+			table.insert(hist, { t = now, v = v })
+			local lo, hi = v, v
+			for _, h in hist do
+				if now - h.t <= UiSpec.Waits.HudLag then
+					lo, hi = math.min(lo, h.v), math.max(hi, h.v)
+				end
+			end
+			want = prefix .. fmt(v) .. suffix
+			local text = label.Text
+			for k = 0, 100 do
+				if text == prefix .. fmt(lo + (hi - lo) * k / 100) .. suffix then
+					return true, text, want
+				end
+			end
+		until os.clock() > deadline
+		return false, label.Text, want
 	end
-	local growth = math.max(0, (s1 - s0) / math.max(os.clock() - t0, 0.01))
-	local shown = digits(value.Text)
-	-- within one formatting step (floor) plus the smoothing lag of ~0.5 s of growth; never above the server
-	local tol = 1 + growth * 0.5
-	check(
-		res,
-		"hud_speed_matches_server",
-		shown or "unparsable",
-		("%s +- %.1f"):format(HudFormat.SpeedText(s1), tol),
-		shown ~= nil and shown <= math.floor(s1) + 1 and shown >= s1 - tol
-	)
-	local shownMoney = digits(moneyValue.Text)
-	check(
-		res,
-		"hud_money_matches_server",
-		moneyValue.Text,
-		HudFormat.MoneyText(m1),
-		shownMoney ~= nil and math.abs(shownMoney - math.floor(m1)) <= 1
-	)
+	if unbankedValue then
+		local ok, shownText, want = followsServer(unbankedValue, function()
+			return attr("Unbanked")
+		end, HudFormat.MoneyText, UiSpec.Hud.UnbankedPrefix, "")
+		check(res, "hud_unbanked_matches_server", shownText, want, ok)
+	end
+	local okSpeed, speedText, wantSpeed = followsServer(value, function()
+		return speed.Value
+	end, HudFormat.SpeedText, "", UiSpec.Hud.SpeedSuffix)
+	check(res, "hud_speed_matches_server", speedText, wantSpeed, okSpeed)
+	local okMoney, moneyText, wantMoney = followsServer(moneyValue, function()
+		return money.Value
+	end, HudFormat.MoneyText, "", "")
+	check(res, "hud_money_matches_server", moneyText, wantMoney, okMoney)
 	check(
 		res,
 		"hud_speed_suffix",
@@ -3635,6 +3689,47 @@ function S.ui_hud(res)
 		UiSpec.Hud.SpeedSuffix,
 		string.find(value.Text, UiSpec.Hud.SpeedSuffix, 1, true) ~= nil
 	)
+	-- Money plate (docs/HUD_LAYOUT_SPEC.md section 9): behind both labels, holds both, never takes a click
+	local plate = findPath(UiSpec.Hud.MoneyPlate)
+	check(
+		res,
+		"money_plate_present",
+		plate and plate.ClassName or "missing",
+		"Frame",
+		plate ~= nil and plate:IsA("Frame")
+	)
+	if plate and plate:IsA("GuiObject") then
+		local behind = {}
+		for _, l in { moneyValue, unbankedValue } do
+			if l and not (plate.ZIndex < l.ZIndex) then
+				table.insert(behind, ("%s ZIndex %d <= plate %d"):format(pathOf(l), l.ZIndex, plate.ZIndex))
+			end
+		end
+		checkList(res, "money_plate_behind_labels", behind)
+		renderFrame()
+		local pr, outside = realRect(plate), {}
+		for _, l in { moneyValue, unbankedValue } do
+			if l and not contains(pr, realRect(l)) then
+				table.insert(outside, pathOf(l) .. rstr(realRect(l)) .. " outside " .. rstr(pr))
+			end
+		end
+		checkList(res, "money_labels_inside_plate", outside)
+		local clickable = {}
+		for _, o in { plate, table.unpack(plate:GetDescendants()) } do
+			if o:IsA("GuiButton") or (o:IsA("GuiObject") and o.Active) then
+				table.insert(clickable, pathOf(o))
+			end
+		end
+		checkList(res, "money_plate_non_interactive", clickable)
+	end
+	local noGradient = {}
+	for _, p in UiSpec.Hud.GradientLabels do
+		local l = findPath(p)
+		if not (l and l:FindFirstChildOfClass("UIGradient")) then
+			table.insert(noGradient, p .. (l and "" or " (missing)"))
+		end
+	end
+	checkList(res, "hud_counters_have_text_gradient", noGradient)
 	local toggle = findPath(UiSpec.Hud.Race)
 	local racing = attr("AutoRacing") == true
 	check(
@@ -3644,6 +3739,162 @@ function S.ui_hud(res)
 		string.upper(HudFormat.AutoButtonText(racing)),
 		toggle ~= nil and allText(toggle) == string.upper(HudFormat.AutoButtonText(racing))
 	)
+end
+
+-- The speedometer (docs/HUD_LAYOUT_SPEC.md section 9, owner 2026-10-27): RacerHud/Speed/SpeedDial with a Needle
+-- (attribute DialValue, studs/s) and DialSpeed, the speed icon as its hub, nothing clickable. On foot the needle rests
+-- at 0 and DialSpeed reads "0"; while auto racing both follow the car's REAL speed (measured here from the seat's
+-- displacement), never the Speed stat. The main run is auto_racing; the on_foot fixture runs it on foot.
+function S.ui_speed_dial(res)
+	waitGuis()
+	local H, cfg = UiSpec.Hud, UiSpec.SpeedDial
+	local dial = findPath(H.SpeedDial)
+	local isDial = dial ~= nil and (dial:IsA("Frame") or dial:IsA("CanvasGroup"))
+	check(res, "speed_dial_present", dial and dial.ClassName or "missing", "Frame", isDial)
+	if not isDial then
+		return
+	end
+	local needle = dial:FindFirstChild(H.DialNeedle, true)
+	local text = dial:FindFirstChild(H.DialText, true)
+	check(
+		res,
+		"speed_dial_needle_present",
+		needle and needle.ClassName or "missing",
+		"GuiObject Needle",
+		needle ~= nil and needle:IsA("GuiObject")
+	)
+	check(
+		res,
+		"speed_dial_text_present",
+		text and text.ClassName or "missing",
+		"TextLabel DialSpeed",
+		text ~= nil and text:IsA("TextLabel")
+	)
+	local clickable = {}
+	for _, o in { dial, table.unpack(dial:GetDescendants()) } do
+		if o:IsA("GuiButton") or (o:IsA("GuiObject") and o.Active) then
+			table.insert(clickable, pathOf(o))
+		end
+	end
+	checkList(res, "speed_dial_non_interactive", clickable)
+	-- The icon is the hub: a child of Speed, drawn above the dial, its centre inside the dial
+	local icon = findPath(H.SpeedIcon)
+	renderFrame()
+	local hubOk = icon ~= nil
+		and icon:IsA("GuiObject")
+		and icon.ZIndex > dial.ZIndex
+		and (function()
+			local cx, cy = centre(realRect(icon))
+			return contains(realRect(dial), R(cx, cy, 0, 0))
+		end)()
+	check(
+		res,
+		"speed_icon_is_dial_hub",
+		icon and ("ZIndex %d vs dial %d"):format(icon.ZIndex, dial.ZIndex) or "missing",
+		"child of Speed, ZIndex above the dial, centre inside it",
+		hubOk
+	)
+	if not (needle and text and text:IsA("TextLabel")) then
+		return
+	end
+	if attr("AutoRacing") ~= true then
+		frames(3)
+		local v = needle:GetAttribute(H.DialValueAttr)
+		check(res, "speed_dial_zero_on_foot", v, 0, v == 0)
+		check(res, "speed_dial_text_zero_on_foot", text.Text, "0", text.Text == "0")
+		return
+	end
+	local character = player.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	local seat
+	local deadline = os.clock() + cfg.CarWait
+	repeat
+		seat = humanoid and humanoid.SeatPart
+		if not seat then
+			task.wait(0.1)
+		end
+	until seat or os.clock() > deadline
+	if not seat then
+		stateMissing(res, "speed_dial_follows_car", "auto_racing", "AutoRacing but the avatar is in no seat")
+		return
+	end
+	-- Real speed = seat displacement / time over SampleSeconds; DialValue and DialSpeed averaged over the same frames
+	local p0, t0 = seat.Position, os.clock()
+	local sum, textSum, n, textBad = 0, 0, 0, nil
+	repeat
+		renderFrame()
+		local v = needle:GetAttribute(H.DialValueAttr)
+		local shown = tonumber(text.Text)
+		sum += type(v) == "number" and v or 0
+		if shown and string.match(text.Text, "^%d+$") then
+			textSum += shown
+		else
+			textBad = text.Text
+		end
+		n += 1
+	until os.clock() - t0 >= cfg.SampleSeconds
+	local real = (seat.Position - p0).Magnitude / (os.clock() - t0)
+	local dialAvg, textAvg = sum / n, textSum / n
+	local tol = math.max(cfg.Tolerance, cfg.RelTolerance * real)
+	check(
+		res,
+		"speed_dial_follows_car",
+		("%.1f"):format(dialAvg),
+		("> 0 and %.1f +- %.1f studs/s"):format(real, tol),
+		dialAvg > 0 and math.abs(dialAvg - real) <= tol
+	)
+	check(
+		res,
+		"speed_dial_text_follows_car",
+		textBad and ("%q"):format(textBad) or ("%.1f"):format(textAvg),
+		("whole number, %.1f +- %.1f"):format(real, tol + 1),
+		textBad == nil and textAvg > 0 and math.abs(textAvg - real) <= tol + 1
+	)
+end
+
+-- One theme (docs/HUD_LAYOUT_SPEC.md section 8, owner 2026-10-27): every TextLabel / TextButton in the game's
+-- ScreenGuis (UiSpec.Guis: never Roblox's or the UiTest's own), shown or not, is FredokaOne; every multiplier token in
+-- UiSpec.Theme.MultiLabels is HudFormat.Multi style ("x1.5": at most 2 decimals, no trailing zero) and no label
+-- writes the old "25x".
+function S.ui_theme(res)
+	waitGuis()
+	local cfg = UiSpec.Theme
+	local wrongFont = {}
+	for _, name in declaredGuis() do
+		local gui = playerGui:FindFirstChild(name)
+		for _, o in gui and gui:GetDescendants() or {} do
+			if
+				(o:IsA("TextLabel") or o:IsA("TextButton"))
+				and not string.find(o.FontFace.Family, cfg.FontFamily, 1, true)
+			then
+				table.insert(
+					wrongFont,
+					pathOf(o) .. " " .. (string.match(o.FontFace.Family, "([^/]+)%.json$") or o.FontFace.Family)
+				)
+			end
+		end
+	end
+	checkList(res, "theme_fonts_fredoka", wrongFont)
+	local badMulti, found = {}, 0
+	for _, spec in cfg.MultiLabels do
+		local gui = playerGui:FindFirstChild(spec.Gui)
+		local root = gui and (spec.Under and findPath(spec.Gui .. "/" .. spec.Under) or gui)
+		for _, o in root and root:GetDescendants() or {} do
+			if o.Name == spec.Name and o:IsA("TextLabel") and o.Text ~= "" then
+				if string.find(o.Text, "%dx%f[%W]") then
+					table.insert(badMulti, ("%s %q: number before x"):format(pathOf(o), o.Text))
+				end
+				for token in string.gmatch(o.Text, "x([%d%.]+)") do
+					found += 1
+					if not (string.match(token, "^%d+$") or string.match(token, "^%d+%.%d?[1-9]$")) then
+						table.insert(badMulti, ("%s %q: x%s is not HudFormat.Multi"):format(pathOf(o), o.Text, token))
+					end
+				end
+			end
+		end
+	end
+	check(res, "theme_multi_labels_found", found, ">= 1", found >= 1)
+	checkList(res, "theme_multi_format", badMulti)
 end
 
 -- The open Index is the car gallery (docs/HUD_LAYOUT_SPEC.md sections 1 and 3, UiSpec.IndexTabs): its GridHost is
@@ -3901,8 +4152,8 @@ function S.ui_stats(res)
 		local disabled = UiSpec.Guis.RacerStats.DisabledStats[r.stat]
 		local v = r.row:FindFirstChild("Value")
 		if not disabled then
-			local multi = ("x%.2f"):format(multis[r.stat])
-			if not (v and hasNumber(v.Text, alloc[r.stat]) and string.find(v.Text, multi, 1, true)) then
+			local okMulti, multi = multiIn(v and v.Text, multis[r.stat])
+			if not (v and hasNumber(v.Text, alloc[r.stat]) and okMulti) then
 				table.insert(
 					wrong,
 					("%s: %q should show %d pts and %s"):format(r.stat, v and v.Text or "nil", alloc[r.stat], multi)
@@ -4031,7 +4282,7 @@ function S.ui_settings_profile(res)
 		CarsDiscovered = HudFormat.SpeedText(data and #data:GetChildren() or 0),
 		Level = HudFormat.SpeedText(attr("Level") or 1),
 		Speed = HudFormat.SpeedText(speedValue and speedValue.Value or 0),
-		Luck = string.format("x%.2f · %d pts", GachaConfig.Multis(allocation).Luck, allocation.Luck),
+		Luck = string.format("%s · %d pts", HudFormat.Multi(GachaConfig.Multis(allocation).Luck), allocation.Luck),
 	}
 	local mismatches = {}
 	for rowName, want in expected do
@@ -4400,7 +4651,7 @@ function S.ui_rolls(res)
 		return
 	end
 	check(res, "turbo_multi_is_turbo_luck", rec.ev.turboMulti, luck, rec.ev.turboMulti == luck)
-	local wantPop = "x" .. fmtNum(luck)
+	local wantPop = HudFormat.Multi(luck)
 	check(
 		res,
 		"turbo_pop_shown_after_turbo",
@@ -4864,6 +5115,83 @@ function S.ui_showcase(res)
 	)
 end
 
+-- The race recap on the loser screen (docs/NPC_RACER_SPEC.md "Loser screen (owner 2026-10-27)", UiSpec.Loser), as
+-- recordLose read it UiSpec.Loser.RecapAt s after the Result Lose, against that Result's Track / PlayerTime / NpcTime.
+local function loserRecapChecks(res, rec)
+	local L = UiSpec.Loser
+	local recap = rec.recap
+	check(res, "loser_recap_sampled", recap ~= nil, "shown at " .. L.RecapAt .. " s", recap ~= nil)
+	if not recap then
+		return
+	end
+	local t, ev = recap.texts, rec.event or {}
+	local missing = {}
+	for _, name in L.Labels do
+		if t[name] == nil then
+			table.insert(missing, name)
+		end
+	end
+	checkList(res, "loser_recap_labels_present", missing)
+	local function has(name, want)
+		return t[name] ~= nil and string.find(t[name], want, 1, true) ~= nil
+	end
+	check(res, "loser_banner_text", t.Banner, L.Banner.Text, has("Banner", L.Banner.Text))
+	local track = type(ev.Track) == "number" and ev.Track or nil
+	local npcName = t.NpcName
+	if track and NpcConfig.Tracks[track] then
+		local label = NpcConfig.For(track).Label
+		check(
+			res,
+			"loser_npc_name",
+			npcName,
+			("contains %q, never %q"):format(label, L.Generic),
+			npcName ~= nil and npcName ~= "" and not string.find(npcName, L.Generic, 1, true) and has("NpcName", label)
+		)
+	else
+		check(res, "loser_npc_name", npcName, "present", npcName ~= nil)
+	end
+	local titlePrefix = track and ("TRACK %d · "):format(track) or "TRACK "
+	check(
+		res,
+		"loser_track_title",
+		t.TrackTitle,
+		titlePrefix .. "<Name>",
+		t.TrackTitle ~= nil
+			and string.sub(t.TrackTitle, 1, #titlePrefix) == titlePrefix
+			and #t.TrackTitle > #titlePrefix
+	)
+	for _, row in { { "YourTime", ev.PlayerTime }, { "NpcTime", ev.NpcTime } } do
+		local name, seconds = row[1], row[2]
+		local want = type(seconds) == "number" and RaceProgressMap.FormatTime(seconds) or nil
+		check(
+			res,
+			"loser_" .. string.lower(name),
+			t[name],
+			want and ("contains %s"):format(want) or "mm:ss.cc",
+			t[name] ~= nil and string.find(t[name], L.Time) ~= nil and (want == nil or has(name, want))
+		)
+	end
+	local gap = t.Gap and tonumber(string.match(t.Gap, "^%+([%d%.]+)s$"))
+	local wantGap = type(ev.PlayerTime) == "number" and type(ev.NpcTime) == "number" and ev.PlayerTime - ev.NpcTime
+	check(
+		res,
+		"loser_gap",
+		t.Gap,
+		wantGap and ("+%.2fs"):format(wantGap) or L.Gap,
+		t.Gap ~= nil
+			and string.match(t.Gap, L.Gap) ~= nil
+			and (not wantGap or (gap ~= nil and math.abs(gap - wantGap) <= L.GapTolerance))
+	)
+	local pbOk = false
+	for _, pattern in L.Pb do
+		pbOk = pbOk or (t.Pb ~= nil and string.match(t.Pb, pattern) ~= nil)
+	end
+	check(res, "loser_pb", t.Pb, "PB -- or PB mm:ss.cc", pbOk)
+	check(res, "loser_back_to", t.BackTo, "non-empty", t.BackTo ~= nil and t.BackTo ~= "")
+	check(res, "loser_countdown_bar", recap.countdown, "Frame Countdown with Fill", recap.countdown == true)
+	checkList(res, "loser_fonts_fredoka", recap.fonts)
+end
+
 function S.ui_loser(res)
 	waitGuis()
 	local gui = playerGui:FindFirstChild("LoserScreen")
@@ -4908,6 +5236,7 @@ function S.ui_loser(res)
 	else
 		check(res, "loser_hidden_after_reset", "no Reset/Start/Stop after the Lose", "hidden", false)
 	end
+	loserRecapChecks(res, rec)
 end
 
 function S.ui_billboards(res)
@@ -6053,6 +6382,10 @@ local function attrSnapshot()
 		StatPoints = attr("StatPoints") or 0,
 		WorkshopLevel = attr("WorkshopLevel"),
 		Showcase = attr("Showcase"), -- Workshop Showcase ids joined by "," (showcase_* clicks)
+		Checkpoint = attr("Checkpoint"), -- checkpoint_not_optimistic (was never captured: the check compared to nil)
+		Speed = player:FindFirstChild("leaderstats")
+			and player.leaderstats:FindFirstChild("Speed")
+			and player.leaderstats.Speed.Value,
 		ProgressionMoney = player:FindFirstChild("leaderstats") and player.leaderstats.Money.Value,
 		ProgressionOwned = player:FindFirstChild("Upgrades") and #player.Upgrades:GetChildren() or 0,
 		-- The hex tree's zoom (UpgradeTreeView sets the RacerUpgrades attribute TreeZoom; tree_zoom_* clicks)
@@ -6356,7 +6689,13 @@ function UiScenarios.RunClick(id)
 	end
 
 	-- Prepare panels and scroll
-	local restorePanels = preparePanels(prep)
+	-- Prepare.KeepPanels: the panels stay exactly as the previous click left them (no close / reopen, which would reset
+	-- a view such as the Checkpoints detail pane) and are not restored; Prepare.LeavePanels: prepared as usual but left
+	-- that way after the click, so the next KeepPanels click starts from it.
+	local restorePanels = prep.KeepPanels and function() end or preparePanels(prep)
+	if prep.LeavePanels then
+		restorePanels = function() end
+	end
 	local grid = upgradeId and findPath("RacerUpgrades/Panel/Canvas")
 		or findPath("RacerIndex/Panel/Face/GridHost/Gallery")
 	local savedCanvas = grid and grid.CanvasPosition
@@ -6982,13 +7321,13 @@ function UiScenarios.RunClick(id)
 			for _, stat in GachaConfig.STATS do
 				a[stat] = attr("Alloc_" .. stat) or 0
 			end
-			local multi = ("x%.2f"):format(GachaConfig.Multis(a)[rowStat])
+			local okMulti, multi = multiIn(v and v.Text, GachaConfig.Multis(a)[rowStat])
 			check(
 				res,
 				cond,
 				v and v.Text,
 				("%d pts %s"):format(n, multi),
-				v ~= nil and hasNumber(v.Text, n) and string.find(v.Text, multi, 1, true) ~= nil
+				v ~= nil and hasNumber(v.Text, n) and okMulti
 			)
 		elseif cond == "showcase_card_is_latest_roll" then
 			-- Opens on the latest roll (or a newer one that arrived during the settle: it updates live), checked
