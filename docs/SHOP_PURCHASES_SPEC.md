@@ -28,6 +28,9 @@ Returns an `Enum.ProductPurchaseDecision`:
 - Else: add every grant with `BoostService.Add`, record the `PurchaseId`, then save (`PlayerData.Save`).
   Save true: `PurchaseGranted`. Save false: remove the grants and the `PurchaseId` again, `NotProcessedYet`.
 - Receipts kept per player: the last `ShopService.MAX_RECEIPTS` (100) purchase ids.
+- The offline reward double (`MonetizationConfig.OfflineDouble`, not in `Products`) goes through the same receipt
+  handler and the same saved `Receipts`; its rules are in `docs/OFFLINE_DOUBLE_SPEC.md`. It is the only product
+  that adds Speed.
 - `ShopService.SetSave(fn)` lets tests replace the save (`fn(player) -> boolean`); nil restores `PlayerData.Save`.
 
 ## 3. Codes (`ShopService.Redeem(player, text)` -> ok, message; `Remotes.RedeemCode`, RemoteFunction)

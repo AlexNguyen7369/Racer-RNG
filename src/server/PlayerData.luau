@@ -256,6 +256,7 @@ function PlayerData.Load(player, userId)
 	apply(updated)
 	player:SetAttribute("OfflineSpeed", gain)
 	player:SetAttribute("OfflineSeconds", seconds)
+	ShopService.SetOfflineReward(player, gain) -- docs/OFFLINE_DOUBLE_SPEC.md: the amount a double would add
 	player:SetAttribute("DataFailed", nil)
 	player:SetAttribute("DataLoaded", true)
 	-- The mailbox was persisted even if the recipient was offline. Claim through the same

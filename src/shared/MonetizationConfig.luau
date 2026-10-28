@@ -110,6 +110,17 @@ MonetizationConfig.Products = {
 	},
 }
 
+-- Offline reward double (docs/OFFLINE_DOUBLE_SPEC.md). Not a Shop entry: it is sold only from the offline reward
+-- panel. ProductId 0 = not on sale yet; set the real id: create a 19 R$ developer product on the Creator Dashboard
+-- and paste its id here. RobuxPrice and WINDOW_SECONDS are placeholders.
+MonetizationConfig.OfflineDouble = {
+	Id = "offline_double",
+	Name = "Double offline Speed",
+	ProductId = 0,
+	RobuxPrice = 19,
+	WINDOW_SECONDS = 300,
+}
+
 -- Separate ids keep a delayed ordinary receipt from consuming a gift reservation.
 -- Owner creates the corresponding recipient-owned developer products before enabling.
 for _, product in MonetizationConfig.Products do

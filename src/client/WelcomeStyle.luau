@@ -155,7 +155,25 @@ function Welcome.Apply(panel, closePanel)
 	local price = make("TextLabel", "Price", double, { BackgroundTransparency = 1, Text = "19 ROBUX", ZIndex = 4 })
 	label(price, UDim2.fromScale(0.03, 0.56), UDim2.fromScale(0.94, 0.3), Color3.fromRGB(83, 255, 38))
 	price.WelcomeTextLimit.MaxTextSize = 16
-	double:SetAttribute("PurchaseConfigured", false)
+	-- Offline double (docs/OFFLINE_DOUBLE_SPEC.md): shown only while the server says the reward is claimable; the
+	-- server decides the amount when Roblox confirms the purchase.
+	local player = game:GetService("Players").LocalPlayer
+	local product = require(game:GetService("ReplicatedStorage").Shared.MonetizationConfig).OfflineDouble
+	local configured = product.ProductId > 0
+	double:SetAttribute("PurchaseConfigured", configured)
+	double.Active = configured
+	double.AutoButtonColor = configured
+	price.Text = configured and string.format("%d ROBUX", product.RobuxPrice) or "COMING SOON"
+	local function showDouble()
+		double.Visible = player:GetAttribute("OfflineDoubleOpen") == true
+	end
+	player:GetAttributeChangedSignal("OfflineDoubleOpen"):Connect(showDouble)
+	showDouble()
+	double.Activated:Connect(function()
+		if configured and double.Visible then
+			game:GetService("MarketplaceService"):PromptProductPurchase(player, product.ProductId)
+		end
+	end)
 	claim.Activated:Connect(closePanel)
 	-- In very short bands use a side-by-side icon and amount, keeping a full-height tap target.
 	local function fit()
