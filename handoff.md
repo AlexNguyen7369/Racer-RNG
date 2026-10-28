@@ -30,6 +30,21 @@ in git history (`git log -p -- handoff.md`, last full version at 2d99d78) and in
 
 ## Open work
 
+ORCH-2. **Orchestrator, 2026-10-28 late: Isaac merged (4227363), hover test scale-only (548f1e8), all pushed on feature/alex/world1-ship.**
+   Full UI suite (ui-tester): [UITEST] END pass=26 fail=13. Hover OK (1.000 -> 1.035, no outline). Bugs being logged in bugs.json.
+   UI-code bugs (implementer, then ui-tester): RollToast must hide under open panels (steals clicks); Index tile / PanelSwitch.Action("Index")
+   does nothing; Market/Shop do not close on outside click; Upgrades panel covers its toggle; Market phone tabs/Action ""; Shop overlap +
+   phone band; phone Welcome/Workshop above Race button; pedestal BillboardGui/ProximityPrompt nil; MoneyValue outside plate; fonts
+   LegacyArial not Fredoka; "Stats 37" label; Speed float +9 vs +0.5; weather icon phone order; Index ConsumablesTab; showcase Viewport
+   outside card; Duel invite left open.
+   TEST bugs (ui-test-writer only): ui_layout model mismatches the engine (no UIScale/AutomaticSize; Index off 879, Shop 1920); unknown
+   setup ids daily_unclaimed/daily_claimed/checkpoint_locked/checkpoint_open; PrepareGift not intercepted; money fixtures broken by
+   auto race payouts; gamepass cars Owned-vs-Equip fixture; ui_loser timing (hidden ~4 s after start); Backpack Cars order includes gamepass.
+   Manual (owner, Device Simulator / Controller Emulator): ui_safe_insets_notch, ui_gamepad_focus, Escape keys.
+   NEXT: one task per group in worktrees ../RobloxGames-orch/<task> on orch/world1-ship/<task> (UI code via ui-test-writer red ->
+   implementer -> ui-tester; tests via ui-test-writer), then full [UITEST] + [CARTEST] (XP check level_xp_curve_rev4 not yet run live).
+   Then td1-td7, w1a pad short text (owner approved), nf3 friends boost spec+build (owner approved +10%/friend cap 40%).
+
 ORCH-1. **Orchestrator tick 1, 2026-10-28: LANDED on `feature/alex/world1-ship` (pushed): 50efb4d scenery fix, 677ad7d World 1 balance,
    2ac2f0f progress. Harness END pass=53 fail=0 (studio id now 4f40c05b-...; use CarTestOnly attribute, never gmatch the log).
    NEXT: merge origin/feature/isaac/simple-hud-icons-20261027 (conflicts README, ProjectContext, current_progress,
