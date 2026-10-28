@@ -65,8 +65,9 @@
 62. 2026-10-27 — Alex Nguyen — Shipped the Ember Wyvern as a textured cyan shadow-wyvern skin (Blender build, colour + normal maps, uploaded Model 103082461956401, RedesignCarModels rbxmx, car_redesign coverage) and pushed it to main (820cd25).
 63. 2026-10-27 — Alex Nguyen — Shipped the Ember Wyvern flight (33-bone rig, flap bursts and glides, SkinScale 2.5, long whip tail) and blue fire breath with the wyvern_flight / wyvern_breath tests; full suite 51/1 (only the unrelated City Blocks gap) and pushed to main (b067894).
 64. 2026-10-27 — Alex Nguyen — Rebuilt all 111 reference cars as toy racers (15,000-triangle cap, pilot approved, re-uploaded) and gave Singularity a floating, spinning, bobbing neon-glow black hole orb with the singularity_orb test, on feature/alex/car-redesign-v3-toy-racer (ce060e6).
+65. 2026-10-27 — Alex Nguyen — Verified car redesign v3 in Studio: full harness 50/3 with every car and Singularity orb scenario green (the 3 failures come from the uncommitted giant-scenery work, bug b99e2c0b logged) (c390103).
 
 ## What's next
-**Finish verifying car redesign v3 with Studio free: run the full harness (car_redesign, singularity_orb, pass_cars, car_expansion, showcase and vehicle_effects must pass), capture the Singularity orb in Studio, get the owner's look, then merge the branch to main.**
+**Owner looks at the toy racer cars and the Singularity orb in Studio, then merge feature/alex/car-redesign-v3-toy-racer into main.**
 
-**Why this is next:** the full run was interrupted by a live playtest in the shared Studio, so the new skins and the orb are unverified, and the merge to main depends on a green run.
+**Why this is next:** the harness is green for the redesign; only the owner's visual check stands between the branch and main, and later car work builds on the new skins.
