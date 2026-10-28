@@ -47,7 +47,7 @@ selene src            # lint
   - delegates it, tests it and runs `rules-auditor`;
   - commits each green task, merges it into the goal's integration branch and pushes only that branch, then updates the handoff and boards.
   It asks the owner for end goals, deliverables and the definition of done first (`docs/ORCHESTRATOR_GOALS.md`).
-  Each task runs in its own worktree on `orch/<goal>/<task>` and merges into the goal's integration branch; the owner merges that into `main`.
+  Each task runs in its own worktree on `orch/<goal>/<task>` and merges into the goal's integration branch; into `main` only through an open PR that a fresh `merge-reviewer` (no prior context) approves.
   Studio tests run in the task's own Studio when it can be set up (own place copy, own `rojo serve --port`); otherwise the task waits in the shared-Studio queue.
   Design conflicts go to `manual.json` and the bus; it never decides them. `loop` keeps it running only while a session hosts it.
 - Needs: Roblox Studio with the Roblox Studio MCP and the Rojo plugin (`rojo serve`), `stylua`, `selene`, `python3`; the Blender MCP for art work.

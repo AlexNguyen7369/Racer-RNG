@@ -26,6 +26,10 @@ overview: python3 tools/collab.py overview
 branch_start: python3 tools/collab.py start "<title>" --todo <id>
 push: python3 tools/collab.py push
 protected_branches: [main, initial-import]
+merge:                                            # into main only through a PR + fresh merge-reviewer APPROVE
+  open: gh pr create --base main --head <integration branch> --title "<goal title>" --body "<deliverables, tests, rules>"
+  reviewer: merge-reviewer
+  merge: gh pr merge <number> --merge
 tests:
   always: ["stylua src", "selene src"]
   harness: physics-tester agent ([CARTEST] END fail=0)
