@@ -3,6 +3,8 @@
 -- speed_probe was green at every probe up to 1000 ...). Rule: the speed_probe scenario gives the highest speed with 0
 -- flips, up-vector Y >= PhysicsTargets.lap.MinUpYStrict and path deviation <= race.MaxPathDeviation on every track,
 -- minus 10 %, kept within 700 .. 800)."
+-- Owner 2026-10-28 (docs/WORLDS_SPEC.md section 1): MAX_CRUISE raised to 1250 after the probe was green to 1250 on
+-- every track.
 --
 -- speed_probe is a MEASUREMENT, run on demand (not in TestConfig.Scenarios: it drives the whole chain once per probe speed).
 -- For each probe speed the whole track chain (TrackRegistry.Chain, every track, so every lap:<Track> route plus the
