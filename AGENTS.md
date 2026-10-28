@@ -8,6 +8,11 @@ or handing work to another agent, update it with the session goal, active files,
 changes made, failed attempts/blockers, and specific resume steps. Keep it factual
 and treat the dashboard Handoff tab as the same shared source of truth.
 
+For the portable lifecycle, implementation, UI, VFX, security, and review workflow
+adapted from the shared agent environment, read `docs/CODEX_WORKFLOW.md` when the
+task is broader than a small local edit. It supplements these project rules and
+does not replace the design docs or collaborator handoff.
+
 ## Design docs are hard rules
 
 `docs/GAME_DESIGN_REQUIREMENTS.md` is the top rule for the game (the PDF is an older

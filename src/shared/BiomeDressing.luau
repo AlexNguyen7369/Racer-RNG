@@ -315,7 +315,7 @@ end
 
 -- Scatter layer (spec Layers 7): props and flat ground patches between Near and Far studs from the road edge,
 -- built last into whatever budget is left. Returns the new part count.
-local function scatter(folder, layout, origin, theme, biome, ground, edge, count, onGround)
+local function scatter(folder, layout, origin, theme, biome, ground, edge, count, onGround, budget)
 	local s, wps = theme.Scatter, layout.Waypoints
 	local named = {}
 	for _, layer in { theme.Rhythm, theme.Landmarks } do
@@ -337,7 +337,7 @@ local function scatter(folder, layout, origin, theme, biome, ground, edge, count
 				local base = beside(layout, origin, i, side, distance)
 					* CFrame.Angles(0, hash(i, side, 3) * 2 * math.pi, 0)
 				-- The patch (one part) goes first, so a tight budget still covers the ground.
-				if (i // s.Every) % 2 == 0 and count + 1 <= BiomeDressing.BUDGET then
+				if (i // s.Every) % 2 == 0 and count + 1 <= budget then
 					local p = s.Patches[math.floor(hash(i, side, 4) * 1000) % #s.Patches + 1]
 					local patchReach = Vector2.new(p.Size.X, p.Size.Z).Magnitude / 2
 					local at = edge + s.Near + (s.Far - s.Near) * hash(i, side, 5) + patchReach
@@ -360,8 +360,74 @@ local function scatter(folder, layout, origin, theme, biome, ground, edge, count
 						count += 1
 					end
 				end
-				if count + #def.Parts + 1 <= BiomeDressing.BUDGET and onGround(base, reach) then
+				if count + #def.Parts + 1 <= budget and onGround(base, reach) then
 					count += place(folder, biome, def, base, "Scatter_" .. tag, false)
+				end
+			end
+		end
+	end
+	return count
+end
+
+-- Footprints (XZ) of two ground-standing boxes overlap: 2D separating axis test.
+local function footprintsOverlap(a, b)
+	local axes = { a.CFrame.RightVector, a.CFrame.LookVector, b.CFrame.RightVector, b.CFrame.LookVector }
+	local d = b.CFrame.Position - a.CFrame.Position
+	for _, axis in axes do
+		axis = flat(axis)
+		local function radius(box)
+			return math.abs(flat(box.CFrame.RightVector):Dot(axis)) * box.Half.X
+				+ math.abs(flat(box.CFrame.LookVector):Dot(axis)) * box.Half.Y
+		end
+		if math.abs(Vector3.new(d.X, 0, d.Z):Dot(axis)) >= radius(a) + radius(b) then
+			return false
+		end
+	end
+	return true
+end
+
+-- Blocks layer (spec Layers 9): street-wall rows of low-rise buildings, a slot every `Spacing` studs along the road
+-- on each side, `Rows` deep. A building overlapping one already placed (inside corners) is skipped.
+local function blocks(folder, layout, origin, theme, biome, edge, count, onGround, budget)
+	local b, wps = theme.Blocks, layout.Waypoints
+	local placed = {}
+	for _, m in folder:GetChildren() do -- landmarks and horizon pieces keep their ground
+		if m:IsA("Model") and (string.match(m.Name, "^Landmark_") or string.match(m.Name, "^Horizon_")) then
+			local cf, size = m:GetBoundingBox()
+			table.insert(placed, { CFrame = cf, Half = Vector2.new(size.X / 2, size.Z / 2) })
+		end
+	end
+	local travelled, nextSlot, slot = 0, 0, 0
+	for i = 2, #wps - 1 do
+		travelled += (Vector3.new(wps[i].X, 0, wps[i].Z) - Vector3.new(wps[i - 1].X, 0, wps[i - 1].Z)).Magnitude
+		if travelled >= nextSlot then
+			slot += 1
+			nextSlot += b.Spacing
+			for _, side in { -1, 1 } do
+				for row = 1, b.Rows do
+					local def = b.Props[math.floor(hash(slot, side, row + 10) * 1000) % #b.Props + 1]
+					local distance = edge + b.Near + (row - 1) * b.RowDepth + def.Size.Z / 2
+					local base = beside(layout, origin, i, side, distance)
+					local box = { CFrame = base, Half = Vector2.new(def.Size.X / 2, def.Size.Z / 2) }
+					local clear = count + #def.Parts <= budget
+						and onGround(base, Vector2.new(def.Size.X, def.Size.Z).Magnitude / 2)
+					for _, other in placed do
+						if not clear then
+							break
+						end
+						clear = not footprintsOverlap(box, other)
+					end
+					if clear then
+						table.insert(placed, box)
+						count += place(
+							folder,
+							biome,
+							def,
+							base,
+							"Block_" .. slot .. (side < 0 and "L" or "R") .. row,
+							false
+						)
+					end
 				end
 			end
 		end
@@ -389,6 +455,7 @@ function BiomeDressing.Build(model, layout, spec, origin)
 
 	local wps = layout.Waypoints
 	local edge = layout.Width / 2 + WALL
+	local budget = theme.Budget or BiomeDressing.BUDGET
 	local count = gate(folder, layout, origin, theme, spec)
 	-- A prop whose footprint leaves this track's ground would hang over the void (or the Baseplate below it).
 	-- `reach` is the prop's half-width on the ground (its half-diagonal when it is turned).
@@ -463,15 +530,18 @@ function BiomeDressing.Build(model, layout, spec, origin)
 	local rhythm, k = theme.Rhythm, 0
 	for i = 2, #wps - 1, rhythm.Every do
 		for _, side in { -1, 1 } do
-			if count + 4 > BiomeDressing.BUDGET then
+			if count + 4 > budget then
 				return
 			end
 			add(rhythm, k, i, side, false, "Rhythm_" .. i .. (side < 0 and "L" or "R"))
 			k += 1
 		end
 	end
+	if theme.Blocks then
+		count = blocks(folder, layout, origin, theme, biome, edge, count, onGround, budget)
+	end
 	if theme.Scatter then
-		count = scatter(folder, layout, origin, theme, biome, ground, edge, count, onGround)
+		count = scatter(folder, layout, origin, theme, biome, ground, edge, count, onGround, budget)
 	end
 end
 

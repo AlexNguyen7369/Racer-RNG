@@ -591,6 +591,27 @@ function ShopMarket.Build(h)
 		if rarity == "" or rarity == "missing" or (item.Rarity and not has(rarity, item.Rarity)) then
 			table.insert(bad, ("Rarity shows %q, want %s"):format(rarity, item.Rarity or "a rarity"))
 		end
+		-- Trail / aura subtitle names its Speed Gain multi (owner 2026-10-27, docs/GAME_DESIGN_REQUIREMENTS.md "Aura and
+		-- trail ladders"): "Trail  •  x<SpeedMulti> Speed Gain", auras add "+ cruise". MarketConfig decides the number.
+		if kind == "Trail" or kind == "Aura" then
+			local wantMulti = "x" .. tostring(item.SpeedMulti)
+			if
+				type(item.SpeedMulti) ~= "number"
+				or not has(rarity, kind)
+				or not has(rarity, wantMulti .. " Speed Gain")
+				or (kind == "Aura") ~= (has(rarity, "cruise") == true)
+			then
+				table.insert(
+					bad,
+					("Subtitle shows %q, want %s %s Speed Gain%s"):format(
+						rarity,
+						kind,
+						wantMulti,
+						kind == "Aura" and " + cruise" or ""
+					)
+				)
+			end
+		end
 		local want = MK.ActionText.Buy
 		if kind ~= "Potion" and attr("Own" .. kind .. "_" .. item.Id) == true then
 			want = attr("Equipped" .. kind) == item.Id and MK.ActionText.Equipped or MK.ActionText.Equip

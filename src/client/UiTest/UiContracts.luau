@@ -364,7 +364,8 @@ function Contracts.Build(h)
 				end
 			end
 		end
-		check(res, "cosmetic_six_authored_icons", count, 6)
+		-- 5 trails + 3 auras (owner 2026-10-27, "Aura and trail ladders"; icons in Shared/MarketArtConfig)
+		check(res, "cosmetic_eight_authored_icons", count, 8)
 	end
 
 	function scenarios.ui_daily_cards(res)

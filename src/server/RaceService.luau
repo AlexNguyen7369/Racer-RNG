@@ -462,8 +462,9 @@ function RaceService.NewRun(car, raceRoute, player, options)
 
 	local function commitStat()
 		if pending > 0 then
-			local added = pending
-			pending = 0
+			-- AddSpeed rejects anything above MAX_ADD; carry the rest so a big multi is never lost
+			local added = math.min(pending, PlayerData.MAX_ADD)
+			pending -= added
 			local newStat = PlayerData.AddSpeed(player, added)
 			if newStat then
 				run.Gained += added

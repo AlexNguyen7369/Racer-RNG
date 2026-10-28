@@ -58,6 +58,8 @@ attribute for testing; it disappears when the player leaves and multiplies norma
 | `/resetspeed [target]` | Sets Speed to 0. |
 | `/givespeed <n> [target]` | Adds positive n to Speed, same clamp. |
 | `/givemoney <n> [target]` | Adds positive floor(n) to Money, clamped to 1e15. |
+| `/givexp <n> [target]` | Owner 2026-10-27: `LevelService.AddXP(target, n)` for positive n (max 1e15); levels up through every milestone as normal play does. Junk / <= 0 -> `false`. |
+| `/setrebirth <n> [target]` | Owner 2026-10-27: sets `RebirthLevel` to floor(n), n in [0, 1e6], then refreshes StatPoints, the Speed Gain / Luck multis and the workshop rate. Money, Speed and Level are NOT reset (unlike a real rebirth). Saved like a real rebirth. Junk -> `false`. |
 | `/luck <n> [target]` | Sets a session-only direct Luck multiplier to n (n >= 1). |
 | `/giveluck <n> [target]` | Alias for `/luck`. |
 | `/resetluck [target]` | Removes the session-only direct Luck multiplier. |

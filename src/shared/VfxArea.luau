@@ -4,13 +4,15 @@
 local VfxArea = {}
 
 VfxArea.CENTER = Vector3.new(1600, 0, 0) -- the world's parts end near x = 700
-VfxArea.FLOOR_SIZE = Vector3.new(280, 1, 140)
+VfxArea.FLOOR_SIZE = Vector3.new(360, 1, 140)
 VfxArea.SHOW_RADIUS = 400 -- the client builds the showcase while its avatar is this close to CENTER
 VfxArea.LANE_GAP = 38 -- studs between showcase loops, along x
 VfxArea.Items = { -- kind, Market item id; one lane each, left to right
 	{ "Trail", "rainbow_trail" },
 	{ "Trail", "solar_trail" },
 	{ "Trail", "void_trail" },
+	{ "Trail", "frost_trail" },
+	{ "Trail", "prism_trail" },
 	{ "Aura", "azure_aura" },
 	{ "Aura", "ember_aura" },
 	{ "Aura", "galaxy_aura" },

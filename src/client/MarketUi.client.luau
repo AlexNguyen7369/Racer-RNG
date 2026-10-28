@@ -347,8 +347,8 @@ local function showDetail(item)
 	local equipped = kind ~= "Potion" and player:GetAttribute("Equipped" .. kind) == item.Id
 	local isOwned = owned(kind, item.Id)
 	rarity.Text = kind == "Potion" and (item.Category .. " Potion")
-		or kind == "Aura" and string.format("Aura  •  x%s speed", tostring(item.SpeedMulti))
-		or "Trail  •  cosmetic"
+		or kind == "Aura" and string.format("Aura  •  x%s Speed Gain + cruise", tostring(item.SpeedMulti))
+		or string.format("Trail  •  x%s Speed Gain", tostring(item.SpeedMulti))
 	nameLabel.Text = item.Name
 	priceText.Text = kind == "Potion"
 			and string.format(

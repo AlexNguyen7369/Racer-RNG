@@ -88,8 +88,8 @@ function Extras.Build(h)
 	-- skipLabel: after an intercepted click the label shows the proxy's made-up reply for a while (not the server's).
 	local function rebirthTruth(res, nodes, skipLabel)
 		nodes = nodes or {}
-		-- Reward captions: the NEXT rebirth's gains from RebirthConfig. Multiplier tiles show the staged factor of the
-		-- next rebirth, RebirthConfig.NextMultiplier(RebirthLevel) (docs/REBIRTH_SPEC.md: "the next factor's xN").
+		-- Reward captions: the NEXT rebirth's gains from RebirthConfig. Multiplier tiles show the NEXT TOTAL multi,
+		-- RebirthConfig.NextMultiplier(RebirthLevel) = SpeedGainMulti(RebirthLevel + 1) (docs/REBIRTH_SPEC.md "Panel").
 		local captions = {}
 		local rebirthLevel = attr("RebirthLevel") or 0
 		for _, tile in RB.Tiles do

@@ -229,6 +229,13 @@ Idle Vehicle Simulator — Game Design Requirements
   In races, Speed gain uses the flat permanent Speed Gain formula above. Workshop gain is separate and does not use
   the equipped car or a Speed-stat diminishing term.
 
+  Owner decision, 2026-10-27 (Speed gain rebalance, "+1 Speed" style): the equipped aura (A) and the equipped
+  trail (T, new term) now multiply ALL Speed gain, race and workshop, on top of the Speed Gain stat/upgrade and the
+  rebirth multi: gain = GAIN_PER_SECOND x Speed Gain stat x R x A x T (workshop: its own rate x the same A x T).
+  This replaces the 2026-10-21 rule that auras never affect Speed gain. The aura also keeps its cruise-speed
+  multi. The equipped car still never affects Speed gain. Aura and trail multis and prices are placeholders
+  (see "What Money buys").
+
   Balance tip: with nine multipliers stacked, a small change to one moves everything. Model
   the numbers in a spreadsheet before building. Stat points are easier to tune if each point
   adds to its multi (e.g. +0.1x per point) rather than multiplying it.
@@ -307,6 +314,13 @@ Idle Vehicle Simulator — Game Design Requirements
        and each track may hold more scenery parts. The City (Track 6) buildings are detailed
        skyscrapers (podium, setback tiers, window bands, corner fins, lit crown and rooftop
        equipment), not plain boxes. Scale factors and the part budget are placeholders.
+       Owner decision, 2026-10-27 (populated city): the City reads as a populated city. Continuous
+       rows of buildings line both sides of the road, two rows deep, with no wide empty gaps
+       between them; the City may use more scenery parts than other tracks (placeholder).
+       Owner decision, 2026-10-27 (giant scenery in every biome): taking the populated City as the
+       model, every biome has large assets near the road (giant trees, rock pillars, towers,
+       spires, ships ...) mixed with its small roadside props, so the player and car feel small
+       in a much bigger world. Giant sizes, spacing and counts are placeholders.
 
 
 
@@ -410,14 +424,18 @@ Idle Vehicle Simulator — Game Design Requirements
 
        Rebirth unlocks at level milestones: 10, 25, 50, 75, 100, then every 25 after (proposed).
        Rebirthing resets Money, Speed, Level and XP. Level returns to 1 and XP returns to 0.
-       Each rebirth compounds the automatic Speed Gain and Luck multipliers. The next-rebirth factors
-       are x5.00, x7.50, x7.50, x10.00, x10.00, then x7.50 repeating; level n contributes the product
-       of its factors (with a numeric-safety ceiling far beyond normal play). Rebirths do not multiply
-       race payout Money; Money upgrades and temporary Money effects remain separate.
+       Owner decision, 2026-10-27 (rev. 2, replaces the x3 .. x20 totals with x10 per rebirth after 10,
+       which grew too fast): the rebirth level sets one TOTAL Speed Gain and Luck multiplier that grows
+       by addition, never by multiplication. Rebirths 1-20 add +5x each (rebirth 1 x5, 2 x10, ... 20 x100);
+       the total is capped at x100 from rebirth 20 on (21, 22, 30 ... all stay x100). Level 0 stays x1.
+       Rebirths do not multiply race payout Money; Money upgrades and temporary Money effects remain separate.
        Each rebirth also gives Rebirth Points to spend on four stats.
        Rebirth Points per rebirth: 1 (placeholder; owner 2026-10-15). They join the same free stat
        point pool as the car index (StatPoints) and are spent on the same four stats; they are derived
        from the rebirth count, never saved separately.
+
+       Owner decision, 2026-10-27: the Roblox player list shows the current rebirth level as a third
+       leaderstat, Rebirth, after Money and Speed. The server keeps it equal to RebirthLevel.
 
        Active milestone rule: if level resets on rebirth, each rebirth needs the next milestone; after level 100,
        milestones continue at 125, 150, 175 and so on without a cap.
@@ -469,7 +487,9 @@ Idle Vehicle Simulator — Game Design Requirements
 
      Car inventory                                  Kept (proposed): rare cars take too long to re-roll
 
-     Fuel, auras, spoilers                          Open
+     Auras, trails                                  Kept (owner 2026-10-27)
+
+     Fuel, spoilers                                 Open
 
      Workshop money upgrades                        Open
 
@@ -523,6 +543,8 @@ Idle Vehicle Simulator — Game Design Requirements
      Car aura                         Speed multi (A) plus a visual        One equipped at a time (proposed)
                                       effect
 
+     Trail                            Speed Gain multi (T) plus a visual   One equipped at a time
+
      Spoilers                         Speed multi (P) plus a visual part   One equipped at a time (proposed)
 
      Workshop                         Workshop multi (W)                   See workshop section
@@ -536,6 +558,23 @@ Idle Vehicle Simulator — Game Design Requirements
   (internal id ascended_aura, working name "Ascended Aura": the Dragon Ball names stay out of the game).
   It is shown only in the VFX showcase area for review and is not sold yet. Open question: its price,
   its Speed multi (A) and whether it joins the Market.
+
+
+  Aura and trail ladders (owner 2026-10-27, placeholder numbers). Both multiply all Speed gain; the
+  aura also multiplies cruise speed. Both are kept on rebirth.
+
+
+     Trail              Speed Gain multi        Cost              Aura             Speed multi    Cost
+
+     Rainbow            1.5x                    $500              Azure            1.2x           $2.5K
+
+     Solar              2x                      $1.5K             Ember            2x             $25K
+
+     Void               3x                      $5K               Galaxy           3x             $250K
+
+     Frost (new)        4x                      $25K
+
+     Prism (new)        5x                      $100K
 
 
   Sample fuel ladder (placeholder numbers)
@@ -646,9 +685,6 @@ Idle Vehicle Simulator — Game Design Requirements
        membranes with tattered flame edges and blue fire effects (owner, 2026-10-27, replacing
        the earlier black-and-amber look). Inspiration only: the design stays original, no
        existing character is copied.
-
-  Owner rendering pass, 2026-10-26 (docs/RENDERING_SPEC.md):
-       The world gets a richer lighting baseline (coloured ambient, colour grading, soft
        Owner, 2026-10-27 (Ember Wyvern flight, docs/WYVERN_FLIGHT_SPEC.md): the Ember Wyvern
        flies: while auto racing and on its pedestal the wings flap in bursts and glides and the
        body moves (neck, tail, heave, bank and head turn into curves), played on each client
@@ -659,6 +695,21 @@ Idle Vehicle Simulator — Game Design Requirements
        breathes blue fire in bursts during each glide between wingbeats, while racing and on
        its pedestal. Client-only particles in the cyan palette with the uploaded VFX textures;
        nothing changes physics, speed or payouts.
+       Owner, 2026-10-27 (car redesign v3, docs/CAR_REDESIGN_SPEC.md section 10): every car
+       skin moves to a stylised toy racer look: chunky, rounded bodies, big chunky wheels, short
+       overhangs and a taller, bubblier cabin, keeping each car's colours and signature parts.
+       The per-car budget rises from 6,000 to 15,000 triangles. Applies to all 111 cars with a
+       reference; the Ember Wyvern and the built-in starter keep their models. Flat colours stay
+       (no textures). A 3-car pilot (Rusty Hatchback, Street Racer, Singularity) is approved
+       by the owner before the other cars are rebuilt. Proportion numbers are placeholders.
+       Owner, 2026-10-27 (after approving the pilot): the rollout keeps big rear wings as they are.
+       Owner, 2026-10-27 (Singularity orb, docs/CAR_REDESIGN_SPEC.md section 11): Singularity's
+       black hole is smaller and floats above the engine deck (no stand). It spins and bobs up
+       and down, with a bright neon glow around its black core. The motion plays on each client
+       only; it never changes physics, speed or payouts.
+
+  Owner rendering pass, 2026-10-26 (docs/RENDERING_SPEC.md):
+       The world gets a richer lighting baseline (coloured ambient, colour grading, soft
        shadows, light haze), real surface materials on roads and walls instead of flat
        plastic, and level-of-detail rules so phones keep their frame rate. Weather events
        still own the sky and restore this baseline when they end. Purely visual: nothing
@@ -692,21 +743,6 @@ Idle Vehicle Simulator — Game Design Requirements
          Explain a luck purchase's effect in numbers before purchase.
          Keep the catalog rarity visible while boosts are active; boosts change the server's actual roll probability,
          not the advertised "1 in N" rarity.
-       Owner, 2026-10-27 (car redesign v3, docs/CAR_REDESIGN_SPEC.md section 10): every car
-       skin moves to a stylised toy racer look: chunky, rounded bodies, big chunky wheels, short
-       overhangs and a taller, bubblier cabin, keeping each car's colours and signature parts.
-       The per-car budget rises from 6,000 to 15,000 triangles. Applies to all 111 cars with a
-       reference; the Ember Wyvern and the built-in starter keep their models. Flat colours stay
-       (no textures). A 3-car pilot (Rusty Hatchback, Street Racer, Singularity) is approved
-       by the owner before the other cars are rebuilt. Proportion numbers are placeholders.
-       Owner, 2026-10-27 (after approving the pilot): the rollout keeps big rear wings as they are.
-       Owner, 2026-10-27 (Singularity orb, docs/CAR_REDESIGN_SPEC.md section 11): Singularity's
-       black hole is smaller and floats above the engine deck (no stand). It spins and bobs up
-       and down, with a bright neon glow around its black core. The motion plays on each client
-       only; it never changes physics, speed or payouts.
-
-  Owner rendering pass, 2026-10-26 (docs/RENDERING_SPEC.md):
-       The world gets a richer lighting baseline (coloured ambient, colour grading, soft
          Check ArePaidRandomItemsRestricted per player and block or hide paid luck for
          restricted players.
 

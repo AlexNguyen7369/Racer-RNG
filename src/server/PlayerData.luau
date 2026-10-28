@@ -162,7 +162,9 @@ function PlayerData.Setup(player)
 	if player:GetAttribute("RebirthLevel") == nil then
 		player:SetAttribute("RebirthLevel", RebirthConfig.DEFAULT_LEVEL)
 	end
-	return speedValue(player)
+	local base = speedValue(player)
+	RebirthService.Setup(player) -- again, now that Speed exists, to add leaderstats.Rebirth after it
+	return base
 end
 
 -- Returns true if the stats were loaded (or newly created). Yields.
@@ -406,6 +408,8 @@ function PlayerData.SpeedStat(player)
 	local speed = player:FindFirstChild("BaseSpeed")
 	return cleanStat(speed and speed.Value)
 end
+
+PlayerData.MAX_ADD = MAX_ADD
 
 -- Adds to the Speed stat. Only the server calls this. The amount must be a finite number in (0, MAX_ADD];
 -- returns the new stat, or nil (and changes nothing) for anything else.

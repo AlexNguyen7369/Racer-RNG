@@ -43,6 +43,18 @@ Prop lists, sizes, colours and spacing are placeholders that can be tuned.
    snowfall, embers, star twinkle ...). One emitter per landmark, on its first part, named `BiomeParticles`, with
    `Rate` at most `PARTICLE_MAX_RATE` (placeholder 8 per second). Built-in particle textures only. Particles are local
    to the landmark: no screen-wide or Lighting effect.
+9. **Blocks (owner 2026-10-27, populated city):** theme `Blocks = { Spacing, Near, Rows, RowDepth, Props }` lines both
+   sides of the road with street-wall rows of low-rise buildings. Walking the road centre line, a slot opens every
+   `Spacing` studs on each side; row r (1..`Rows`) stands `Near + (r - 1) * RowDepth` studs beyond the road edge, the
+   front face toward the road. The slot, side and row pick the prop (no randomness). A building is skipped when its
+   footprint overlaps one already placed in this layer (inside corners), and the usual ground and clearance rules
+   apply; landmarks and horizon pieces count as placed, so a row breaks around a tower. Blocks are built after the
+   rhythm and before the scatter, unscaled; City scatter starts beyond the second row.
+   **Every biome (owner 2026-10-27, giant scenery):** every theme has a `Blocks` layer. The City's rows are its
+   low-rise street walls; every other biome's rows hold giant props, 40 to 130 studs tall (giant trees, rock
+   pillars, floodlight towers, gantry cranes, sea stacks, ice spires, basalt columns, crystal spires ...), spaced
+   wider than the City so gaps show the small rhythm and scatter props between them: a mix of small and big. Giants
+   use few, large parts so they fit the normal `BUDGET`. Sizes, spacing and rows are placeholders.
 
 ## Rules
 
@@ -59,6 +71,8 @@ Prop lists, sizes, colours and spacing are placeholders that can be tuned.
   toward the road (3/4, 1/2, then 1/3 of `Offset`, never nearer than the landmark `Offset`) before it is skipped.
 - **Short tracks (2026-10-26):** landmark spacing starts at `min(Landmarks.Every, #waypoints // 2)` and horizon
   spacing at `min(HORIZON_EVERY, #waypoints // 2)`, so a short straight track (Track 3) still gets both.
+- **Theme budget (owner 2026-10-27, placeholder):** a theme may set its own `Budget`, which replaces `BUDGET` for its
+  track. City: 2600, for the Blocks layer.
 - **Budget (placeholder):** at most 1200 BaseParts per track `Environment` folder (owner 2026-10-27: was 800, and
   400 before 2026-10-26; bigger scenery in mass and the detailed City towers need the room).
 - **Scale (owner 2026-10-27, placeholders):** `BiomeDressing.SCALE` grows every prop of a layer, parts and offsets

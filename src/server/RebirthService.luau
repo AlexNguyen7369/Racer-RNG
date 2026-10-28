@@ -27,8 +27,20 @@ function RebirthService.Setup(player)
 	if player:GetAttribute("RebirthLevel") == nil then
 		player:SetAttribute("RebirthLevel", Config.DEFAULT_LEVEL)
 	end
-	-- Rebirth is replicated as an attribute; leaderstats is reserved for Money
-	-- and Speed, the two HUD stats.
+	-- Player list shows leaderstats.Rebirth after Money and Speed (REBIRTH_SPEC "Player list"); wait for Speed so
+	-- the order holds. It follows the attribute, so admin commands and loads update it too.
+	local folder = player:FindFirstChild("leaderstats")
+	if not folder or not folder:FindFirstChild("Speed") or folder:FindFirstChild("Rebirth") then
+		return
+	end
+	local shown = Instance.new("IntValue")
+	shown.Name = "Rebirth"
+	local function refresh()
+		shown.Value = Config.CleanLevel(player:GetAttribute("RebirthLevel"))
+	end
+	refresh()
+	player:GetAttributeChangedSignal("RebirthLevel"):Connect(refresh)
+	shown.Parent = folder
 end
 
 function RebirthService.Apply(player, saved)
@@ -80,10 +92,6 @@ function RebirthService.Rebirth(player)
 	local workshop = require(script.Parent.WorkshopService)
 	if type(workshop.RefreshRate) == "function" then
 		workshop.RefreshRate(player)
-	end
-	local rebirth = folder:FindFirstChild("Rebirth")
-	if rebirth then
-		rebirth.Value = nextLevel
 	end
 	return true, nextLevel
 end

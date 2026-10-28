@@ -1,6 +1,12 @@
 {
   "items": [
     {
+      "id": "speed-gain-rebalance",
+      "title": "Speed gain rebalance: rebirth totals, aura + trail multis",
+      "detail": "Owner 2026-10-27, '+1 Speed' style. RebirthConfig.REBIRTH_TOTALS, MarketConfig.GainMulti, 2 new trails (frost, prism). Code + tests written; run rebirth, gacha, economy, vehicle_effects, shop_purchases, data + UI tests live, then the owner tunes placeholder prices.",
+      "status": "doing"
+    },
+    {
       "id": "gate-signs",
       "title": "Gate signs: biome + recommended Speed",
       "detail": "Owner 2026-10-21. BiomeDressing GateSign SurfaceGui, RaceConfig.StatFor, HudFormat.Short. Verified live on all 10 gates. Needs a test from test-writer.",
@@ -1133,6 +1139,27 @@
       "owner": "Alex Nguyen",
       "ownerGithub": "AlexNguyen7369",
       "updated": "2026-10-27T18:30:00-07:00",
+      "updatedBy": "Alex Nguyen"
+    },
+    {
+      "id": "giant-biome-scenery",
+      "title": "Giant scenery in every biome: owner look while racing",
+      "detail": "Owner 2026-10-27. BiomeThemes Blocks of 40-120 stud giants on every biome (spec Layers 9 'Every biome'). Live: environment 343/344 (only city_blocks_gap, bug ab037b16). To do: owner visual review, tune sizes/spacing (placeholders), test-writer may add a per-biome giants check, phone frame-time check.",
+      "status": "next"
+    },
+    {
+      "id": "5eb5d552",
+      "title": "UI visual pass",
+      "detail": "HUD counters + speedometer, lowercase suffixes, loser recap, minimap Path2D, full restyle on UiTheme, motion graphics (owner 2026-10-27)",
+      "status": "doing",
+      "source": "feature branch",
+      "by": "Alex Nguyen",
+      "added": "2026-10-27T17:47:09-07:00",
+      "branch": "feature/alex/ui-visual-pass",
+      "featureId": "5c9c29ca",
+      "owner": "Alex Nguyen",
+      "ownerGithub": "AlexNguyen7369",
+      "updated": "2026-10-27T17:47:09-07:00",
       "updatedBy": "Alex Nguyen"
     }
   ]

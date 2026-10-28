@@ -60,6 +60,34 @@ function Tests.make(helpers)
 		if not apiOk then
 			return r
 		end
+		-- Design doc "Aura and trail ladders" (owner 2026-10-27): 5 trails (rainbow, solar, void, NEW frost, NEW prism)
+		-- and 3 auras are sold, and every sold one needs its own VFX profile (a market item must never equip blank).
+		local MarketConfig = H.module(Shared, "MarketConfig")
+		local items = MarketConfig and MarketConfig.Items or {}
+		local trailIds, auraIds = {}, {}
+		for _, item in items.Trail or {} do
+			trailIds[item.Id] = true
+		end
+		for _, item in items.Aura or {} do
+			auraIds[item.Id] = true
+		end
+		local ladderOk = #(items.Trail or {}) == 5 and #(items.Aura or {}) == 3
+		for _, id in { "rainbow_trail", "solar_trail", "void_trail", "frost_trail", "prism_trail" } do
+			ladderOk = ladderOk and trailIds[id] == true
+		end
+		for _, id in { "azure_aura", "ember_aura", "galaxy_aura" } do
+			ladderOk = ladderOk and auraIds[id] == true
+		end
+		flag("market_trail_aura_ladder", ladderOk, #(items.Trail or {}), 5)
+		local missing = {}
+		for _, kindItems in { items.Trail or {}, items.Aura or {} } do
+			for _, item in kindItems do
+				if VehicleEffects.Profiles[item.Id] == nil then
+					table.insert(missing, item.Id)
+				end
+			end
+		end
+		flag("market_items_have_vfx_profiles", #missing == 0, #missing, 0)
 
 		local player = Instance.new("Folder")
 		player.Name = "CarTestEffectsPlayer"

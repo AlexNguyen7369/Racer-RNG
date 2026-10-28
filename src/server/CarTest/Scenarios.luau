@@ -1957,6 +1957,35 @@ function Scenarios.race()
 		end
 	end
 
+	-- Regression (2026-10-27): PlayerData.AddSpeed rejects any single add above MAX_ADD (1e6), so a commit bigger
+	-- than that used to be dropped and race gain fell to 0 at high multis. RaceService must commit at most MAX_ADD
+	-- per call and carry the rest. No real multi reaches that since the rebirth cap (x100), so the test stubs
+	-- GachaService.SpeedMulti (the gain multi RaceService reads) at 1e7 for one run: one 0.25 s commit is ~5e6.
+	local maxAdd = PlayerData.MAX_ADD
+	check(checks, "player_data_max_add_is_1e6", maxAdd or -1, 1e6, maxAdd == 1e6)
+	local Gacha = serverModule("GachaService")
+	local stubMulti = 1e7
+	local hugeCommit = RaceConfig.GAIN_PER_SECOND * stubMulti * RaceService.COMMIT_INTERVAL
+	check(checks, "huge_multi_commit_exceeds_max_add", hugeCommit, 1e6, hugeCommit > 1e6)
+	local realSpeedMulti = Gacha and Gacha.SpeedMulti
+	local huge = { ok = false }
+	if type(realSpeedMulti) == "function" then
+		Gacha.SpeedMulti = function()
+			return stubMulti
+		end
+		local okDrive, res = pcall(drive, 0, 3, false)
+		Gacha.SpeedMulti = realSpeedMulti
+		huge = okDrive and res or huge
+	end
+	check(checks, "huge_multi_run_started", huge.ok and 1 or 0, 1, huge.ok)
+	if huge.ok then
+		local gained = type(huge.finalStat) == "number" and huge.finalStat or -1
+		-- 3 s is ~12 commits; at least 4 full MAX_ADD commits must have landed (no commit may be dropped)
+		check(checks, "huge_multi_speed_still_gains", gained, 4e6, gained >= 4e6)
+		local rg = type(huge.runGained) == "number" and huge.runGained or -1
+		check(checks, "huge_multi_run_gained_matches_stat", rg, gained, gained > 0 and math.abs(rg - gained) <= 1)
+	end
+
 	cleanup()
 	return result("race", checks, {
 		target = round(targetHalf),
@@ -6771,6 +6800,82 @@ function Scenarios.index()
 			kartMulti * auraMulti,
 			type(shownAura) == "number" and auraMulti > 1 and nearly(shownAura, kartMulti * auraMulti)
 		)
+		-- Design doc "Speed gain rebalance" + "Aura and trail ladders" (owner 2026-10-27): the equipped aura and the
+		-- equipped trail multiply ALL Speed gain (SpeedGainMulti = SpeedMulti); the equipped car never does. The
+		-- aura keeps its cruise multi; trails never change cruise (ShownSpeedMulti = car x aura).
+		eq:SetAttribute("EquippedAura", nil)
+		eq:SetAttribute("EquippedTrail", nil)
+		task.wait()
+		local gainFnOk = type(GachaService.SpeedGainMulti) == "function"
+		local gainBase = gainFnOk and call(GachaService.SpeedGainMulti, eq) or -1
+		local galaxy = MarketConfig and MarketConfig.Get("Aura", "galaxy_aura")
+		local void = MarketConfig and MarketConfig.Get("Trail", "void_trail")
+		check(
+			checks,
+			"speed_gain_multi_api_exists",
+			gainFnOk and 1 or 0,
+			1,
+			gainFnOk and type(gainBase) == "number" and gainBase > 0
+		)
+		check(
+			checks,
+			"speed_gain_multi_equals_speed_multi",
+			gainBase,
+			call(GachaService.SpeedMulti, eq) or -1,
+			nearly(gainBase, call(GachaService.SpeedMulti, eq))
+		)
+		eq:SetAttribute("EquippedAura", "galaxy_aura")
+		task.wait()
+		local gainAura = call(GachaService.SpeedGainMulti, eq)
+		check(
+			checks,
+			"speed_gain_times_aura",
+			gainAura or -1,
+			gainBase * 3,
+			galaxy ~= nil and nearly(gainAura, gainBase * galaxy.SpeedMulti) and nearly(gainAura, gainBase * 3)
+		)
+		eq:SetAttribute("EquippedTrail", "void_trail") -- the attribute must refresh on EquippedTrail alone
+		task.wait()
+		local gainBoth = call(GachaService.SpeedGainMulti, eq)
+		local gainAttr = eq:GetAttribute("SpeedGainMulti")
+		check(
+			checks,
+			"speed_gain_galaxy_aura_void_trail_x9",
+			gainBoth or -1,
+			gainBase * 9,
+			galaxy ~= nil
+				and void ~= nil
+				and nearly(gainBoth, gainBase * galaxy.SpeedMulti * void.SpeedMulti)
+				and nearly(gainBoth, gainBase * 9)
+				and nearly(call(GachaService.SpeedMulti, eq), gainBase * 9)
+		)
+		check(
+			checks,
+			"speed_gain_attr_refreshes_on_trail",
+			type(gainAttr) == "number" and gainAttr or -1,
+			gainBase * 9,
+			nearly(gainAttr, gainBase * 9)
+		)
+		local shownTrail = eq:GetAttribute("ShownSpeedMulti")
+		check(
+			checks,
+			"shown_speed_multi_ignores_trail",
+			type(shownTrail) == "number" and shownTrail or -1,
+			kartMulti * 3,
+			galaxy ~= nil and nearly(shownTrail, kartMulti * galaxy.SpeedMulti)
+		)
+		GachaService.Equip(eq, "starter")
+		task.wait()
+		local gainStarter = call(GachaService.SpeedGainMulti, eq)
+		check(
+			checks,
+			"speed_gain_multi_ignores_equipped_car",
+			gainStarter or -1,
+			gainBoth or -1,
+			nearly(gainStarter, gainBoth) and nearly(eq:GetAttribute("SpeedGainMulti"), gainBoth)
+		)
+		GachaService.Equip(eq, "go_kart")
+		eq:SetAttribute("EquippedTrail", nil)
 		eq:SetAttribute("EquippedAura", nil)
 		GachaService.Equip(eq, "starter")
 		task.wait()
@@ -13500,6 +13605,8 @@ Scenarios.showcase = require(script.Parent.ShowcaseTests).showcase
 Scenarios.wyvern_flight = require(script.Parent.WyvernFlightTests).wyvern_flight
 -- docs/WYVERN_BREATH_SPEC.md section 3: blue fire breath strength, client-only emitters, palette and textures
 Scenarios.wyvern_breath = require(script.Parent.WyvernBreathTests).wyvern_breath
+-- docs/CAR_REDESIGN_SPEC.md section 11: Singularity orb parts, OrbMotion, animated orb welds, bounds, race stability
+Scenarios.singularity_orb = require(script.Parent.SingularityOrbTests).singularity_orb
 -- docs/PANEL_ART_GIFTING_SPEC.md: cosmetic effects on the chassis, no mass/controls change, equip preserved
 Scenarios.vehicle_effects = require(script.Parent.VehicleEffectTests).make({
 	newFakeCharacter = newFakeCharacter,
@@ -13507,5 +13614,3 @@ Scenarios.vehicle_effects = require(script.Parent.VehicleEffectTests).make({
 })
 
 return Scenarios
--- docs/CAR_REDESIGN_SPEC.md section 11: Singularity orb parts, OrbMotion, animated orb welds, bounds, race stability
-Scenarios.singularity_orb = require(script.Parent.SingularityOrbTests).singularity_orb

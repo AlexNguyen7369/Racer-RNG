@@ -338,7 +338,7 @@ UiSpec.Settings = {
 	ProbeVolume = 0.5, -- the test's own Sound (created and destroyed by the sound clicks) must follow the toggle
 }
 -- The Rebirth panel (ui_rebirth, clicks rebirth_*), rebuilt from the owner's reference image (2026-10-15,
--- docs/REBIRTH_SPEC.md "Panel"). Numbers come from Shared/RebirthConfig (LUCK_MULTIPLIER, SPEED_GAIN_MULTIPLIER,
+-- docs/REBIRTH_SPEC.md "Panel"). Numbers come from Shared/RebirthConfig (NextMultiplier,
 -- POINTS_PER_REBIRTH), Shared/LevelConfig.RebirthLevelRequirement(RebirthLevel) and the player's Level /
 -- RebirthLevel attributes, never from the panel's pixels.
 -- Nodes are found BY NAME under the panel (the generator decides where the Face frames go): each must exist exactly
@@ -395,7 +395,8 @@ UiSpec.Rebirth = {
 	-- Each reward tile <Name> holds <Name>Icon (ImageLabel with a non-empty Image) and <Name>Caption (TextLabel), not
 	-- overlapping (node ids are unique in the generator, so the tile name is the prefix; both are listed in Nodes).
 	-- Caption = Format with the NEXT rebirth's gain: Multiplier tiles use RebirthConfig.NextMultiplier(RebirthLevel)
-	-- (staged x5, x7.5, x7.5, x10, x10, then x7.5; docs/REBIRTH_SPEC.md), others RebirthConfig[Config].
+	-- = SpeedGainMulti(RebirthLevel + 1), the NEXT TOTAL (x5 at level 0, x10 at level 1; +5 per rebirth up to 20 = x100,
+	-- then capped at x100; owner 2026-10-27 rev. 2, docs/REBIRTH_SPEC.md "Panel"), others RebirthConfig[Config].
 	Tiles = {
 		{ Name = "LuckReward", Multiplier = true, Format = "x%.2f Luck" },
 		{ Name = "SpeedReward", Multiplier = true, Format = "x%.2f Speed Gain" },

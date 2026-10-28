@@ -105,6 +105,30 @@ local function skyscraper(name, w, h, d, o)
 	return { Name = name, Size = v(w + 4, math.max(top, y + mast + 0.7), d + 4), Parts = parts, Glow = o.Neon }
 end
 
+-- Cheap street-wall building for the Blocks layer (owner 2026-10-27): body, up to 3 window bands, a lit shopfront
+-- sign on the road face (-Z), a roof cap and an AC unit. o = { Body, Trim, Glass, Neon }
+local function lowrise(name, w, h, d, o)
+	local parts = { part(v(w, h, d), v(0, h / 2, 0), o.Body, M.Concrete) }
+	local bands = math.clamp(math.floor((h - 6) / 7), 1, 3)
+	for i = 1, bands do
+		table.insert(parts, part(v(w + 0.3, 2.4, d + 0.3), v(0, 6 + (h - 7) * i / (bands + 1), 0), o.Glass, M.Glass))
+	end
+	table.insert(parts, part(v(w * 0.7, 1.4, 0.4), v(0, 4, -d / 2 - 0.2), o.Neon, M.Neon))
+	table.insert(parts, part(v(w + 0.6, 0.8, d + 0.6), v(0, h + 0.4, 0), o.Trim, M.Concrete))
+	table.insert(parts, part(v(w * 0.25, 2, d * 0.25), v(w * 0.2, h + 1.8, d * 0.15), o.Trim, M.Metal))
+	return { Name = name, Size = v(w + 0.6, h + 2.8, d + 0.6), Parts = parts }
+end
+
+-- Giant scenery (owner 2026-10-27, spec Layers 9 "Every biome"): a prop with an explicit overall Size, and the Blocks
+-- layer settings shared by every non-City biome (wider than the City's street walls, so small props show between).
+local function giant(name, size, parts, tag)
+	return { Name = name, Size = size, Parts = parts, Tag = tag }
+end
+
+local function giants(props, spacing)
+	return { Spacing = spacing or 70, Near = 28, Rows = 2, RowDepth = 90, Props = props }
+end
+
 local function peak(name, size, rock, cap, capMaterial)
 	return {
 		Name = name,
@@ -190,6 +214,27 @@ return {
 				patch("Flowers", 16, 12, rgb(236, 204, 72), M.Grass),
 			},
 		},
+		Blocks = giants({
+			giant("MegaStand", v(70, 54, 32), {
+				part(v(70, 18, 32), v(0, 9, 0), rgb(200, 205, 215), M.Concrete),
+				part(v(70, 16, 22), v(0, 26, 5), rgb(200, 205, 215), M.Concrete),
+				part(v(70, 14, 12), v(0, 41, 10), rgb(200, 205, 215), M.Concrete),
+				part(v(68, 4, 0.6), v(0, 14, -16.3), rgb(40, 90, 200), M.SmoothPlastic),
+				part(v(74, 2, 34), v(0, 53, 0), rgb(210, 40, 45), M.SmoothPlastic),
+			}),
+			giant("Floodlight", v(18, 108, 16), {
+				part(v(4, 100, 4), v(0, 50, 0), rgb(140, 145, 155), M.Metal),
+				part(v(18, 12, 1.5), v(0, 102, 1.5), rgb(60, 62, 70), M.Metal),
+				part(v(16, 10, 1), v(0, 102, 0.2), rgb(255, 250, 220), M.Neon),
+			}),
+			giant("GiantTrophy", v(36, 59, 30), {
+				part(v(30, 12, 30), v(0, 6, 0), rgb(30, 32, 40), M.Marble),
+				part(v(6, 20, 6), v(0, 22, 0), rgb(240, 190, 50), M.Metal),
+				part(v(26, 26, 26), v(0, 44, 0), rgb(240, 190, 50), M.Metal, Enum.PartType.Ball),
+				part(v(36, 3, 3), v(0, 46, 0), rgb(240, 190, 50), M.Metal),
+				part(v(28, 3, 28), v(0, 57.5, 0), rgb(240, 190, 50), M.Metal),
+			}),
+		}),
 		Particles = { -- confetti over the stands
 			Texture = SPARKLE,
 			Color = ColorSequence.new({
@@ -262,6 +307,28 @@ return {
 				patch("Dirt", 20, 14, rgb(104, 78, 52), M.Ground),
 			},
 		},
+		Blocks = giants({
+			giant("Redwood", v(40, 120, 40), {
+				part(v(10, 80, 10), v(0, 40, 0), rgb(120, 62, 40), M.Wood),
+				part(v(40, 40, 40), v(0, 70, 0), rgb(30, 82, 46), M.Grass),
+				part(v(28, 30, 28), v(0, 100, 0), rgb(36, 94, 52), M.Grass),
+				part(v(14, 16, 14), v(0, 112, 0), rgb(42, 104, 58), M.Grass),
+			}),
+			giant("GiantOak", v(56, 60, 56), {
+				part(v(9, 30, 9), v(0, 15, 0), rgb(96, 66, 42), M.Wood),
+				part(v(56, 30, 56), v(0, 42, 0), rgb(56, 118, 52), M.Grass),
+				part(v(36, 12, 36), v(0, 54, 0), rgb(64, 130, 58), M.Grass),
+			}),
+			giant("MossBoulder", v(44, 30, 36), {
+				part(v(44, 24, 36), v(0, 12, 0), rgb(110, 112, 108), M.Slate),
+				part(v(36, 6, 30), v(0, 27, 0), rgb(56, 110, 54), M.Grass),
+			}),
+			giant("GiantMushroom", v(36, 48, 36), {
+				part(v(7, 38, 7), v(0, 19, 0), rgb(240, 232, 214), M.SmoothPlastic),
+				part(v(30, 2, 30), v(0, 37, 0), rgb(250, 240, 220), M.SmoothPlastic),
+				part(v(36, 10, 36), v(0, 43, 0), rgb(210, 50, 45), M.SmoothPlastic),
+			}),
+		}),
 		Particles = { -- fireflies
 			Texture = SPARKLE,
 			Color = rgb(210, 255, 120),
@@ -328,6 +395,27 @@ return {
 				patch("Puddle", 18, 12, rgb(70, 92, 112), M.Glass),
 			},
 		},
+		Blocks = giants({
+			giant("GantryCrane", v(40, 80, 24), {
+				part(v(4, 72, 4), v(-16, 36, 0), rgb(240, 180, 30), M.Metal),
+				part(v(4, 72, 4), v(16, 36, 0), rgb(240, 180, 30), M.Metal),
+				part(v(40, 6, 6), v(0, 75, 0), rgb(240, 180, 30), M.Metal),
+				part(v(6, 4, 24), v(0, 78, 0), rgb(220, 160, 20), M.Metal),
+				part(v(8, 6, 8), v(0, 69, -6), rgb(235, 235, 240), M.SmoothPlastic),
+			}),
+			giant("ContainerTower", v(20, 40, 40), {
+				part(v(20, 8, 40), v(0, 4, 0), rgb(40, 110, 170), M.CorrodedMetal),
+				part(v(20, 8, 40), v(0, 12, 0), rgb(190, 60, 50), M.CorrodedMetal),
+				part(v(20, 8, 40), v(0, 20, 0), rgb(50, 140, 90), M.CorrodedMetal),
+				part(v(20, 8, 40), v(0, 28, 0), rgb(230, 160, 40), M.CorrodedMetal),
+				part(v(20, 8, 40), v(0, 36, 0), rgb(40, 110, 170), M.CorrodedMetal),
+			}),
+			giant("FuelTank", v(40, 42, 40), {
+				part(v(40, 36, 40), v(0, 18, 0), rgb(220, 220, 225), M.Metal),
+				part(v(40.4, 4, 40.4), v(0, 30, 0), rgb(200, 60, 40), M.SmoothPlastic),
+				part(v(30, 6, 30), v(0, 39, 0), rgb(200, 200, 205), M.Metal),
+			}),
+		}, 50),
 		Particles = { -- steam
 			Texture = SMOKE,
 			Color = rgb(220, 224, 230),
@@ -393,6 +481,33 @@ return {
 				patch("Lawn", 32, 22, rgb(110, 166, 84), M.Grass),
 			},
 		},
+		Blocks = giants({
+			giant("GiantOak", v(56, 60, 56), {
+				part(v(9, 30, 9), v(0, 15, 0), rgb(100, 70, 45), M.Wood),
+				part(v(56, 30, 56), v(0, 42, 0), rgb(70, 140, 60), M.Grass),
+				part(v(36, 12, 36), v(0, 54, 0), rgb(80, 152, 66), M.Grass),
+			}),
+			giant("WaterTower", v(30, 80, 30), {
+				part(v(2, 50, 2), v(-10, 25, -10), rgb(150, 150, 160), M.Metal),
+				part(v(2, 50, 2), v(10, 25, -10), rgb(150, 150, 160), M.Metal),
+				part(v(2, 50, 2), v(-10, 25, 10), rgb(150, 150, 160), M.Metal),
+				part(v(2, 50, 2), v(10, 25, 10), rgb(150, 150, 160), M.Metal),
+				part(v(30, 22, 30), v(0, 61, 0), rgb(150, 190, 220), M.Metal),
+				part(v(20, 8, 20), v(0, 76, 0), rgb(70, 70, 80), M.Slate),
+			}),
+			giant("Church", v(32, 70, 42), {
+				part(v(30, 24, 40), v(0, 12, 0), rgb(235, 225, 205), M.SmoothPlastic),
+				part(v(32, 8, 42), v(0, 28, 0), rgb(120, 60, 50), M.Slate),
+				part(v(10, 56, 10), v(0, 28, -15), rgb(245, 240, 230), M.SmoothPlastic),
+				part(v(6, 14, 6), v(0, 63, -15), rgb(120, 60, 50), M.Slate),
+			}),
+			lowrise("Apartments", 34, 50, 30, {
+				Body = rgb(220, 196, 160),
+				Trim = rgb(240, 236, 226),
+				Glass = rgb(110, 160, 210),
+				Neon = rgb(255, 210, 120),
+			}),
+		}),
 		Particles = { -- drifting petals
 			Texture = SPARKLE,
 			Color = rgb(255, 180, 210),
@@ -462,6 +577,27 @@ return {
 				patch("Seaweed", 12, 10, rgb(60, 120, 70), M.Grass),
 			},
 		},
+		Blocks = giants({
+			giant("GiantPalm", v(40, 73, 40), {
+				part(v(5, 70, 5), v(0, 35, 0), rgb(140, 100, 60), M.Wood),
+				part(v(8, 6, 8), v(0, 67, 0), rgb(110, 76, 40), M.Wood),
+				part(v(40, 4, 12), v(0, 71, 0), rgb(60, 150, 70), M.Grass),
+				part(v(12, 4, 40), v(0, 71, 0), rgb(60, 150, 70), M.Grass),
+			}),
+			giant("SeaStack", v(32, 90, 28), {
+				part(v(32, 70, 28), v(0, 35, 0), rgb(130, 120, 110), M.Slate),
+				part(v(22, 16, 20), v(0, 78, 0), rgb(140, 130, 118), M.Slate),
+				part(v(24, 4, 22), v(0, 88, 0), rgb(80, 150, 70), M.Grass),
+			}),
+			giant("Galleon", v(80, 88, 30), {
+				part(v(80, 18, 30), v(0, 9, 0), rgb(110, 70, 40), M.WoodPlanks),
+				part(v(24, 8, 26), v(28, 22, 0), rgb(90, 58, 34), M.WoodPlanks),
+				part(v(2.5, 70, 2.5), v(-10, 53, 0), rgb(90, 60, 35), M.Wood),
+				part(v(2.5, 60, 2.5), v(14, 48, 0), rgb(90, 60, 35), M.Wood),
+				part(v(1, 24, 26), v(-10, 58, 0), rgb(240, 235, 220), M.Fabric),
+				part(v(1, 20, 22), v(14, 50, 0), rgb(240, 235, 220), M.Fabric),
+			}),
+		}),
 		Particles = { -- sea spray
 			Texture = SPARKLE,
 			Color = rgb(235, 250, 255),
@@ -524,8 +660,8 @@ return {
 		Gate = gate(rgb(30, 30, 40), M.Metal, rgb(255, 80, 190)),
 		Scatter = {
 			Every = 2,
-			Near = 25,
-			Far = 160,
+			Near = 110, -- beyond the two Blocks rows (Near 22 + RowDepth 40 + building depth)
+			Far = 230,
 			Props = {
 				"Sign",
 				block("Billboard", v(30, 24, 2), rgb(30, 30, 40), M.Metal, {
@@ -552,6 +688,45 @@ return {
 				patch("Crosswalk", 22, 6, rgb(235, 235, 240), M.Concrete),
 				patch("NeonPuddle", 14, 10, rgb(80, 220, 255), M.Glass),
 				patch("Asphalt", 30, 20, rgb(30, 32, 40), M.Asphalt),
+			},
+		},
+		Budget = 2600, -- owner 2026-10-27: the Blocks street walls need the room (spec Rules, Theme budget)
+		Blocks = {
+			Spacing = 34,
+			Near = 22,
+			Rows = 2,
+			RowDepth = 40,
+			Props = {
+				lowrise("Shops", 30, 16, 26, {
+					Body = rgb(96, 84, 110),
+					Trim = rgb(150, 150, 165),
+					Glass = rgb(70, 150, 210),
+					Neon = rgb(255, 80, 190),
+				}),
+				lowrise("Apartments", 28, 30, 28, {
+					Body = rgb(120, 90, 80),
+					Trim = rgb(170, 160, 150),
+					Glass = rgb(90, 130, 180),
+					Neon = rgb(255, 210, 60),
+				}),
+				lowrise("Office", 30, 38, 30, {
+					Body = rgb(70, 82, 110),
+					Trim = rgb(150, 160, 180),
+					Glass = rgb(80, 200, 240),
+					Neon = rgb(80, 220, 255),
+				}),
+				lowrise("Diner", 26, 12, 24, {
+					Body = rgb(60, 66, 88),
+					Trim = rgb(200, 200, 210),
+					Glass = rgb(255, 200, 120),
+					Neon = rgb(255, 120, 60),
+				}),
+				lowrise("Loft", 30, 24, 26, {
+					Body = rgb(84, 70, 96),
+					Trim = rgb(140, 130, 150),
+					Glass = rgb(150, 110, 220),
+					Neon = rgb(120, 255, 170),
+				}),
 			},
 		},
 		Particles = { -- neon sparkle
@@ -623,6 +798,25 @@ return {
 				patch("RedSand", 30, 18, rgb(206, 126, 76), M.Sand),
 			},
 		},
+		Blocks = giants({
+			giant("Butte", v(40, 100, 34), {
+				part(v(40, 70, 34), v(0, 35, 0), rgb(170, 100, 55), M.Sandstone),
+				part(v(40.4, 6, 34.4), v(0, 50, 0), rgb(200, 130, 80), M.Sandstone),
+				part(v(30, 30, 26), v(0, 85, 0), rgb(156, 91, 48), M.Sandstone),
+			}),
+			giant("GiantSaguaro", v(28, 70, 8), {
+				part(v(8, 70, 8), v(0, 35, 0), rgb(70, 130, 60), M.Grass),
+				part(v(10, 5, 5), v(-8, 30, 0), rgb(70, 130, 60), M.Grass),
+				part(v(5, 22, 5), v(-11, 43, 0), rgb(70, 130, 60), M.Grass),
+				part(v(10, 5, 5), v(8, 40, 0), rgb(70, 130, 60), M.Grass),
+				part(v(5, 16, 5), v(11, 50, 0), rgb(70, 130, 60), M.Grass),
+			}),
+			giant("RockArch", v(70, 60, 18), {
+				part(v(14, 50, 18), v(-28, 25, 0), rgb(184, 110, 62), M.Sandstone),
+				part(v(14, 50, 18), v(28, 25, 0), rgb(184, 110, 62), M.Sandstone),
+				part(v(70, 12, 18), v(0, 54, 0), rgb(170, 100, 55), M.Sandstone),
+			}),
+		}),
 		Particles = { -- dust devils
 			Texture = SMOKE,
 			Color = rgb(226, 190, 140),
@@ -685,6 +879,24 @@ return {
 				patch("Tracks", 24, 4, rgb(200, 214, 228), M.Snow),
 			},
 		},
+		Blocks = giants({
+			giant("GiantSnowPine", v(44, 110, 44), {
+				part(v(7, 30, 7), v(0, 15, 0), rgb(92, 64, 44), M.Wood),
+				part(v(44, 30, 44), v(0, 40, 0), rgb(35, 100, 84), M.Grass),
+				part(v(32, 28, 32), v(0, 66, 0), rgb(40, 108, 90), M.Grass),
+				part(v(20, 26, 20), v(0, 90, 0), rgb(46, 116, 96), M.Grass),
+				part(v(10, 8, 10), v(0, 106, 0), rgb(245, 250, 255), M.Snow),
+			}),
+			giant("IceSpire", v(24, 100, 24), {
+				part(v(24, 60, 24), v(0, 30, 0), rgb(170, 220, 245), M.Ice),
+				part(v(16, 30, 16), v(0, 75, 0), rgb(180, 228, 250), M.Ice),
+				part(v(8, 10, 8), v(0, 95, 0), rgb(200, 238, 255), M.Ice),
+			}),
+			giant("Glacier", v(70, 45, 40), {
+				part(v(70, 35, 40), v(0, 17.5, 0), rgb(190, 230, 250), M.Ice),
+				part(v(66, 10, 36), v(0, 40, 0), rgb(245, 250, 255), M.Snow),
+			}),
+		}),
 		Particles = { -- snowfall
 			Texture = SPARKLE,
 			Color = rgb(255, 255, 255),
@@ -745,6 +957,22 @@ return {
 				patch("Cooling", 16, 10, rgb(150, 40, 20), M.CrackedLava),
 			},
 		},
+		Blocks = giants({
+			giant("BasaltColumn", v(26, 110, 26), {
+				part(v(26, 80, 26), v(0, 40, 0), rgb(42, 38, 48), M.Basalt),
+				part(v(16, 30, 16), v(4, 95, 0), rgb(48, 42, 54), M.Basalt),
+				part(v(3, 70, 0.6), v(0, 40, -13.3), rgb(255, 90, 20), M.Neon),
+			}),
+			giant("ObsidianSpire", v(18, 120, 18), {
+				part(v(18, 70, 18), v(0, 35, 0), rgb(20, 18, 28), M.Glass),
+				part(v(10, 40, 10), v(0, 90, 0), rgb(26, 22, 34), M.Glass),
+				part(v(4, 10, 4), v(0, 115, 0), rgb(255, 72, 18), M.Neon),
+			}),
+			giant("MagmaRock", v(50, 36, 44), {
+				part(v(50, 30, 44), v(0, 15, 0), rgb(55, 45, 50), M.Basalt),
+				part(v(30, 6, 26), v(0, 33, 0), rgb(255, 90, 20), M.Neon),
+			}),
+		}),
 		Particles = { -- rising embers
 			Texture = SPARKLE,
 			Color = ColorSequence.new(rgb(255, 210, 80), rgb(255, 60, 20)),
@@ -821,6 +1049,23 @@ return {
 				patch("Stardust", 30, 18, rgb(120, 100, 180), M.Sand),
 			},
 		},
+		Blocks = giants({
+			giant("CrystalSpire", v(22, 110, 22), {
+				part(v(8, 100, 8), v(0, 50, 0), rgb(190, 110, 255), M.Neon),
+				part(v(22, 60, 22), v(0, 30, 0), rgb(150, 90, 230), M.Glass),
+				part(v(12, 40, 12), v(0, 80, 0), rgb(170, 110, 255), M.Glass),
+			}),
+			giant("Monolith", v(18, 80, 6), {
+				part(v(18, 80, 6), v(0, 40, 0), rgb(15, 15, 22), M.SmoothPlastic),
+				part(v(1, 70, 6.4), v(0, 40, 0), rgb(80, 240, 255), M.Neon),
+			}),
+			giant("MegaDish", v(50, 72, 50), {
+				part(v(8, 46, 8), v(0, 23, 0), rgb(80, 95, 130), M.Metal),
+				part(v(50, 4, 50), v(0, 50, 0), rgb(200, 210, 230), M.Metal),
+				part(v(2, 18, 2), v(0, 61, 0), rgb(160, 170, 200), M.Metal),
+				part(v(4, 4, 4), v(0, 70, 0), rgb(255, 60, 90), M.Neon, Enum.PartType.Ball),
+			}, "BiomeSpin"),
+		}),
 		Particles = { -- star twinkle
 			Texture = SPARKLE,
 			Color = ColorSequence.new(rgb(120, 240, 255), rgb(200, 140, 255)),

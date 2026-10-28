@@ -1277,15 +1277,46 @@ function Tests.rebirth()
 	-- design doc "Rebirth system": "Rebirth Points per rebirth: 1" (placeholder, owner 2026-10-15)
 	local perRebirth = config.POINTS_PER_REBIRTH
 	flag("rebirth_points_per_rebirth_is_1", perRebirth == 1, perRebirth, 1)
-	local factors = config.REBIRTH_MULTIPLIERS or {}
-	local stagedFactors = factors[1] == 5
-		and factors[2] == 7.5
-		and factors[3] == 7.5
-		and factors[4] == 10
-		and factors[5] == 10
-		and factors[6] == 7.5
-	flag("rebirth_staged_speed_luck_factors", stagedFactors)
-	flag("rebirth_speed_luck_compound", config.SpeedGainMulti(2) == 37.5 and config.LuckMulti(2) == 37.5)
+	-- design doc "Rebirth system", owner 2026-10-27 rev. 2 (docs/REBIRTH_SPEC.md "Automatic bonus"): the rebirth
+	-- level sets one TOTAL multi: level 0 = 1, levels 1-20 add +5 each (1 = 5, 20 = 100), then capped at x100 for
+	-- every later level (21, 30, 1e9 = 100). Luck uses the same multi.
+	for _, case in { { 0, 1 }, { 1, 5 }, { 2, 10 }, { 20, 100 }, { 21, 100 }, { 22, 100 }, { 30, 100 } } do
+		local level, want = case[1], case[2]
+		local got = config.SpeedGainMulti(level)
+		flag("rebirth_multi_level_" .. level .. "_is_" .. want, got == want, got, want)
+	end
+	local curveOk, prev = true, config.SpeedGainMulti(0)
+	for level = 1, 60 do
+		local got = config.SpeedGainMulti(level)
+		local want = if level <= 20 then level * 5 else prev -- +5 per level up to 20, then flat
+		curveOk = curveOk and got >= prev and got == want
+		prev = got
+	end
+	flag("rebirth_multi_plus_5_to_20_then_flat", curveOk)
+	local huge = config.SpeedGainMulti(1e9)
+	flag("rebirth_multi_level_1e9_is_100", huge == 100, huge, 100)
+	flag(
+		"rebirth_late_step_and_effective_cap_removed",
+		config.LATE_STEP == nil and config.MAX_EFFECTIVE_MULTIPLIER == nil
+	)
+	flag("rebirth_old_x10_totals_removed", config.REBIRTH_TOTALS == nil and config.REPEAT_FACTOR == nil)
+	local luckSame = true
+	for _, level in { 0, 1, 2, 5, 20, 21, 30 } do
+		luckSame = luckSame and config.LuckMulti(level) == config.SpeedGainMulti(level)
+	end
+	flag("rebirth_luck_multi_equals_speed_gain_multi", luckSame)
+	local nextOk = type(config.NextMultiplier) == "function"
+	for _, level in { 0, 1, 19, 20, 21 } do
+		nextOk = nextOk and config.NextMultiplier(level) == config.SpeedGainMulti(level + 1)
+	end
+	flag("rebirth_next_multiplier_is_next_level_total", nextOk)
+	flag(
+		"rebirth_old_factor_tables_removed",
+		config.REBIRTH_MULTIPLIERS == nil
+			and config.REPEAT_MULTIPLIER == nil
+			and config.SPEED_GAIN_MULTIPLIER == nil
+			and config.LUCK_MULTIPLIER == nil
+	)
 	local players = {}
 	local oldCooldown = service.REMOTE_COOLDOWN
 	local ok, err = pcall(function()
@@ -1366,9 +1397,12 @@ function Tests.rebirth()
 		task.wait() -- the shown Speed follows BaseSpeed on its Changed signal (may be deferred)
 		-- Owner 2026-10-21: leaderstats.Speed shows base x ShownSpeedMulti, so it is 0 too (go_kart stays equipped)
 		flag("rebirth_resets_shown_speed", p.leaderstats.Speed.Value == 0, p.leaderstats.Speed.Value, 0)
+		-- design doc "Rebirth system" (owner 2026-10-27 rev. 2): rebirth 1 = total x5 (no points, aura or trail here)
 		flag(
 			"rebirth_multiplier_refreshes_immediately",
-			p:GetAttribute("SpeedGainMulti") == 5 and p:GetAttribute("LuckMulti") == 5
+			p:GetAttribute("SpeedGainMulti") == 5 and p:GetAttribute("LuckMulti") == 5,
+			p:GetAttribute("SpeedGainMulti"),
+			5
 		)
 		flag("rebirth_speed_stat_is_0", data.SpeedStat(p) == 0, data.SpeedStat(p), 0)
 		local carsAfter = gacha.Snapshot(p)

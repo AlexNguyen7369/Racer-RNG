@@ -3,7 +3,24 @@
 PROJECT CONTEXT - Idle Vehicle Simulator (read me first)
 Shown in Studio at: ServerScriptService > ProjectContext   (source file: context/ProjectContext.luau)
 Do NOT edit this in Studio: edit the file on disk, Rojo syncs it. Claude updates it at the end of every loop.
-Last updated: 2026-10-27 (Claude: car redesign v3 toy racers, Singularity orb)
+Last updated: 2026-10-27 (Claude: Speed gain rebalance - rebirth totals, aura and trail multis)
+REBIRTH IN PLAYER LIST - 2026-10-27 (Claude, uncommitted): leaderstats.Rebirth (IntValue, after Money and Speed) mirrors the
+RebirthLevel attribute (RebirthService.Setup, re-called at the end of PlayerData.Setup). Rules: design doc "Rebirth system",
+REBIRTH_SPEC "Player list". data test updated by test-writer; not run live yet.
+SPEED GAIN REBALANCE - 2026-10-27 (Claude, uncommitted; owner: balance like the "+1 Speed" keyboard games):
+- Rules: design doc "Owner decision, 2026-10-27 (Speed gain rebalance", "Rebirth system", "Aura and trail ladders"; REBIRTH_SPEC.
+- RebirthConfig.REBIRTH_TOTALS {3,4,5,6,7,8,10,12,15,20} are TOTAL Speed Gain/Luck multis, then x10 (REPEAT_FACTOR) per rebirth
+  after 10 (replaces compounding x5, x7.5 ...). NextMultiplier = next total.
+- GachaService.SpeedGainMulti = points x rebirth x MarketConfig.GainMulti (equipped aura x trail; never the car). Race, workshop
+  and offline gain all use it. Aura still multiplies cruise. Trails 1.5/2/3/4/5x ($500..$100K), auras 1.2/2/3x ($2.5K..$250K),
+  new frost_trail + prism_trail (VehicleEffects, MarketArtConfig, VfxArea 9 lanes, floor 360).
+- Unverified: not run live; tests updated by test-writer / ui-test-writer.
+GIANT SCENERY IN EVERY BIOME - 2026-10-27 (Claude, uncommitted; owner: every biome gets large assets like the City):
+- Rules: design doc "Owner decision, 2026-10-27 (giant scenery in every biome)"; BIOME_DRESSING_SPEC Layers 9 "Every biome".
+- Code: data only. BiomeThemes `giant` / `giants` helpers; every non-City theme has `Blocks` (Spacing 70, Docks 50, Near 28,
+  Rows 2, RowDepth 90) of 40-120 stud props (Redwood, Butte, IceSpire, BasaltColumn, CrystalSpire, Galleon ...).
+- Live 2026-10-27: parts per track 215-926 (BUDGET 1200), blocks 17-78 per track; `environment` 343/344, the only fail is
+  city_blocks_gap (bug ab037b16, City Blocks work, unchanged). Full suite not run. Not seen while racing by eye except Forest.
 
 CAR REDESIGN V3 (TOY RACER) + SINGULARITY ORB - 2026-10-27 (Claude, branch feature/alex/car-redesign-v3-toy-racer)
 - Owner: every car a stylised toy racer, 15,000-triangle cap, pilot (Rusty Hatchback / Street Racer / Singularity)

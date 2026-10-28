@@ -93,6 +93,7 @@ function GachaService.Setup(player)
 			if
 				name == "EquippedCar"
 				or name == "EquippedAura"
+				or name == "EquippedTrail"
 				or name == "RebirthLevel"
 				or string.sub(name, 1, 5) == "Pass_"
 				or string.sub(name, 1, 6) == "Alloc_"
@@ -286,8 +287,8 @@ function GachaService.Allocate(player, stat)
 	return true
 end
 
--- Cruise speed and Speed-gain are separate progression paths. The equipped car
--- and shop cruise effects never enter the Speed-gain multiplier.
+-- Cruise speed and Speed-gain are separate progression paths. The equipped car never enters
+-- the Speed-gain multiplier; the equipped aura and trail do (owner 2026-10-27).
 function GachaService.CarSpeedMulti(player)
 	local spec = CarCatalog.Get(player:GetAttribute("EquippedCar"))
 	local carMulti = spec and owns(player, spec.Id) and spec.SpeedMulti or 1
@@ -302,8 +303,10 @@ end
 
 function GachaService.SpeedGainMulti(player)
 	local multis = GachaConfig.Multis(alloc(player), UpgradeService.Bonuses(player))
-	-- Only the permanent Speed-gain stat/tree upgrade and rebirth bonus apply here.
-	return multis.Speed * RebirthConfig.SpeedGainMulti(player:GetAttribute("RebirthLevel"))
+	-- Speed-gain stat/tree upgrade x rebirth x equipped aura and trail (never the car).
+	return multis.Speed
+		* RebirthConfig.SpeedGainMulti(player:GetAttribute("RebirthLevel"))
+		* MarketConfig.GainMulti(player)
 end
 
 -- Refresh the replicated permanent multiplier snapshots immediately after a rebirth or allocation change.
