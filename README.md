@@ -235,8 +235,9 @@ updates automatically whenever the board changes; do not edit this block by hand
 - **Build Server Luck (2x/4x/8x developer products)**: Design doc lists it; the Shop shows it as Coming soon (no Grants, receipt never granted).
 - **Gift buttons in the Shop**: References show gift buttons; not built.
 
-### Recently done (57)
+### Recently done (58)
 
+- ~~Orchestrator skill + orchestration flow page~~ (2026-10-28)
 - ~~Biome visual pass: scatter + ground patches, horizon fit, landmark particles, oriented-box Prune~~ (2026-10-27)
 - ~~Ember Wyvern skin: cyan shadow wyvern in Studio (draft 4 approved)~~ (2026-10-27)
 - ~~Ember Wyvern blue-fire effects~~ (2026-10-27)
@@ -246,7 +247,6 @@ updates automatically whenever the board changes; do not edit this block by hand
 - ~~Gate signs: biome + recommended Speed~~ (2026-10-21)
 - ~~Shown Speed = base x car multi; cruise from shown Speed~~ (2026-10-21)
 - ~~Rebalance NPC speeds vs cruise curve~~ (2026-10-21)
-- ~~Decide: Shop/Market/Daily backdrops cover the HUD tiles~~ (2026-10-20)
 
 <!-- TODO:END -->
 

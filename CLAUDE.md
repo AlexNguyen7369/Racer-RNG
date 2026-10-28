@@ -41,6 +41,15 @@ selene src            # lint
 
 ## Collaborator setup (once per clone)
 - Shared Claude Code tooling is in the repo: agents in `.claude/agents/`, slash commands in `.claude/commands/` (`/build-track`, `/car-loop`, `/compat-check`, `/dashboard`, `/feature`, `/progress-tracker`, `/refresh-suggestions`, `/system-design-brainstorm`), hooks in `.claude/hooks/` wired by `.claude/settings.json`. Personal overrides go in `.claude/settings.local.json` (git-ignored).
+- `/orchestrate [tick|dry|loop]` (owner 2026-10-27): runs the universal `orchestrator` skill (`~/.claude/skills/orchestrator/`, per machine), mapped to this repo by `.claude/orchestrator.md`. Each tick:
+  - syncs the sessions (bus, `ListAgents`, `collab.py overview`) and picks the next board task;
+  - gates it on the design doc and specs;
+  - delegates it, tests it and runs `rules-auditor`;
+  - commits each green task, merges it into the goal's integration branch and pushes only that branch, then updates the handoff and boards.
+  It asks the owner for end goals, deliverables and the definition of done first (`docs/ORCHESTRATOR_GOALS.md`).
+  Each task runs in its own worktree on `orch/<goal>/<task>` and merges into the goal's integration branch; the owner merges that into `main`.
+  Studio tests run in the task's own Studio when it can be set up (own place copy, own `rojo serve --port`); otherwise the task waits in the shared-Studio queue.
+  Design conflicts go to `manual.json` and the bus; it never decides them. `loop` keeps it running only while a session hosts it.
 - Needs: Roblox Studio with the Roblox Studio MCP and the Rojo plugin (`rojo serve`), `stylua`, `selene`, `python3`; the Blender MCP for art work.
 - `/compat-check` (owner 2026-10-16): an on-demand full compatibility check (harness, UI, multiplayer, world, then a final `regression-tester` pass), run after large code changes. It is NOT a gate: commits and pushes to `main` are never blocked by it and no hook asks for it. A green run is still stamped by `tools/compat.py` in the git-ignored `.compat/` for the dashboard light. Claude Code still sets `core.hooksPath .githooks` at session start (pre-commit syncs the README TODO).
 - Agent dashboard: `python3 tools/dashboard/server.py` (or `/dashboard`), http://127.0.0.1:8765. Subagent progress and messages, changes, commit history, the compat gate light, the shared TODO board, suggested features and every test explained. `--lan` lets teammates view it. Details: `tools/dashboard/README.md`.

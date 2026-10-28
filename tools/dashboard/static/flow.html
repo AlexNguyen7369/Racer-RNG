@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Orchestration flow</title>
+<link rel="stylesheet" href="/static/style.css">
+<link rel="stylesheet" href="/static/flow.css">
+<script>
+  try { const t = localStorage.getItem("dash-theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch (_) {}
+</script>
+</head>
+<body class="flow-page">
+<header class="flow-top">
+  <a href="/" class="back">← Dashboard</a>
+  <strong>Orchestration flow</strong>
+  <span class="phase" id="phase">…</span>
+  <span class="sep" id="separation"></span>
+  <span class="muted" id="updated"></span>
+  <span class="spacer"></span>
+  <a id="demo-link" class="muted"></a>
+</header>
+<div class="stale-banner" id="stale" hidden>The orchestrator has not updated its state for over 10 minutes while tasks are open. Is the /loop still running?</div>
+<div class="goals" id="goals"></div>
+<div class="flow-main">
+  <div class="graph-wrap"><svg id="graph" role="img" aria-label="Orchestrator, subagents, worktrees, Studios and branches with live messages"></svg></div>
+  <aside class="feed">
+    <h3>Communication <span class="muted" id="feed-count"></span></h3>
+    <ol id="feed"></ol>
+  </aside>
+</div>
+<footer class="legend">
+  <span><i class="dot st-queued"></i>queued</span>
+  <span><i class="dot st-running"></i>running</span>
+  <span><i class="dot st-verifying"></i>verifying</span>
+  <span><i class="dot st-green"></i>green</span>
+  <span><i class="dot st-merged"></i>merged</span>
+  <span><i class="dot st-failed"></i>failed / blocked / overlap</span>
+  <span><i class="line solid"></i>delegation / merge</span>
+  <span><i class="line dotted"></i>Studio test</span>
+  <span><i class="line dashed"></i>owner merge to main</span>
+  <span><i class="pulse"></i>message in flight</span>
+</footer>
+<script src="/static/flow.js"></script>
+</body>
+</html>

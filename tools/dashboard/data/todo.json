@@ -1134,6 +1134,19 @@
       "ownerGithub": "AlexNguyen7369",
       "updated": "2026-10-27T18:30:00-07:00",
       "updatedBy": "Alex Nguyen"
+    },
+    {
+      "id": "orchestrator-flow",
+      "title": "Orchestrator skill + orchestration flow page",
+      "detail": "/orchestrate (goals intake, worktree per task, isolated Studio or queue, rules-auditor, integration branch). Dashboard /static/flow.html draws .agents/orchestrator.json + subagents + bus traffic live; ?demo simulates. Not yet run against a real orchestrator tick.",
+      "status": "done",
+      "done": "2026-10-28",
+      "branch": "feature/alex/orchestrator-and-flow-dashboard",
+      "featureId": "85f7e666",
+      "owner": "Alex Nguyen",
+      "ownerGithub": "AlexNguyen7369",
+      "updated": "2026-10-28T00:10:52-07:00",
+      "updatedBy": "Alex Nguyen"
     }
   ]
 }
