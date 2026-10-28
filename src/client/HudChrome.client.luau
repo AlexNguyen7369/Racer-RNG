@@ -12,6 +12,27 @@ local Icons = require(client:WaitForChild("RollToast"):WaitForChild("Ui"):WaitFo
 local UiTheme = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("UiTheme"))
 local UiMotion = require(client:WaitForChild("UiMotion"))
 
+-- Owner 2026-10-28 (docs/HUD_LAYOUT_SPEC.md section 6): the Roblox chat window starts collapsed so it never covers
+-- the left icon tiles; the chat button opens it. The chat CoreScript opens itself after it loads (an early SetCore
+-- is undone), so on join keep collapsing it until it has stayed collapsed for 3 s (at most 30 s).
+task.spawn(function()
+	local StarterGui = game:GetService("StarterGui")
+	local closedFor = 0
+	for _ = 1, 30 do
+		local ok, active = pcall(StarterGui.GetCore, StarterGui, "ChatActive")
+		if ok and active == false then
+			closedFor += 1
+			if closedFor >= 3 then
+				return
+			end
+		else
+			closedFor = 0
+			pcall(StarterGui.SetCore, StarterGui, "ChatActive", false)
+		end
+		task.wait(1)
+	end
+end)
+
 local RED = Color3.fromRGB(232, 60, 76)
 local TILE = 72
 local LABEL = 22
@@ -260,6 +281,7 @@ local function refresh()
 		local bottomPair = scale.Parent == itemsSlot or scale.Parent == upgradeSlot
 		scale.Scale = (phone and 0.68 or 1) * (bottomPair and BOTTOM_SCALE or 1)
 	end
+	local pairScale = (phone and 0.68 or 1) * BOTTOM_SCALE
 	barScale.Scale = phone and 0.8 or 1
 	grid.Position = phone and UDim2.new(0, 8, 0.5, -20) or UDim2.new(0, 14, 0.5, -24)
 	shopColumn.Position = phone and UDim2.new(1, -8, 0.5, -20) or UDim2.new(1, -14, 0.5, -24)
@@ -280,6 +302,35 @@ local function refresh()
 		local gap = (level.AbsolutePosition.Y + level.AbsoluteSize.Y + turbo.AbsolutePosition.Y) / 2 + inset
 		itemsSlot.Position = UDim2.fromOffset(left - 10, gap)
 		upgradeSlot.Position = UDim2.fromOffset(right + 10, gap)
+		-- Owner 2026-10-28 (section 6): on narrow screens the pair shrinks (about its anchor) until it clears the
+		-- Money and Speed read-outs; where they are already clear (desktop) the scale is unchanged.
+		local blockers = {}
+		for _, name in { "Money", "Speed" } do
+			local o = hud:FindFirstChild(name)
+			if o and o:IsA("GuiObject") and o.Visible then
+				local p = o.AbsolutePosition + Vector2.new(0, inset)
+				table.insert(blockers, { p.X, p.Y, p.X + o.AbsoluteSize.X, p.Y + o.AbsoluteSize.Y })
+			end
+		end
+		local function clear(k)
+			local w, h = CELL.X * k, CELL.Y * k
+			local top, bottom = gap - ICON_MID * h, gap + (1 - ICON_MID) * h
+			for _, x in { { left - 10 - w, left - 10 }, { right + 10, right + 10 + w } } do
+				for _, b in blockers do
+					if x[1] < b[3] and x[2] > b[1] and top < b[4] and bottom > b[2] then
+						return false
+					end
+				end
+			end
+			return true
+		end
+		local k = pairScale
+		-- shortcut: floor at 30%; if the read-outs still cover the anchor point the pair stays at the floor.
+		while k > pairScale * 0.3 and not clear(k) do
+			k -= pairScale * 0.02
+		end
+		itemsSlot.Scale.Scale = k
+		upgradeSlot.Scale.Scale = k
 	end
 	-- The roll showcase takes the whole screen; every HUD entry hides with the rest of the HUD.
 	local showcase = gui:FindFirstChild("RollShowcase")

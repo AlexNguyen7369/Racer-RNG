@@ -707,8 +707,9 @@ UiSpec.Band = {
 }
 
 -- CLAUDE.md: panels open BELOW the Race (Auto Race) button and end ABOVE the bottom TURBO LUCK bar. The progression
--- panels (Upgrades / Workshop / Welcome) keep their rule: below the Race button and the compact roll's rect by this
--- margin, and this far above the TURBO bar (ui_progression_layout).
+-- panels (Upgrades / Workshop / Welcome) keep their rule: below the Race button by this margin (and in the PanelBand,
+-- Band.Gap below it; the compact roll hides under panels, owner 2026-10-28), and this far above the TURBO bar
+-- (ui_progression_layout).
 UiSpec.PanelTopMargin = 4
 
 -- The four Racer panels (owner decision 2026-10-08; band since docs/HUD_LAYOUT_SPEC.md 2026-10-15 sections 1 and 6:
@@ -1189,6 +1190,8 @@ Protocol, per click (run them in THIS order; several build on the previous one):
  4. Retries (only clicks with Retries): if the press landed while the target was not shown (the roll had faded) and
     nothing else took it, the harness prints "[UITEST] RETRY <id> x=<x> y=<y> done=<id>#<n>" and publishes a new
     UiTestClickTarget; ui-tester repeats step 3. A press that lands on ANOTHER clickable element is never retried.
+    A click with RetryLostPress is also retried (same RETRY line) when its press landed on the target and no remote
+    was logged within ClickSettle; it is never retried once anything fired.
  5. the harness waits ClickSettle, checks Expect and prints "[UITEST] {"scenario":"click:<id>",...}" and mirrors it
     into the LocalPlayer attribute UiTestClickResult. Then it restores the panels it touched (never the showcase:
     only real clicks open or close it).
@@ -1312,8 +1315,34 @@ UiSpec.Clicks = {
 		Id = "market_select_tile",
 		Gui = "MarketUi",
 		Path = "Backdrop/Panel/Grid/Potion_SpeedII",
-		Prepare = only("MarketUi/Backdrop"),
+		Prepare = (function()
+			local p = only("MarketUi/Backdrop")
+			p.ScrollIntoView = true -- the harness then aims at the tile's visible (clip-cut) centre
+			return p
+		end)(),
 		Expect = { Panels = { ["MarketUi/Backdrop"] = true }, Remote = false, After = { "market_detail_shows_tile" } },
+	},
+	-- Runs right after market_select_tile at every game view (desktop: Detail beside the Grid; phone: the tile
+	-- tap opened the Detail view), before the phone-only clicks below that go back to the Grid.
+	-- BUY on the selected potion invokes MarketPurchase("Potion", "SpeedII") once; the real handler never runs
+	-- (Intercept: ServerSetup progression_spy must proxy MarketPurchase and MarketEquip, else the click is refused).
+	{
+		Id = "market_action_buy",
+		Gui = "MarketUi",
+		Path = "Backdrop/Panel/Detail/Action",
+		Prepare = {
+			Open = { "MarketUi/Backdrop" },
+			Closed = CLOSED,
+			Showcase = false,
+			Intercept = { "MarketPurchase", "MarketEquip" },
+			LabelIs = "BUY",
+			TextIs = { ["MarketUi/Backdrop/Panel/Detail/Name"] = marketName("Potion", "SpeedII") },
+		},
+		NeedSetup = { "spy", "progression_spy" },
+		Expect = {
+			Panels = { ["MarketUi/Backdrop"] = true },
+			Remote = { Name = "MarketPurchase", Args = { "Potion", "SpeedII" } },
+		},
 	},
 	-- Phone Market (owner 2026-10-28, HUD_LAYOUT_SPEC section 6): a tile tap swaps the Grid for the Detail view
 	-- (nothing bought), and Back swaps back; run in this order at a phone-height game view (Prepare.PhoneOnly).
@@ -1339,26 +1368,6 @@ UiSpec.Clicks = {
 		Path = "Backdrop/Panel/Detail/Back",
 		Prepare = { KeepPanels = true, Showcase = false, PhoneOnly = true, RequireShown = true },
 		Expect = { Panels = { ["MarketUi/Backdrop"] = true }, Remote = false, After = { "market_phone_grid_view" } },
-	},
-	-- BUY on the selected potion invokes MarketPurchase("Potion", "SpeedII") once; the real handler never runs
-	-- (Intercept: ServerSetup progression_spy must proxy MarketPurchase and MarketEquip, else the click is refused).
-	{
-		Id = "market_action_buy",
-		Gui = "MarketUi",
-		Path = "Backdrop/Panel/Detail/Action",
-		Prepare = {
-			Open = { "MarketUi/Backdrop" },
-			Closed = CLOSED,
-			Showcase = false,
-			Intercept = { "MarketPurchase", "MarketEquip" },
-			LabelIs = "BUY",
-			TextIs = { ["MarketUi/Backdrop/Panel/Detail/Name"] = marketName("Potion", "SpeedII") },
-		},
-		NeedSetup = { "spy", "progression_spy" },
-		Expect = {
-			Panels = { ["MarketUi/Backdrop"] = true },
-			Remote = { Name = "MarketPurchase", Args = { "Potion", "SpeedII" } },
-		},
 	},
 	-- Shop and Market follow PanelSwitch: opening one from the HUD closes the panel that was open
 	{
@@ -1401,16 +1410,43 @@ UiSpec.Clicks = {
 	-- Id 0 price buttons ("Coming soon") do nothing: no remote, the Shop stays open (LabelHas refuses the click if
 	-- the item got a real id, so no real purchase prompt is ever opened by the suite)
 	{
+		-- Needs a player who never owned the Ember Wyvern: GAMEPASS_CARS_SPEC section 3 (owner 2026-10-20) makes a
+		-- Studio admin own every gamepass car, ownership is never revoked in a session (a fixture clearing Pass_<id>
+		-- is not a game state) and the Shop builds once. Studio runs check the owned button instead
+		-- (shop_featured_owned_equips); the gamepass and bundle "Coming soon" clicks below stay automatic.
 		Id = "shop_featured_coming_soon",
 		Gui = "ShopUi",
 		Path = "Backdrop/Panel/Items/Featured/**/ember_wyvern/Buy",
+		Manual = "needs a non-admin player who does not own ember_wyvern (a Studio admin owns every gamepass car)",
 		Prepare = (function()
 			local p = only("ShopUi/Backdrop")
+			p.AttrNot = { Pass_ember_wyvern = true }
 			p.LabelHas = "Coming soon"
 			p.ScrollIntoView = true
 			return p
 		end)(),
 		Expect = { Panels = { ["ShopUi/Backdrop"] = true }, Remote = false, After = { "shop_no_purchase_prompt" } },
+	},
+	{
+		-- GAMEPASS_CARS_SPEC section 3 (owner 2026-10-20): an owned gamepass car's Featured button shows "Equip" and
+		-- fires EquipCar with THAT car (the spy logs it; the real equip is put back by 'restore')
+		Id = "shop_featured_owned_equips",
+		Gui = "ShopUi",
+		Path = "Backdrop/Panel/Items/Featured/**/ember_wyvern/Buy",
+		Prepare = (function()
+			local p = only("ShopUi/Backdrop")
+			p.AttrIs = { Pass_ember_wyvern = true }
+			p.AttrNot = { EquippedCar = "ember_wyvern" }
+			p.LabelIs = "Equip"
+			p.ScrollIntoView = true
+			return p
+		end)(),
+		NeedSetup = { "spy" },
+		Expect = {
+			Panels = { ["ShopUi/Backdrop"] = true },
+			Remote = { Name = "EquipCar", Args = { "ember_wyvern" } },
+			After = { "shop_no_purchase_prompt" },
+		},
 	},
 	{
 		Id = "shop_gamepass_coming_soon",
@@ -2352,6 +2388,9 @@ for _, click in
 			Id = "showcase_show_row",
 			Path = "Panel/Showcase/List/{showcase_unshown}/Show",
 			Prepare = showcaseOpen({ ScrollIntoView = true, LabelIs = "SHOW", WaitSeconds = 1 }),
+			-- The list re-renders its rows (a roll changes Copies): one press was lost on 2026-10-28 (fired nothing)
+			Retries = 1,
+			RetryLostPress = true,
 			NeedSetup = { "spy", "showcase_spy" },
 			Expect = {
 				Remote = { Name = "SetShowcase", Arg = "showcase_show" },
@@ -2740,7 +2779,8 @@ table.insert(UiSpec.Clicks, {
 	Id = "open_daily_claimed",
 	Gui = "HudChrome",
 	Path = "TopRight/Daily",
-	Prepare = { Open = { DAILY }, Showcase = false },
+	-- Starts closed (the Daily pill toggles: pressing it with Daily open closes it), then the click opens it
+	Prepare = { Closed = CLOSED, Showcase = false },
 	NeedSetup = { "daily_claimed", "spy", "progression_spy" },
 	Expect = { Panels = { [DAILY] = true }, Remote = false, After = { "daily_rewards_view" } },
 })
@@ -2782,13 +2822,33 @@ table.insert(UiSpec.Clicks, {
 	NeedSetup = { "spy" },
 	Expect = { Panels = { [DAILY] = true }, Remote = false, After = { "quest_detail_selected" } },
 })
+-- docs/QUESTS_SPEC.md: the server decides progress and claims. quest_incomplete / quest_complete set today's
+-- daily_races quest (UiSpec.ServerSetup); Intercept keeps the real claim (a potion reward) from ever running.
+for _, item in
+	{
+		{ Id = "quest_incomplete", What = "Today's daily_races quest unclaimed at progress 0: its Claim is disabled." },
+		{ Id = "quest_complete", What = "Today's daily_races quest unclaimed at its Target: its Claim is enabled." },
+	}
+do
+	item.When = "before the quest_claim_* click that names it, after 'snapshot'; restore applies the quest snapshot"
+	table.insert(UiSpec.ServerSetup, item)
+end
 table.insert(UiSpec.Clicks, {
 	Id = "quest_claim_disabled_fires_nothing",
 	Gui = "DailyBoosts",
 	Path = "ModalBackdrop/Modal/Content/daily_races/Claim",
 	Prepare = { Open = { DAILY }, Showcase = false, Intercept = "QuestClaim", TargetActive = false },
-	NeedSetup = { "spy" },
+	NeedSetup = { "quest_incomplete", "spy", "progression_spy" },
 	Expect = { Panels = { [DAILY] = true }, Remote = false },
+})
+-- A completable quest's Claim asks the server for THAT quest: QuestClaim(weekly = false, "daily_races"), once
+table.insert(UiSpec.Clicks, {
+	Id = "quest_claim_asks_server",
+	Gui = "DailyBoosts",
+	Path = "ModalBackdrop/Modal/Content/daily_races/Claim",
+	Prepare = { Open = { DAILY }, Showcase = false, Intercept = "QuestClaim", TargetActive = true },
+	NeedSetup = { "quest_complete", "spy", "progression_spy" },
+	Expect = { Panels = { [DAILY] = true }, Remote = { Name = "QuestClaim", Args = { false, "daily_races" } } },
 })
 
 ---------------------------------------------------------------------------------------------------------------
@@ -3031,6 +3091,8 @@ UiSpec.Checkpoints = {
 	Detail = "CheckpointUi/Panel/Detail",
 	RecPrefix = "REC. SPEED ", -- .. HudFormat.SpeedText(RaceConfig.StatFor(NpcConfig.For(n).Speed))
 	YourPrefix = "YOUR SPEED ", -- .. HudFormat.SpeedText(leaderstats.Speed)
+	-- CHECKPOINT_SPEC section 4 "the payout": labelled like REC. SPEED / YOUR SPEED (Client/CheckpointUi)
+	CashPrefix = "PAYOUT ", -- .. HudFormat.MoneyText(TrackBuilder.CashFor(n))
 	Ready = "READY",
 	NeedFormat = "NEED %s MORE", -- %s = HudFormat.SpeedText(rec - speed)
 	StartOpen = "START HERE",

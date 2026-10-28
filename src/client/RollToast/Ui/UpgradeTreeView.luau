@@ -76,9 +76,11 @@ function View.Create(gui, Tree, Format)
 		ZIndex = 0,
 		Active = true,
 	}, screen)
+	-- The canvas starts right of ZoomTools (x 22 + 120 wide, ui/specs/RacerUpgrades.ui.json), so a panned node is
+	-- clipped there instead of sliding under the + / - / EXIT buttons.
 	local canvas = make("ScrollingFrame", "Canvas", {
-		Position = UDim2.fromOffset(0, 0),
-		Size = UDim2.fromScale(1, 1),
+		Position = UDim2.fromOffset(150, 0),
+		Size = UDim2.new(1, -150, 1, 0),
 		BackgroundTransparency = 1,
 		BorderSizePixel = 0,
 		ScrollBarThickness = 0,
@@ -157,8 +159,9 @@ function View.Create(gui, Tree, Format)
 		local locked = reason == "locked"
 		entry.Label.Text = locked and "?" or entry.Tile.Name
 		entry.Label.TextSize = locked and 42 or 19
-		entry.Label.Position = locked and UDim2.new(0, 0, 0.5, -26) or UDim2.fromOffset(2, 12)
-		entry.Label.Size = locked and UDim2.new(1, 0, 0, 52) or UDim2.new(1, -4, 0, 46)
+		-- A locked "?" fills the whole node (centred as before), so the drawn content spans the hitbox.
+		entry.Label.Position = locked and UDim2.new() or UDim2.fromOffset(2, 12)
+		entry.Label.Size = locked and UDim2.fromScale(1, 1) or UDim2.new(1, -4, 0, 46)
 		entry.Art.Visible = not locked
 		local gate = reason == "gated" and ("Reach Track " .. Tree.RequiredTrack(entry.Tile.Id, trackCount)) or nil
 		entry.Price.Text = locked and "" or owned and "OWNED" or gate or Format.MoneyText(Tree.Price(entry.Tile.Id))
