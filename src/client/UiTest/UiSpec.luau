@@ -672,6 +672,12 @@ UiSpec.Market = {
 	SelectId = "SpeedII",
 	-- The price text inside Detail/Price
 	PriceText = "Value",
+	-- Owner 2026-10-28 (docs/HUD_LAYOUT_SPEC.md section 6): on phones (viewport height <= PhoneMaxHeight) the Market
+	-- shows its Grid only (Detail hidden); tapping a tile swaps Grid for Detail, whose Back button (a TextButton whose
+	-- label contains BackText) swaps back. Desktop keeps Grid and Detail side by side.
+	PhoneMaxHeight = 500,
+	Back = "MarketUi/Backdrop/Panel/Detail/Back",
+	BackText = "BACK",
 	-- Client/MarketUi fitTabs: a UIScale "Scale" in each side tab (not on the rail), fitted to the rail's height.
 	-- Mirrored so the layout solver models it at every viewport (UiScenarios marketTabScale).
 	TabFit = { ScaleName = "Scale", RailWidth = 96, TabSize = 96, Gap = 10, Min = 0.4, Max = 1 },
@@ -728,6 +734,8 @@ UiSpec.RacerPanelBand = {
 -- When = "any": any PanelSwitch panel open; "other_than:<panel>": any panel but that one.
 UiSpec.HiddenWhilePanelOpen = {
 	["DailyBoosts/Status"] = "any",
+	-- Owner 2026-10-28 (docs/HUD_LAYOUT_SPEC.md section 6): the compact roll hides under every panel
+	["RollToast/Toast"] = "any",
 }
 -- ProgressionUi applies its visibility on a 0.25 s poll: the checks wait up to this long for it.
 UiSpec.HiddenWhilePanelOpenWait = 1
@@ -1162,6 +1170,9 @@ UiSpec.ClickSpace = "below_topbar"
 --     "click space mismatch", it does not click. The harness still verifies where the press really landed
 --     (click_landed_on_button), so a wrong space can never pass as a click on the target.
 UiSpec.ClickNeedsUnemulatedView = true
+-- Phone-height clicks (Prepare.PhoneOnly, e.g. the compact phone Market): ui-tester resizes the REAL game view to a
+-- height <= PhoneMaxHeight (UiSpec.LegacyControls.ResizeProtocol, no emulation), runs them, then restores the view.
+UiSpec.PhoneMaxHeight = 500
 
 --[[
 Clicks ui-tester performs with mcp__Roblox_Studio__user_mouse_input (a LocalScript can not fire Activated).
@@ -1303,6 +1314,31 @@ UiSpec.Clicks = {
 		Path = "Backdrop/Panel/Grid/Potion_SpeedII",
 		Prepare = only("MarketUi/Backdrop"),
 		Expect = { Panels = { ["MarketUi/Backdrop"] = true }, Remote = false, After = { "market_detail_shows_tile" } },
+	},
+	-- Phone Market (owner 2026-10-28, HUD_LAYOUT_SPEC section 6): a tile tap swaps the Grid for the Detail view
+	-- (nothing bought), and Back swaps back; run in this order at a phone-height game view (Prepare.PhoneOnly).
+	{
+		Id = "market_phone_tile_opens_detail",
+		Gui = "MarketUi",
+		Path = "Backdrop/Panel/Grid/Potion_SpeedII",
+		Prepare = (function()
+			local p = only("MarketUi/Backdrop")
+			p.PhoneOnly = true
+			p.LeavePanels = true
+			return p
+		end)(),
+		Expect = {
+			Panels = { ["MarketUi/Backdrop"] = true },
+			Remote = false,
+			After = { "market_phone_detail_view", "market_detail_shows_tile" },
+		},
+	},
+	{
+		Id = "market_phone_back",
+		Gui = "MarketUi",
+		Path = "Backdrop/Panel/Detail/Back",
+		Prepare = { KeepPanels = true, Showcase = false, PhoneOnly = true, RequireShown = true },
+		Expect = { Panels = { ["MarketUi/Backdrop"] = true }, Remote = false, After = { "market_phone_grid_view" } },
 	},
 	-- BUY on the selected potion invokes MarketPurchase("Potion", "SpeedII") once; the real handler never runs
 	-- (Intercept: ServerSetup progression_spy must proxy MarketPurchase and MarketEquip, else the click is refused).

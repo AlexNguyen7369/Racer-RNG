@@ -4470,8 +4470,9 @@ function S.ui_toast(res)
 		return
 	end
 
-	-- The compact roll remains visible while a panel is open: HUD buttons and the roll
-	-- stay available as background UI. The roll keeps playing and is not restarted.
+	-- Owner 2026-10-28 (docs/HUD_LAYOUT_SPEC.md section 6, replaces the 2026-10-20 wording): the compact roll HIDES
+	-- while a panel is open, so it never covers a panel or takes its clicks: hidden and not clickable in every sampled
+	-- frame, shown again when the panel closes. The roll keeps playing underneath and is not restarted.
 	local switchModule = script.Parent.Parent:FindFirstChild(UiSpec.PanelSwitch.Module)
 	local Switch = nil
 	if switchModule and switchModule:IsA("ModuleScript") then
@@ -4502,27 +4503,33 @@ function S.ui_toast(res)
 			setPanel(p, true)
 			local panelObj = findPath(p)
 			local opened = panelObj ~= nil and panelObj.Visible
-			-- PanelSwitch.Changed -> refreshToast runs as the panel's Visible changes: hidden in the same frame
-			local shownFrames, samples = effectivelyVisible(toast) and 1 or 0, 1
+			-- PanelSwitch.Changed -> refreshToast runs as the panel's Visible changes: hidden in the next frame
+			RunService.Heartbeat:Wait()
+			local shownFrames, clickFrames, samples = 0, 0, 0
 			local untilT = os.clock() + animNum("SPIN") + animNum("LAND")
 			repeat
-				RunService.Heartbeat:Wait()
 				samples += 1
 				if effectivelyVisible(toast) then
 					shownFrames += 1
 				end
+				local cx, cy = centre(realRect(toast))
+				if table.find(hitsAt(cx, cy), toast) then
+					clickFrames += 1
+				end
+				RunService.Heartbeat:Wait()
 			until os.clock() > untilT or toast:GetAttribute("Phase") == "Hold"
 			check(
 				res,
-				"toast_visible_while_" .. p .. "_open",
-				("panel opened=%s, shown before=%s, %d of %d frames shown"):format(
+				"toast_hidden_while_" .. p .. "_open",
+				("panel opened=%s, shown before=%s, %d of %d frames shown, %d clickable"):format(
 					tostring(opened),
 					tostring(shownBefore),
 					shownFrames,
-					samples
+					samples,
+					clickFrames
 				),
-				"panel opened=true, shown before=true, all sampled frames shown",
-				opened and shownBefore and shownFrames == samples
+				"panel opened=true, shown before=true, no sampled frame shown or clickable",
+				opened and shownBefore and shownFrames == 0 and clickFrames == 0
 			)
 			setPanel(p, false)
 			frames(2)
@@ -4556,23 +4563,24 @@ function S.ui_toast(res)
 				type(serial0) == "number" and serial1 == serial0 and hold.rollId == ev0.id
 			)
 		else
-			stateMissing(res, "toast_visible_while_" .. p .. "_open", "auto_racing", "no Remotes.RollResult")
+			stateMissing(res, "toast_hidden_while_" .. p .. "_open", "auto_racing", "no Remotes.RollResult")
 		end
 		setPanel(p, true)
 		if waitNewRoll(UiSpec.Waits.RollToast) then
 			task.wait(UiSpec.Waits.ToastShown)
 			frames(2)
-			local phaseNow = toast:GetAttribute("Phase")
 			local shown = effectivelyVisible(toast)
+			local cx, cy = centre(realRect(toast))
+			local clickable = table.find(hitsAt(cx, cy), toast) ~= nil
 			check(
 				res,
-				"toast_visible_on_roll_while_" .. p .. "_open",
-				("Phase %s, shown=%s"):format(tostring(phaseNow), tostring(shown)),
-				"roll playing (not Idle), shown=true",
-				phaseNow ~= nil and phaseNow ~= "Idle" and shown
+				"toast_hidden_on_roll_while_" .. p .. "_open",
+				("shown=%s, clickable=%s"):format(tostring(shown), tostring(clickable)),
+				"shown=false, clickable=false",
+				not shown and not clickable
 			)
 		else
-			stateMissing(res, "toast_visible_on_roll_while_" .. p .. "_open", "auto_racing", "no Remotes.RollResult")
+			stateMissing(res, "toast_hidden_on_roll_while_" .. p .. "_open", "auto_racing", "no Remotes.RollResult")
 		end
 		setPanel(p, false)
 		restorePanel()
@@ -5829,7 +5837,7 @@ function S.ui_panels(res)
 	-- UiSpec.HiddenWhilePanelOpen: each declared element really is hidden while a panel that hides it is open (the
 	-- overlap lists leave it out then), and shown again once no panel is open. ProgressionUi polls every 0.25 s, so
 	-- each state is waited for (UiSpec.HiddenWhilePanelOpenWait). The compact roll is also checked during a playing
-	-- roll by ui_toast, since the compact roll stays visible while panels are open.
+	-- roll by ui_toast (it hides under every panel, owner 2026-10-28).
 	local function waitFor(cond)
 		local deadline = os.clock() + UiSpec.HiddenWhilePanelOpenWait
 		repeat
@@ -6333,6 +6341,7 @@ local shopMarket = UiShopMarket.Build({
 	realRect = realRect,
 	topAt = topAt,
 	allText = allText,
+	viewport = viewport,
 })
 for name, fn in shopMarket.Scenarios do
 	S[name] = fn
@@ -6770,6 +6779,19 @@ function UiScenarios.RunClick(id)
 	local index = table.find(UiSpec.Clicks, spec)
 	local previous = index and index > 1 and ("click:" .. UiSpec.Clicks[index - 1].Id) or "none"
 
+	-- Phone-only clicks (Prepare.PhoneOnly): the live game view must be phone height (UiSpec.PhoneMaxHeight)
+	if prep.PhoneOnly and viewport().Y > UiSpec.PhoneMaxHeight then
+		stateMissing(
+			res,
+			"phone_viewport_before_click",
+			"phone_viewport",
+			("viewport height %d > %d (resize the real game view, never emulate)"):format(
+				viewport().Y,
+				UiSpec.PhoneMaxHeight
+			)
+		)
+		return res
+	end
 	-- Player attributes this click starts from (set by earlier clicks or ServerSetup, never forced here)
 	for name, want in prep.AttrIs or {} do
 		if attr(name) ~= want then

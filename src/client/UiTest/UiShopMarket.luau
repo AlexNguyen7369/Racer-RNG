@@ -44,7 +44,7 @@ function ShopMarket.BandFit(vp, d, maxWidth)
 	}
 end
 
--- h: check, checkList, find, visible, setPanels, player, pathOf, render, frames, provider, viewports, contains,
+-- h: check, checkList, find, visible, setPanels, player, pathOf, render, frames, provider, viewports, viewport, contains,
 -- intersects, rstr, realRect, topAt, allText (UiScenarios' helpers). Returns { Scenarios, After }.
 function ShopMarket.Build(h)
 	local SH, MK = Spec.Shop, Spec.Market
@@ -207,9 +207,13 @@ function ShopMarket.Build(h)
 	end
 
 	-- Children (by name) of a rect group apart and inside their parent, at every viewport
-	local function groupGeometry(res, name, parent, parts)
+	-- only(vp) (optional): judge just the viewports it accepts
+	local function groupGeometry(res, name, parent, parts, only)
 		for _, vpSpec in h.viewports do
-			local rectOf = h.provider(vpSpec)
+			local rectOf, vpSize = h.provider(vpSpec)
+			if only and not only(vpSize) then
+				continue
+			end
 			local suffix = "_" .. vpSpec.Name
 			local pr = rectOf(parent)
 			local outside, overlaps, rects = {}, {}, {}
@@ -708,11 +712,32 @@ function ShopMarket.Build(h)
 			h.checkList(res, "market_detail_matches_item", detailProblems(kind, selected))
 		end
 
-		-- Geometry at every viewport
-		panelGeometry(res, "market", panel)
-		if header and tabs and grid and detail then
-			groupGeometry(res, "market_sections", panel, { header, tabs, grid, detail })
+		-- Geometry at every viewport. Phones (owner 2026-10-28, HUD_LAYOUT_SPEC section 6): the Grid view only (Detail
+		-- hidden until a tile is tapped: clicks market_phone_*); desktop: Grid and Detail side by side.
+		local function phone(vp)
+			return vp.Y <= MK.PhoneMaxHeight
 		end
+		local function desktop(vp)
+			return not phone(vp)
+		end
+		if header and tabs and grid and detail then
+			groupGeometry(res, "market_sections", panel, { header, tabs, grid, detail }, desktop)
+			groupGeometry(res, "market_phone_grid_view", panel, { header, tabs, grid }, phone)
+		end
+		if phone(h.viewport()) then
+			-- The live phone view as it opens: Grid shown, Detail hidden
+			h.check(
+				res,
+				"market_phone_opens_grid_only",
+				("grid shown=%s, detail shown=%s"):format(
+					tostring(grid ~= nil and h.visible(grid)),
+					tostring(detail ~= nil and h.visible(detail))
+				),
+				"grid shown=true, detail shown=false",
+				grid ~= nil and h.visible(grid) and not (detail ~= nil and h.visible(detail))
+			)
+		end
+		panelGeometry(res, "market", panel)
 		local close = h.find(MK.Close)
 		if close and header then
 			groupGeometry(res, "market_close_in_header", header, { close })
@@ -721,7 +746,8 @@ function ShopMarket.Build(h)
 			groupGeometry(res, "market_tab_buttons", tabs, tabList)
 		end
 		if #dParts == #MK.DetailParts then
-			groupGeometry(res, "market_detail_parts", detail, dParts)
+			-- (phones: judged live in the Detail view by after.market_phone_detail_view)
+			groupGeometry(res, "market_detail_parts", detail, dParts, desktop)
 		end
 		topmostChecks(res, "market", panel, grid)
 		restore()
@@ -748,6 +774,65 @@ function ShopMarket.Build(h)
 			end)
 			h.checkList(res, "market_grid_shows_" .. kindName, bad)
 		end
+	end
+
+	-- Phone Market views (owner 2026-10-28, HUD_LAYOUT_SPEC section 6), judged on the live phone-height view
+	local function phoneView(res, name, wantDetail)
+		local grid, detail, back = h.find(MK.Grid), h.find(MK.Detail), h.find(MK.Back)
+		local ok, state = waitFor(1, function()
+			local g = grid ~= nil and h.visible(grid)
+			local d = detail ~= nil and h.visible(detail)
+			return g == not wantDetail and d == wantDetail,
+				("grid shown=%s, detail shown=%s"):format(tostring(g), tostring(d))
+		end)
+		h.check(
+			res,
+			name,
+			state,
+			("grid shown=%s, detail shown=%s"):format(tostring(not wantDetail), tostring(wantDetail)),
+			ok == true
+		)
+		if not wantDetail then
+			return
+		end
+		local backText = shownText(back)
+		h.check(
+			res,
+			"market_phone_back_button",
+			back and (back.ClassName .. " " .. backText) or "missing",
+			"TextButton containing " .. MK.BackText,
+			back ~= nil and back:IsA("TextButton") and h.visible(back) and has(backText, MK.BackText)
+		)
+		-- The Detail view's parts (Back included) stay inside Detail and never overlap, on the live view
+		local outside, overlaps, rects = {}, {}, {}
+		local dr = detail and h.realRect(detail)
+		for _, p in MK.DetailParts do
+			local o = detail and detail:FindFirstChild(p.Name)
+			if o and o:IsA("GuiObject") then
+				table.insert(rects, { p.Name, h.realRect(o) })
+			end
+		end
+		if back and back:IsA("GuiObject") then
+			table.insert(rects, { "Back", h.realRect(back) })
+		end
+		for i, a in rects do
+			if dr and not h.contains(dr, a[2]) then
+				table.insert(outside, a[1] .. h.rstr(a[2]) .. " outside Detail" .. h.rstr(dr))
+			end
+			for j = i + 1, #rects do
+				if h.intersects(a[2], rects[j][2]) then
+					table.insert(overlaps, a[1] .. h.rstr(a[2]) .. " x " .. rects[j][1] .. h.rstr(rects[j][2]))
+				end
+			end
+		end
+		h.checkList(res, "market_phone_detail_parts_inside", outside)
+		h.checkList(res, "market_phone_detail_parts_no_overlap", overlaps)
+	end
+	after.market_phone_detail_view = function(res)
+		phoneView(res, "market_phone_detail_view", true)
+	end
+	after.market_phone_grid_view = function(res)
+		phoneView(res, "market_phone_grid_view", false)
 	end
 
 	after.market_detail_shows_tile = function(res, ctx)
