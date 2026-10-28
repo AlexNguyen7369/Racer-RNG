@@ -602,6 +602,21 @@
     "Add a dated owner entry to docs/GAME_DESIGN_REQUIREMENTS.md (Monetization or Multipliers) and a short docs/FRIENDS_BOOST_SPEC.md, or tell the orchestrator the answers on the bus and it drafts them for your review."
    ],
    "resolution": "Owner 2026-10-28 approved the proposal: +10% luck and Money per Roblox friend in the server, cap +40%. Orchestrator drafts the design-doc entry + docs/FRIENDS_BOOST_SPEC.md."
+  },
+  {
+   "id": "offline-double-product-2026-10-28",
+   "title": "Create the 19 Robux 'Double offline Speed' developer product",
+   "category": "account",
+   "priority": "high",
+   "why": "The offline-reward Double button (docs/OFFLINE_DOUBLE_SPEC.md, owner 2026-10-28) needs a real developer product id; with id 0 it shows COMING SOON.",
+   "blocks": "Selling the offline double",
+   "when": "2026-10-28",
+   "status": "open",
+   "steps": [
+    "Roblox Creator Dashboard > Racer RNG > Monetization > Developer Products > Create: name 'Double offline Speed', price 19 Robux.",
+    "Copy the product id.",
+    "Paste it into src/shared/MonetizationConfig.luau OfflineDouble.ProductId (or tell the orchestrator the id)."
+   ]
   }
  ]
 }

@@ -2248,6 +2248,34 @@
       "foundBy": "ui-tester",
       "foundAt": "2026-10-28T10:05:45-07:00",
       "loggedBy": "Alex Nguyen"
+    },
+    {
+      "id": "225eb3bb",
+      "name": "UiScenarios exceeds Luau 200 local limit",
+      "kind": "fault",
+      "status": "open",
+      "file": "src/client/UiTest/UiScenarios.luau",
+      "line": 6848,
+      "endLine": 6848,
+      "snippet": {
+        "from": 6844,
+        "lines": [
+          "\treturn phase == nil or POPPED[phase] == true",
+          "end",
+          "",
+          "-- Remotes fired between two spy readings, in order.",
+          "local function firedSince(preSpy)",
+          "\tlocal fired = {}",
+          "\tfor name, list in readSpy() or {} do",
+          "\t\tlocal before = preSpy[name] and #preSpy[name] or 0",
+          "\t\tfor i = before + 1, #list do"
+        ]
+      },
+      "summary": "UiScenarios main chunk has >200 top-level locals after 84422a5; the module fails to compile in Studio, so the whole UI test harness does not load and no UI check runs.",
+      "error": "UiScenarios:6848: Out of local registers when trying to allocate firedSince: exceeded limit 200",
+      "foundBy": "ui-tester",
+      "foundAt": "2026-10-28T13:28:09-07:00",
+      "loggedBy": "Alex Nguyen"
     }
   ]
 }

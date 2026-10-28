@@ -30,6 +30,10 @@ in git history (`git log -p -- handoff.md`, last full version at 2d99d78) and in
 
 ## Open work
 
+ORCH-3. **Owner 2026-10-28: speed probe up to 2000; if every track is green through 2000 (highest_green_contiguous >= 2000),
+   set RaceConfig.MAX_CRUISE = 2000 (owner decision, no 10% margin) with a dated design-doc + WORLDS_SPEC entry; else ask the owner.**
+   Probe: CarTestOnly = "speed_probe", then CarTestRun = true (on feature/alex/world1-ship b737c85+). Queued after the UI runs.
+
 ORCH-2. **Orchestrator, 2026-10-28 late: Isaac merged (4227363), hover test scale-only (548f1e8), all pushed on feature/alex/world1-ship.**
    Full UI suite (ui-tester): [UITEST] END pass=26 fail=13. Hover OK (1.000 -> 1.035, no outline). Bugs being logged in bugs.json.
    UI-code bugs (implementer, then ui-tester): RollToast must hide under open panels (steals clicks); Index tile / PanelSwitch.Action("Index")
