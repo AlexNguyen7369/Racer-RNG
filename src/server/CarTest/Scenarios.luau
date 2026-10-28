@@ -13496,6 +13496,10 @@ Scenarios.gift_mailbox = require(script.Parent.GiftTests).gift_mailbox
 Scenarios.race_progress_map = require(script.Parent.RaceProgressTests).race_progress_map
 -- docs/WORKSHOP_SPEC.md "5b. Showcase": copies instead of scrap Money, showcase multi, VERSION 12 save, pedestals
 Scenarios.showcase = require(script.Parent.ShowcaseTests).showcase
+-- docs/WYVERN_FLIGHT_SPEC.md section 5: Ember Wyvern size exception, rig, flight motion, bounds and race stability
+Scenarios.wyvern_flight = require(script.Parent.WyvernFlightTests).wyvern_flight
+-- docs/WYVERN_BREATH_SPEC.md section 3: blue fire breath strength, client-only emitters, palette and textures
+Scenarios.wyvern_breath = require(script.Parent.WyvernBreathTests).wyvern_breath
 -- docs/PANEL_ART_GIFTING_SPEC.md: cosmetic effects on the chassis, no mass/controls change, equip preserved
 Scenarios.vehicle_effects = require(script.Parent.VehicleEffectTests).make({
 	newFakeCharacter = newFakeCharacter,

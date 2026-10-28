@@ -9,11 +9,11 @@
     "Wing_L",
     "Wing_R"
   ],
-  "tris": 32044,
+  "tris": 36096,
   "wheels": [],
   "min": [
     -1.867,
-    -3.28,
+    -5.62,
     0.181
   ],
   "max": [
@@ -104,12 +104,47 @@
     "Wing_R": "textures/Wing_R.png"
   },
   "part_tris": {
-    "Body": 8164,
-    "Trim": 9164,
+    "Body": 11264,
+    "Trim": 9368,
     "Light2": 512,
     "Light": 2140,
-    "Accent": 880,
+    "Accent": 1628,
     "Wing_L": 5576,
     "Wing_R": 5608
-  }
+  },
+  "bones": [
+    "Root",
+    "Spine1",
+    "Spine2",
+    "Neck1",
+    "Neck2",
+    "Neck3",
+    "Neck4",
+    "Head",
+    "Jaw",
+    "Arm_L",
+    "Fore_L",
+    "Hand_L",
+    "Finger1_L",
+    "Finger2_L",
+    "Finger3_L",
+    "Finger4_L",
+    "Arm_R",
+    "Fore_R",
+    "Hand_R",
+    "Finger1_R",
+    "Finger2_R",
+    "Finger3_R",
+    "Finger4_R",
+    "Tail1",
+    "Tail2",
+    "Tail3",
+    "Tail4",
+    "Tail5",
+    "Tail6",
+    "Thigh_L",
+    "Shin_L",
+    "Thigh_R",
+    "Shin_R"
+  ]
 }

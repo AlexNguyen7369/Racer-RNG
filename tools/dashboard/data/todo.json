@@ -1095,14 +1095,30 @@
     },
     {
       "id": "ember-wyvern-effects",
-      "title": "Ember Wyvern blue-fire effects + race wing flap",
-      "status": "next",
+      "title": "Ember Wyvern blue-fire effects",
+      "status": "done",
       "source": "Owner",
       "by": "Claude",
       "added": "2026-10-27T18:00:00-07:00",
-      "updated": "2026-10-27T18:00:00-07:00",
+      "updated": "2026-10-27T23:30:00-07:00",
       "updatedBy": "Claude",
-      "detail": "Effects draft drafts/cars/ember-wyvern/vfx_profile.luau (fire breath, wake, wing-tip streams, smoke) needs a design-doc entry (always on or on boost), then Shared/VehicleEffects + vehicle_effects test. Wing flap while racing needs client code, a smaller stroke than the .blend cycle (downstroke passes |x| 1.95) and its own test round."
+      "detail": "Effects draft drafts/cars/ember-wyvern/vfx_profile.luau (fire breath, wake, wing-tip streams, smoke) needs a design-doc entry (always on or on boost), then Shared/VehicleEffects + vehicle_effects test. (The race wing flap is done by the flight feature, docs/WYVERN_FLIGHT_SPEC.md.) Breath done 2026-10-27 (docs/WYVERN_BREATH_SPEC.md); the draft's tail wake and wing-tip streams were not asked for and are not built.",
+      "done": "2026-10-27"
+    },
+    {
+      "id": "598b65dc",
+      "title": "Ember Wyvern flight",
+      "detail": "Owner 2026-10-27: no flying animation while auto racing; bigger (exception) on the pedestal and in races; dynamic wing flaps and body motion; physics test suite. Spec docs/WYVERN_FLIGHT_SPEC.md. Done: 33-bone rig (drafts/cars/ember-wyvern/wyvern_rig.py), rigged upload Model 110915918385893, Shared/WyvernMotion, Client/WyvernAnimator, SkinScale 1.6 (placeholder), wyvern_flight scenario red then 106/106 green alone; live: flaps and heaves while racing and on the pedestal. Then (owner): livelier body, long tail, SkinScale 2.5 (pedestal cap 1.6), blue fire breath (WYVERN_BREATH_SPEC). Owner: implement first; tests written (wyvern_flight, wyvern_breath, pass_cars, car_redesign updated) but not run since. Next: full suite, then selective commit and push to main.",
+      "status": "doing",
+      "source": "feature branch",
+      "by": "Alex Nguyen",
+      "added": "2026-10-27T13:05:27-07:00",
+      "branch": "feature/alex/ember-wyvern-flight",
+      "featureId": "27b3c7e8",
+      "owner": "Alex Nguyen",
+      "ownerGithub": "AlexNguyen7369",
+      "updated": "2026-10-27T23:30:00-07:00",
+      "updatedBy": "Claude"
     }
   ]
 }

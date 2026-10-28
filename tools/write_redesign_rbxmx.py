@@ -6,7 +6,12 @@ Mesh data per car comes from assets/meshes/cars/meshes.json ({id: {part: {MeshId
 after InsertService:LoadAsset(ids.json[id]); colours and materials come from drafts/cars/<id>/redesign/parts.json.
 Textured special-case rides (CAR_REDESIGN_SPEC section 9) also carry ColorMap / NormalMap per part, written as a
 SurfaceAppearance, and parts.json wing_hinge (Blender coords) becomes each wing's PivotOffset (the flap hinge).
+A rigged ride (docs/WYVERN_FLIGHT_SPEC.md section 2) has Bones on one part ([{Name, Parent, CF}], CF relative to the
+parent bone or, for a root bone, to that part): the bone tree is written under it, every other part is joined to it
+with a Motor6D (one assembly, so the skinned parts find the bones) and the model gets the attribute Rig = "Wyvern".
 """
+import base64
+import struct
 import json
 import sys
 import xml.etree.ElementTree as ET
@@ -16,6 +21,22 @@ ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / 'assets/studio/RedesignCarModels'
 MATERIAL = {'SmoothPlastic': 272, 'Neon': 288, 'Metal': 1088, 'Glass': 1568}
 BOX_FIDELITY = 1
+
+
+def cframe(parent, name, comps):
+    e = ET.SubElement(parent, 'CoordinateFrame', name=name)
+    for tag, v in zip(['X', 'Y', 'Z'] + [f'R{a}{b}' for a in range(3) for b in range(3)], comps):
+        ET.SubElement(e, tag).text = repr(float(v))
+    return e
+
+
+def attributes(values):
+    """Roblox AttributesSerialize for string attributes: u32 count, then (u32 len, name, 0x02, u32 len, value)."""
+    out = struct.pack('<I', len(values))
+    for k, v in values.items():
+        kb, vb = k.encode(), v.encode()
+        out += struct.pack('<I', len(kb)) + kb + b'\x02' + struct.pack('<I', len(vb)) + vb
+    return base64.b64encode(out).decode()
 
 
 def write(car_id, meshes):
@@ -35,6 +56,9 @@ def write(car_id, meshes):
             ET.SubElement(e, axis).text = repr(float(v))
         return e
 
+    rig_part = next((n for n in sorted(meshes) if meshes[n].get('Bones')), None)
+    if rig_part:
+        ET.SubElement(props, 'BinaryString', name='AttributesSerialize').text = attributes({'Rig': 'Wyvern'})
     for i, name in enumerate(sorted(meshes)):
         mesh, look = meshes[name], parts[name]
         item = ET.SubElement(model, 'Item', {'class': 'MeshPart', 'referent': f'RBX{i}'})
@@ -65,6 +89,29 @@ def write(car_id, meshes):
             for prop in ('ColorMap', 'NormalMap'):
                 if mesh.get(prop):
                     ET.SubElement(ET.SubElement(sp, 'Content', name=prop), 'url').text = mesh[prop]
+        if mesh.get('Bones'):
+            items = {None: item}
+            for k, bone in enumerate(mesh['Bones']):  # parents come before their children
+                b = ET.SubElement(items[bone.get('Parent')], 'Item', {'class': 'Bone', 'referent': f'RBXB{k}'})
+                bp = ET.SubElement(b, 'Properties')
+                ET.SubElement(bp, 'string', name='Name').text = bone['Name']
+                cframe(bp, 'CFrame', bone['CF'])
+                items[bone['Name']] = b
+    if rig_part:
+        refs = {name: f'RBX{i}' for i, name in enumerate(sorted(meshes))}
+        root = next(it for it in model.findall('Item') if it.get('referent') == refs[rig_part])
+        rx, ry, rz = meshes[rig_part]['Pos']
+        for name in sorted(meshes):
+            if name == rig_part:
+                continue
+            px, py, pz = meshes[name]['Pos']
+            joint = ET.SubElement(root, 'Item', {'class': 'Motor6D', 'referent': 'RBXM' + refs[name]})
+            jp = ET.SubElement(joint, 'Properties')
+            ET.SubElement(jp, 'string', name='Name').text = name + 'Motor6D'
+            ET.SubElement(jp, 'Ref', name='Part0').text = refs[rig_part]
+            ET.SubElement(jp, 'Ref', name='Part1').text = refs[name]
+            cframe(jp, 'C0', [px - rx, py - ry, pz - rz, 1, 0, 0, 0, 1, 0, 0, 0, 1])
+            cframe(jp, 'C1', [0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1])
     # Base-centred pivot, forward -Z (same contract as ExpansionCarModels).
     pivot = ET.SubElement(ET.SubElement(props, 'OptionalCoordinateFrame', name='WorldPivotData'), 'CFrame')
     for axis in 'XYZ':

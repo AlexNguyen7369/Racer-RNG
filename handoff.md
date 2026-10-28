@@ -5,6 +5,8 @@ in git history (`git log -p -- handoff.md`, last full version at 2d99d78) and in
 
 ## State — 2026-10-27
 
+- Current branch: `feature/alex/ember-wyvern-flight` (from origin/main 820cd25 + c4f4fee); see Open work 0.
+
 - Branch `feature/alex/race-progress-map-completion`, everything committed and pushed (2d99d78): biome visual pass
   (scenery budget 800), Codex's loser screen fix, rendering pass + car geometry (e3f752a), trail / aura VFX,
   codebase re-audit and the three UI rules (UiMotion, SafeInsets, gamepad focus).
@@ -20,8 +22,37 @@ in git history (`git log -p -- handoff.md`, last full version at 2d99d78) and in
 
 ## Open work
 
-0. Ember Wyvern skin (2026-10-27, approved): `RedesignCarModels/ember_wyvern` (Rojo-synced rbxmx). Next: blue-fire effects (design-doc entry first, `drafts/cars/ember-wyvern/vfx_profile.luau`) and the race flap
-   (todo ember-wyvern-effects).
+0. **Ember Wyvern flight + breath — DONE, committed and pushed to main 2026-10-27; full suite END pass=51 fail=1 (only environment city_blocks_gap, bug ab037b16, City Blocks work still uncommitted in the tree)**. Next session goal: car redesign v3 (toy racer style, 15,000-triangle cap, pilot Rusty Hatchback / Street Racer / Singularity, owner 2026-10-27) on its own branch. (branch `feature/alex/ember-wyvern-flight`, all
+   uncommitted; owner 2026-10-27: "stop test suite, begin implementation of features first").
+   - Done: 33-bone rig (`drafts/cars/ember-wyvern/wyvern_rig.py`), long whip tail (template |z| 5.62), rigged upload
+     Model 100205140229978 (`assets/meshes/cars/{ids,meshes}.json`, `assets/studio/RedesignCarModels/ember_wyvern.rbxmx`
+     with bones, Motor6Ds, `Rig = "Wyvern"`); `Shared/WyvernMotion` (flap bursts / glides, livelier body, `Breath`),
+     `Client/WyvernAnimator` (frame = Body part, waits for all bones), `Shared/WyvernBreath` (blue fire on the Head
+     bone), `SkinScale` 2.5 race / `CarAppearance.DISPLAY_SKIN_MAX` 1.6 pedestal, `MAX_HALF_SPAN` 9,
+     `VehicleEffects.TEXTURES`/`FLIPBOOKS` exported, `BestRollView` skips rigged wings. Specs: `docs/WYVERN_FLIGHT_SPEC.md`,
+     `docs/WYVERN_BREATH_SPEC.md`, design doc entries, CAR_REDESIGN_SPEC 9, GAMEPASS_CARS_SPEC 5, VEHICLE_SKINS_SPEC.
+   - Seen live in Play (test player, skin applied server-side with `CarAppearance.Apply`): flapping, body motion,
+     breath from the jaws (`drafts/cars/ember_wyvern/redesign/views/studio_flight.jpg`, `studio_breath.jpg`).
+   - Tests written by test-writer, not run on the latest code: `wyvern_flight` (106/106 before the size / tail change),
+     `wyvern_breath` (never run), `pass_cars` (DISPLAY_SKIN_MAX), `car_redesign` (tail bound 5.8). Last full suite:
+     49/2 before the latest changes (pass_cars scale, since fixed in the test; environment city_blocks_gap, bug
+     ab037b16, from another session's uncommitted City Blocks work in this tree).
+   - Studio: `RedesignCarModels.ember_wyvern` was built through MCP (Rojo cannot create MeshParts); the owner must
+     save the place (manual.json save-place-wyvern-rig-2026-10-27).
+   - Next, in order: (1) physics-tester full suite (wyvern_flight, wyvern_breath, pass_cars, car_redesign must pass;
+     `breath_zero_in_flap_bursts` is a known judgement call, ask test-writer); (2) commit ONLY the wyvern files — keep
+     out `src/shared/BiomeDressing.luau`, `src/shared/BiomeThemes.luau`, `src/server/CarTest/EnvironmentTests.luau`,
+     `docs/BIOME_DRESSING_SPEC.md`, and stage only the wyvern parts of `docs/GAME_DESIGN_REQUIREMENTS.md` and
+     `tools/dashboard/data/tests_explained.json` (they also hold the City Blocks edits); (3) owner asked to push to
+     main when the tests pass: fast-forward / merge to `origin/main`, then the progress-tracker skill.
+   - 2026-10-27 (session robloxgames-e7): low-speed flap glitch fixed. Wing / Breath used `os.clock() % period` and
+     the period depends on speed below `CRUISE_SPEED` 45, so speed jitter jumped the phase (fine above 45). Now
+     `WyvernMotion.CycleSeconds(speed)` + optional `state.Cycle` integrated by `WyvernAnimator`; Pose/Breath without
+     Cycle unchanged. New checks `wyvern_low_speed_*` (needs the animator's `SMOOTH` 0.15 = test `ANIM_SMOOTH`).
+     Tuned placeholders `FLAP_DOWN` 40 -> 34 deg, `BANK_MAX` 12 -> 8 deg so `wyvern_half_span_at_extremes` passes
+     (9.31 -> 8.945, limit 9; sweep 48.8 >= 40). Rig backup in Studio `ServerStorage.WyvernRigBackup_2026_10_27`
+     (delete after the place is saved). Still to run: pass_cars, car_redesign, full suite.
+   - Not built: the draft's tail wake and wing-tip streams (`vfx_profile.luau`), not asked for.
 
 1. Owner look at the bigger scenery and City towers while racing; tune `SCALE` / `BUDGET` (placeholders).
 2. Live check of the loser screen after an NPC loss (Codex fix in `src/client/NpcRacerView.client.luau`, static

@@ -90,7 +90,8 @@ The existing `car_size`, `gacha`, `index`, `race`, `lap:*` and `vehicle_effects`
 ## 9. Special-case rides (owner, 2026-10-27)
 - Special-case rides (first: `ember_wyvern`) may go over the 6,000-triangle budget and may use textures (an image per
   MeshPart, baked in Blender, `TextureID` / FBX-embedded). Each MeshPart still stays under Roblox's per-mesh limit
-  (20,000 triangles). Bounds, collision and massless rules of section 2 still apply; part names are the section 2
+  (20,000 triangles). Collision and massless rules of section 2 still apply, and the bounds too except that the
+  Ember Wyvern's long tail may reach `|z| <= 5.8` (owner 2026-10-27, `docs/WYVERN_FLIGHT_SPEC.md`); part names are the section 2
   groups plus the skin spec's animated parts (`Wing_L`, `Wing_R`, `docs/VEHICLE_SKINS_SPEC.md`), each wing with its
   `PivotOffset` on the flap hinge. Textured parts carry a `SurfaceAppearance` (ColorMap + NormalMap).
 - Ember Wyvern references (git-ignored, `references/ember_wyvern/images/`): shape from `owner_ref_front_spread.png`

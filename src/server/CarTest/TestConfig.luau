@@ -49,5 +49,7 @@ return {
 		"vehicle_effects",
 		"race_progress_map",
 		"showcase",
+		"wyvern_flight",
+		"wyvern_breath",
 	},
 }

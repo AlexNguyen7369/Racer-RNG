@@ -21,20 +21,21 @@
   neck as geometry). In Roblox the normal maps need a `SurfaceAppearance` (ColorMap + NormalMap). Previews render in
   EEVEE so the normal maps and the Neon glow show. Original artwork.
 - **Files:** `ember_wyvern.blend` (with the flap cycle), `ember_wyvern.fbx` (textures embedded), `textures/*.png`,
-  `preview.png`, `views/` (side, front, top, rear34, head, flap_cycle; studio_vfx*.jpg are from draft 2), `parts.json`.
-- **Budget:** 32044 triangles; per part {"Body": 8164, "Trim": 9164, "Light2": 512, "Light": 2140, "Accent": 880, "Wing_L": 5576, "Wing_R": 5608} (each under Roblox's 20,000). Bounds min
-  [-1.867, -3.28, 0.181] max [1.867, 3.173, 4.731] (Blender x/y/z): inside |x| <= 1.95, |y| <= 3.3, z >= 0 at rest.
+  `preview.png`, `views/` (side, front, top, rear34, head; studio_flight.jpg and studio_breath.jpg are live Studio captures), `parts.json`.
+- **Budget:** 36096 triangles; per part {"Body": 11264, "Trim": 9368, "Light2": 512, "Light": 2140, "Accent": 1628, "Wing_L": 5576, "Wing_R": 5608} (each under Roblox's 20,000). Bounds min
+  [-1.867, -5.62, 0.181] max [1.867, 3.173, 4.731] (Blender x/y/z): |x| <= 1.95, z >= 0, and the long tail to y -5.62 (special-case bound 5.8).
 - **Parts:** `Body` (scales texture), `Trim` (horns, crown, claws, spikes; texture), `Accent` (belly plates;
   texture), `Light` (Neon chest / neck plates, face lines, mouth), `Light2` (Neon eyes, teeth), `Wing_L`, `Wing_R` (membrane + bones + claws +
   arm spikes in one part each, texture).
-- **Flap:** 24 frames at 24 fps, actions `WingFlap_Wing_L` / `WingFlap_Wing_R`: each wing turns about the body axis on
-  its hinge (-8, +38, +10, -8 degrees at frames 1, 8, 16, 24). Hinges (`parts.json`, Blender coords) `Wing_L`
-  [-0.3, 1.05, 1.75], `Wing_R` [0.3, 1.05, 1.75]: the Roblox model needs each wing's `PivotOffset` there. On the
-  downstroke the wings reach past |x| 1.95, so a flap while racing must stay smaller or be checked against the walls.
+- **Flight:** the wings and body are posed live in Roblox from `Shared/WyvernMotion` (see Flight rig below).
 - **Mouth** (fire breath): [0.0, 3.08, 3.314]. Effects draft: `drafts/cars/ember-wyvern/vfx_profile.luau` (blue fire, anchors moved
   for draft 4, not re-checked in Studio).
 
 ## Left for full implementation
-- Wing PivotOffsets; flap in races (client code + its own test round); a full flying loop (neck / tail sway) needs a
-  rig and an uploaded animation.
 - Effects: a design-doc entry first, then the profile goes into `Shared/VehicleEffects`.
+
+## Flight rig (2026-10-27, `docs/WYVERN_FLIGHT_SPEC.md`)
+- `drafts/cars/ember-wyvern/wyvern_rig.py`: 33 bones (spine, neck, head, jaw, tail, legs, wing arm / forearm / hand /
+  four fingers per side), each vertex weighted to its two nearest allowed bones; the head and jaw are rigid. The FBX
+  carries the armature; Roblox Model 100205140229978 (long tail, 2026-10-27). The motion is procedural (`Shared/WyvernMotion`), so the
+  .blend has no animation.

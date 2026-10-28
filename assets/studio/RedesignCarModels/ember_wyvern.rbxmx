@@ -3,6 +3,7 @@
   <Item class="Model" referent="RBXMODEL">
     <Properties>
       <string name="Name">ember_wyvern</string>
+      <BinaryString name="AttributesSerialize">AQAAAAMAAABSaWcCBgAAAFd5dmVybg==</BinaryString>
       <OptionalCoordinateFrame name="WorldPivotData">
         <CFrame>
           <X>0</X>
@@ -30,22 +31,22 @@
         <bool name="Massless">true</bool>
         <bool name="CastShadow">true</bool>
         <Content name="MeshId">
-          <url>rbxassetid://125961747541453</url>
+          <url>rbxassetid://113227149750099</url>
         </Content>
         <Vector3 name="InitialSize">
-          <X>0.42699405550956726</X>
-          <Y>0.14373570680618286</Y>
-          <Z>2.440858840942383</Z>
+          <X>0.4573437571525574</X>
+          <Y>0.18748819828033447</Y>
+          <Z>4.6507415771484375</Z>
         </Vector3>
         <Vector3 name="size">
-          <X>0.42699405550956726</X>
-          <Y>0.14373570680618286</Y>
-          <Z>2.440858840942383</Z>
+          <X>0.4573437571525574</X>
+          <Y>0.18748819828033447</Y>
+          <Z>4.6507415771484375</Z>
         </Vector3>
         <CoordinateFrame name="CFrame">
-          <X>0.01031494140625</X>
-          <Y>1.0302252769470215</Y>
-          <Z>1.7749550342559814</Z>
+          <X>0.025489799678325653</X>
+          <Y>1.0083489418029785</Y>
+          <Z>2.8798961639404297</Z>
           <R00>1</R00>
           <R01>0</R01>
           <R02>0</R02>
@@ -68,10 +69,10 @@
         <Properties>
           <string name="Name">SurfaceAppearance</string>
           <Content name="ColorMap">
-            <url>rbxassetid://130660224405454</url>
+            <url>rbxassetid://135914870257023</url>
           </Content>
           <Content name="NormalMap">
-            <url>rbxassetid://135520841272579</url>
+            <url>rbxassetid://78936809773639</url>
           </Content>
         </Properties>
       </Item>
@@ -86,22 +87,22 @@
         <bool name="Massless">true</bool>
         <bool name="CastShadow">true</bool>
         <Content name="MeshId">
-          <url>rbxassetid://140061119999464</url>
+          <url>rbxassetid://125575076475997</url>
         </Content>
         <Vector3 name="InitialSize">
           <X>0.9044424295425415</X>
           <Y>3.070251703262329</Y>
-          <Z>6.45269775390625</Z>
+          <Z>8.671428680419922</Z>
         </Vector3>
         <Vector3 name="size">
           <X>0.9044424295425415</X>
           <Y>3.070251703262329</Y>
-          <Z>6.45269775390625</Z>
+          <Z>8.671428680419922</Z>
         </Vector3>
         <CoordinateFrame name="CFrame">
           <X>-2.5331974029541016e-07</X>
           <Y>1.8934999704360962</Y>
-          <Z>0.05306875705718994</Z>
+          <Z>1.1624341011047363</Z>
           <R00>1</R00>
           <R01>0</R01>
           <R02>0</R02>
@@ -124,11 +125,848 @@
         <Properties>
           <string name="Name">SurfaceAppearance</string>
           <Content name="ColorMap">
-            <url>rbxassetid://79129510002407</url>
+            <url>rbxassetid://118831329187886</url>
           </Content>
           <Content name="NormalMap">
-            <url>rbxassetid://99817676965344</url>
+            <url>rbxassetid://107072589543086</url>
           </Content>
+        </Properties>
+      </Item>
+      <Item class="Bone" referent="RBXB0">
+        <Properties>
+          <string name="Name">Root</string>
+          <CoordinateFrame name="CFrame">
+            <X>0.0</X>
+            <Y>-0.5134999752044678</Y>
+            <Z>-0.862433910369873</Z>
+            <R00>-1.0</R00>
+            <R01>1.215492346773317e-07</R01>
+            <R02>1.755712162321288e-07</R02>
+            <R10>-1.5099580252808664e-07</R10>
+            <R11>0.17888563871383667</R11>
+            <R12>-0.9838699102401733</R12>
+            <R20>-1.5099578831723193e-07</R20>
+            <R21>-0.9838699102401733</R21>
+            <R22>-0.17888563871383667</R22>
+          </CoordinateFrame>
+        </Properties>
+        <Item class="Bone" referent="RBXB1">
+          <Properties>
+            <string name="Name">Tail1</string>
+            <CoordinateFrame name="CFrame">
+              <X>1.4210854715202004e-14</X>
+              <Y>-2.9802322387695312e-08</Y>
+              <Z>1.1920928955078125e-07</Z>
+              <R00>1.0</R00>
+              <R01>-1.525817887310907e-16</R01>
+              <R02>-5.3268860202297826e-15</R02>
+              <R10>0.0</R10>
+              <R11>-0.9995900392532349</R11>
+              <R12>0.028631970286369324</R12>
+              <R20>-5.329070518200751e-15</R20>
+              <R21>-0.028631970286369324</R21>
+              <R22>-0.9995900392532349</R22>
+            </CoordinateFrame>
+          </Properties>
+          <Item class="Bone" referent="RBXB2">
+            <Properties>
+              <string name="Name">Tail2</string>
+              <CoordinateFrame name="CFrame">
+                <X>-1.703962126953229e-08</X>
+                <Y>1.0621206760406494</Y>
+                <Z>1.1920928955078125e-07</Z>
+                <R00>0.6025930643081665</R00>
+                <R01>-0.07178425043821335</R01>
+                <R02>0.7948136925697327</R02>
+                <R10>0.0487670972943306</R10>
+                <R11>0.9973973035812378</R11>
+                <R12>0.05310767889022827</R12>
+                <R20>-0.7965572476387024</R20>
+                <R21>0.006758435163646936</R21>
+                <R22>0.6045253872871399</R22>
+              </CoordinateFrame>
+            </Properties>
+            <Item class="Bone" referent="RBXB3">
+              <Properties>
+                <string name="Name">Tail3</string>
+                <CoordinateFrame name="CFrame">
+                  <X>0.0</X>
+                  <Y>0.5572245121002197</Y>
+                  <Z>-2.384185791015625e-07</Z>
+                  <R00>-0.7960168719291687</R00>
+                  <R01>0.042266927659511566</R01>
+                  <R02>-0.6037969589233398</R02>
+                  <R10>-0.0631086453795433</R10>
+                  <R11>0.9863260984420776</R11>
+                  <R12>0.15224412083625793</R12>
+                  <R20>0.6019755005836487</R20>
+                  <R21>0.15929368138313293</R21>
+                  <R22>-0.7824648022651672</R22>
+                </CoordinateFrame>
+              </Properties>
+              <Item class="Bone" referent="RBXB4">
+                <Properties>
+                  <string name="Name">Tail4</string>
+                  <CoordinateFrame name="CFrame">
+                    <X>1.1920928955078125e-07</X>
+                    <Y>1.1073395013809204</Y>
+                    <Z>-5.960464477539063e-08</Z>
+                    <R00>-0.32897043228149414</R00>
+                    <R01>0.03933854401111603</R01>
+                    <R02>-0.9435205459594727</R02>
+                    <R10>-0.29056984186172485</R10>
+                    <R11>0.9464421272277832</R11>
+                    <R12>0.14077122509479523</R12>
+                    <R20>0.8985252976417542</R20>
+                    <R21>0.32046815752983093</R21>
+                    <R22>-0.2999208867549896</R22>
+                  </CoordinateFrame>
+                </Properties>
+                <Item class="Bone" referent="RBXB5">
+                  <Properties>
+                    <string name="Name">Tail5</string>
+                    <CoordinateFrame name="CFrame">
+                      <X>2.384185791015625e-07</X>
+                      <Y>1.0315523147583008</Y>
+                      <Z>-3.5762786865234375e-07</Z>
+                      <R00>0.3159417510032654</R00>
+                      <R01>-0.1929447501897812</R01>
+                      <R02>-0.928952693939209</R02>
+                      <R10>-0.00016202776168938726</R10>
+                      <R11>0.9790927767753601</R11>
+                      <R12>-0.20341402292251587</R12>
+                      <R20>0.9487785696983337</R20>
+                      <R21>0.06441750377416611</R21>
+                      <R22>0.30930501222610474</R22>
+                    </CoordinateFrame>
+                  </Properties>
+                  <Item class="Bone" referent="RBXB6">
+                    <Properties>
+                      <string name="Name">Tail6</string>
+                      <CoordinateFrame name="CFrame">
+                        <X>-2.384185791015625e-07</X>
+                        <Y>0.5007989406585693</Y>
+                        <Z>1.6391277313232422e-07</Z>
+                        <R00>-0.35678109526634216</R00>
+                        <R01>0.00020217256678733975</R01>
+                        <R02>0.9341880083084106</R02>
+                        <R10>0.23691582679748535</R10>
+                        <R11>0.9673271179199219</R11>
+                        <R12>0.09027253836393356</R12>
+                        <R20>-0.9036471247673035</R20>
+                        <R21>0.25353145599365234</R21>
+                        <R22>-0.3451719284057617</R22>
+                      </CoordinateFrame>
+                    </Properties>
+                  </Item>
+                </Item>
+              </Item>
+            </Item>
+          </Item>
+          <Item class="Bone" referent="RBXB7">
+            <Properties>
+              <string name="Name">Thigh_L</string>
+              <CoordinateFrame name="CFrame">
+                <X>0.25999999046325684</X>
+                <Y>0.5334609746932983</Y>
+                <Z>-0.18171215057373047</Z>
+                <R00>0.9716750383377075</R00>
+                <R01>0.2073904573917389</R01>
+                <R02>-0.11329974979162216</R02>
+                <R10>0.18795597553253174</R10>
+                <R11>-0.3875923454761505</R11>
+                <R12>0.9024659395217896</R12>
+                <R20>0.14324872195720673</R20>
+                <R21>-0.8981989622116089</R21>
+                <R22>-0.41559407114982605</R22>
+              </CoordinateFrame>
+            </Properties>
+            <Item class="Bone" referent="RBXB8">
+              <Properties>
+                <string name="Name">Shin_L</string>
+                <CoordinateFrame name="CFrame">
+                  <X>0.0</X>
+                  <Y>0.4821823239326477</Y>
+                  <Z>-2.9802322387695312e-08</Z>
+                  <R00>0.9047465324401855</R00>
+                  <R01>0.056935474276542664</R01>
+                  <R02>0.4221280515193939</R02>
+                  <R10>0.42421427369117737</R10>
+                  <R11>-0.031057065352797508</R11>
+                  <R12>-0.9050291776657104</R12>
+                  <R20>-0.038418203592300415</R20>
+                  <R21>0.9978947639465332</R21>
+                  <R22>-0.05225161463022232</R22>
+                </CoordinateFrame>
+              </Properties>
+            </Item>
+          </Item>
+          <Item class="Bone" referent="RBXB9">
+            <Properties>
+              <string name="Name">Thigh_R</string>
+              <CoordinateFrame name="CFrame">
+                <X>-0.25999996066093445</X>
+                <Y>0.5334610939025879</Y>
+                <Z>-0.18171179294586182</Z>
+                <R00>0.9716750383377075</R00>
+                <R01>-0.2073904573917389</R01>
+                <R02>0.11329972743988037</R02>
+                <R10>-0.18795594573020935</R10>
+                <R11>-0.3875924348831177</R11>
+                <R12>0.9024659395217896</R12>
+                <R20>-0.14324870705604553</R20>
+                <R21>-0.8981989622116089</R21>
+                <R22>-0.4155941605567932</R22>
+              </CoordinateFrame>
+            </Properties>
+            <Item class="Bone" referent="RBXB10">
+              <Properties>
+                <string name="Name">Shin_R</string>
+                <CoordinateFrame name="CFrame">
+                  <X>0.0</X>
+                  <Y>0.4821825623512268</Y>
+                  <Z>2.9802322387695312e-08</Z>
+                  <R00>0.9047465920448303</R00>
+                  <R01>-0.056935448199510574</R01>
+                  <R02>-0.42212796211242676</R02>
+                  <R10>-0.4242141842842102</R10>
+                  <R11>-0.031057201325893402</R11>
+                  <R12>-0.9050292372703552</R12>
+                  <R20>0.038418129086494446</R20>
+                  <R21>0.9978947639465332</R21>
+                  <R22>-0.05225171893835068</R22>
+                </CoordinateFrame>
+              </Properties>
+            </Item>
+          </Item>
+        </Item>
+        <Item class="Bone" referent="RBXB11">
+          <Properties>
+            <string name="Name">Spine1</string>
+            <CoordinateFrame name="CFrame">
+              <X>3.532214520873822e-10</X>
+              <Y>0.5590169429779053</Y>
+              <Z>1.1920928955078125e-07</Z>
+              <R00>1.0</R00>
+              <R01>-6.900333258379068e-16</R01>
+              <R02>5.284207418149427e-15</R02>
+              <R10>0.0</R10>
+              <R11>0.9915814399719238</R11>
+              <R12>0.12948474287986755</R12>
+              <R20>-5.329070518200751e-15</R20>
+              <R21>-0.12948474287986755</R21>
+              <R22>0.9915814399719238</R22>
+            </CoordinateFrame>
+          </Properties>
+          <Item class="Bone" referent="RBXB12">
+            <Properties>
+              <string name="Name">Spine2</string>
+              <CoordinateFrame name="CFrame">
+                <X>-2.842170943040401e-14</X>
+                <Y>0.5249762535095215</Y>
+                <Z>-2.384185791015625e-07</Z>
+                <R00>1.0</R00>
+                <R01>-2.2971603409754774e-15</R01>
+                <R02>6.72384960277478e-15</R02>
+                <R10>0.0</R10>
+                <R11>0.9462977051734924</R11>
+                <R12>0.32329657673835754</R12>
+                <R20>-7.105427357601002e-15</R20>
+                <R21>-0.32329657673835754</R21>
+                <R22>0.9462977051734924</R22>
+              </CoordinateFrame>
+            </Properties>
+            <Item class="Bone" referent="RBXB13">
+              <Properties>
+                <string name="Name">Neck1</string>
+                <CoordinateFrame name="CFrame">
+                  <X>6.394884621840902e-14</X>
+                  <Y>0.4360044002532959</Y>
+                  <Z>2.384185791015625e-07</Z>
+                  <R00>1.0</R00>
+                  <R01>0.0</R01>
+                  <R02>0.0</R02>
+                  <R10>0.0</R10>
+                  <R11>0.9518342018127441</R11>
+                  <R12>0.30661335587501526</R12>
+                  <R20>0.0</R20>
+                  <R21>-0.30661335587501526</R21>
+                  <R22>0.9518342018127441</R22>
+                </CoordinateFrame>
+              </Properties>
+              <Item class="Bone" referent="RBXB14">
+                <Properties>
+                  <string name="Name">Neck2</string>
+                  <CoordinateFrame name="CFrame">
+                    <X>-1.4210854715202004e-14</X>
+                    <Y>0.4301159381866455</Y>
+                    <Z>1.1920928955078125e-07</Z>
+                    <R00>1.0</R00>
+                    <R01>6.960793517242015e-15</R01>
+                    <R02>-1.4282256204523752e-14</R02>
+                    <R10>-7.105427357601002e-15</R10>
+                    <R11>0.9999485015869141</R11>
+                    <R12>-0.01015195157378912</R12>
+                    <R20>1.4210854715202004e-14</R20>
+                    <R21>0.01015195157378912</R21>
+                    <R22>0.9999485015869141</R22>
+                  </CoordinateFrame>
+                </Properties>
+                <Item class="Bone" referent="RBXB15">
+                  <Properties>
+                    <string name="Name">Neck3</string>
+                    <CoordinateFrame name="CFrame">
+                      <X>2.842170943040401e-14</X>
+                      <Y>0.4580395221710205</Y>
+                      <Z>-4.76837158203125e-07</Z>
+                      <R00>1.0</R00>
+                      <R01>1.842814366815465e-14</R01>
+                      <R02>2.588716831771875e-14</R02>
+                      <R10>-1.4210854715202004e-14</R10>
+                      <R11>0.9880120754241943</R11>
+                      <R12>-0.15437662601470947</R12>
+                      <R20>-2.842170943040401e-14</R20>
+                      <R21>0.15437662601470947</R21>
+                      <R22>0.9880120754241943</R22>
+                    </CoordinateFrame>
+                  </Properties>
+                  <Item class="Bone" referent="RBXB16">
+                    <Properties>
+                      <string name="Name">Neck4</string>
+                      <CoordinateFrame name="CFrame">
+                        <X>2.842170943040401e-14</X>
+                        <Y>0.4666905403137207</Y>
+                        <Z>2.384185791015625e-07</Z>
+                        <R00>1.0</R00>
+                        <R01>-2.8043424516160237e-14</R01>
+                        <R02>-2.1811554095523857e-14</R02>
+                        <R10>2.1316282072803006e-14</R10>
+                        <R11>0.964763879776001</R11>
+                        <R12>-0.26311740279197693</R12>
+                        <R20>2.842170943040401e-14</R20>
+                        <R21>0.26311740279197693</R21>
+                        <R22>0.964763879776001</R22>
+                      </CoordinateFrame>
+                    </Properties>
+                    <Item class="Bone" referent="RBXB17">
+                      <Properties>
+                        <string name="Name">Head</string>
+                        <CoordinateFrame name="CFrame">
+                          <X>0.0</X>
+                          <Y>0.40311288833618164</Y>
+                          <Z>0.0</Z>
+                          <R00>1.0</R00>
+                          <R01>0.0</R01>
+                          <R02>0.0</R02>
+                          <R10>0.0</R10>
+                          <R11>0.9836083650588989</R11>
+                          <R12>-0.18031851947307587</R12>
+                          <R20>0.0</R20>
+                          <R21>0.18031851947307587</R21>
+                          <R22>0.9836083650588989</R22>
+                        </CoordinateFrame>
+                      </Properties>
+                      <Item class="Bone" referent="RBXB18">
+                        <Properties>
+                          <string name="Name">Jaw</string>
+                          <CoordinateFrame name="CFrame">
+                            <X>8.526512829121202e-14</X>
+                            <Y>-0.030020713806152344</Y>
+                            <Z>0.10386848449707031</Z>
+                            <R00>1.0</R00>
+                            <R01>-1.784197188118273e-15</R01>
+                            <R02>-1.4098406856289259e-14</R02>
+                            <R10>0.0</R10>
+                            <R11>0.992087185382843</R11>
+                            <R12>-0.1255517154932022</R12>
+                            <R20>1.4210854715202004e-14</R20>
+                            <R21>0.1255517154932022</R21>
+                            <R22>0.992087185382843</R22>
+                          </CoordinateFrame>
+                        </Properties>
+                      </Item>
+                    </Item>
+                  </Item>
+                </Item>
+              </Item>
+            </Item>
+            <Item class="Bone" referent="RBXB19">
+              <Properties>
+                <string name="Name">Arm_L</string>
+                <CoordinateFrame name="CFrame">
+                  <X>0.3000001907348633</X>
+                  <Y>0.30641841888427734</Y>
+                  <Z>0.0905953049659729</Z>
+                  <R00>0.6960791945457458</R00>
+                  <R01>0.6128259897232056</R01>
+                  <R02>0.3740563690662384</R02>
+                  <R10>-0.715001106262207</R10>
+                  <R11>0.6389841437339783</R11>
+                  <R12>0.28367725014686584</R12>
+                  <R20>-0.06517130136489868</R20>
+                  <R21>-0.464912474155426</R21>
+                  <R22>0.8829548358917236</R22>
+                </CoordinateFrame>
+              </Properties>
+              <Item class="Bone" referent="RBXB20">
+                <Properties>
+                  <string name="Name">Fore_L</string>
+                  <CoordinateFrame name="CFrame">
+                    <X>-3.5762786865234375e-07</X>
+                    <Y>1.0606598854064941</Y>
+                    <Z>-1.7881393432617188e-07</Z>
+                    <R00>0.9762159585952759</R00>
+                    <R01>0.11102030426263809</R01>
+                    <R02>-0.18621726334095</R02>
+                    <R10>-0.006889021955430508</R10>
+                    <R11>0.8743856549263</R11>
+                    <R12>0.48518267273902893</R12>
+                    <R20>0.21669083833694458</R20>
+                    <R21>-0.472360223531723</R21>
+                    <R22>0.8543540835380554</R22>
+                  </CoordinateFrame>
+                </Properties>
+                <Item class="Bone" referent="RBXB21">
+                  <Properties>
+                    <string name="Name">Hand_L</string>
+                    <CoordinateFrame name="CFrame">
+                      <X>-2.384185791015625e-07</X>
+                      <Y>1.1456446647644043</Y>
+                      <Z>4.76837158203125e-07</Z>
+                      <R00>1.0</R00>
+                      <R01>2.086161856595936e-07</R01>
+                      <R02>5.960470161880949e-08</R02>
+                      <R10>-2.0861619987044833e-07</R10>
+                      <R11>1.0</R11>
+                      <R12>3.5762778338721546e-07</R12>
+                      <R20>-5.960463056453591e-08</R20>
+                      <R21>-3.5762778338721546e-07</R21>
+                      <R22>1.0</R22>
+                    </CoordinateFrame>
+                  </Properties>
+                  <Item class="Bone" referent="RBXB22">
+                    <Properties>
+                      <string name="Name">Finger1_L</string>
+                      <CoordinateFrame name="CFrame">
+                        <X>-1.1920928955078125e-07</X>
+                        <Y>-7.152557373046875e-07</Y>
+                        <Z>-2.384185791015625e-07</Z>
+                        <R00>0.9816421270370483</R00>
+                        <R01>0.028636319562792778</R01>
+                        <R02>-0.1885703057050705</R02>
+                        <R10>0.03572474792599678</R10>
+                        <R11>0.9435625076293945</R11>
+                        <R12>0.3292621970176697</R12>
+                        <R20>0.18735671043395996</R20>
+                        <R21>-0.32995426654815674</R21>
+                        <R22>0.9252176284790039</R22>
+                      </CoordinateFrame>
+                    </Properties>
+                  </Item>
+                  <Item class="Bone" referent="RBXB23">
+                    <Properties>
+                      <string name="Name">Finger2_L</string>
+                      <CoordinateFrame name="CFrame">
+                        <X>1.1920928955078125e-07</X>
+                        <Y>-9.5367431640625e-07</Y>
+                        <Z>-1.1920928955078125e-07</Z>
+                        <R00>0.7772672772407532</R00>
+                        <R01>0.4294933080673218</R01>
+                        <R02>0.4597730040550232</R02>
+                        <R10>-0.6281334161758423</R10>
+                        <R11>0.5716585516929626</R11>
+                        <R12>0.5278778076171875</R12>
+                        <R20>-0.03611317276954651</R20>
+                        <R21>-0.6991008520126343</R21>
+                        <R22>0.7141106128692627</R22>
+                      </CoordinateFrame>
+                    </Properties>
+                  </Item>
+                  <Item class="Bone" referent="RBXB24">
+                    <Properties>
+                      <string name="Name">Finger3_L</string>
+                      <CoordinateFrame name="CFrame">
+                        <X>-3.5762786865234375e-07</X>
+                        <Y>-4.76837158203125e-07</Y>
+                        <Z>0.0</Z>
+                        <R00>-0.6265631318092346</R00>
+                        <R01>0.5974164009094238</R01>
+                        <R02>-0.5005120038986206</R02>
+                        <R10>0.7152808904647827</R10>
+                        <R11>0.18575896322727203</R11>
+                        <R12>-0.6736963987350464</R12>
+                        <R20>-0.3095026910305023</R20>
+                        <R21>-0.7801200151443481</R21>
+                        <R22>-0.5437102317810059</R22>
+                      </CoordinateFrame>
+                    </Properties>
+                  </Item>
+                  <Item class="Bone" referent="RBXB25">
+                    <Properties>
+                      <string name="Name">Finger4_L</string>
+                      <CoordinateFrame name="CFrame">
+                        <X>-1.1920928955078125e-07</X>
+                        <Y>-4.76837158203125e-07</Y>
+                        <Z>2.384185791015625e-07</Z>
+                        <R00>0.58267742395401</R00>
+                        <R01>0.6260446906089783</R01>
+                        <R02>-0.5182230472564697</R02>
+                        <R10>0.7083638310432434</R10>
+                        <R11>-0.078651063144207</R11>
+                        <R12>0.7014518976211548</R12>
+                        <R20>0.39838138222694397</R20>
+                        <R21>-0.7758106589317322</R21>
+                        <R22>-0.4892956018447876</R22>
+                      </CoordinateFrame>
+                    </Properties>
+                  </Item>
+                </Item>
+              </Item>
+            </Item>
+            <Item class="Bone" referent="RBXB26">
+              <Properties>
+                <string name="Name">Arm_R</string>
+                <CoordinateFrame name="CFrame">
+                  <X>-0.2999999523162842</X>
+                  <Y>0.306418776512146</Y>
+                  <Z>0.09059536457061768</Z>
+                  <R00>0.6960792541503906</R00>
+                  <R01>-0.6128259301185608</R01>
+                  <R02>-0.3740563988685608</R02>
+                  <R10>0.7150010466575623</R10>
+                  <R11>0.638984203338623</R11>
+                  <R12>0.2836773097515106</R12>
+                  <R20>0.06517129391431808</R20>
+                  <R21>-0.4649125337600708</R21>
+                  <R22>0.8829548358917236</R22>
+                </CoordinateFrame>
+              </Properties>
+              <Item class="Bone" referent="RBXB27">
+                <Properties>
+                  <string name="Name">Fore_R</string>
+                  <CoordinateFrame name="CFrame">
+                    <X>-2.384185791015625e-07</X>
+                    <Y>1.0606602430343628</Y>
+                    <Z>1.7881393432617188e-07</Z>
+                    <R00>0.9762160778045654</R00>
+                    <R01>-0.11102039366960526</R01>
+                    <R02>0.18621711432933807</R02>
+                    <R10>0.00688918586820364</R10>
+                    <R11>0.8743857741355896</R11>
+                    <R12>0.4851827621459961</R12>
+                    <R20>-0.21669071912765503</R20>
+                    <R21>-0.4723602533340454</R21>
+                    <R22>0.8543543219566345</R22>
+                  </CoordinateFrame>
+                </Properties>
+                <Item class="Bone" referent="RBXB28">
+                  <Properties>
+                    <string name="Name">Hand_R</string>
+                    <CoordinateFrame name="CFrame">
+                      <X>2.384185791015625e-07</X>
+                      <Y>1.145644187927246</Y>
+                      <Z>0.0</Z>
+                      <R00>1.0</R00>
+                      <R01>-1.7881390590446244e-07</R01>
+                      <R02>2.9802251333421736e-08</R02>
+                      <R10>1.7881389169360773e-07</R10>
+                      <R11>1.0</R11>
+                      <R12>3.5762778338721546e-07</R12>
+                      <R20>-2.9802315282267955e-08</R20>
+                      <R21>-3.5762778338721546e-07</R21>
+                      <R22>1.0</R22>
+                    </CoordinateFrame>
+                  </Properties>
+                  <Item class="Bone" referent="RBXB29">
+                    <Properties>
+                      <string name="Name">Finger1_R</string>
+                      <CoordinateFrame name="CFrame">
+                        <X>1.1920928955078125e-07</X>
+                        <Y>-7.152557373046875e-07</Y>
+                        <Z>1.1920928955078125e-07</Z>
+                        <R00>0.9816421270370483</R00>
+                        <R01>-0.028636328876018524</R01>
+                        <R02>0.18857026100158691</R02>
+                        <R10>-0.03572472184896469</R10>
+                        <R11>0.9435625076293945</R11>
+                        <R12>0.3292621970176697</R12>
+                        <R20>-0.18735668063163757</R20>
+                        <R21>-0.32995426654815674</R21>
+                        <R22>0.9252176284790039</R22>
+                      </CoordinateFrame>
+                    </Properties>
+                  </Item>
+                  <Item class="Bone" referent="RBXB30">
+                    <Properties>
+                      <string name="Name">Finger2_R</string>
+                      <CoordinateFrame name="CFrame">
+                        <X>-1.1920928955078125e-07</X>
+                        <Y>-4.76837158203125e-07</Y>
+                        <Z>1.1920928955078125e-07</Z>
+                        <R00>0.7772672772407532</R00>
+                        <R01>-0.42949336767196655</R01>
+                        <R02>-0.4597730040550232</R02>
+                        <R10>0.6281334161758423</R10>
+                        <R11>0.5716586112976074</R11>
+                        <R12>0.5278778076171875</R12>
+                        <R20>0.03611316531896591</R20>
+                        <R21>-0.6991008520126343</R21>
+                        <R22>0.7141106724739075</R22>
+                      </CoordinateFrame>
+                    </Properties>
+                  </Item>
+                  <Item class="Bone" referent="RBXB31">
+                    <Properties>
+                      <string name="Name">Finger3_R</string>
+                      <CoordinateFrame name="CFrame">
+                        <X>-1.1920928955078125e-07</X>
+                        <Y>-4.76837158203125e-07</Y>
+                        <Z>3.5762786865234375e-07</Z>
+                        <R00>-0.6265630722045898</R00>
+                        <R01>-0.5974164009094238</R01>
+                        <R02>0.5005121827125549</R02>
+                        <R10>-0.7152810096740723</R10>
+                        <R11>0.18575893342494965</R11>
+                        <R12>-0.6736963391304016</R12>
+                        <R20>0.30950263142585754</R20>
+                        <R21>-0.7801200151443481</R21>
+                        <R22>-0.5437102913856506</R22>
+                      </CoordinateFrame>
+                    </Properties>
+                  </Item>
+                  <Item class="Bone" referent="RBXB32">
+                    <Properties>
+                      <string name="Name">Finger4_R</string>
+                      <CoordinateFrame name="CFrame">
+                        <X>1.1920928955078125e-07</X>
+                        <Y>-4.76837158203125e-07</Y>
+                        <Z>1.1920928955078125e-07</Z>
+                        <R00>0.5826774835586548</R00>
+                        <R01>-0.6260446310043335</R01>
+                        <R02>0.5182230472564697</R02>
+                        <R10>-0.7083637714385986</R10>
+                        <R11>-0.07865112274885178</R11>
+                        <R12>0.7014519572257996</R12>
+                        <R20>-0.3983813524246216</R20>
+                        <R21>-0.775810718536377</R21>
+                        <R22>-0.4892956018447876</R22>
+                      </CoordinateFrame>
+                    </Properties>
+                  </Item>
+                </Item>
+              </Item>
+            </Item>
+          </Item>
+        </Item>
+      </Item>
+      <Item class="Motor6D" referent="RBXMRBX0">
+        <Properties>
+          <string name="Name">AccentMotor6D</string>
+          <Ref name="Part0">RBX1</Ref>
+          <Ref name="Part1">RBX0</Ref>
+          <CoordinateFrame name="C0">
+            <X>0.02549005299806595</X>
+            <Y>-0.8851510286331177</Y>
+            <Z>1.7174620628356934</Z>
+            <R00>1.0</R00>
+            <R01>0.0</R01>
+            <R02>0.0</R02>
+            <R10>0.0</R10>
+            <R11>1.0</R11>
+            <R12>0.0</R12>
+            <R20>0.0</R20>
+            <R21>0.0</R21>
+            <R22>1.0</R22>
+          </CoordinateFrame>
+          <CoordinateFrame name="C1">
+            <X>0.0</X>
+            <Y>0.0</Y>
+            <Z>0.0</Z>
+            <R00>1.0</R00>
+            <R01>0.0</R01>
+            <R02>0.0</R02>
+            <R10>0.0</R10>
+            <R11>1.0</R11>
+            <R12>0.0</R12>
+            <R20>0.0</R20>
+            <R21>0.0</R21>
+            <R22>1.0</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="Motor6D" referent="RBXMRBX2">
+        <Properties>
+          <string name="Name">LightMotor6D</string>
+          <Ref name="Part0">RBX1</Ref>
+          <Ref name="Part1">RBX2</Ref>
+          <CoordinateFrame name="C0">
+            <X>3.725290298461914e-08</X>
+            <Y>0.3390744924545288</Y>
+            <Z>-2.406850576400757</Z>
+            <R00>1.0</R00>
+            <R01>0.0</R01>
+            <R02>0.0</R02>
+            <R10>0.0</R10>
+            <R11>1.0</R11>
+            <R12>0.0</R12>
+            <R20>0.0</R20>
+            <R21>0.0</R21>
+            <R22>1.0</R22>
+          </CoordinateFrame>
+          <CoordinateFrame name="C1">
+            <X>0.0</X>
+            <Y>0.0</Y>
+            <Z>0.0</Z>
+            <R00>1.0</R00>
+            <R01>0.0</R01>
+            <R02>0.0</R02>
+            <R10>0.0</R10>
+            <R11>1.0</R11>
+            <R12>0.0</R12>
+            <R20>0.0</R20>
+            <R21>0.0</R21>
+            <R22>1.0</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="Motor6D" referent="RBXMRBX3">
+        <Properties>
+          <string name="Name">Light2Motor6D</string>
+          <Ref name="Part0">RBX1</Ref>
+          <Ref name="Part1">RBX3</Ref>
+          <CoordinateFrame name="C0">
+            <X>1.1920928955078125e-07</X>
+            <Y>1.3453091382980347</Y>
+            <Z>-3.947944402694702</Z>
+            <R00>1.0</R00>
+            <R01>0.0</R01>
+            <R02>0.0</R02>
+            <R10>0.0</R10>
+            <R11>1.0</R11>
+            <R12>0.0</R12>
+            <R20>0.0</R20>
+            <R21>0.0</R21>
+            <R22>1.0</R22>
+          </CoordinateFrame>
+          <CoordinateFrame name="C1">
+            <X>0.0</X>
+            <Y>0.0</Y>
+            <Z>0.0</Z>
+            <R00>1.0</R00>
+            <R01>0.0</R01>
+            <R02>0.0</R02>
+            <R10>0.0</R10>
+            <R11>1.0</R11>
+            <R12>0.0</R12>
+            <R20>0.0</R20>
+            <R21>0.0</R21>
+            <R22>1.0</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="Motor6D" referent="RBXMRBX4">
+        <Properties>
+          <string name="Name">TrimMotor6D</string>
+          <Ref name="Part0">RBX1</Ref>
+          <Ref name="Part1">RBX4</Ref>
+          <CoordinateFrame name="C0">
+            <X>-7.450580596923828e-08</X>
+            <Y>-0.059288740158081055</Y>
+            <Z>0.1006540060043335</Z>
+            <R00>1.0</R00>
+            <R01>0.0</R01>
+            <R02>0.0</R02>
+            <R10>0.0</R10>
+            <R11>1.0</R11>
+            <R12>0.0</R12>
+            <R20>0.0</R20>
+            <R21>0.0</R21>
+            <R22>1.0</R22>
+          </CoordinateFrame>
+          <CoordinateFrame name="C1">
+            <X>0.0</X>
+            <Y>0.0</Y>
+            <Z>0.0</Z>
+            <R00>1.0</R00>
+            <R01>0.0</R01>
+            <R02>0.0</R02>
+            <R10>0.0</R10>
+            <R11>1.0</R11>
+            <R12>0.0</R12>
+            <R20>0.0</R20>
+            <R21>0.0</R21>
+            <R22>1.0</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="Motor6D" referent="RBXMRBX5">
+        <Properties>
+          <string name="Name">Wing_LMotor6D</string>
+          <Ref name="Part0">RBX1</Ref>
+          <Ref name="Part1">RBX5</Ref>
+          <CoordinateFrame name="C0">
+            <X>-1.0383640378713608</X>
+            <Y>1.2419227361679077</Y>
+            <Z>-0.8852739930152893</Z>
+            <R00>1.0</R00>
+            <R01>0.0</R01>
+            <R02>0.0</R02>
+            <R10>0.0</R10>
+            <R11>1.0</R11>
+            <R12>0.0</R12>
+            <R20>0.0</R20>
+            <R21>0.0</R21>
+            <R22>1.0</R22>
+          </CoordinateFrame>
+          <CoordinateFrame name="C1">
+            <X>0.0</X>
+            <Y>0.0</Y>
+            <Z>0.0</Z>
+            <R00>1.0</R00>
+            <R01>0.0</R01>
+            <R02>0.0</R02>
+            <R10>0.0</R10>
+            <R11>1.0</R11>
+            <R12>0.0</R12>
+            <R20>0.0</R20>
+            <R21>0.0</R21>
+            <R22>1.0</R22>
+          </CoordinateFrame>
+        </Properties>
+      </Item>
+      <Item class="Motor6D" referent="RBXMRBX6">
+        <Properties>
+          <string name="Name">Wing_RMotor6D</string>
+          <Ref name="Part0">RBX1</Ref>
+          <Ref name="Part1">RBX6</Ref>
+          <CoordinateFrame name="C0">
+            <X>1.0383634716272354</X>
+            <Y>1.2419229745864868</Y>
+            <Z>-0.8852735757827759</Z>
+            <R00>1.0</R00>
+            <R01>0.0</R01>
+            <R02>0.0</R02>
+            <R10>0.0</R10>
+            <R11>1.0</R11>
+            <R12>0.0</R12>
+            <R20>0.0</R20>
+            <R21>0.0</R21>
+            <R22>1.0</R22>
+          </CoordinateFrame>
+          <CoordinateFrame name="C1">
+            <X>0.0</X>
+            <Y>0.0</Y>
+            <Z>0.0</Z>
+            <R00>1.0</R00>
+            <R01>0.0</R01>
+            <R02>0.0</R02>
+            <R10>0.0</R10>
+            <R11>1.0</R11>
+            <R12>0.0</R12>
+            <R20>0.0</R20>
+            <R21>0.0</R21>
+            <R22>1.0</R22>
+          </CoordinateFrame>
         </Properties>
       </Item>
     </Item>
@@ -142,7 +980,7 @@
         <bool name="Massless">true</bool>
         <bool name="CastShadow">true</bool>
         <Content name="MeshId">
-          <url>rbxassetid://108533970082292</url>
+          <url>rbxassetid://125799000353532</url>
         </Content>
         <Vector3 name="InitialSize">
           <X>0.4495454430580139</X>
@@ -187,7 +1025,7 @@
         <bool name="Massless">true</bool>
         <bool name="CastShadow">true</bool>
         <Content name="MeshId">
-          <url>rbxassetid://109076626361398</url>
+          <url>rbxassetid://119772297334222</url>
         </Content>
         <Vector3 name="InitialSize">
           <X>0.32715439796447754</X>
@@ -232,22 +1070,22 @@
         <bool name="Massless">true</bool>
         <bool name="CastShadow">true</bool>
         <Content name="MeshId">
-          <url>rbxassetid://94607114525580</url>
+          <url>rbxassetid://130718269009217</url>
         </Content>
         <Vector3 name="InitialSize">
           <X>1.0148310661315918</X>
           <Y>3.3072779178619385</Y>
-          <Z>6.373824119567871</Z>
+          <Z>8.713823318481445</Z>
         </Vector3>
         <Vector3 name="size">
           <X>1.0148310661315918</X>
           <Y>3.3072779178619385</Y>
-          <Z>6.373824119567871</Z>
+          <Z>8.713823318481445</Z>
         </Vector3>
         <CoordinateFrame name="CFrame">
           <X>-3.2782554626464844e-07</X>
           <Y>1.8342112302780151</Y>
-          <Z>0.09308826923370361</Z>
+          <Z>1.2630881071090698</Z>
           <R00>1</R00>
           <R01>0</R01>
           <R02>0</R02>
@@ -270,10 +1108,10 @@
         <Properties>
           <string name="Name">SurfaceAppearance</string>
           <Content name="ColorMap">
-            <url>rbxassetid://126855146367694</url>
+            <url>rbxassetid://98896818666764</url>
           </Content>
           <Content name="NormalMap">
-            <url>rbxassetid://117604372898848</url>
+            <url>rbxassetid://91822012832567</url>
           </Content>
         </Properties>
       </Item>
@@ -288,7 +1126,7 @@
         <bool name="Massless">true</bool>
         <bool name="CastShadow">true</bool>
         <Content name="MeshId">
-          <url>rbxassetid://114902880855315</url>
+          <url>rbxassetid://77679146895457</url>
         </Content>
         <Vector3 name="InitialSize">
           <X>1.658050298690796</X>
@@ -358,7 +1196,7 @@
         <bool name="Massless">true</bool>
         <bool name="CastShadow">true</bool>
         <Content name="MeshId">
-          <url>rbxassetid://136075534926875</url>
+          <url>rbxassetid://89261172076619</url>
         </Content>
         <Vector3 name="InitialSize">
           <X>1.6580497026443481</X>

@@ -11,7 +11,7 @@ follows docs/CAR_REDESIGN_SPEC.md: drafts/cars/ember_wyvern/redesign/. Special-c
 2026-10-27): over the 6,000-triangle budget, with baked textures (procedural scales / membrane veins baked to one
 image per part, textures/*.png, embedded in the FBX). Blender axes: +Y forward (Roblox -Z), +Z up, 1 unit = 1 stud,
 origin at the base centre. Body, neck, tail, legs and bones are Skin-modifier tubes; Wing_L / Wing_R are single
-parts so Client/BestRollView can flap them, and the .blend carries a 24-frame flap cycle (WingFlap actions).
+parts, skinned with the rest to one flight rig (wyvern_rig.py) that Shared/WyvernMotion poses in Roblox.
 """
 import json
 import math
@@ -26,6 +26,7 @@ exec(open(ROOT / 'tools/build_redesign_cars.py').read())
 
 MAX_TRIS = 40000  # special-case ride (CAR_REDESIGN_SPEC section 9); each part is checked against MESH_LIMIT
 MESH_LIMIT = 20000  # Roblox triangles per MeshPart
+MAX_Y = 5.8  # special-case ride: the long tail passes the 3.3 car bound (CAR_REDESIGN_SPEC section 9)
 # Wings are their own groups: the flap needs one part per side (BestRollView looks for Wing_L / Wing_R exactly).
 GROUP_MATERIAL['Wing_L'] = GROUP_MATERIAL['Wing_R'] = 'SmoothPlastic'
 
@@ -53,12 +54,20 @@ MOUTH = tuple(HEAD_M @ Vector((0.0, 3.14, 2.2)))
 
 # Spine from the tail tip to the nose: (x, y, z, radius across, radius up). Long neck, long tail (reference).
 SPINE = [
-    (0.0, -3.28, 1.0, 0.025, 0.025), (0.12, -2.95, 1.02, 0.05, 0.045), (0.18, -2.6, 1.05, 0.08, 0.07),
-    (0.12, -2.2, 1.1, 0.11, 0.1), (0.04, -1.8, 1.15, 0.15, 0.14), (0.0, -1.35, 1.22, 0.21, 0.2),
+    # Long whip tail (owner 2026-10-27: "make dragon tail longer"): past the |y| 3.3 car bound, CAR_REDESIGN_SPEC 9.
+    (0.0, -5.5, 0.95, 0.025, 0.025), (0.1, -5.0, 0.97, 0.04, 0.035), (0.22, -4.5, 0.99, 0.055, 0.05),
+    (0.2, -4.0, 1.01, 0.07, 0.06), (0.08, -3.5, 1.03, 0.085, 0.075), (-0.05, -3.0, 1.05, 0.1, 0.09),
+    (-0.02, -2.5, 1.08, 0.12, 0.11), (0.04, -1.9, 1.14, 0.15, 0.14), (0.0, -1.35, 1.22, 0.21, 0.2),
     (0.0, -0.85, 1.3, 0.3, 0.28), (0.0, -0.3, 1.38, 0.36, 0.33), (0.0, 0.25, 1.48, 0.34, 0.32),
     (0.0, 0.75, 1.64, 0.28, 0.27), (0.0, 1.1, 1.9, 0.19, 0.19), (0.0, 1.35, 2.25, 0.14, 0.14),
     (0.0, 1.62, 2.62, 0.12, 0.12), (0.0, 1.95, 2.95, 0.11, 0.11), (0.0, 2.3, 3.15, 0.115, 0.11),
 ]  # raised S-neck; the head is a separate angular loft (head(), moved by HEAD_M)
+
+
+HIP = 9  # SPINE index of the hips: the legs branch there and the rig's Root starts after it
+# Hind leg folded under the hips (glide pose), branching off SPINE[HIP]; mirrored for the left leg.
+LEG = [(0.26, -0.8, 1.12, 0.16, 0.16), (0.36, -0.55, 0.72, 0.11, 0.11), (0.33, -0.95, 0.48, 0.065, 0.065),
+       (0.33, -1.15, 0.38, 0.05, 0.045)]
 
 
 def along(y):
@@ -144,17 +153,24 @@ def claw(c, base, direction, length, radius, group='Trim'):
     horn(c, [tuple(base), tuple(mid), tuple(tip)], radius, group)
 
 
+def wing_points(s):
+    """Joints of one wing (s = -1 left, +1 right); shared by the mesh (wing()) and the rig (wyvern_rig.py)."""
+    shoulder = Vector((s * WING_HINGE[0], WING_HINGE[1], WING_HINGE[2]))
+    elbow = Vector((s * 0.95, 1.3, 2.55))
+    wrist = Vector((s * 1.45, 1.05, 3.55))
+    tips = [Vector((s * 1.8, 0.4, 4.6)), Vector((s * 1.83, -0.45, 4.05)), Vector((s * 1.8, -1.2, 3.3)),
+            Vector((s * 1.64, -1.85, 2.45))]
+    return {'shoulder': shoulder, 'elbow': elbow, 'wrist': wrist, 'tips': tips}
+
+
 def wing(c, side):
     """Bat wing raised in a V (bounds |x| <= 1.95): arm, four long fingers and a thumb claw, an amber membrane with
     ragged scallops between the fingers, solidified so both faces render. Faces of the membrane carry kind = 1 for the
     texture bake (bones stay 0)."""
     s = side
     name = 'Wing_L' if s < 0 else 'Wing_R'
-    shoulder = Vector((s * WING_HINGE[0], WING_HINGE[1], WING_HINGE[2]))
-    elbow = Vector((s * 0.95, 1.3, 2.55))
-    wrist = Vector((s * 1.45, 1.05, 3.55))
-    tips = [Vector((s * 1.8, 0.4, 4.6)), Vector((s * 1.83, -0.45, 4.05)), Vector((s * 1.8, -1.2, 3.3)),
-            Vector((s * 1.64, -1.85, 2.45))]
+    w = wing_points(s)
+    shoulder, elbow, wrist, tips = w['shoulder'], w['elbow'], w['wrist'], w['tips']
     knuckles = [wrist + (t - wrist) * 0.45 + Vector((s * 0.06, 0, 0.05)) for t in tips]
     root = Vector((s * 0.22, -1.1, 1.55))
     # Membrane fan from the wrist, panels between neighbouring fingers; trailing edges sag in two ragged scallops.
@@ -282,15 +298,12 @@ def head(c):
 
 def wyvern():
     c = Wyvern('ember_wyvern', COLORS)
-    legs = [
-        (6, [(0.26, -0.8, 1.12, 0.16, 0.16), (0.36, -0.55, 0.72, 0.11, 0.11), (0.33, -0.95, 0.48, 0.065, 0.065),
-             (0.33, -1.15, 0.38, 0.05, 0.045)]),
-    ]
+    legs = [(HIP, LEG)]
     skin(c, 'Body', SPINE, branches=legs, mirror=True, subdiv=2)
     head(c)
     # Belly plates: overlapping amber bands under the spine from chin to tail, pitched along the spine.
     y = 2.35
-    while y > -2.95:
+    while y > -5.25:
         x, z, rx, rz = along(y)
         x2, z2, _, _ = along(y - 0.1)
         pitch = math.atan2(z - z2, 0.1)
@@ -301,7 +314,7 @@ def wyvern():
     # Dorsal spikes: neck to tail tip, a big ridge over the back, small over the tail; paired side spikes on the tail.
     y = 2.05
     i = 0
-    while y > -3.15:
+    while y > -5.35:
         x, z, rx, rz = along(y)
         h = 0.05 + 0.18 * max(0.0, min(1.0, rz / 0.3)) + (0.03 if i % 2 else 0)
         cone(c, 'Trim', (x, y + 0.03, z + rz * 0.85), (x, y - 0.12, z + rz + h), 0.03 + rz * 0.12, 5)
@@ -313,7 +326,7 @@ def wyvern():
     # Raised diamond scutes in staggered rows over the back, flanks and neck (geometry the silhouette can show).
     row = 0
     y = 2.1
-    while y > -2.75:
+    while y > -4.6:
         x, z, rx, rz = along(y)
         size = 0.03 + 0.07 * rz
         for k, th in enumerate((0.42, 0.9, 1.38)):
@@ -325,12 +338,12 @@ def wyvern():
         y -= 0.12
         row += 1
     # Tail tip barb.
-    x, z, _, _ = along(-3.2)
-    cone(c, 'Trim', (x, -3.12, z), (x, -3.28, z + 0.02), 0.05, 6)
+    x, z, _, _ = along(-5.4)
+    cone(c, 'Trim', (x, -5.35, z), (x, -5.62, z + 0.02), 0.05, 6)
     # Smoke tendrils trailing off the tail tip and the hips (shadow look).
     for s in (-1, 1):
-        x, z, _, _ = along(-2.9)
-        horn(c, [(x, -2.9, z), (x + s * 0.15, -3.05, z + 0.12), (x + s * 0.12, -3.2, z + 0.25)], 0.02)
+        x, z, _, _ = along(-5.1)
+        horn(c, [(x, -5.1, z), (x + s * 0.15, -5.25, z + 0.12), (x + s * 0.12, -5.4, z + 0.25)], 0.02)
         horn(c, [(s * 0.3, -0.7, 1.2), (s * 0.45, -1.0, 1.05), (s * 0.42, -1.35, 0.95), (s * 0.5, -1.6, 0.98)], 0.022)
     # Feet: three toes with hooked claws each, plus a dew claw.
     for s in (-1, 1):
@@ -485,9 +498,9 @@ class Wyvern(Car):
             sun.data.energy = power
             sun.rotation_euler = rot
             scene.collection.objects.link(sun)
-        target = Vector((0, 0, 2.2))
-        views = {'preview': ((7.5, 7.5, 6.2), 10.5), 'side': ((12, 0, 0), 8.4), 'front': ((0, 12, 0), 6.5),
-                 'top': ((0, 0, 14), 8.4), 'rear34': ((-7, -9, 5), 10.5), 'head': ((2.2, 3.2, 0.9), 1.9)}
+        target = Vector((0, -1.2, 2.2))  # the long tail moves the middle back
+        views = {'preview': ((7.5, 7.5, 6.2), 12.5), 'side': ((12, 0, 0), 10.8), 'front': ((0, 12, 0), 6.5),
+                 'top': ((0, 0, 14), 10.8), 'rear34': ((-7, -9, 5), 12.5), 'head': ((2.2, 3.2, 0.9), 1.9)}
         (out / 'views').mkdir(exist_ok=True)
         for name, (loc, scale) in views.items():
             aim = HEAD_M @ Vector((0, 2.65, 2.3)) if name == 'head' else target
@@ -569,37 +582,35 @@ class Wyvern(Car):
 
 
 def after_build(report):
-    """Re-export the FBX with embedded textures, add the flap cycle to the .blend, record pivots and the mouth."""
+    """Skin every part to the flight rig (docs/WYVERN_FLIGHT_SPEC.md section 2), re-export the FBX with the armature
+    and embedded textures, record pivots, bones and the mouth. The motion itself is procedural in Roblox
+    (Shared/WyvernMotion), so the .blend carries no animation."""
     out = ROOT / 'drafts/cars/ember_wyvern/redesign'
     scene = bpy.data.scenes['Redesign_ember_wyvern']
     obs = [scene.objects[g] for g in report['parts']]
+    exec(open(ROOT / 'drafts/cars/ember-wyvern/wyvern_rig.py').read(), globals())
+    rig_ob = rig(scene, obs, {'spine': SPINE, 'hip': HIP, 'leg': [p[:3] for p in LEG], 'head_m': HEAD_M,
+                              'wing': wing_points})
     turn = Matrix.Rotation(math.pi, 4, 'Z')  # same export turn as Car.finish
-    for ob in obs:
+    moved = obs + [rig_ob]
+    for ob in moved:
         ob.matrix_world = turn @ ob.matrix_world
-    with bpy.context.temp_override(scene=scene, selected_objects=obs, selected_editable_objects=obs, active_object=obs[0]):
-        bpy.ops.export_scene.fbx(filepath=str(out / 'ember_wyvern.fbx'), use_selection=True, object_types={'MESH'},
+    with bpy.context.temp_override(scene=scene, selected_objects=moved, selected_editable_objects=moved,
+                                   active_object=obs[0]):
+        bpy.ops.export_scene.fbx(filepath=str(out / 'ember_wyvern.fbx'), use_selection=True,
+                                 object_types={'MESH', 'ARMATURE'}, use_armature_deform_only=True,
                                  apply_unit_scale=True, apply_scale_options='FBX_SCALE_NONE', global_scale=0.01,
                                  axis_forward='-Z', axis_up='Y', mesh_smooth_type='OFF', add_leaf_bones=False,
-                                 path_mode='COPY', embed_textures=True)
-    for ob in obs:
+                                 bake_anim=False, path_mode='COPY', embed_textures=True)
+    for ob in moved:
         ob.matrix_world = turn.inverted() @ ob.matrix_world
-    # Flap cycle (24 frames at 24 fps): wings pivot on their hinge about the body axis, downstroke then recovery.
-    scene.frame_start, scene.frame_end, scene.render.fps = 1, 24, 24
-    for name, s in (('Wing_L', -1), ('Wing_R', 1)):
-        ob = scene.objects[name]
-        hinge = Vector((s * WING_HINGE[0], WING_HINGE[1], WING_HINGE[2]))
-        ob.data.transform(Matrix.Translation(-hinge))
-        ob.location = hinge
-        for frame, deg in ((1, -8), (8, 38), (16, 10), (24, -8)):
-            ob.rotation_euler = (0, math.radians(deg) * s, 0)
-            ob.keyframe_insert('rotation_euler', index=1, frame=frame)
-        ob.animation_data.action.name = 'WingFlap_' + name
     bpy.data.libraries.write(str(out / 'ember_wyvern.blend'), {scene}, fake_user=True, compress=True)
     data = json.loads((out / 'parts.json').read_text())
     data['mouth'] = list(MOUTH)
     data['wing_hinge'] = {'Wing_L': [-WING_HINGE[0], *WING_HINGE[1:]], 'Wing_R': list(WING_HINGE)}
     data['textures'] = {name: 'textures/%s.png' % name for name in TEXTURE}
     data['part_tris'] = {ob.name: sum(len(p.vertices) - 2 for p in ob.data.polygons) for ob in obs}
+    data['bones'] = [b.name for b in rig_ob.data.bones]
     (out / 'parts.json').write_text(json.dumps(data, indent=2) + '\n')
     print('PARTS', json.dumps(data['part_tris']))
 

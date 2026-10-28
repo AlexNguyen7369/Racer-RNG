@@ -30,6 +30,8 @@ local TEX = {
 local FLIPBOOKS = { Bolt = true, Flame = true, VoidWisp = true, KiFlame = true } -- 4 x 4 sheets
 local LOOPING = { KiFlame = 24 } -- flipbooks that loop (frames per second) from a random frame, to flicker
 Effects.MOTION_TAG = "VehicleFxMotion"
+Effects.TEXTURES = TEX -- uploaded VFX textures, shared with the Ember Wyvern breath (Shared/WyvernBreath)
+Effects.FLIPBOOKS = FLIPBOOKS
 
 local rgb, V = Color3.fromRGB, Vector3.new
 local WHITE, BLACK = rgb(255, 255, 255), rgb(0, 0, 0)

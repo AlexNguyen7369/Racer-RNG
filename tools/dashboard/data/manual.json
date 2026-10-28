@@ -575,6 +575,18 @@
       ],
       "done": "2026-10-27",
       "note": "Verified: Studio scripts match disk (RedesignTests synced live); RedesignCarModels.ember_wyvern present once."
+    },
+    {
+      "id": "save-place-wyvern-rig-2026-10-27",
+      "title": "Save the Studio place (rigged Ember Wyvern model)",
+      "why": "Rojo cannot create or update MeshParts (MeshId is plugin-locked), so ReplicatedStorage.RedesignCarModels.ember_wyvern (rigged, 33 bones, Model 100205140229978 (long tail)) was built in Studio through MCP. It only persists when the place is saved; assets/studio/RedesignCarModels/ember_wyvern.rbxmx on disk is the same model for rojo build.",
+      "blocks": "The flying wyvern in a published game and in the next Studio session.",
+      "when": "2026-10-27",
+      "status": "open",
+      "steps": [
+        "In Studio (edit mode) check ReplicatedStorage.RedesignCarModels.ember_wyvern: Body has a Root bone tree, the model has attribute Rig = Wyvern.",
+        "File > Save (or Publish to Roblox when you ship)."
+      ]
     }
   ]
 }

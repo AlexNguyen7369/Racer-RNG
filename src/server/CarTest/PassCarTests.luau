@@ -440,12 +440,14 @@ function Tests.pass_cars()
 		end
 		flag("pass_cars_car_parts_static_" .. id, carOk and #parts > 0 and loose == 0, loose, 0)
 		local scale = carOk and template and template:IsA("Model") and shown:GetScale() / template:GetScale() or -1
-		flag(
-			"pass_cars_car_scale_" .. id,
-			numbersOk and math.abs(scale - (P.CAR_SCALE or 0)) < SCALE_TOL,
-			scale,
-			tonumber(P.CAR_SCALE) or -1
-		)
+		-- GAMEPASS_CARS_SPEC section 5 (owner 2026-10-27): CAR_SCALE times the car's SkinScale when it has one, at most
+		-- CarAppearance.DISPLAY_SKIN_MAX; a car with SkinScale fails when that constant is missing (no fallback)
+		local skinScale = tonumber(spec.SkinScale)
+		local appearance = module(Shared, "CarAppearance")
+		local cap = appearance and appearance.DISPLAY_SKIN_MAX
+		local capOk = skinScale == nil or (type(cap) == "number" and cap > 0)
+		local wantScale = numbersOk and capOk and P.CAR_SCALE * (skinScale and math.min(skinScale, cap) or 1) or -1
+		flag("pass_cars_car_scale_" .. id, numbersOk and math.abs(scale - wantScale) < SCALE_TOL, scale, wantScale)
 		local onPedestal = false
 		if carOk and pedOk and numbersOk then
 			local offset = shown:GetBoundingBox().Position - pedestal.Position

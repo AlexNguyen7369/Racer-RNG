@@ -649,6 +649,16 @@ Idle Vehicle Simulator — Game Design Requirements
 
   Owner rendering pass, 2026-10-26 (docs/RENDERING_SPEC.md):
        The world gets a richer lighting baseline (coloured ambient, colour grading, soft
+       Owner, 2026-10-27 (Ember Wyvern flight, docs/WYVERN_FLIGHT_SPEC.md): the Ember Wyvern
+       flies: while auto racing and on its pedestal the wings flap in bursts and glides and the
+       body moves (neck, tail, heave, bank and head turn into curves), played on each client
+       only. As an exception it is shown much bigger than other rides (SkinScale, placeholder
+       2.5, owner 2026-10-27 "a lot bigger"; pedestal capped at 1.6) with a long whip tail. The physics body never changes, so speed, payouts and
+       every stability rule stay the same; a physics test suite covers it.
+       Owner, 2026-10-27 (Ember Wyvern breath, docs/WYVERN_BREATH_SPEC.md): the Ember Wyvern
+       breathes blue fire in bursts during each glide between wingbeats, while racing and on
+       its pedestal. Client-only particles in the cyan palette with the uploaded VFX textures;
+       nothing changes physics, speed or payouts.
        shadows, light haze), real surface materials on roads and walls instead of flat
        plastic, and level-of-detail rules so phones keep their frame rate. Weather events
        still own the sky and restore this baseline when they end. Purely visual: nothing

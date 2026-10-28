@@ -9,6 +9,8 @@
 -- Update (owner, 2026-10-27, sections 1 and 9): only starter is excluded; ember_wyvern is a special-case ride whose
 -- part names may also be Wing_L / Wing_R (each with its PivotOffset on the flap hinge) and whose textured parts carry
 -- a SurfaceAppearance with ColorMap + NormalMap.
+-- Update (owner, 2026-10-27, section 9: "make dragon tail longer"): ember_wyvern's long tail may reach |z| <= 5.8;
+-- every other car keeps |z| <= 3.3.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local H = require(script.Parent.AcceptanceSupport)
@@ -52,6 +54,8 @@ local function isNeonGold(part)
 end
 local WHEELS = { "Wheel_FL", "Wheel_FR", "Wheel_RL", "Wheel_RR" }
 local MAX_X, MAX_Z, MIN_Y, TOLERANCE = 1.95, 3.3, -0.01, 0.02
+-- Section 9 (owner 2026-10-27, WYVERN_FLIGHT_SPEC section 1 "make dragon tail longer"): special-case long tail only.
+local SPECIAL_MAX_Z = { ember_wyvern = 5.8 }
 
 -- Extent of the template's parts in its own pivot space (the "identity pivot" view), from every part corner.
 local function bounds(model)
@@ -183,7 +187,8 @@ function Tests.car_redesign()
 			-- 3. Bounds (spec section 2).
 			local maxX, maxZ, minY = bounds(template)
 			flag("redesign_bounds_x_" .. name, maxX <= MAX_X + TOLERANCE, maxX, MAX_X)
-			flag("redesign_bounds_z_" .. name, maxZ <= MAX_Z + TOLERANCE, maxZ, MAX_Z)
+			local maxZLimit = SPECIAL_CASE[name] and SPECIAL_MAX_Z[name] or MAX_Z
+			flag("redesign_bounds_z_" .. name, maxZ <= maxZLimit + TOLERANCE, maxZ, maxZLimit)
 			flag("redesign_bounds_floor_" .. name, minY >= MIN_Y - TOLERANCE, minY, MIN_Y)
 			-- Special-case rides (spec section 9): textured parts carry a SurfaceAppearance, wings hinge on a pivot.
 			if SPECIAL_CASE[name] then

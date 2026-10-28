@@ -14,6 +14,8 @@ not a car at all (example: a dragon). Models do not have to follow the starter c
 - **Skin size budget:** fits the physics body's footprint (about the starter car's 13 x 6 studs footprint, see
   `CarConfig`) within a small margin so it never visibly sinks into the road or clips track walls; taller is fine.
   The skin sets its own offset/scale (attributes, e.g. `SkinOffset`, `SkinScale`) so the body need not change.
+  Exception (owner 2026-10-27): the Ember Wyvern is shown bigger (`SkinScale` in its catalog file) and animated;
+  see `docs/WYVERN_FLIGHT_SPEC.md`.
 - **Optional animated parts:** a skin MAY have named parts the client animates, all optional:
   `Wheel_FL/FR/RL/RR` (spin with speed and steer, as today), `Wing_L/Wing_R` or other names declared in the catalog
   (e.g. `Animations = { Flap = "Wing_*" }`) or an `AnimationController` + animation ids (a dragon's flying loop).

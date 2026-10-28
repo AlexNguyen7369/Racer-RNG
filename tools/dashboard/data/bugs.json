@@ -1414,6 +1414,57 @@
       "foundBy": "claude",
       "foundAt": "2026-10-27T13:02:08-07:00",
       "loggedBy": "Alex Nguyen"
+    },
+    {
+      "id": "28bc1244",
+      "name": "Wyvern wings jump at low speed",
+      "kind": "fault",
+      "status": "fixed",
+      "file": "src/shared/WyvernMotion.luau",
+      "line": 70,
+      "endLine": 90,
+      "snippet": {
+        "from": 66,
+        "lines": [
+          "",
+          "-- Wing elevation over one beat (phase 0..1), 0 = the rest V: down and back to rest by 0.6, then up and back.",
+          "local function beat(phase, down, up)",
+          "\tif phase < 0.6 then",
+          "\t\treturn -down * math.sin(math.pi * phase / 0.6)",
+          "\tend",
+          "\treturn up * math.sin(math.pi * (phase - 0.6) / 0.4)",
+          "end",
+          "",
+          "-- Elevation of the shoulder at time t, plus the beat phase (nil in the glide) for the lagged forearm and fingers.",
+          "local function flapHz(speed)",
+          "\tlocal M = WyvernMotion",
+          "\treturn M.FLAP_HZ_REST + (M.FLAP_HZ_CRUISE - M.FLAP_HZ_REST) * clamp((speed or 0) / M.CRUISE_SPEED, 0, 1)",
+          "end",
+          "",
+          "-- Seconds of one flap burst plus its glide at this speed.",
+          "function WyvernMotion.CycleSeconds(speed)",
+          "\treturn WyvernMotion.FLAP_BEATS / flapHz(speed) + WyvernMotion.GLIDE_SECONDS",
+          "end",
+          "",
+          "-- Time into the current burst + glide. With `cycle` (the fraction of cycles done, integrated by the caller over",
+          "-- dt / CycleSeconds) a changing speed only changes how fast the phase runs; `t % period` alone jumps the phase",
+          "-- whenever the speed changes below CRUISE_SPEED, because t (os.clock) is large.",
+          "local function cycleTime(t, speed, cycle)",
+          "\tlocal period = WyvernMotion.CycleSeconds(speed)",
+          "\tif cycle then",
+          "\t\treturn (cycle % 1) * period, period",
+          "\tend",
+          "\treturn t % period, period"
+        ]
+      },
+      "summary": "Flap phase was os.clock() % period with a speed-dependent period below CRUISE_SPEED 45, so measured-speed jitter jumped the wing pose each frame; fine above 45 studs/s.",
+      "error": "",
+      "foundBy": "user",
+      "foundAt": "2026-10-27T15:55:40-07:00",
+      "loggedBy": "Alex Nguyen",
+      "fixedAt": "2026-10-27T15:55:47-07:00",
+      "fixedBy": "Alex Nguyen",
+      "fixNote": "Integrated cycle phase (WyvernMotion.CycleSeconds + state.Cycle); wyvern_low_speed_* green live 2026-10-27"
     }
   ]
 }

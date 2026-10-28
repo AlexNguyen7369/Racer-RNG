@@ -15,6 +15,10 @@ CarAppearance.FINISH = {
 	Light = { Shadow = false },
 }
 
+-- Largest SkinScale a pedestal shows (docs/WYVERN_FLIGHT_SPEC.md section 1, placeholder): keeps big rides clear of
+-- the other pedestals.
+CarAppearance.DISPLAY_SKIN_MAX = 1.6
+
 local function finish(part)
 	local f = CarAppearance.FINISH[(part.Name:gsub("%d+$", ""))]
 	if f then
@@ -36,6 +40,9 @@ function CarAppearance.Apply(car, id, config)
 		skin = template:Clone()
 		skin.Name = "EquippedVisual"
 		skin:SetAttribute("CarId", id)
+		if spec and spec.SkinScale then -- size exception (docs/WYVERN_FLIGHT_SPEC.md section 1), about the base pivot
+			skin:ScaleTo(skin:GetScale() * spec.SkinScale)
+		end
 		-- Imported templates have a base-centered pivot; place that base at tyre contact height.
 		skin:PivotTo(chassis.CFrame * CFrame.new(0, -config.RestHeight, 0))
 		for _, part in ipairs(skin:GetDescendants()) do
@@ -136,7 +143,8 @@ function CarAppearance.Display(spec, cframe, scale)
 			part.CanQuery = false
 		end
 	end
-	car:ScaleTo(car:GetScale() * scale) -- imported templates do not sit at scale 1
+	local skinScale = spec.SkinScale and math.min(spec.SkinScale, CarAppearance.DISPLAY_SKIN_MAX) or 1
+	car:ScaleTo(car:GetScale() * scale * skinScale) -- imported templates do not sit at scale 1
 	car:PivotTo(cframe) -- templates have a base-centred pivot
 	return car
 end

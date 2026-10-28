@@ -3,7 +3,35 @@
 PROJECT CONTEXT - Idle Vehicle Simulator (read me first)
 Shown in Studio at: ServerScriptService > ProjectContext   (source file: context/ProjectContext.luau)
 Do NOT edit this in Studio: edit the file on disk, Rojo syncs it. Claude updates it at the end of every loop.
-Last updated: 2026-10-27 (Claude: Ember Wyvern cyan shadow-wyvern skin in Studio)
+Last updated: 2026-10-27 (Claude: Ember Wyvern flight, bigger, long tail, blue fire breath)
+
+WYVERN LOW-SPEED FLAP FIX - 2026-10-27 (Claude): flap phase integrated (WyvernMotion.CycleSeconds, state.Cycle in
+  WyvernAnimator) so speed jitter below 45 studs/s no longer jumps the wings; FLAP_DOWN 34 deg, BANK_MAX 8 deg
+  (placeholders) for MAX_HALF_SPAN. Live: wyvern_flight + wyvern_breath + 10 track tests END pass=12 fail=0.
+  Full suite 2026-10-27: END pass=51 fail=1 (wyvern_flight, wyvern_breath, pass_cars, car_redesign green; the one
+  failure is environment city_blocks_gap 0.431 < 0.7, bug ab037b16, from the uncommitted City Blocks work, not the
+  wyvern). Unverified: look while racing.
+EMBER WYVERN FLIGHT - 2026-10-27 (Claude, branch feature/alex/ember-wyvern-flight; owner: "no flying animation",
+bigger as an exception, dynamic wing flapping and body animation, physics test suite)
+- Rules: docs/WYVERN_FLIGHT_SPEC.md; design doc "Owner, 2026-10-27 (Ember Wyvern flight"; VEHICLE_SKINS_SPEC size
+  exception.
+- Rig: drafts/cars/ember-wyvern/wyvern_rig.py (33 bones, distance weights) exec'd by build_wyvern.py; rigged upload
+  Model 110915918385893; tools/write_redesign_rbxmx.py writes the bone tree under Body, Motor6Ds and Rig = "Wyvern".
+  Rojo cannot create MeshParts, so the Studio copy was built through MCP: the place must be saved (manual.json).
+- Motion: Shared/WyvernMotion.Pose(t, {Speed, Turn, Reduced}) (model-space rotations per bone, Root heave);
+  Client/WyvernAnimator poses every rigged model (frame = the Body part, speed / turn from its motion); BestRollView
+  no longer turns the wing parts of a rigged car. SkinScale = 1.6 (placeholder) in Cars/ember_wyvern; CarAppearance
+  Apply / Display scale by it.
+- Tests: wyvern_flight (test-writer) red, then 106/106 alone; live: flaps, heaves while racing (Track 7) and on the
+  pedestal (x2.4).
+- Later the same day (owner): livelier body (HEAVE 0.3, chest pitch, spine sway and curve, neck S, tail wave, leg
+  kicks), long whip tail (template |z| to 5.62, special-case bound 5.8), SkinScale 2.5 (race; pedestal capped by
+  CarAppearance.DISPLAY_SKIN_MAX 1.6), MAX_HALF_SPAN 9. Rigged long-tail upload Model 100205140229978.
+- EMBER WYVERN BREATH (docs/WYVERN_BREATH_SPEC.md): Shared/WyvernBreath builds five emitters on an Attachment under
+  the Head bone (HEAD_OFFSET), WyvernMotion.Breath gives the strength (on in each glide), the jaw opens with it;
+  VehicleEffects exports TEXTURES / FLIPBOOKS. Client only. Seen live while racing (studio_breath.jpg).
+- Unverified (owner: implement first, tests later): wyvern_flight with the new numbers, wyvern_breath (written by
+  test-writer, never run), pass_cars and car_redesign after the size / tail change; full suite not run since.
 
 EMBER WYVERN SKIN - 2026-10-27 (Claude, owner approved draft 4: "this design is good, import into studio")
 - Rules: design doc "Owner car art redesign" entry 2026-10-27 (special-case rides over the triangle budget and

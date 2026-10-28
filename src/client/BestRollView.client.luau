@@ -41,7 +41,9 @@ local function animate(car, t)
 			local entry = parts[part]
 			if not entry then -- first sight (parts may stream in late): still where the server put it
 				entry = { Rel = mount.WorldCFrame:ToObjectSpace(part.CFrame) }
-				entry.Side = (part.Name == "Wing_L" and -1) or (part.Name == "Wing_R" and 1) or nil
+				-- A rigged car flaps its wings through bones (Client/WyvernAnimator), not by turning the parts.
+				local rigged = car:GetAttribute("Rig") ~= nil
+				entry.Side = not rigged and ((part.Name == "Wing_L" and -1) or (part.Name == "Wing_R" and 1)) or nil
 				entry.Hinge = entry.Side and part.PivotOffset
 				parts[part] = entry
 			end

@@ -62,7 +62,8 @@ stronger car) and each car file has `RobuxPrice`, the listed price the Shop show
 - Every pedestal is inside `HUB_MIN..HUB_MAX` and overlaps none of: plot, pad, `Spawn`, marketplace footprint, race
   platform, track part, leaderboard sign, the Best Roll pedestal, the other pass pedestal.
 - The server puts a `Car` Model on each pedestal at start: the `CarModels` entry named by the car's `Model`, at scale
-  `CAR_SCALE`, every part anchored with `CanCollide`, `CanTouch`, `CanQuery` off (same as the Best Roll car).
+  `CAR_SCALE` times the car's `SkinScale` when it has one, at most `CarAppearance.DISPLAY_SKIN_MAX` (Ember Wyvern,
+  `docs/WYVERN_FLIGHT_SPEC.md` section 1, owner 2026-10-27), every part anchored with `CanCollide`, `CanTouch`, `CanQuery` off (same as the Best Roll car).
 - Prompt: `ObjectText` = the car's name; `ActionText` = "Coming soon" when `GamepassId = 0`, else "Unlock".
   Triggering it (server-side, `Buy.Triggered`):
   - `GamepassId = 0`: nothing happens.
