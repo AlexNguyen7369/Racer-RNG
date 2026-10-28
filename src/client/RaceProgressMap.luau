@@ -226,7 +226,9 @@ function Controller.Attach(hud, player, remote)
 		local all, driven, ahead = {}, {}, {}
 		if lo then
 			local target = state.You * route.Total
-			for i = lo, hi do
+			-- Path2D holds at most 100 control points: thin the visible run (99 + the split point per line).
+			local step = math.ceil((hi - lo + 1) / 99)
+			for i = lo, hi, step do
 				local control = Path2DControlPoint.new(UDim2.fromScale(views[i].X, views[i].Y))
 				table.insert(all, control)
 				table.insert(route.Lengths[i] <= target and driven or ahead, control)

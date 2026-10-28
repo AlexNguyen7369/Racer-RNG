@@ -4,7 +4,7 @@ return {
 	Id = "plasma_pacer",
 	Name = "Plasma Pacer",
 	Rarity = "Epic",
-	Chance = 960,
+	Chance = 2.5e6,
 	SpeedMulti = 16.5,
 	Order = 1064,
 	Model = "plasma_pacer",

@@ -4,7 +4,7 @@ return {
 	Id = "basalt_bouncer",
 	Name = "Basalt Bouncer",
 	Rarity = "Rare",
-	Chance = 193,
+	Chance = 11000,
 	SpeedMulti = 5.1,
 	Order = 1037,
 	Model = "basalt_bouncer",

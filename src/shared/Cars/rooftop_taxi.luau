@@ -4,7 +4,7 @@ return {
 	Id = "rooftop_taxi",
 	Name = "Rooftop Taxi",
 	Rarity = "Uncommon",
-	Chance = 22,
+	Chance = 23,
 	SpeedMulti = 1.55,
 	Order = 1005,
 	Model = "rooftop_taxi",

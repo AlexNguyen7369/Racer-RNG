@@ -4,7 +4,7 @@ return {
 	Id = "fairy_flyer",
 	Name = "Fairy Flyer",
 	Rarity = "Secret",
-	Chance = 600000,
+	Chance = 1e17,
 	SpeedMulti = 1800,
 	Order = 1095,
 	Model = "fairy_flyer",

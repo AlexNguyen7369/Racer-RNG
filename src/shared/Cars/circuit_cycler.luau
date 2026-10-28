@@ -4,7 +4,7 @@ return {
 	Id = "circuit_cycler",
 	Name = "Circuit Cycler",
 	Rarity = "Legendary",
-	Chance = 3200,
+	Chance = 8.9e7,
 	SpeedMulti = 60,
 	Order = 1072,
 	Model = "circuit_cycler",

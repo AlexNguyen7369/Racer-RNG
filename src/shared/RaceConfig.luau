@@ -8,7 +8,8 @@ local RaceConfig = {}
 
 RaceConfig.BASE_SPEED = 10 -- cruise speed at Speed stat 0 (owner 2026-10-21: lowered from 12)
 RaceConfig.MAX_SPEED = 88 -- cruise reference at the point where post-100K diminishing returns begin; owner 2026-10-22 early-game lift
-RaceConfig.HALF_STAT = 100000 -- owner 2026-10-22: first 100K Speed is easier; diminishing returns begin after this threshold
+RaceConfig.HALF_STAT = 10000 -- owner 2026-10-27 (was 100K): early Speed moves the car 10x more; diminishing returns begin here
+RaceConfig.MAX_CRUISE = 800 -- hard cruise cap, studs/s (owner 2026-10-27; speed_probe green to 1000, minus 10 %, max 800)
 RaceConfig.MAX_CRUISE_CAR_MULTI = 1.5 -- high car/market multipliers cannot exceed this effective cruise contribution
 RaceConfig.GAIN_PER_SECOND = 2 -- (owner 2026-10-22, placeholder) friendlier early Speed progression
 RaceConfig.MAX_STAT = 1e9 -- stability-test reference stat only, NOT a cap: the Speed stat has no cap (owner 2026-10-20)
@@ -40,18 +41,19 @@ function RaceConfig.CruiseStatMulti(speedMulti)
 end
 
 -- Cruise speed (studs/s) for a Speed stat and optional car/market multi. The first HALF_STAT points are linear
--- and generous; only the effective Speed above that threshold enters the logarithmic diminishing-return tail.
+-- and generous; only the Speed above that threshold enters the logarithmic diminishing-return tail. The damped
+-- car/market multi scales the resulting studs/s (owner 2026-10-27), so cars differ from the first second.
 function RaceConfig.SpeedFor(stat, speedMulti)
-	stat = cleanStat(stat) or 0
-	speedMulti = RaceConfig.CruiseStatMulti(speedMulti)
-	local effective = math.min(stat * speedMulti, 1e308)
+	stat = math.min(cleanStat(stat) or 0, 1e308)
+	local carMulti = RaceConfig.CruiseStatMulti(speedMulti)
 	local range = RaceConfig.MAX_SPEED - RaceConfig.BASE_SPEED
-	if effective <= RaceConfig.HALF_STAT then
-		return RaceConfig.BASE_SPEED + range * effective / RaceConfig.HALF_STAT
+	if stat <= RaceConfig.HALF_STAT then
+		return math.min((RaceConfig.BASE_SPEED + range * stat / RaceConfig.HALF_STAT) * carMulti, RaceConfig.MAX_CRUISE)
 	end
-	local tail = effective - RaceConfig.HALF_STAT
-	-- each doubling above HALF_STAT adds half the range (owner 2026-10-22: 196 studs/s at 1M)
-	return RaceConfig.MAX_SPEED + range / 2 * math.log(1 + tail / RaceConfig.HALF_STAT) / math.log(2)
+	local tail = stat - RaceConfig.HALF_STAT
+	-- each doubling above HALF_STAT adds half the range
+	local curve = RaceConfig.MAX_SPEED + range / 2 * math.log(1 + tail / RaceConfig.HALF_STAT) / math.log(2)
+	return math.min(curve * carMulti, RaceConfig.MAX_CRUISE)
 end
 
 -- Inverse of SpeedFor: the shown Speed at which the cruise speed reaches `speed` (studs/s). 0 at or
@@ -59,6 +61,8 @@ end
 function RaceConfig.StatFor(speed)
 	if type(speed) ~= "number" or speed ~= speed or speed <= RaceConfig.BASE_SPEED then
 		return 0
+	elseif speed > RaceConfig.MAX_CRUISE then
+		return math.huge -- above the cap no Speed reaches it
 	end
 	local range = RaceConfig.MAX_SPEED - RaceConfig.BASE_SPEED
 	if speed <= RaceConfig.MAX_SPEED then

@@ -4,7 +4,7 @@ return {
 	Id = "dream_drummer",
 	Name = "Dream Drummer",
 	Rarity = "Secret",
-	Chance = 1350000,
+	Chance = 5e18,
 	SpeedMulti = 2800,
 	Order = 1100,
 	Model = "dream_drummer",

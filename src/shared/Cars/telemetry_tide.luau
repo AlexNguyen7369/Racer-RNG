@@ -4,7 +4,7 @@ return {
 	Id = "telemetry_tide",
 	Name = "Telemetry Tide",
 	Rarity = "Legendary",
-	Chance = 4450,
+	Chance = 3e8,
 	SpeedMulti = 85,
 	Order = 1077,
 	Model = "telemetry_tide",

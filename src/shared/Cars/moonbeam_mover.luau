@@ -4,7 +4,7 @@ return {
 	Id = "moonbeam_mover",
 	Name = "Moonbeam Mover",
 	Rarity = "Legendary",
-	Chance = 4950,
+	Chance = 4.8e8,
 	SpeedMulti = 95,
 	Order = 1079,
 	Model = "moonbeam_mover",

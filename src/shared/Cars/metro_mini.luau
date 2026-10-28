@@ -4,7 +4,7 @@ return {
 	Id = "metro_mini",
 	Name = "Metro Mini",
 	Rarity = "Uncommon",
-	Chance = 16,
+	Chance = 14,
 	SpeedMulti = 1.4,
 	Order = 1002,
 	Model = "metro_mini",

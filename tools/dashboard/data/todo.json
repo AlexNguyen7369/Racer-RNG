@@ -1,6 +1,31 @@
 {
   "items": [
     {
+      "id": "cruise-cap",
+      "title": "Cruise cap from speed probe (700-800 studs/s)",
+      "detail": "Owner 2026-10-27, docs/WORLDS_SPEC.md 1. speed_probe scenario finds the highest green speed; set RaceConfig.MAX_CRUISE; update high_multi/max_speed tests; NPC ladder under the cap.",
+      "status": "done",
+      "done": "2026-10-28"
+    },
+    {
+      "id": "worlds-split",
+      "title": "World 1 / World 2 (separate place, unlock at rebirth 10)",
+      "detail": "Owner 2026-10-27, docs/WORLDS_SPEC.md. WorldConfig, per-world TrackRegistry, PlayerData VERSION 13, WorldService portal + teleport, rebirths 11-20 only in World 2.",
+      "status": "next"
+    },
+    {
+      "id": "balance-sim",
+      "title": "Balance sim: World 1 ~30 h, World 2 ~35 h",
+      "detail": "tools/balance_sim.py fits NPC ladders, World 2 cruise table, XP_LINEAR and gain; owner approves the hour table. Sim written; fit: XP_LINEAR 122, XP_DECADE 37.2 (owner approved and applied 2026-10-28), W2 HALF_STAT 2.07e15 (awaiting owner OK).",
+      "status": "doing"
+    },
+    {
+      "id": "world2-tracks",
+      "title": "World 2: 10 new tracks via /build-track",
+      "detail": "Owner theme 2026-10-27: long, very wide tracks through massive beautiful mega biomes. Proposal in docs/WORLDS_SPEC.md section 6 (width 120, 20-45k studs, 10k tiles in a 5x2 grid, Terrain + streaming, per-biome lighting). Awaiting owner approval, then W2-A rules, W2-B pilot Meadow Valleys, W2-C tracks 2-10, W2-D polish.",
+      "status": "backlog"
+    },
+    {
       "id": "speed-gain-rebalance",
       "title": "Speed gain rebalance: rebirth totals, aura + trail multis",
       "detail": "Owner 2026-10-27, '+1 Speed' style. RebirthConfig.REBIRTH_TOTALS, MarketConfig.GainMulti, 2 new trails (frost, prism). Code + tests written; run rebirth, gacha, economy, vehicle_effects, shop_purchases, data + UI tests live, then the owner tunes placeholder prices.",
@@ -1161,6 +1186,72 @@
       "ownerGithub": "AlexNguyen7369",
       "updated": "2026-10-27T17:47:09-07:00",
       "updatedBy": "Alex Nguyen"
+    },
+    {
+      "id": "1960c053",
+      "title": "Repo slim",
+      "detail": "Drop superseded ExpansionCarModels (Rojo payload), pre-redesign car art + its build scripts, old place backups, generated ui/preview SVGs (owner 2026-10-27)",
+      "status": "doing",
+      "source": "feature branch",
+      "by": "Alex Nguyen",
+      "added": "2026-10-27T19:30:50-07:00",
+      "branch": "feature/alex/repo-slim",
+      "featureId": "6f1a5581",
+      "owner": "Alex Nguyen",
+      "ownerGithub": "AlexNguyen7369",
+      "updated": "2026-10-27T19:30:50-07:00",
+      "updatedBy": "Alex Nguyen"
+    },
+    {
+      "id": "f65d9146",
+      "title": "Exponential payouts + price curve + Speed float",
+      "detail": "PayoutCurve: payouts x10/x7.5 per track, prices base x ratio^1.5 (workshop, tree, aura/trail), Money cap 1e15, +Speed HUD float. Harness green for economy; run UI suite (ui_speed_float), commit on its own branch.",
+      "status": "doing",
+      "source": "owner 2026-10-27",
+      "by": "Alex Nguyen",
+      "added": "2026-10-27T23:00:00-07:00"
+    },
+    {
+      "id": "f3664748",
+      "title": "Pad billboard: short money text",
+      "detail": "Pads now show e.g. $31640625000; track rule 6 says \"$Cash\". Owner decision needed to show HudFormat.MoneyText.",
+      "status": "backlog",
+      "source": "Claude",
+      "by": "Alex Nguyen",
+      "added": "2026-10-27T23:00:00-07:00"
+    },
+    {
+      "id": "orchestrator-flow",
+      "title": "Orchestrator skill + orchestration flow page",
+      "detail": "/orchestrate (goals intake, worktree per task, isolated Studio or queue, rules-auditor, integration branch). Dashboard /static/flow.html draws .agents/orchestrator.json + subagents + bus traffic live; ?demo simulates. Not yet run against a real orchestrator tick.",
+      "status": "done",
+      "done": "2026-10-28",
+      "branch": "feature/alex/orchestrator-and-flow-dashboard",
+      "featureId": "85f7e666",
+      "owner": "Alex Nguyen",
+      "ownerGithub": "AlexNguyen7369",
+      "updated": "2026-10-28T00:10:52-07:00",
+      "updatedBy": "Alex Nguyen"
+    },
+    {
+      "id": "037e42f9",
+      "title": "Imrpove gacha roll animation to accuratley reflect a spin of all car models that are getting passed up. Users should be able to see the full rotation of cars spinning before landing on the car theyget",
+      "detail": "",
+      "status": "backlog",
+      "source": "manual",
+      "by": "Alex Nguyen",
+      "added": "2026-10-28T00:53:00-07:00",
+      "updated": "2026-10-28T00:53:00-07:00"
+    },
+    {
+      "id": "819c376a",
+      "title": "UI Animations for Upgrade tree. Smooth popups and actuation animations. Events and pops on clicks etc. smooth tree traversal",
+      "detail": "",
+      "status": "backlog",
+      "source": "manual",
+      "by": "Alex Nguyen",
+      "added": "2026-10-28T00:53:45-07:00",
+      "updated": "2026-10-28T00:53:45-07:00"
     }
   ]
 }

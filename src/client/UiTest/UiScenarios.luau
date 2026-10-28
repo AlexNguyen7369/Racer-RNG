@@ -103,6 +103,8 @@ UiScenarios.Names = {
 	"ui_reduced_motion",
 	-- docs/HUD_LAYOUT_SPEC.md section 10 (owner 2026-10-27): UiMotion presets land at once while reduced
 	"ui_motion_reduced",
+	-- docs/HUD_LAYOUT_SPEC.md section 10 (owner 2026-10-27): "+12,345" Speed gain float (HudFormat.SpeedText, full digits below 1m) (UiSpec.SpeedFloat)
+	"ui_speed_float",
 	"ui_safe_insets",
 	"ui_panel_focus",
 	"ui_hud",

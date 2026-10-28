@@ -4,7 +4,7 @@ return {
 	Id = "clockwork_crab",
 	Name = "Clockwork Crab",
 	Rarity = "Mythic",
-	Chance = 18500,
+	Chance = 1.5e10,
 	SpeedMulti = 175,
 	Order = 1082,
 	Model = "clockwork_crab",

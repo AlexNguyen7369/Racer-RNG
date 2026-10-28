@@ -4,7 +4,7 @@ return {
 	Id = "stormtrail_x",
 	Name = "Stormtrail X",
 	Rarity = "Rare",
-	Chance = 207,
+	Chance = 15000,
 	SpeedMulti = 5.4,
 	Order = 1039,
 	Model = "stormtrail_x",

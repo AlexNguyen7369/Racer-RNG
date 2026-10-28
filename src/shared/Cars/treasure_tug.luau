@@ -4,7 +4,7 @@ return {
 	Id = "treasure_tug",
 	Name = "Treasure Tug",
 	Rarity = "Secret",
-	Chance = 750000,
+	Chance = 2.2e17,
 	SpeedMulti = 2000,
 	Order = 1096,
 	Model = "treasure_tug",

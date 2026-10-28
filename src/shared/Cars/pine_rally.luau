@@ -4,7 +4,7 @@ return {
 	Id = "pine_rally",
 	Name = "Pine Rally",
 	Rarity = "Rare",
-	Chance = 102,
+	Chance = 1300,
 	SpeedMulti = 3.15,
 	Order = 1024,
 	Model = "pine_rally",

@@ -4,7 +4,7 @@ return {
 	Id = "mudskipper",
 	Name = "Mudskipper",
 	Rarity = "Rare",
-	Chance = 109,
+	Chance = 1600,
 	SpeedMulti = 3.3,
 	Order = 1025,
 	Model = "mudskipper",

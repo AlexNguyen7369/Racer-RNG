@@ -28,7 +28,7 @@ local AdminService = {}
 
 AdminService.AllowStudio = AdminConfig.ALLOW_IN_STUDIO == true
 
-local MAX_MONEY = 1e15
+local MAX_MONEY = 1e30 -- same cap as PlayerData MAX_MONEY
 local SUFFIX = { k = 1e3, m = 1e6, b = 1e9, t = 1e12 }
 
 local groupRank = setmetatable({}, { __mode = "k" }) -- player -> rank in the owning group (cached)

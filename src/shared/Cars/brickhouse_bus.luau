@@ -4,7 +4,7 @@ return {
 	Id = "brickhouse_bus",
 	Name = "Brickhouse Bus",
 	Rarity = "Uncommon",
-	Chance = 34,
+	Chance = 62,
 	SpeedMulti = 1.85,
 	Order = 1011,
 	Model = "brickhouse_bus",

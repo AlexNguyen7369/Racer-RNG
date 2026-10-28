@@ -3,7 +3,30 @@
 PROJECT CONTEXT - Idle Vehicle Simulator (read me first)
 Shown in Studio at: ServerScriptService > ProjectContext   (source file: context/ProjectContext.luau)
 Do NOT edit this in Studio: edit the file on disk, Rojo syncs it. Claude updates it at the end of every loop.
-Last updated: 2026-10-27 (Claude: Speed gain rebalance - rebirth totals, aura and trail multis)
+Last updated: 2026-10-28 (Claude: balance pass, cruise cap 800, money cap 1e30, Worlds plan)
+BALANCE PASS + CRUISE CAP + WORLDS PLAN - 2026-10-27/28 (Claude, uncommitted; owner decisions in the design doc):
+- Rebirth rev. 4 ("+1 Speed" genre table): TOTALS 1.5 .. 10 then x10 to 1e11, levels 15 .. 600, max 20 (Speed gain, XP, Luck).
+- XP/s = 1 x Speed gain multi; XPToNext = XP_LINEAR x level to XP_KNEE 225, then x10 per XP_DECADE levels (122 / 37.2,
+  balance sim fit, owner 2026-10-28). HudFormat: Speed full digits < 1m, GainText, Multi "x1k", Odds "1 in 2.5m".
+- Speed float every 0.25 s. Car odds rev. (Uncommon 10..200 .. Secret 1e16..5e18). Cruise: car multi scales final studs/s,
+  HALF_STAT 10K, MAX_CRUISE 800 (speed_probe green to 1000). NPC growth 1.51 (Track 10 = 653).
+- Money: cap 1e30 everywhere, Money is a NumberValue, MAX_AWARD = MAX_MONEY (was 1e9: Track 9-10 payouts were refused).
+- Worlds: docs/WORLDS_SPEC.md (World 2 = separate place, rebirths 11-20, mega biomes); tools/balance_sim.py.
+- Live 2026-10-28: full harness 49/4 (only data + 3 known scenery bugs); after fixes data/money/economy/leaderboard/admin/
+  bank/race all green. Open: Hill GiantOak2 overlap (spawn_area, workshop), city_blocks_gap 0.431 (0.7).
+PAYOUT AND PRICE CURVES - 2026-10-27 (Claude, uncommitted; owner: payouts x10 / x7.5 per track, costs faster than payouts):
+- Rules: design doc "payout and price curves", UPGRADE_TREE_SPEC 2, WORKSHOP_SPEC 5, CLAUDE.md track rule 6.
+- Code: new Shared/PayoutCurve (Ratio, Cash, NiceRound, Cost = base x Ratio(step)^1.5); TrackBuilder.CashFor, UpgradeTree.Price,
+  WorkshopConfig level prices, MarketConfig trail/aura prices use it; CASH_PER_TRACK and PRICE_GROWTH removed; Money cap
+  1e15 (PlayerData MAX_MONEY, MoneyService MAX_EARNED). Track 10 pays $31.6b.
+- HUD: rising "+<Speed gain>" float above the Speed number, summed, at most once per second (HUD_LAYOUT_SPEC 10).
+- Trail/aura gain multi verified live: applied on the server (aura x trail in SpeedGainMulti); it only looked absent at 1.18b Speed.
+- RaceProgressMap: thins visible route to 99 points (Path2D limit 100; bug 2a5381da).
+- Live 2026-10-27: harness 39/4 (43 scenarios, track tests ran green in the run before): money/economy/bank/data/upgrades/
+  workshop prices/vehicle_effects/auto_toggle green; fails = spawn_area + workshop overlap (bug b99e2c0b), environment
+  city_blocks_gap (ab037b16); npc timing miss was flaky (rerun 120/120). UI suite 23/16: ui_speed_float 10/11 (text
+  +12.4k vs +12.3k: real gain landed in the test window); the other 15 UI failures (layout, hitboxes, theme fonts, shop/market
+  states, progression layout, weather) are the never-run UI visual pass, not attributed to this change.
 REBIRTH IN PLAYER LIST - 2026-10-27 (Claude, uncommitted): leaderstats.Rebirth (IntValue, after Money and Speed) mirrors the
 RebirthLevel attribute (RebirthService.Setup, re-called at the end of PlayerData.Setup). Rules: design doc "Rebirth system",
 REBIRTH_SPEC "Player list". data test updated by test-writer; not run live yet.

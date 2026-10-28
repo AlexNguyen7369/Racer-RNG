@@ -409,12 +409,13 @@ local function refreshRebirth()
 	rebirth.SpeedRewardCaption.Text = multiplierText(nextMultiplier) .. " Speed Gain"
 	local required = rebirthConfig.Requirements(level).Level
 	local playerLevel = player:GetAttribute("Level") or 1
-	local eligible = playerLevel >= required
-	rebirth.BarText.Text = string.format("%d / %d Level", playerLevel, required)
-	rebirth.Fill.Size = UDim2.fromScale(math.clamp(playerLevel / required, 0, 1), 1)
+	local maxed = level >= rebirthConfig.MAX_LEVEL
+	local eligible = not maxed and playerLevel >= required
+	rebirth.BarText.Text = maxed and "MAX REBIRTH" or string.format("%d / %d Level", playerLevel, required)
+	rebirth.Fill.Size = UDim2.fromScale(maxed and 1 or math.clamp(playerLevel / required, 0, 1), 1)
 	local active = eligible and not rebirthBusy
 	rebirth.RebirthButton.Active = active
-	label(rebirth.RebirthButton, rebirthReply or "REBIRTH")
+	label(rebirth.RebirthButton, rebirthReply or (maxed and "MAX" or "REBIRTH"))
 	Components.Tint(rebirth.RebirthButton, active and GREEN or GRAY)
 end
 rebirth.RebirthButton.Activated:Connect(function()
@@ -845,9 +846,32 @@ money.Changed:Connect(function(value)
 	end
 	lastMoney = value
 end)
+-- Speed gain floats like the +$ payout: the gain of each quarter second, summed (HUD_LAYOUT_SPEC section 10).
+local SPEED_FLOAT_EVERY = 0.25
+local lastSpeed, speedGain = speed.Value, 0
+speed.Changed:Connect(function(value)
+	if value > lastSpeed then
+		speedGain += value - lastSpeed
+	end
+	lastSpeed = value
+end)
+task.spawn(function()
+	while true do
+		task.wait(SPEED_FLOAT_EVERY)
+		if speedGain > 0 then
+			UiMotion.Float(
+				hud.SpeedValue.Parent,
+				"+" .. format.GainText(speedGain),
+				palette.Speed,
+				UDim2.fromOffset(hud.SpeedValue.Position.X.Offset, hud.SpeedValue.Position.Y.Offset)
+			)
+			speedGain = 0
+		end
+	end
+end)
 speed.Changed:Connect(function(value)
 	-- Speed grows all the time while racing: pop at most every 1.5 s, glow the dial on a new suffix tier.
-	local tier = value >= 1000 and math.floor(math.log10(value) / 3) or 0
+	local tier = value >= format.SPEED_SUFFIX_FROM and math.floor(math.log10(value) / 3) or 0
 	if speedTier and tier > speedTier then
 		UiMotion.Pop(hud.SpeedDial, 0.18)
 		UiMotion.Shine(hud.MoneyPlate)

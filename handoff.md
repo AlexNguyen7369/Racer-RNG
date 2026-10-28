@@ -22,6 +22,50 @@ in git history (`git log -p -- handoff.md`, last full version at 2d99d78) and in
 
 ## Open work
 
+ORCH-1. **Orchestrator tick 1, 2026-10-28 (session orchestrator-skill-setup): landing the main-tree WIP on `feature/alex/world1-ship`.**
+   Branch switched in place from car-redesign (no file changes). Owners: world-two-speed-cap session (payout curve, rebirth rev 4,
+   XP 122/225/37.2, owner-approved 2026-10-28, applied by that session, check level_xp_curve_rev4 not run yet, car odds rev, MAX_CRUISE 800, money cap 1e30, max-rebirth UI); dashboard
+   files `tools/dashboard/{server.py,test_integration.py,static/flow.*}` belong to soft-car-finish-pilot: NEVER stage them.
+   Done: rules-auditor FAIL (9) triaged: owner decided interim rule "rebirths 1-20 in one place until World 2 ships" (design doc,
+   WORLDS_SPEC, REBIRTH_SPEC, 2026-10-28); stale doc lines fixed (CLAUDE.md cruise cap, HALF_STAT/no-cap/1e15 marked REPLACED,
+   NPC_RACER_SPEC 1.51, HUD_LAYOUT_SPEC x1k); test-writer tightened race resync window, huge_multi ULP tolerance, added
+   odds_rev_even_log_spacing. Scenery bugs ab037b16/b99e2c0b fixed (BiomeDressing Prune spawn columns + exact Blocks slots;
+   BiomeThemes City Landmarks.Offset 96, Blocks.Spacing 32), made in worktree ../RobloxGames-orch/w1d-scenery and applied to
+   the main tree. Harness before fixes: END pass=50 fail=3 (only the 3 scenery reds).
+   Harness rerun (scenery + tightened tests): END pass=51 fail=2; scenery green (city_blocks_gap 0.755, overlaps 0); new reds race
+   (max_speed_run_reports_path_deviation 1.929 (11) FAIL) and track:Space (completed 0, off_track 7.0 s); diagnosis agent running.
+   Studio froze after the run (agent's gmatch log search); owner unfreezes it by hand. NEVER parse [CARTEST] lines with lazy gmatch.
+   Race red = test sampled the finish frame (bug 3e2ab51f); test-writer fixed Scenarios.luau:1889 (`and not run.Finished`), not run yet.
+   Space red = likely hitch flake (bug 24161ed7; scenery parts are CanCollide/CanQuery false, lap code untouched).
+   2026-10-28 later: re-audit FAIL(2) fixed (CLAUDE.md NPC line 16 x1.51; owner OK'd spawn-area 'column' prune rule, written in
+   BIOME_DRESSING_SPEC Clearance). Owner: Isaac's 153072a (origin/feature/isaac/simple-hud-icons-20261027, simple HUD icons +
+   scale-only hover) is NOT in our branch; owner-approved order: commit our WIP, then merge Isaac, regenerate RacerHud from the
+   merged spec and re-bake StarterGui.rbxm (conflicts: README, ProjectContext, current_progress, ui/generated/RacerHud.*,
+   assets/studio/StarterGui.rbxm), then the UI suite. Studio reopened by owner (new studio_id 65d7c2bb-...).
+   IN FLIGHT at handoff: physics-tester running track:Space alone then the full harness (studio 65d7c2bb). Its result arrives in
+   session orchestrator-skill-setup; a new session re-runs it if lost. Owner 'approve everything' 2026-10-28: XP 122/37.2 (applied),
+   friends boost +10%/friend cap +40% (write design-doc entry + docs/FRIENDS_BOOST_SPEC.md, then build), pad billboard short text
+   (todo f3664748). Still awaiting owner: W2 HALF_STAT 2.07e15.
+   Next: (1) run track:Space alone, then full harness (expect fail=0), mark bugs
+   ab037b16, b99e2c0b, 3e2ab51f, 24161ed7 fixed with bugs.py; (2) ui-tester full [UITEST]; (3) rules-auditor re-run -> PASS;
+   (4) commit WIP (excluding dashboard files) + scenery in two commits on feature/alex/world1-ship, push, bugs.py fixed,
+   remove worktree w1d-scenery + branch orch/world1-ship/w1d-scenery, progress-tracker; (5) then goal test-debt td1..td7.
+   Owner items: manual.json friends-boost-rule-2026-10-28 (nf3). nf1 quests / nf2 codes already have specs + code: verify only.
+
+00000000. **Orchestrator + flow dashboard** (owner 2026-10-28; branch `feature/alex/orchestrator-and-flow-dashboard`, worktree
+   `../RobloxGames-orchflow`, pushed through 33d3018). Skill `~/.claude/skills/orchestrator/` (SKILL.md, scripts/context_watch.py
+   global hook, scripts/runner.py, scripts/install_launchd.sh); repo: `.claude/orchestrator.md`, agents `rules-auditor` and
+   `merge-reviewer`, `/orchestrate`, `docs/ORCHESTRATOR_GOALS.md` (5 goals owner-confirmed 2026-10-28, test-debt first),
+   dashboard `/static/flow.html` + `/api/flow`. Merges to main only via PR + fresh merge-reviewer. Next: owner runs
+   `bash ~/.claude/skills/orchestrator/scripts/install_launchd.sh ~/Documents/RobloxGames` (launchd install was blocked for
+   Claude), then the first tick does td1. Unverified: Studio MCP from headless `claude -p`; context_window 200000 is a guess.
+
+0000000. **Payout + price curves, Speed float** (owner 2026-10-27, uncommitted on this tree). Rules: design doc "payout and
+   price curves", UPGRADE_TREE_SPEC 2, WORKSHOP_SPEC 5, HUD_LAYOUT_SPEC 10. Code: `Shared/PayoutCurve` + its users,
+   Money cap 1e15, RacerUiController Speed float, RaceProgressMap Path2D fix. Harness 39/4 (only known scenery bugs +
+   npc timing check, rerun pending). Next: run [UITEST] (incl. ui_speed_float), commit on its own feature branch,
+   progress-tracker. Open: pad billboard still shows full digits (rule 6).
+
 000. **UI visual pass** (owner 2026-10-27; branch `feature/alex/ui-visual-pass`, git WORKTREE
    `/Users/alexnguyen7369/Documents/RobloxGames-ui` so the car-redesign tree stays untouched). Rules: design doc
    (lowercase suffixes from 1k incl. Money; "UI visual pass" entry), HUD_LAYOUT_SPEC 8-10, NPC_RACER_SPEC "Loser
@@ -36,6 +80,18 @@ in git history (`git log -p -- handoff.md`, last full version at 2d99d78) and in
    suite). Next: serve the worktree with rojo (stop the other rojo only when robloxgames-e7 says Studio is free),
    run [CARTEST] (hud/format, race_progress_map, environment, npc) and [UITEST], screenshot desktop + phone, fix,
    then ProjectContext/todo, commit, progress-tracker.
+0000000a. **Cruise cap + World 1 / World 2** (owner 2026-10-27, plan `~/.claude/plans/nested-questing-thunder.md`).
+   Phase 0 done (docs): design doc "Worlds", new `docs/WORLDS_SPEC.md`, notes in REBIRTH/SAVE/CHECKPOINT/NPC_RACER specs.
+   Phase 1 DONE: speed_probe green to 1000 -> MAX_CRUISE 800, NPC growth 1.51; harness 49/4 then money fixes green.
+   Phase 4 sim written (tools/balance_sim.py --fit): XP_LINEAR 122 / XP_DECADE 37.2 await owner OK.
+   Next: set `RaceConfig.MAX_CRUISE` from the probe (700-800), then Phase 2 WorldConfig/TrackRegistry, Phase 3
+   save VERSION 13 + WorldService teleport, Phase 4 `tools/balance_sim.py` (W1 30 h, W2 35 h), Phase 5 ten W2 tracks
+   via /build-track, Phase 6 manual place setup. Commit on `feature/alex/worlds`.
+000000. **Rebirth rev. 3 + Speed full digits** (owner 2026-10-27, uncommitted). Owner: gain too low after rev. 2 and
+   "1.23k" looks frozen. Rules: design doc "Rebirth system" rev. 3 (+25 per rebirth, cap x1000 at 40) and "Large Speed
+   numbers" later entry (Speed full digits below 1m); REBIRTH_SPEC, HUD_LAYOUT_SPEC 8. Code: `RebirthConfig`
+   EARLY_STEP 25 / ADD_UNTIL 40, `HudFormat.SPEED_SUFFIX_FROM` 1e6 (SpeedText only), RacerUiController dial tier.
+   test-writer updating Phase2Tests / Scenarios hud / UiSpec. Next: run `rebirth`, `hud`, `leaderboard` + UI tests live.
 00000. **Rebirth curve rev. 2 + lost race gain** (2026-10-27, uncommitted). Owner: x10 per rebirth too high, and
    multi "not applied" while racing. Rules: design doc "Rebirth system" (rev. 2), REBIRTH_SPEC "Automatic bonus".
    Code: `RebirthConfig` (+EARLY_STEP 5 per rebirth, capped at x100 from ADD_UNTIL 20), `RaceService` commitStat caps

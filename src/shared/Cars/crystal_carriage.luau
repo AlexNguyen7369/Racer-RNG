@@ -4,7 +4,7 @@ return {
 	Id = "crystal_carriage",
 	Name = "Crystal Carriage",
 	Rarity = "Mythic",
-	Chance = 22000,
+	Chance = 4.6e10,
 	SpeedMulti = 200,
 	Order = 1083,
 	Model = "crystal_carriage",

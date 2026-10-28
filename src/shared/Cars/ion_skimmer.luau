@@ -4,7 +4,7 @@ return {
 	Id = "ion_skimmer",
 	Name = "Ion Skimmer",
 	Rarity = "Epic",
-	Chance = 870,
+	Chance = 1.5e6,
 	SpeedMulti = 15,
 	Order = 1061,
 	Model = "ion_skimmer",

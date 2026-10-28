@@ -20,7 +20,8 @@ its own snake-case module in `src/shared/Cars/`; the module's `Id`, `Chance`, `R
 | Mythic | 11 | `15000 + 3500i` | `150 + 25i` |
 | Secret | 8 | `150000 + 150000i` | `1200 + 200i` |
 
-`i` starts at 1 within each rarity. The owner explicitly approved eight new Secret entries
+`i` starts at 1 within each rarity. Chance bands replaced 2026-10-27 (owner, design doc "odds rev."): Uncommon
+1 in 10 .. 200, Rare 500 .. 25k, Epic 50k .. 2.5m, Legendary 10m .. 1b, Mythic 5b .. 1qd, Secret 10qd .. 5qt (the rarest-car leaderboard stores Chance as an int64, max about 9.2e18). The owner explicitly approved eight new Secret entries
 on 2026-10-20, resolving the previous count ambiguity.
 The existing `rusty_hatchback` remains the one and only catch-all. Existing seed cars and
 gamepass cars are not included in these counts.

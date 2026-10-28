@@ -4,7 +4,7 @@ return {
 	Id = "laplight_lancer",
 	Name = "Laplight Lancer",
 	Rarity = "Epic",
-	Chance = 660,
+	Chance = 460000,
 	SpeedMulti = 11.5,
 	Order = 1054,
 	Model = "laplight_lancer",

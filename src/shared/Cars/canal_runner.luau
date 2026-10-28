@@ -4,7 +4,7 @@ return {
 	Id = "canal_runner",
 	Name = "Canal Runner",
 	Rarity = "Uncommon",
-	Chance = 28,
+	Chance = 38,
 	SpeedMulti = 1.7,
 	Order = 1008,
 	Model = "canal_runner",

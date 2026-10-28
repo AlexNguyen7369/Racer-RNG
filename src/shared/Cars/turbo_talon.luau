@@ -4,7 +4,7 @@ return {
 	Id = "turbo_talon",
 	Name = "Turbo Talon",
 	Rarity = "Epic",
-	Chance = 450,
+	Chance = 120000,
 	SpeedMulti = 8,
 	Order = 1047,
 	Model = "turbo_talon",

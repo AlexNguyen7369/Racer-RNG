@@ -4,7 +4,7 @@ return {
 	Id = "switchback_six",
 	Name = "Switchback Six",
 	Rarity = "Rare",
-	Chance = 172,
+	Chance = 6800,
 	SpeedMulti = 4.65,
 	Order = 1034,
 	Model = "switchback_six",

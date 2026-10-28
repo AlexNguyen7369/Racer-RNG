@@ -2,13 +2,14 @@
 -- Money purchases described by the design document's "What Money buys" section.
 local MarketConfig = {}
 local BoostConfig = require(script.Parent.BoostConfig)
+local PayoutCurve = require(script.Parent.PayoutCurve)
 
 MarketConfig.Items = {
 	Aura = {
 		{
 			Id = "azure_aura",
 			Name = "Azure Aura",
-			Price = 2500,
+			Price = PayoutCurve.Cost(2500, 1),
 			SpeedMulti = 1.2,
 			Color = Color3.fromRGB(80, 190, 255),
 			Accent = Color3.fromRGB(180, 245, 255),
@@ -17,7 +18,7 @@ MarketConfig.Items = {
 		{
 			Id = "ember_aura",
 			Name = "Ember Aura",
-			Price = 25000,
+			Price = PayoutCurve.Cost(2500, 2),
 			SpeedMulti = 2,
 			Color = Color3.fromRGB(255, 92, 38),
 			Accent = Color3.fromRGB(255, 220, 75),
@@ -26,7 +27,7 @@ MarketConfig.Items = {
 		{
 			Id = "galaxy_aura",
 			Name = "Galaxy Aura",
-			Price = 250000,
+			Price = PayoutCurve.Cost(2500, 3),
 			SpeedMulti = 3,
 			Color = Color3.fromRGB(137, 80, 255),
 			Accent = Color3.fromRGB(255, 91, 220),
@@ -37,7 +38,7 @@ MarketConfig.Items = {
 		{
 			Id = "rainbow_trail",
 			Name = "Rainbow Trail",
-			Price = 500,
+			Price = PayoutCurve.Cost(500, 1),
 			SpeedMulti = 1.5,
 			Color = Color3.fromRGB(255, 120, 235),
 			Accent = Color3.fromRGB(90, 220, 255),
@@ -46,7 +47,7 @@ MarketConfig.Items = {
 		{
 			Id = "solar_trail",
 			Name = "Solar Trail",
-			Price = 1500,
+			Price = PayoutCurve.Cost(500, 2),
 			SpeedMulti = 2,
 			Color = Color3.fromRGB(255, 188, 48),
 			Accent = Color3.fromRGB(255, 245, 145),
@@ -55,7 +56,7 @@ MarketConfig.Items = {
 		{
 			Id = "void_trail",
 			Name = "Void Trail",
-			Price = 5000,
+			Price = PayoutCurve.Cost(500, 3),
 			SpeedMulti = 3,
 			Color = Color3.fromRGB(104, 52, 220),
 			Accent = Color3.fromRGB(34, 230, 210),
@@ -64,7 +65,7 @@ MarketConfig.Items = {
 		{
 			Id = "frost_trail",
 			Name = "Frost Trail",
-			Price = 25000,
+			Price = PayoutCurve.Cost(500, 4),
 			SpeedMulti = 4,
 			Color = Color3.fromRGB(80, 190, 255),
 			Accent = Color3.fromRGB(180, 245, 255),
@@ -73,7 +74,7 @@ MarketConfig.Items = {
 		{
 			Id = "prism_trail",
 			Name = "Prism Trail",
-			Price = 100000,
+			Price = PayoutCurve.Cost(500, 5),
 			SpeedMulti = 5,
 			Color = Color3.fromRGB(186, 140, 255),
 			Accent = Color3.fromRGB(255, 255, 255),

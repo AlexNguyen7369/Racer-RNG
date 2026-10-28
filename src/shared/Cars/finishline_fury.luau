@@ -4,7 +4,7 @@ return {
 	Id = "finishline_fury",
 	Name = "Finishline Fury",
 	Rarity = "Epic",
-	Chance = 750,
+	Chance = 760000,
 	SpeedMulti = 13,
 	Order = 1057,
 	Model = "finishline_fury",

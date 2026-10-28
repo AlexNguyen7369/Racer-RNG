@@ -4,7 +4,7 @@ return {
 	Id = "mushroom_mobile",
 	Name = "Mushroom Mobile",
 	Rarity = "Mythic",
-	Chance = 29000,
+	Chance = 4.2e11,
 	SpeedMulti = 250,
 	Order = 1085,
 	Model = "mushroom_mobile",

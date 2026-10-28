@@ -73,6 +73,9 @@ function RebirthService.Rebirth(player)
 	end
 	local level = Config.CleanLevel(player:GetAttribute("RebirthLevel"))
 	local playerLevel = math.max(1, math.floor(tonumber(player:GetAttribute("Level")) or 1))
+	if level >= Config.MAX_LEVEL then
+		return false, "Max rebirth"
+	end
 	if not Config.CanRebirth(level, playerLevel) then
 		local required = Config.Requirements(level)
 		return false, string.format("Reach Level %d", required.Level)

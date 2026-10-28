@@ -1,5 +1,8 @@
 # Checkpoints: pick the starting track (contract for tests and implementation)
 
+> Worlds (owner 2026-10-27, `docs/WORLDS_SPEC.md`): checkpoints and BestTrack are per world; each place lists only
+> its own world's tracks.
+
 Owner brief (2026-10-16, reference `images` in the request: a hub NPC with an E prompt, like "Shadow Trials"):
 a "Checkpoint" NPC beside the RACE START pavilion. Players choose which track (checkpoint) their run starts on.
 A track must be beaten before it can be picked; locked cards are dimmed with a lock over them.

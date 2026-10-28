@@ -4,7 +4,7 @@ return {
 	Id = "corner_crawler",
 	Name = "Corner Crawler",
 	Rarity = "Uncommon",
-	Chance = 38,
+	Chance = 87,
 	SpeedMulti = 1.95,
 	Order = 1013,
 	Model = "corner_crawler",

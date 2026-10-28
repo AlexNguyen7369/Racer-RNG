@@ -4,7 +4,7 @@ return {
 	Id = "mermaid_motor",
 	Name = "Mermaid Motor",
 	Rarity = "Mythic",
-	Chance = 39500,
+	Chance = 1.2e13,
 	SpeedMulti = 325,
 	Order = 1088,
 	Model = "mermaid_motor",

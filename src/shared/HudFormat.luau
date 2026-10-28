@@ -18,15 +18,24 @@ local function commas(n)
 	return text
 end
 
-HudFormat.SUFFIX_FROM = 1e3 -- placeholder: from 1k Speed and Money switch to suffixes (owner 2026-10-27)
+HudFormat.SUFFIX_FROM = 1e3 -- placeholder: from 1k Money switches to suffixes (owner 2026-10-27)
+HudFormat.SPEED_SUFFIX_FROM = 1e6 -- placeholder: Speed keeps full digits to 1m so each second's gain shows (owner 2026-10-27)
 
--- Whole number below SUFFIX_FROM ("999"); from there on "1.5k", "10.2m", "2.5qt" (HudFormat.Short).
+-- Full digits below SPEED_SUFFIX_FROM ("123,456"); from there on "1.23m", "2.5qt" (HudFormat.Short).
 -- Anything that is not a real stat shows 0.
 function HudFormat.SpeedText(stat)
 	if type(stat) ~= "number" or stat ~= stat or stat < 0 or stat == math.huge then
 		return "0"
 	end
-	return stat >= HudFormat.SUFFIX_FROM and HudFormat.Short(stat) or commas(stat)
+	return stat >= HudFormat.SPEED_SUFFIX_FROM and HudFormat.Short(stat) or commas(stat)
+end
+
+-- A Speed gain: one decimal below 10 so a quarter second's small gain still shows ("0.5", "2"), else SpeedText.
+function HudFormat.GainText(gain)
+	if type(gain) == "number" and gain == gain and gain > 0 and gain < 10 then
+		return (string.format("%.1f", gain):gsub("%.0$", ""))
+	end
+	return HudFormat.SpeedText(gain)
 end
 
 local SUFFIXES = { "k", "m", "b", "t", "qd", "qt", "sx", "sp", "oc", "no", "dc" }
@@ -63,6 +72,8 @@ end
 function HudFormat.Multi(n)
 	if type(n) ~= "number" or n ~= n or n == math.huge or n == -math.huge then
 		return "x1"
+	elseif n >= 1000 then
+		return "x" .. HudFormat.Short(n) -- "x1k", "x100b"
 	end
 	local text = string.format("%.2f", n):gsub("0+$", ""):gsub("%.$", "")
 	return "x" .. text
@@ -78,7 +89,7 @@ function HudFormat.Odds(chance, luck)
 	if type(luck) == "number" and luck == luck and luck > 1 and luck ~= math.huge then
 		chance = math.max(1, math.floor(chance / luck + 0.5))
 	end
-	return "1 in " .. commas(chance)
+	return "1 in " .. (chance >= HudFormat.SUFFIX_FROM and HudFormat.Short(chance) or commas(chance)) -- "1 in 2.5qd"
 end
 
 -- The toggle button's label: it names what pressing it does.

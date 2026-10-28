@@ -4,7 +4,7 @@ return {
 	Id = "market_wagon",
 	Name = "Market Wagon",
 	Rarity = "Uncommon",
-	Chance = 30,
+	Chance = 45,
 	SpeedMulti = 1.75,
 	Order = 1009,
 	Model = "market_wagon",

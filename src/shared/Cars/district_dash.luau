@@ -4,7 +4,7 @@ return {
 	Id = "district_dash",
 	Name = "District Dash",
 	Rarity = "Rare",
-	Chance = 74,
+	Chance = 690,
 	SpeedMulti = 2.55,
 	Order = 1020,
 	Model = "district_dash",

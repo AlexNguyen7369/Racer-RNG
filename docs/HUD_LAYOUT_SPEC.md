@@ -133,8 +133,10 @@ adds the shared white highlight and slight enlargement; its Claim button remains
 - Text: FredokaOne with a dark outline (`UiTheme.Outline`, rgb 18, 22, 43) on every player-facing label and button,
   billboards included. No Gotham, GothamBlack or BuilderSans text remains.
 - Corner radii come from the tokens only: `S` 8, `M` 12, `L` 16 (pills and round buttons stay fully round).
-- Multipliers are written `x1.5` everywhere (`HudFormat.Multi`; up to 2 decimals, trailing zeros dropped).
+- Multipliers are written `x1.5` everywhere (`HudFormat.Multi`; up to 2 decimals, trailing zeros dropped; from x1,000 the lowercase suffixes, e.g. `x1k`,
+  REBIRTH_SPEC).
 - Numbers use `HudFormat` (lowercase suffixes from 1,000, design doc "Speed"); no screen formats them by hand.
+  Speed keeps full digits up to `HudFormat.SPEED_SUFFIX_FROM` (1,000,000, placeholder, owner 2026-10-27).
 - Colours: money green, speed yellow, unbanked amber, danger red, panel navy and the stat colours in
   `UiTheme.Palette` (placeholders, tunable).
 
@@ -164,7 +166,9 @@ adds the shared white highlight and slight enlargement; its Claim button remains
   `Shake`. While motion is reduced every preset lands on its end state at once and no loop runs.
 - Uses: panels scale from 92% and fade in when opened (`PanelSwitch`), and close at once; HUD buttons keep their
   hover / press feedback (`RacerMotion`) and code-built panels' buttons get the same; Money, Unbanked and Speed
-  pop when they grow, and a cash payout shows a rising `+$1.2m` that fades; Unbanked pulses while above 0; the
+  pop when they grow, and a cash payout shows a rising `+$1.2m` that fades; Speed gain shows the same rising
+  `+1.2k` in Speed yellow above the Speed number, the gain of each quarter second summed and shown every 0.25 s
+  (owner 2026-10-27, was once per second; `HudFormat.GainText`: one decimal below 10, e.g. `+0.5`); Unbanked pulses while above 0; the
   Money plate shines every few seconds; the speed dial glows once when the stat reaches a new suffix tier
   (k, m, b, ...); red badges pop when their count changes; the Race button breathes slowly while the player is on
   foot; the TURBO bar fill shines and "TURBO xN!" punches in; notifications slide in from their edge.

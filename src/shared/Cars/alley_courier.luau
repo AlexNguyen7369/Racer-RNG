@@ -4,7 +4,7 @@ return {
 	Id = "alley_courier",
 	Name = "Alley Courier",
 	Rarity = "Uncommon",
-	Chance = 14,
+	Chance = 12,
 	SpeedMulti = 1.35,
 	Order = 1001,
 	Model = "alley_courier",

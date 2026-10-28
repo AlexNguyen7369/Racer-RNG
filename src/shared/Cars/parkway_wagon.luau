@@ -4,7 +4,7 @@ return {
 	Id = "parkway_wagon",
 	Name = "Parkway Wagon",
 	Rarity = "Uncommon",
-	Chance = 48,
+	Chance = 200,
 	SpeedMulti = 2.2,
 	Order = 1018,
 	Model = "parkway_wagon",

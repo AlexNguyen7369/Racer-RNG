@@ -571,10 +571,9 @@ function RaceService.NewRun(car, raceRoute, player, options)
 
 		-- Passive gain is a flat rate x permanent Speed-gain upgrades and rebirths; neither the car,
 		-- cruise speed, Speed stat, nor temporary boosts changes it.
-		pending += RaceConfig.GainPerSecond(stat, chassis.AssemblyLinearVelocity.Magnitude) * GachaService.SpeedMulti(
-			player
-		) * dt
-		LevelService.Tick(player, dt)
+		local gainMulti = GachaService.SpeedMulti(player)
+		pending += RaceConfig.GainPerSecond(stat, chassis.AssemblyLinearVelocity.Magnitude) * gainMulti * dt
+		LevelService.Tick(player, dt, gainMulti)
 		sinceCommit += dt
 		if sinceCommit >= RaceService.COMMIT_INTERVAL then
 			sinceCommit = 0

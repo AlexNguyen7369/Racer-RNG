@@ -3,7 +3,7 @@ return {
 	Id = "rain_runner",
 	Name = "Rain Runner",
 	Rarity = "Epic",
-	Chance = 500,
+	Chance = 160000,
 	SpeedMulti = 6,
 	Order = 8,
 	Model = "rain_runner", -- own redesign model (docs/CAR_REDESIGN_SPEC.md section 5)

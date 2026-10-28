@@ -53,4 +53,10 @@ return {
 		"wyvern_breath",
 		"singularity_orb",
 	},
+	-- Not in the full suite (each takes minutes). Run on demand during play:
+	--   ReplicatedStorage:SetAttribute("CarTestOnly", "speed_probe"); ReplicatedStorage:SetAttribute("CarTestRun", true)
+	-- CarTestOnly (comma-separated names) runs only those scenarios; clear it (nil) for the full suite again.
+	OnDemand = {
+		"speed_probe", -- docs/WORLDS_SPEC.md section 1: highest green cruise speed for RaceConfig.MAX_CRUISE
+	},
 }

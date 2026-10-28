@@ -43,7 +43,7 @@
     "files": "Tracks/*, TrackBuilder, TrackRegistry"
   },
   "money": {
-    "checks": "MoneyService contract: pad payouts are decided by the server, paid once per pass, with a per-player cooldown, and bad awards are rejected.",
+    "checks": "MoneyService contract: pad payouts are decided by the server, paid once per pass, with a per-player cooldown, and bad awards are rejected. Owner 2026-10-27 payout curve: Track 2 pays x10 Track 1; Shared/PayoutCurve constants (BASE_CASH 100, GROWTH {10, 7.5}, COST_POWER 1.5), Ratio / Cash for tracks 1-10 ($100 ... $31,640,625,000) equal to TrackBuilder.CashFor, bad or non-number n reads as Track 1 and n is floored, NiceRound (2 significant figures, halves up, 0 for bad input) and Cost(base, step) = NiceRound(base x Ratio(step) ^ 1.5).",
     "why": "Money is the economy; clients must never be able to pay themselves.",
     "limits": "MoneyService.COOLDOWN",
     "files": "Server/MoneyService"
@@ -67,7 +67,7 @@
     "files": "Shared/RaceConfig"
   },
   "data": {
-    "checks": "PlayerData saves and loads Money, Speed, cars, rolls, stat allocation, upgrade tiles, BestTrack, TurboCount and WorkshopLevel through a stub store; never writes before the load finished; old save formats (v1-v3) still load (v3: TurboCount = Rolls % 10, BestTrack 0, WorkshopLevel 1). Owner 2026-10-21: the base Speed is player.BaseSpeed (saved, loaded, AddSpeed); leaderstats.Speed is display only = BaseSpeed x ShownSpeedMulti after AddSpeed and Equip, a write to it never changes the stat, and the save payload Speed is the base.",
+    "checks": "PlayerData saves and loads Money, Speed, cars, rolls, stat allocation, upgrade tiles, BestTrack, TurboCount and WorkshopLevel through a stub store; never writes before the load finished; old save formats (v1-v3) still load (v3: TurboCount = Rolls % 10, BestTrack 0, WorkshopLevel 1). Owner 2026-10-21: the base Speed is player.BaseSpeed (saved, loaded, AddSpeed); leaderstats.Speed is display only = BaseSpeed x ShownSpeedMulti after AddSpeed and Equip, a write to it never changes the stat, and the save payload Speed is the base. Owner 2026-10-27: the Money and MoneyEarned cap is 1e15 (was 1e12); values between the old and new cap are kept, and MoneyService.Award caps MoneyEarned at 1e15.",
     "why": "Lost or overwritten saves are the worst bug a game can ship.",
     "limits": "PlayerData VERSION 4 rules; WorkshopLevel clamped to 1..WorkshopConfig.MAX_LEVEL",
     "files": "Server/PlayerData, Server/UpgradeService, Server/WorkshopService"
@@ -133,13 +133,13 @@
     "files": "Client/RollToast, Shared/RollAnimConfig, GachaService"
   },
   "upgrades": {
-    "checks": "Upgrade tree: tiles, prices, gates, bonuses, roll interval, turbo and walkspeed tables (pure); UpgradeService.Buy takes Money once and refuses unknown / owned / locked / gated / poor / non-string / too-fast buys without changing anything; a buy changes only the buyer (another player's Money, tiles, BestTrack, TurboCount and badge stay the same, and one player's cooldown never blocks another); the gate uses the real track count; bonuses are ADDED to stat points in Luck, Money and Speed multis; turbo rolls follow TurboCount and the tier; the auto-roll interval and on-foot WalkSpeed follow the tiles; the badge count and save fields are right.",
+    "checks": "Upgrade tree: tiles, prices, gates, bonuses, roll interval, turbo and walkspeed tables (pure); UpgradeService.Buy takes Money once and refuses unknown / owned / locked / gated / poor / non-string / too-fast buys without changing anything; a buy changes only the buyer (another player's Money, tiles, BestTrack, TurboCount and badge stay the same, and one player's cooldown never blocks another); the gate uses the real track count; bonuses are ADDED to stat points in Luck, Money and Speed multis; turbo rolls follow TurboCount and the tier; the auto-roll interval and on-foot WalkSpeed follow the tiles; the badge count and save fields are right. Owner 2026-10-27: prices are NiceRound(150 x PayoutCurve.Ratio(depth) ^ 1.5 x weight) (depth bases 150, 4.7k, 97k, 3.1m, 63m, 2.0b, 41b), PRICE_GROWTH removed, UpgradeTree.NiceRound gives the same results as PayoutCurve.NiceRound.",
     "why": "Money buys permanent power: a double charge, a free tile or a wrong multi breaks the economy.",
     "limits": "docs/UPGRADE_TREE_SPEC.md (owner numbers), UpgradeConfig",
     "files": "Shared/UpgradeTree, Shared/UpgradeConfig, Server/UpgradeService, GachaService, GachaConfig, CarService"
   },
   "workshop": {
-    "checks": "Mechanical Workshop: 7 plots with the spec rects in the spawn floor, never overlapping each other, the hub, the spawn, the StartPad or any track, each open toward the hub; zone and rate maths (Shared/Workshop); WorkshopService gives each player the lowest free plot with their workshop and sign, frees it on leave, an 8th player gets none; standing in your own zone (alive, on foot) earns exactly rate x dt Speed, anywhere else nothing.",
+    "checks": "Mechanical Workshop: 7 plots with the spec rects in the spawn floor, never overlapping each other, the hub, the spawn, the StartPad or any track, each open toward the hub; zone and rate maths (Shared/Workshop); WorkshopService gives each player the lowest free plot with their workshop and sign, frees it on leave, an 8th player gets none; standing in your own zone (alive, on foot) earns exactly rate x dt Speed, anywhere else nothing. Owner 2026-10-27: ten levels, Levels[L].Price = PayoutCurve.Cost(500, L - 1) ($500, $16k, $320k, $10m, $210m, $6.7b, $140b, $4.3t, $89t) and Multi = 2 ^ (L - 1).",
     "why": "Idle Speed must only be earned in your own workshop, decided by the server, and no plot may ever block a road.",
     "limits": "docs/WORKSHOP_SPEC.md, WorkshopConfig",
     "files": "Shared/Workshop, Shared/WorkshopConfig, Server/WorkshopService, Shared/SpawnArea"
@@ -391,7 +391,7 @@
     "files": "RacerComponents, RacerUiController"
   },
   "vehicle_effects": {
-    "checks": "On a fake player's real auto-racing car: Market equip of void_trail builds MarketEffects (Trail=void_trail) with void_trailCore/EdgeL/EdgeR on chassis attachments (non-zero width, FaceCamera false, Enabled) and the Motes/Smoke emitters (Rate > 0); no BasePart added, mass unchanged (1e-6), same run drives the car; over 3 s the chassis moves > 20 studs with every attachment riding on it and up-vector Y >= MinUpYStrict; skin replacement and Stop/Start respawn re-apply it and keep EquippedTrail; unequip clears every effect.",
+    "checks": "On a fake player's real auto-racing car: Market equip of void_trail builds MarketEffects (Trail=void_trail) with void_trailCore/EdgeL/EdgeR on chassis attachments (non-zero width, FaceCamera false, Enabled) and the Motes/Smoke emitters (Rate > 0); no BasePart added, mass unchanged (1e-6), same run drives the car; over 3 s the chassis moves > 20 studs with every attachment riding on it and up-vector Y >= MinUpYStrict; skin replacement and Stop/Start respawn re-apply it and keep EquippedTrail; unequip clears every effect. Owner 2026-10-27: trail prices (rainbow, solar, void, frost, prism) = PayoutCurve.Cost(500, i) = $500, $16k, $320k, $10m, $210m and aura prices (azure, ember, galaxy) = Cost(2500, i) = $2.5k, $79k, $1.6m, SpeedMulti values unchanged.",
     "why": "Cosmetic trails must look right in motion without touching physics, controls or the server-owned equip attributes.",
     "limits": "docs/PANEL_ART_GIFTING_SPEC.md; GAME_DESIGN_REQUIREMENTS.md cosmetic profiles; PhysicsTargets.lap.MinUpYStrict",
     "files": "VehicleEffects, CarService, MarketService, CarAppearance"
@@ -485,5 +485,17 @@
     "why": "Singularity's black hole floats, spins and bobs with a neon glow, played only on clients; it must stay inside the car's bounds and never change physics, speed or the server's welds.",
     "limits": "docs/CAR_REDESIGN_SPEC.md sections 2, 7 and 11; docs/VEHICLE_SKINS_SPEC.md optional animated parts; PhysicsTargets.lap.MinUpYStrict, PhysicsTargets.race.MaxPathDeviation",
     "files": "OrbMotion, CarAppearance, Client/OrbAnimator, CarModels.singularity (RedesignCarModels), RaceService"
+  },
+  "ui_speed_float": {
+    "checks": "When Speed grows, a rising \"+<gain>\" in Speed yellow appears above the Speed number, gains summed and shown about every 0.25 s (a 0.5 gain shows \"+0.5\"); none under Money, none while motion is reduced.",
+    "why": "Owner 2026-10-27: Speed gain should be visible like the +$ payout float (HUD_LAYOUT_SPEC section 10).",
+    "limits": "UiSpec.SpeedFloat",
+    "files": "Client/RollToast/RacerUiController, Client/UiMotion"
+  },
+  "speed_probe": {
+    "checks": "On demand only (TestConfig.OnDemand; set ReplicatedStorage CarTestOnly = \"speed_probe\" then CarTestRun = true). Builds the whole track chain once and auto-races it with RaceService at 600, 700, 800, 900 and 1000 studs/s (RaceConfig.SpeedFor stubbed to the probe speed, restored after each run). Per speed, overall and per track: flips, minimum body up-vector Y outside loops, max distance to the route, finished. highest_green = highest speed that finished with 0 flips, minUpY >= lap.MinUpYStrict and maxDev <= race.MaxPathDeviation on every track. Fails only if a run did not start at its probe speed (speed_probe_ran), SpeedFor was not restored, or 600 is not green; 900 / 1000 are data.",
+    "why": "Sets RaceConfig.MAX_CRUISE (WORLDS_SPEC section 1): highest green speed minus 10 %, kept within 700 .. 800.",
+    "limits": "PhysicsTargets.lap.MinUpYStrict 0.9, lap.MinUpY 0.3 (flip), race.MaxPathDeviation 5",
+    "files": "CarTest/SpeedProbeTests, RaceService, RaceConfig.SpeedFor, PathDriver, CarPhysics, Tracks"
   }
 }

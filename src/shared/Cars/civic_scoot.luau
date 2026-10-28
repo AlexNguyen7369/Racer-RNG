@@ -4,7 +4,7 @@ return {
 	Id = "civic_scoot",
 	Name = "Civic Scoot",
 	Rarity = "Uncommon",
-	Chance = 20,
+	Chance = 19,
 	SpeedMulti = 1.5,
 	Order = 1004,
 	Model = "civic_scoot",

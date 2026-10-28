@@ -7,14 +7,35 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Server = script.Parent.Parent
 local H = require(script.Parent.AcceptanceSupport)
 local Tests = {}
+-- { count, Chance band low, Chance band high, SpeedMulti base, SpeedMulti step }. Chance bands: odds rev. (owner
+-- 2026-10-27, design doc "odds rev.", CAR_EXPANSION_SPEC "Distribution"; was 12+2i, 60+7i, 300+30i, 1200+250i,
+-- 15000+3500i, 150000+150000i): log-spaced in the old order, 2 significant figures. Secret stays under int64.
+-- Fields 6 and 7: the OLD Chance formula (old base + old step * i), only to rebuild the doc's "old order".
 local BANDS = {
-	Uncommon = { 18, 12, 2, 1.30, 0.05 },
-	Rare = { 24, 60, 7, 2.25, 0.15 },
-	Epic = { 22, 300, 30, 5.5, 0.5 },
-	Legendary = { 17, 1200, 250, 20, 5 },
-	Mythic = { 11, 15000, 3500, 150, 25 },
-	Secret = { 8, 150000, 150000, 1200, 200 },
+	Uncommon = { 18, 10, 200, 1.30, 0.05, 12, 2 },
+	Rare = { 24, 500, 25e3, 2.25, 0.15, 60, 7 },
+	Epic = { 22, 5e4, 2.5e6, 5.5, 0.5, 300, 30 },
+	Legendary = { 17, 1e7, 1e9, 20, 5, 1200, 250 },
+	Mythic = { 11, 5e9, 1e15, 150, 25, 15000, 3500 },
+	Secret = { 8, 1e16, 5e18, 1200, 200, 150000, 150000 },
 }
+-- Chance of the seed and event cars before the odds rev. (their files at the 2026-10-27 baseline): the old order
+local OLD_CHANCE = {
+	wooden_car = 10,
+	go_kart = 50,
+	street_racer = 250,
+	rain_runner = 500,
+	rocket_car = 1000,
+	midnight_kart = 2500,
+	golden_racer = 5000,
+	hover_car = 10000,
+	void_racer = 100000,
+}
+local RARITY_TIERS = { "Uncommon", "Rare", "Epic", "Legendary", "Mythic", "Secret" }
+local function sig2(x)
+	local e = math.floor(math.log10(x)) - 1
+	return math.round(x / 10 ^ e) * 10 ^ e
+end
 local FAMILIES = { "city_utility", "offroad_rally", "track_hyper", "futuristic_hover", "fantasy_novelty" }
 local SEEDS = { "rusty_hatchback", "wooden_car", "go_kart", "street_racer", "rocket_car", "hover_car", "void_racer" }
 local EVENTS = { rain_runner = "rain", midnight_kart = "night", golden_racer = "gold" }
@@ -46,6 +67,7 @@ function Tests.car_expansion()
 	local ok, err = pcall(function()
 		flag("expansion_exactly_100_new_entries", #manifest.Cars == 100, #manifest.Cars, 100)
 		local ids, orders, chances, rarityCounts, families, expected = {}, {}, {}, {}, {}, {}
+		local prevChance, oldChance = {}, {}
 		for _, id in SEEDS do
 			expected[id] = true
 		end
@@ -87,13 +109,24 @@ function Tests.car_expansion()
 			rarityCounts[spec.Rarity] = (rarityCounts[spec.Rarity] or 0) + 1
 			local band = BANDS[spec.Rarity]
 			local i = rarityCounts[spec.Rarity]
+			local got = catalog.Get(id)
+			-- the catalog's Chance sits in its rarity's band with 2 significant figures, and the manifest order keeps
+			-- the old order: each car is rarer than the previous expansion car of the same rarity
+			local chance = got and got.Chance
 			flag(
 				"expansion_rarity_band_" .. id,
 				band ~= nil
-					and spec.Chance == band[2] + band[3] * i
-					and math.abs(spec.SpeedMulti - (band[4] + band[5] * i)) < 1e-9
+					and type(chance) == "number"
+					and chance >= band[2]
+					and chance <= band[3]
+					and chance == sig2(chance)
+					and (prevChance[spec.Rarity] == nil or chance > prevChance[spec.Rarity])
+					and math.abs(spec.SpeedMulti - (band[4] + band[5] * i)) < 1e-9,
+				chance,
+				band and band[2] .. ".." .. band[3]
 			)
-			local got = catalog.Get(id)
+			prevChance[spec.Rarity] = type(chance) == "number" and chance or prevChance[spec.Rarity]
+			oldChance[id] = band and band[6] + band[7] * i
 			local source = Shared.Cars:FindFirstChild(id)
 			flag("expansion_permanent_module_" .. id, source ~= nil and source:IsA("ModuleScript"))
 			local raw = source and require(source)
@@ -207,13 +240,75 @@ function Tests.car_expansion()
 			end
 		end
 		flag("expansion_single_catch_all", catchAll == 1, catchAll, 1)
+		-- Odds rev.: every rollable car (seeds and event cars too) in its rarity's band; every car of a rarity is
+		-- rarer than every car of the rarity below (Uncommon < Rare < ... < Secret)
+		local lo, hi, outOfBand = {}, {}, {}
+		for _, spec in catalog.All() do
+			if spec.Chance ~= nil then
+				local band = BANDS[spec.Rarity]
+				if not band or spec.Chance < band[2] or spec.Chance > band[3] then
+					table.insert(outOfBand, spec.Id)
+				end
+				lo[spec.Rarity] = math.min(lo[spec.Rarity] or math.huge, spec.Chance)
+				hi[spec.Rarity] = math.max(hi[spec.Rarity] or 0, spec.Chance)
+			end
+		end
+		flag("expansion_all_chances_in_band", #outOfBand == 0, table.concat(outOfBand, ","), "none")
+		local tiersOk = true
+		for t = 2, #RARITY_TIERS do
+			local below, above = RARITY_TIERS[t - 1], RARITY_TIERS[t]
+			tiersOk = tiersOk and hi[below] ~= nil and lo[above] ~= nil and hi[below] < lo[above]
+		end
+		flag("expansion_rarity_tiers_strictly_ordered", tiersOk)
+		-- Odds rev. spacing (design doc "odds rev.", 2026-10-27): within each rarity the rollable cars, in their OLD
+		-- order, span the band evenly on a log scale: the k-th of m is sig2(low * (high / low) ^ ((k - 1) / (m - 1))).
+		-- Only the 2-significant-figure rounding is tolerated (a 1e-9 nudge covers a rounding tie in double maths).
+		local byRarity = {}
+		for _, spec in catalog.All() do
+			if spec.Chance ~= nil and BANDS[spec.Rarity] then
+				byRarity[spec.Rarity] = byRarity[spec.Rarity] or {}
+				table.insert(byRarity[spec.Rarity], spec)
+			end
+		end
+		for _, rarity in RARITY_TIERS do
+			local list, band = byRarity[rarity] or {}, BANDS[rarity]
+			local unknown = {}
+			for _, spec in list do
+				local old = OLD_CHANCE[spec.Id] or oldChance[spec.Id]
+				if old == nil then
+					table.insert(unknown, spec.Id)
+				end
+			end
+			flag("odds_rev_old_order_known_" .. string.lower(rarity), #unknown == 0, table.concat(unknown, ","), "none")
+			if #unknown == 0 and #list >= 2 then
+				table.sort(list, function(a, b)
+					return (OLD_CHANCE[a.Id] or oldChance[a.Id]) < (OLD_CHANCE[b.Id] or oldChance[b.Id])
+				end)
+				local bad, m = {}, #list
+				for k, spec in list do
+					local ideal = band[2] * (band[3] / band[2]) ^ ((k - 1) / (m - 1))
+					local c = spec.Chance
+					if c ~= sig2(ideal) and c ~= sig2(ideal * (1 + 1e-9)) and c ~= sig2(ideal * (1 - 1e-9)) then
+						table.insert(bad, string.format("%s=%g(want %g)", spec.Id, c, sig2(ideal)))
+					end
+				end
+				flag(
+					"odds_rev_even_log_spacing_" .. string.lower(rarity),
+					#bad == 0,
+					#bad == 0 and m or table.concat(bad, ","),
+					m
+				)
+			end
+		end
 		for id in expected do
 			flag("expansion_index_contains_" .. id, seen[id] == true)
 		end
-		-- Independent ordered manifest/seed oracle for one forced hit at every expansion entry.
-		for _, wanted in manifest.Cars do
+		-- Independent ordered manifest/seed oracle for one forced hit at every expansion entry (catalog chances).
+		for _, wantedSpec in manifest.Cars do
+			local wanted = catalog.Get(wantedSpec.Id) or wantedSpec
 			local calls, targetDraw = 0, 1
-			for _, candidate in manifest.Cars do
+			for _, candidateSpec in manifest.Cars do
+				local candidate = catalog.Get(candidateSpec.Id) or candidateSpec
 				if candidate.Chance > wanted.Chance then
 					targetDraw += 1
 				end

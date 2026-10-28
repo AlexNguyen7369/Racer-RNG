@@ -2,6 +2,8 @@
 -- Mechanical Workshop numbers (docs/WORKSHOP_SPEC.md, drafted 2026-10-06). Data only: the rules that read it live in
 -- Shared/Workshop. Plot rects are local (x, z) of Track 1's flattened Start, like Shared/SpawnArea.
 
+local PayoutCurve = require(script.Parent.PayoutCurve)
+
 local WorkshopConfig = {}
 
 WorkshopConfig.PLOT_COUNT = 7 -- one plot per player; the server's Max Players must be 7 (Game Settings, by hand)
@@ -27,12 +29,12 @@ WorkshopConfig.TICK = 0.5 -- seconds between server zone checks
 WorkshopConfig.BASE_RATE = 0.2 -- (owner 2026-10-20: 5x slower, was 1) Speed per second at level 1, stat 0, no multis (placeholder, design doc "B")
 WorkshopConfig.LUCK_PER_LEVEL = 0.10 -- Workshop luck while standing in the zone; level 1 is 1x.
 
--- Configurable progression defaults: each level doubles W; next prices grow fivefold from $500.
+-- Configurable progression defaults: each level doubles W; prices follow PayoutCurve.Cost from $500 (owner 2026-10-27).
 WorkshopConfig.Levels = {
 	{ Multi = 1, Price = 0 }, -- the starter workshop
 }
 for level = 2, 10 do
-	WorkshopConfig.Levels[level] = { Multi = 2 ^ (level - 1), Price = 500 * 5 ^ (level - 2) }
+	WorkshopConfig.Levels[level] = { Multi = 2 ^ (level - 1), Price = PayoutCurve.Cost(500, level - 1) }
 end
 WorkshopConfig.MAX_LEVEL = #WorkshopConfig.Levels
 WorkshopConfig.OFFLINE_FRACTION = 0.25

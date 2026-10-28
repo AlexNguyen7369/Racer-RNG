@@ -397,8 +397,8 @@ UiSpec.Rebirth = {
 	-- Each reward tile <Name> holds <Name>Icon (ImageLabel with a non-empty Image) and <Name>Caption (TextLabel), not
 	-- overlapping (node ids are unique in the generator, so the tile name is the prefix; both are listed in Nodes).
 	-- Caption = Format with the NEXT rebirth's gain: Multiplier tiles use RebirthConfig.NextMultiplier(RebirthLevel)
-	-- = SpeedGainMulti(RebirthLevel + 1), the NEXT TOTAL (x5 at level 0, x10 at level 1; +5 per rebirth up to 20 = x100,
-	-- then capped at x100; owner 2026-10-27 rev. 2, docs/REBIRTH_SPEC.md "Panel"), others RebirthConfig[Config].
+	-- = SpeedGainMulti(RebirthLevel + 1), the NEXT TOTAL (x1.5 at level 0, x2 at level 1 ... x10, then x10 per
+	-- rebirth to x100b at 20, the last; owner 2026-10-27 rev. 4, docs/REBIRTH_SPEC.md "Panel"), others RebirthConfig[Config].
 	Tiles = {
 		-- %s = HudFormat.Multi(next multiplier) ("x7.5", HUD spec section 8, owner 2026-10-27; was "x%.2f")
 		{ Name = "LuckReward", Multiplier = true, Format = "%s Luck" },
@@ -3217,6 +3217,27 @@ UiSpec.Accessibility = {
 	NotFocusable = { Backdrop = true },
 	FocusFrames = 4, -- rendered frames after Toggle before the selection is judged (PanelSwitch defers it)
 	ButtonB = Enum.KeyCode.ButtonB,
+}
+-- Speed gain float (docs/HUD_LAYOUT_SPEC.md section 10, owner 2026-10-27): when leaderstats.Speed grows, the gain is
+-- summed per 0.25 s window, one UiMotion.Float TextLabel MotionFloat with "+" .. HudFormat.GainText(gain)
+-- rises in Speed yellow above the Speed number, inside SpeedValue's parent (like the Money "+$" float).
+UiSpec.SpeedFloat = {
+	Label = "MotionFloat",
+	Host = "RacerHud/Speed", -- SpeedValue.Parent (UiSpec.Hud.SpeedValue)
+	SpeedValue = "RacerHud/Speed/SpeedValue",
+	Money = "RacerHud/Money", -- the Money float's host: a Speed gain must not float there
+	Color = Color3.fromRGB(255, 232, 30), -- UiTheme Speed (section 8)
+	ColorTolerance = 2 / 255,
+	Gain = 12345, -- one local growth of leaderstats.Speed (client-side only, restored)
+	FracGain = 0.5, -- a fractional growth: floats as "+0.5" (HudFormat.GainText, one decimal below 10)
+	FracText = "+0.5",
+	Quiet = 0.5, -- s with no growth before a probe, so the 0.25 s window has flushed
+	Wait = 0.6, -- s a float may take to appear after the growth (summing may delay it up to 0.25 s)
+	BurstStep = 7, -- each of BurstCount growths, BurstEvery s apart (shorter than 0.25 s, so growths are summed)
+	BurstCount = 20, -- 20 x 0.05 s = about 1 s of growth
+	BurstEvery = 0.05,
+	BurstMinFloats = 3, -- about 1 s of growth floats about every 0.25 s, not once per second
+	MinGap = 0.2, -- s between two floats (0.25 s cadence, 0.05 s frame slack)
 }
 UiSpec.ManualScenarios = UiSpec.ManualScenarios or {}
 table.insert(UiSpec.ManualScenarios, {

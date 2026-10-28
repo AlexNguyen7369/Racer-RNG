@@ -4,7 +4,7 @@ return {
 	Id = "dust_comet",
 	Name = "Dust Comet",
 	Rarity = "Rare",
-	Chance = 88,
+	Chance = 960,
 	SpeedMulti = 2.85,
 	Order = 1022,
 	Model = "dust_comet",

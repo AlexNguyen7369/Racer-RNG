@@ -4,7 +4,7 @@ return {
 	Id = "chicane_chaser",
 	Name = "Chicane Chaser",
 	Rarity = "Epic",
-	Chance = 330,
+	Chance = 59000,
 	SpeedMulti = 6,
 	Order = 1043,
 	Model = "chicane_chaser",

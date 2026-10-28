@@ -4,7 +4,7 @@ return {
 	Id = "rainbow_raptor",
 	Name = "Rainbow Raptor",
 	Rarity = "Secret",
-	Chance = 1200000,
+	Chance = 2.3e18,
 	SpeedMulti = 2600,
 	Order = 1099,
 	Model = "rainbow_raptor",

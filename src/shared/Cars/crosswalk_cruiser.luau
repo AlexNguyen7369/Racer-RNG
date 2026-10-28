@@ -4,7 +4,7 @@ return {
 	Id = "crosswalk_cruiser",
 	Name = "Crosswalk Cruiser",
 	Rarity = "Rare",
-	Chance = 67,
+	Chance = 590,
 	SpeedMulti = 2.4,
 	Order = 1019,
 	Model = "crosswalk_cruiser",

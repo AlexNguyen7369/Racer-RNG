@@ -4,7 +4,7 @@ return {
 	Id = "laser_lotus",
 	Name = "Laser Lotus",
 	Rarity = "Legendary",
-	Chance = 1700,
+	Chance = 1.6e7,
 	SpeedMulti = 30,
 	Order = 1066,
 	Model = "laser_lotus",

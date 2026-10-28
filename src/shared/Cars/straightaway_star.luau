@@ -4,7 +4,7 @@ return {
 	Id = "straightaway_star",
 	Name = "Straightaway Star",
 	Rarity = "Epic",
-	Chance = 600,
+	Chance = 320000,
 	SpeedMulti = 10.5,
 	Order = 1052,
 	Model = "straightaway_star",

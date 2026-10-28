@@ -4,7 +4,7 @@ return {
 	Id = "thunder_thimble",
 	Name = "Thunder Thimble",
 	Rarity = "Secret",
-	Chance = 900000,
+	Chance = 4.9e17,
 	SpeedMulti = 2200,
 	Order = 1097,
 	Model = "thunder_thimble",

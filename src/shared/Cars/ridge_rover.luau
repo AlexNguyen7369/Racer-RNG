@@ -4,7 +4,7 @@ return {
 	Id = "ridge_rover",
 	Name = "Ridge Rover",
 	Rarity = "Rare",
-	Chance = 116,
+	Chance = 1800,
 	SpeedMulti = 3.45,
 	Order = 1026,
 	Model = "ridge_rover",

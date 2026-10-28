@@ -1,5 +1,9 @@
 # NPC racer: design spec (contract for tests and implementation)
 
+> Worlds and cap (owner 2026-10-27, `docs/WORLDS_SPEC.md`): each world has its own NPC ladder, and every NPC drives
+> below `RaceConfig.MAX_CRUISE` (800). World 1: 16 x 1.51^(n-1), Track 10 = 653 studs/s; World 2: 160 x 1.18^(n-1), Track 10 = 711 (placeholder, final values from
+> tools/balance_sim.py).
+
 User brief (2026-10-01):
 - One NPC racer per track. For now it is the starter car (`CarFactory`) in a different colour per track: red on
   Track 1, a different colour on every other track. The model must be swappable per track later.
@@ -28,7 +32,7 @@ User brief (2026-10-01):
 ### `src/shared/NpcConfig.luau` (editable knobs)
 - `BASE_SPEED` (studs/s, Track 1, above `RaceConfig.BASE_SPEED` so a stat-0 starter car loses): 16 (owner
   2026-10-22, a small starter-track recommendation lift; current Track 1 recommendation ~7.7K)
-- `SPEED_GROWTH` (each track's NPC is this many times faster than the previous one): 1.75 (owner 2026-10-21,
+- `SPEED_GROWTH` (each track's NPC is this many times faster than the previous one): 1.51 (placeholder, 2026-10-27 speed probe, WORLDS_SPEC; was 1.75 owner 2026-10-21,
   later the same day: was 2.5, then 1.37; with RaceConfig.MAX_SPEED 88 and Track 1 at 16, early recommendations are slightly higher)
 - `LABEL_DISTANCE` (studs, BillboardGui `MaxDistance`): 200 (owner 2026-10-20: wider, was 60)
 - `LOSE_SCREEN_SECONDS`: 3

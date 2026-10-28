@@ -4,7 +4,7 @@ return {
 	Id = "curb_cutter",
 	Name = "Curb Cutter",
 	Rarity = "Epic",
-	Chance = 480,
+	Chance = 140000,
 	SpeedMulti = 8.5,
 	Order = 1048,
 	Model = "curb_cutter",

@@ -4,7 +4,7 @@ return {
 	Id = "carbon_comet",
 	Name = "Carbon Comet",
 	Rarity = "Epic",
-	Chance = 360,
+	Chance = 70000,
 	SpeedMulti = 6.5,
 	Order = 1044,
 	Model = "carbon_comet",

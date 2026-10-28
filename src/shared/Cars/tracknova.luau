@@ -4,7 +4,7 @@ return {
 	Id = "tracknova",
 	Name = "Tracknova",
 	Rarity = "Epic",
-	Chance = 840,
+	Chance = 1.3e6,
 	SpeedMulti = 14.5,
 	Order = 1060,
 	Model = "tracknova",

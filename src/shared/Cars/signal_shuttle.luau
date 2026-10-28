@@ -4,7 +4,7 @@ return {
 	Id = "signal_shuttle",
 	Name = "Signal Shuttle",
 	Rarity = "Uncommon",
-	Chance = 42,
+	Chance = 120,
 	SpeedMulti = 2.05,
 	Order = 1015,
 	Model = "signal_shuttle",

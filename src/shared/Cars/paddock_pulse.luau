@@ -4,7 +4,7 @@ return {
 	Id = "paddock_pulse",
 	Name = "Paddock Pulse",
 	Rarity = "Epic",
-	Chance = 690,
+	Chance = 540000,
 	SpeedMulti = 12,
 	Order = 1055,
 	Model = "paddock_pulse",

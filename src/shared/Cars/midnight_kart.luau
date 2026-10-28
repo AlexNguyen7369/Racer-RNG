@@ -3,7 +3,7 @@ return {
 	Id = "midnight_kart",
 	Name = "Midnight Kart",
 	Rarity = "Legendary",
-	Chance = 2500,
+	Chance = 4.3e7,
 	SpeedMulti = 8,
 	Order = 9,
 	Model = "midnight_kart", -- own redesign model (docs/CAR_REDESIGN_SPEC.md section 5)

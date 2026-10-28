@@ -1,5 +1,8 @@
 # Saves: session lock and VERSION 12 (contract for tests and implementation)
 
+> VERSION 13 (owner 2026-10-27, `docs/WORLDS_SPEC.md` section 4): per-world fields (Speed, BestTrack, Checkpoint,
+> RaceBestTimes, Level, XP) move under `Worlds["1"]` / `Worlds["2"]`; both places share this store, key and lock.
+
 Design rule (`docs/GAME_DESIGN_REQUIREMENTS.md`, "Technical and data requirements"): DataStores with session locking
 so data can not duplicate across servers; save on leave, on an interval and on server shutdown. Owner decision
 2026-10-12: fix the code now (`Server/PlayerData` used plain `GetAsync` / `SetAsync`).

@@ -4,7 +4,7 @@ return {
 	Id = "racing_radiant",
 	Name = "Racing Radiant",
 	Rarity = "Epic",
-	Chance = 540,
+	Chance = 230000,
 	SpeedMulti = 9.5,
 	Order = 1050,
 	Model = "racing_radiant",

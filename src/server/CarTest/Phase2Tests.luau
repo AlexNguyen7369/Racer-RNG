@@ -1277,36 +1277,74 @@ function Tests.rebirth()
 	-- design doc "Rebirth system": "Rebirth Points per rebirth: 1" (placeholder, owner 2026-10-15)
 	local perRebirth = config.POINTS_PER_REBIRTH
 	flag("rebirth_points_per_rebirth_is_1", perRebirth == 1, perRebirth, 1)
-	-- design doc "Rebirth system", owner 2026-10-27 rev. 2 (docs/REBIRTH_SPEC.md "Automatic bonus"): the rebirth
-	-- level sets one TOTAL multi: level 0 = 1, levels 1-20 add +5 each (1 = 5, 20 = 100), then capped at x100 for
-	-- every later level (21, 30, 1e9 = 100). Luck uses the same multi.
-	for _, case in { { 0, 1 }, { 1, 5 }, { 2, 10 }, { 20, 100 }, { 21, 100 }, { 22, 100 }, { 30, 100 } } do
+	-- design doc "Rebirth system", owner 2026-10-27 rev. 4 (docs/REBIRTH_SPEC.md "Automatic bonus rev. 4"): the
+	-- rebirth level sets one TOTAL multi from a fixed table: level 0 = 1, then 1.5, 2, 2.5, 3, 3.5, 4, 5, 6, 7.5, 10,
+	-- then x10 per rebirth up to 1e11 at rebirth 20 (the last one; later levels stay 1e11). Luck uses the same multi.
+	local TOTALS = { 1.5, 2, 2.5, 3, 3.5, 4, 5, 6, 7.5, 10, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9, 1e10, 1e11 }
+	flag("rebirth_max_level_is_20", config.MAX_LEVEL == 20, config.MAX_LEVEL, 20)
+	local tableOk = type(config.TOTALS) == "table" and #config.TOTALS == #TOTALS
+	for i, want in TOTALS do
+		tableOk = tableOk and config.TOTALS[i] == want
+	end
+	flag("rebirth_totals_table_rev4", tableOk)
+	for _, case in
+		{
+			{ 0, 1 },
+			{ 1, 1.5 },
+			{ 2, 2 },
+			{ 9, 7.5 },
+			{ 10, 10 },
+			{ 11, 100 },
+			{ 12, 1000 },
+			{ 20, 1e11 },
+			{ 21, 1e11 },
+		}
+	do
 		local level, want = case[1], case[2]
 		local got = config.SpeedGainMulti(level)
-		flag("rebirth_multi_level_" .. level .. "_is_" .. want, got == want, got, want)
+		flag("rebirth_multi_level_" .. level .. "_is_" .. tostring(want), got == want, got, want)
 	end
-	local curveOk, prev = true, config.SpeedGainMulti(0)
-	for level = 1, 60 do
+	local curveOk = config.SpeedGainMulti(0) == 1
+	for level = 1, 40 do
 		local got = config.SpeedGainMulti(level)
-		local want = if level <= 20 then level * 5 else prev -- +5 per level up to 20, then flat
-		curveOk = curveOk and got >= prev and got == want
-		prev = got
+		curveOk = curveOk and got == TOTALS[math.min(level, #TOTALS)]
 	end
-	flag("rebirth_multi_plus_5_to_20_then_flat", curveOk)
+	flag("rebirth_multi_follows_totals_then_flat", curveOk)
 	local huge = config.SpeedGainMulti(1e9)
-	flag("rebirth_multi_level_1e9_is_100", huge == 100, huge, 100)
+	flag("rebirth_multi_level_1e9_is_1e11", huge == 1e11, huge, 1e11)
 	flag(
 		"rebirth_late_step_and_effective_cap_removed",
 		config.LATE_STEP == nil and config.MAX_EFFECTIVE_MULTIPLIER == nil
 	)
+	flag("rebirth_rev3_step_removed", config.EARLY_STEP == nil and config.ADD_UNTIL == nil)
+	-- docs/REBIRTH_SPEC.md "Requirement" rev. 4: level needed for the next rebirth, by current rebirth level 0..19
+	local levelConfigReq = module(Shared, "LevelConfig")
+	local REQ = { 15, 25, 40, 60, 75, 100, 125, 150, 175, 200, 225, 260, 300, 340, 380, 420, 465, 510, 560, 600 }
+	local reqOk = levelConfigReq ~= nil and type(levelConfigReq.RebirthLevelRequirement) == "function"
+	for n, want in REQ do
+		reqOk = reqOk
+			and levelConfigReq.RebirthLevelRequirement(n - 1) == want
+			and config.Requirements(n - 1).Level == want
+	end
+	flag("rebirth_requirement_table_rev4", reqOk)
+	local past = reqOk
+		and levelConfigReq.RebirthLevelRequirement(19) == 600
+		and levelConfigReq.RebirthLevelRequirement(50)
+	flag("rebirth_requirement_past_last_is_600", past == 600, past, 600)
+	flag(
+		"rebirth_cannot_rebirth_at_max",
+		config.CanRebirth(20, 1e9) == false
+			and config.CanRebirth(25, 1e9) == false
+			and config.CanRebirth(19, 600) == true
+	)
 	flag("rebirth_old_x10_totals_removed", config.REBIRTH_TOTALS == nil and config.REPEAT_FACTOR == nil)
 	local luckSame = true
-	for _, level in { 0, 1, 2, 5, 20, 21, 30 } do
+	for _, level in { 0, 1, 2, 5, 10, 11, 19, 20, 21, 60 } do
 		luckSame = luckSame and config.LuckMulti(level) == config.SpeedGainMulti(level)
 	end
 	flag("rebirth_luck_multi_equals_speed_gain_multi", luckSame)
 	local nextOk = type(config.NextMultiplier) == "function"
-	for _, level in { 0, 1, 19, 20, 21 } do
+	for _, level in { 0, 1, 9, 10, 18, 19, 20, 21 } do
 		nextOk = nextOk and config.NextMultiplier(level) == config.SpeedGainMulti(level + 1)
 	end
 	flag("rebirth_next_multiplier_is_next_level_total", nextOk)
@@ -1397,12 +1435,12 @@ function Tests.rebirth()
 		task.wait() -- the shown Speed follows BaseSpeed on its Changed signal (may be deferred)
 		-- Owner 2026-10-21: leaderstats.Speed shows base x ShownSpeedMulti, so it is 0 too (go_kart stays equipped)
 		flag("rebirth_resets_shown_speed", p.leaderstats.Speed.Value == 0, p.leaderstats.Speed.Value, 0)
-		-- design doc "Rebirth system" (owner 2026-10-27 rev. 2): rebirth 1 = total x5 (no points, aura or trail here)
+		-- design doc "Rebirth system" (owner 2026-10-27 rev. 4): rebirth 1 = total x1.5 (no points, aura or trail here)
 		flag(
 			"rebirth_multiplier_refreshes_immediately",
-			p:GetAttribute("SpeedGainMulti") == 5 and p:GetAttribute("LuckMulti") == 5,
+			p:GetAttribute("SpeedGainMulti") == 1.5 and p:GetAttribute("LuckMulti") == 1.5,
 			p:GetAttribute("SpeedGainMulti"),
-			5
+			1.5
 		)
 		flag("rebirth_speed_stat_is_0", data.SpeedStat(p) == 0, data.SpeedStat(p), 0)
 		local carsAfter = gacha.Snapshot(p)
@@ -1461,12 +1499,23 @@ function Tests.rebirth()
 			gacha.EarnedPoints(p),
 			wantEarned
 		)
-		-- Milestones 10, 25, 50, 75, 100 (rebirth levels 0-4), then every 25: rebirth level 5 requires level 125.
-		local high = ready("Beyond100", 125)
+		-- Rev. 4 requirement table (docs/REBIRTH_SPEC.md "Requirement"): rebirth level 5 requires level 100.
+		local high = ready("Level100", 100)
 		high:SetAttribute("RebirthLevel", 5)
 		local highOk, highNext = service.Rebirth(high)
-		flag("rebirth_level_125_requirement", config.Requirements(5).Level == 125, config.Requirements(5).Level, 125)
-		flag("rebirth_level_125_accepted", highOk == true and highNext == 6, highNext, 6)
+		flag("rebirth_level_100_requirement", config.Requirements(5).Level == 100, config.Requirements(5).Level, 100)
+		flag("rebirth_level_100_accepted", highOk == true and highNext == 6, highNext, 6)
+		-- rebirth 20 is the last: refused with "Max rebirth" at any level, Money and Speed untouched
+		local maxed = ready("Max", 1e6)
+		maxed:SetAttribute("RebirthLevel", 20)
+		local maxOk, maxMsg = service.Rebirth(maxed)
+		flag("rebirth_refused_at_max_rebirth", maxOk == false and maxMsg == "Max rebirth", maxMsg, "Max rebirth")
+		flag(
+			"rebirth_refused_at_max_keeps_money_and_speed",
+			untouched(maxed, 5000, 321.5, 20),
+			maxed.BaseSpeed.Value,
+			321.5
+		)
 		local luckBefore = p:GetAttribute("Alloc_Luck") or 0
 		local spent = gacha.Allocate(p, "Luck")
 		flag(
@@ -1534,6 +1583,77 @@ function Tests.rebirth()
 		)
 		local _, _, cut = loaded("LoadOver", 2 * per + 3)
 		flag("rebirth_load_trims_over_allocation", cut.Workshop == 2 * per and cut.Speed == 1, cut.Workshop, 2 * per)
+
+		-- BRIEF (owner 2026-10-27, docs/GAME_DESIGN_REQUIREMENTS.md "Level system"): XP per second =
+		-- LevelConfig.XP_PER_SECOND (1) x GachaService.SpeedMulti (Speed Gain x rebirth x aura x trail), not sqrt(Speed).
+		local levels = module(Server, "LevelService")
+		-- XP curve (owner 2026-10-27, LevelConfig): XPToNext(L) = XP_LINEAR x L up to level 225, then x10 every XP_DECADE
+		-- levels; CleanXP keeps up to 1e300 (late rebirths need far more than 1e15 XP).
+		-- Owner 2026-10-28: XP_LINEAR 122 (was 10), XP_DECADE 37.2 (was 40), so XPToNext(225) = 27,450. The numbers are
+		-- pinned here as literals, never read from LevelConfig. 225 + 5 x 37.2 = 411 is exactly x10^5.
+		local function xpCurve(level)
+			return 27450 * 10 ^ ((level - 225) / 37.2)
+		end
+		local lc = module(Shared, "LevelConfig")
+		local function xpNear(a, b)
+			return type(a) == "number" and math.abs(a - b) <= 1e-9 * b
+		end
+		flag(
+			"level_xp_curve_rev4",
+			lc ~= nil
+				and lc.XPToNext(1) == 122
+				and lc.XPToNext(100) == 12200
+				and lc.XPToNext(225) == 27450
+				and xpNear(lc.XPToNext(226), xpCurve(226))
+				and xpNear(lc.XPToNext(300), xpCurve(300))
+				and xpNear(lc.XPToNext(411), 2745000000)
+				and lc.XP_BASE == nil
+				and lc.XP_GROWTH == nil,
+			lc and lc.XPToNext(300),
+			xpCurve(300)
+		)
+		flag(
+			"level_clean_xp_caps_at_1e300",
+			lc ~= nil and lc.CleanXP(1e200) == 1e200 and lc.CleanXP(1e301) == 1e300 and lc.CleanXP(-1) == 0,
+			lc and lc.CleanXP(1e301),
+			1e300
+		)
+		flag("level_xp_tick_exists", levels ~= nil and type(levels.Tick) == "function")
+		if levels and type(levels.Tick) == "function" then
+			local xpP = fake("LevelXp", data, gacha)
+			table.insert(players, xpP)
+			xpP:SetAttribute("DataLoaded", true)
+			-- XP gained by one Tick from level XP_KNEE (225) / 0 XP. Owner 2026-10-28: XPToNext(L) = 122 x L, so level 1
+			-- needs 122 XP; at 225 it needs 27,450, far above every probe below, so no tick levels up.
+			local probeLevel = 225
+			local function gain(dt, m)
+				xpP:SetAttribute("Level", probeLevel)
+				xpP:SetAttribute("XP", 0)
+				levels.Tick(xpP, dt, m)
+				return (xpP:GetAttribute("Level") == probeLevel) and xpP:GetAttribute("XP") or -1
+			end
+			local function near(a, b)
+				return type(a) == "number" and math.abs(a - b) < 1e-6
+			end
+			local one = gain(1, 1)
+			flag("level_xp_tick_base_is_1_per_second", near(one, 1), one, 1)
+			local m25 = gain(1, 25)
+			flag("level_xp_tick_scales_with_gain_multi", near(m25, 25 * one), m25, 25 * one)
+			xpP.leaderstats.Speed.Value = 0
+			xpP.BaseSpeed.Value = 0
+			local low = gain(1, 3)
+			xpP.leaderstats.Speed.Value = 1e6
+			xpP.BaseSpeed.Value = 1e6
+			local high = gain(1, 3)
+			flag("level_xp_ignores_speed_stat", near(low, 3) and near(high, low), high, low)
+			xpP:SetAttribute("RebirthLevel", 1)
+			xpP:SetAttribute("EquippedAura", "azure_aura")
+			xpP:SetAttribute("EquippedTrail", "rainbow_trail")
+			local multi = gacha.SpeedMulti(xpP)
+			flag("level_xp_speed_multi_above_1", type(multi) == "number" and multi > 1, multi, ">1")
+			local viaMulti = gain(2, multi)
+			flag("level_xp_tick_uses_speed_multi", near(viaMulti, multi * 2), viaMulti, multi * 2)
+		end
 	end)
 	service.REMOTE_COOLDOWN = oldCooldown
 	for _, p in players do

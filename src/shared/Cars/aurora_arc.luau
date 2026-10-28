@@ -4,7 +4,7 @@ return {
 	Id = "aurora_arc",
 	Name = "Aurora Arc",
 	Rarity = "Legendary",
-	Chance = 4200,
+	Chance = 2.3e8,
 	SpeedMulti = 80,
 	Order = 1076,
 	Model = "aurora_arc",

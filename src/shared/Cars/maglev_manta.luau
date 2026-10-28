@@ -4,7 +4,7 @@ return {
 	Id = "maglev_manta",
 	Name = "Maglev Manta",
 	Rarity = "Legendary",
-	Chance = 2950,
+	Chance = 7e7,
 	SpeedMulti = 55,
 	Order = 1071,
 	Model = "maglev_manta",

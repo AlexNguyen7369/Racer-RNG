@@ -4,7 +4,7 @@ return {
 	Id = "rocket_car",
 	Name = "Rocket Car",
 	Rarity = "Legendary",
-	Chance = 1000, -- 1 in N
+	Chance = 1e7, -- 1 in N
 	SpeedMulti = 25,
 	Order = 5,
 	Model = "rocket_car", -- ReplicatedStorage.CarModels.rocket_car (assets/studio/CarModels.rbxm, Draft05 import)

@@ -68,6 +68,12 @@ local function runAll()
 
 	local names = table.clone(TestConfig.Scenarios)
 	local trackTests = script.Parent:FindFirstChild("TrackTests")
+	-- on-demand subset (e.g. TestConfig.OnDemand's speed_probe): only the named scenarios, no track tests
+	local only = ReplicatedStorage:GetAttribute("CarTestOnly")
+	if type(only) == "string" and only ~= "" then
+		names = string.split((string.gsub(only, "%s", "")), ",")
+		trackTests = nil
+	end
 	if trackTests then
 		local found = {}
 		for _, module in trackTests:GetChildren() do

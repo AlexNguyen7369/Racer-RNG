@@ -4,7 +4,7 @@ return {
 	Id = "wizard_wagon",
 	Name = "Wizard Wagon",
 	Rarity = "Mythic",
-	Chance = 43000,
+	Chance = 3.6e13,
 	SpeedMulti = 350,
 	Order = 1089,
 	Model = "wizard_wagon",
