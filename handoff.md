@@ -22,7 +22,11 @@ in git history (`git log -p -- handoff.md`, last full version at 2d99d78) and in
 
 ## Open work
 
-ORCH-1. **Orchestrator tick 1, 2026-10-28 (session orchestrator-skill-setup): landing the main-tree WIP on `feature/alex/world1-ship`.**
+ORCH-1. **Orchestrator tick 1, 2026-10-28: LANDED on `feature/alex/world1-ship` (pushed): 50efb4d scenery fix, 677ad7d World 1 balance,
+   2ac2f0f progress. Harness END pass=53 fail=0 (studio id now 4f40c05b-...; use CarTestOnly attribute, never gmatch the log).
+   NEXT: merge origin/feature/isaac/simple-hud-icons-20261027 (conflicts README, ProjectContext, current_progress,
+   ui/generated/RacerHud.*, StarterGui.rbxm: regenerate + re-bake), then full [UITEST] + harness, then test-debt td1-td7.**
+   History:
    Branch switched in place from car-redesign (no file changes). Owners: world-two-speed-cap session (payout curve, rebirth rev 4,
    XP 122/225/37.2, owner-approved 2026-10-28, applied by that session, check level_xp_curve_rev4 not run yet, car odds rev, MAX_CRUISE 800, money cap 1e30, max-rebirth UI); dashboard
    files `tools/dashboard/{server.py,test_integration.py,static/flow.*}` belong to soft-car-finish-pilot: NEVER stage them.
