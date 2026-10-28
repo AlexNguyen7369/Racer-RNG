@@ -200,7 +200,7 @@ Idle Vehicle Simulator — Game Design Requirements
        HUD, Stats panel, Roblox player list, and global Speed leaderboard therefore all show base
        Speed. The car's own multi is still shown on the car.
        Before the cruise formula, the raw cruise multi is damped to `1 + log10(raw cruise multi)`
-       and capped at effective 1.5x (minimum 0.1 for valid positive values). This keeps rare cars
+       and capped at effective 1.5x (minimum 0.1 for valid positive values) (REPLACED 2026-10-28, see below). This keeps rare cars
        faster without allowing a 350x/1000x car to create hundreds or thousands of studs/s. The same base Speed can therefore
        produce different cruise speeds with different cars, while the Speed gain rate remains identical.
        Saving, rebirth resets and Speed gain still use the base Speed. The gain rules above are
@@ -229,12 +229,21 @@ Idle Vehicle Simulator — Game Design Requirements
        Speed; same log shape, no cap). Each next track's NPC is 1.75x faster (placeholder Track 1
        = 16 studs/s). Recommended Speed: Track 1 ~7.7K, Track 5 ~301K, Track 10 ~2.15e23.
        Owner decision, 2026-10-27 (speed feel, replaces where they differ the 2026-10-21 / 10-22 cruise
-       entries): (1) the damped car / shop cruise multi (1 + log10(raw), 0.1 .. 1.5) multiplies the final
+       entries): (1) the damped car / shop cruise multi (1 + log10(raw), 0.1 .. 1.5 (REPLACED 2026-10-28, see below)) multiplies the final
        cruise studs/s instead of the Speed fed into the curve, so cars differ from the first second (at 0
        Speed the starter drives 10 studs/s and a car at the full damped x1.5, i.e. raw x3.16 or more, 15; a raw
        x1.5 car gives 1 + log10(1.5) = x1.18, 11.8 studs/s). (2) HALF_STAT is 10,000 (placeholder, was
        100K): about 17.8 studs/s at 1K Speed, 88 at 10K, then +39 studs/s per doubling. NPC recommended
        Speeds (StatFor) drop 10x with it. The displayed Speed and its gain are unchanged.
+       Owner decision, 2026-10-28 (cruise multis: cars + auras/trails both; replaces the 1.5x car cap above):
+       with the 1.5x cap every car of raw x3.16 or more drove at the same cruise, so rarer cars felt identical.
+       (1) The damped car cruise multi keeps its shape, 1 + log10(raw car multi), min 0.1, but its cap
+       RaceConfig.MAX_CRUISE_CAR_MULTI is 4 (placeholder): a raw x1000 car gives x4. (2) The equipped aura and the
+       equipped trail each also add a damped cruise multi, 1 + 0.5 x log10(that item's multi from MarketConfig), min 1
+       (the 0.5 is a placeholder, RaceConfig.ITEM_CRUISE_DAMP), so equipping one makes the car faster at once.
+       (3) Total cruise multi = car x aura x trail, capped at RaceConfig.MAX_CRUISE_TOTAL_MULTI = 4 (placeholder);
+       it multiplies the cruise studs/s, which stay capped at RaceConfig.MAX_CRUISE (800). Gain rules are unchanged:
+       the aura and trail still multiply Speed gain, the car never does.
        Owner decision, 2026-10-22 (speed feel): make the first 100K Speed easier to gain and begin
        the stronger diminishing-return tail only after 100K. Placeholders MAX_SPEED 88 and HALF_STAT 100K.
        With raw multi 1 this gives about 18 studs/s at 10K, 49 at 50K, 88 at 100K, and 218 at 1M
@@ -251,7 +260,7 @@ Idle Vehicle Simulator — Game Design Requirements
   trail (T, new term) now multiply ALL Speed gain, race and workshop, on top of the Speed Gain stat/upgrade and the
   rebirth multi: gain = GAIN_PER_SECOND x Speed Gain stat x R x A x T (workshop: its own rate x the same A x T).
   This replaces the 2026-10-21 rule that auras never affect Speed gain. The aura also keeps its cruise-speed
-  multi. The equipped car still never affects Speed gain. Aura and trail multis and prices are placeholders
+  multi (since 2026-10-28 the trail has one too, both damped; see "cruise multis" under Racing). The equipped car still never affects Speed gain. Aura and trail multis and prices are placeholders
   (see "What Money buys").
 
   Balance tip: with nine multipliers stacked, a small change to one moves everything. Model
@@ -640,7 +649,7 @@ Idle Vehicle Simulator — Game Design Requirements
 
 
   Aura and trail ladders (owner 2026-10-27, placeholder numbers; prices follow the price curve under Racing). Both multiply all Speed gain; the
-  aura also multiplies cruise speed. Both are kept on rebirth.
+  aura also multiplies cruise speed (since 2026-10-28 the trail too, both damped: 1 + 0.5 x log10(multi), placeholder). Both are kept on rebirth.
 
 
      Trail              Speed Gain multi        Cost              Aura             Speed multi    Cost

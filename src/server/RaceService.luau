@@ -124,7 +124,7 @@ function RaceService.NewRun(car, raceRoute, player, options)
 	local stat = PlayerData.SpeedStat(player)
 	local physics = CarPhysics.new(car, CarConfig)
 	local driver = PathDriver.new(raceRoute.Path, CarConfig, {
-		TargetSpeed = RaceConfig.SpeedFor(stat, GachaService.ShownSpeedMulti(player)),
+		TargetSpeed = RaceConfig.SpeedFor(stat, GachaService.CruiseMultis(player)),
 		NoFinalSlow = options.Loop,
 	})
 	local run = {
@@ -471,7 +471,7 @@ function RaceService.NewRun(car, raceRoute, player, options)
 			end
 		end
 		stat = PlayerData.SpeedStat(player) -- the source of truth (also picks up a load finishing)
-		run.TargetSpeed = RaceConfig.SpeedFor(stat, GachaService.ShownSpeedMulti(player))
+		run.TargetSpeed = RaceConfig.SpeedFor(stat, GachaService.CruiseMultis(player))
 		driver.TargetSpeed = run.TargetSpeed
 	end
 

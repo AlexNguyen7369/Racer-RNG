@@ -301,6 +301,11 @@ function GachaService.ShownSpeedMulti(player)
 	return GachaService.CarSpeedMulti(player) * MarketConfig.SpeedMulti(player)
 end
 
+-- Raw cruise inputs for RaceConfig.SpeedFor: car, aura, trail (owner 2026-10-28; damped and capped there).
+function GachaService.CruiseMultis(player)
+	return GachaService.CarSpeedMulti(player), MarketConfig.SpeedMulti(player), MarketConfig.TrailMulti(player)
+end
+
 function GachaService.SpeedGainMulti(player)
 	local multis = GachaConfig.Multis(alloc(player), UpgradeService.Bonuses(player))
 	-- Speed-gain stat/tree upgrade x rebirth x equipped aura and trail (never the car).

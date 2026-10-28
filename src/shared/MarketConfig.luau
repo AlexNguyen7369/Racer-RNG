@@ -117,18 +117,23 @@ function MarketConfig.Get(kind, id)
 	return item and item.Kind == kind and item or nil
 end
 
--- Cruise multi: the equipped aura only (trails never change cruise speed).
+-- The equipped aura's raw multi (gain, and damped cruise via RaceConfig.CruiseMulti).
 function MarketConfig.SpeedMulti(player)
 	local id = typeof(player) == "Instance" and player:GetAttribute("EquippedAura") or nil
 	local item = MarketConfig.Get("Aura", id)
 	return item and item.SpeedMulti or 1
 end
 
--- Speed-gain multi (owner 2026-10-27): equipped aura x equipped trail.
-function MarketConfig.GainMulti(player)
+-- The equipped trail's raw multi (gain, and damped cruise via RaceConfig.CruiseMulti; owner 2026-10-28).
+function MarketConfig.TrailMulti(player)
 	local id = typeof(player) == "Instance" and player:GetAttribute("EquippedTrail") or nil
 	local trail = MarketConfig.Get("Trail", id)
-	return MarketConfig.SpeedMulti(player) * (trail and trail.SpeedMulti or 1)
+	return trail and trail.SpeedMulti or 1
+end
+
+-- Speed-gain multi (owner 2026-10-27): equipped aura x equipped trail.
+function MarketConfig.GainMulti(player)
+	return MarketConfig.SpeedMulti(player) * MarketConfig.TrailMulti(player)
 end
 
 return MarketConfig
