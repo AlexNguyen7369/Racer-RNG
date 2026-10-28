@@ -330,6 +330,7 @@ function GachaService.MoneyMulti(player)
 		* RebirthConfig.MoneyMulti(player:GetAttribute("RebirthLevel"))
 		* require(script.Parent.BoostService).Multiplier(player, "Money")
 		* require(script.Parent.WeatherService).Multipliers().Money
+		* require(script.Parent.FriendBoostService).Multi(player) -- docs/FRIENDS_BOOST_SPEC.md
 end
 
 function GachaService.Luck(player)
@@ -337,6 +338,7 @@ function GachaService.Luck(player)
 		* RebirthConfig.LuckMulti(player:GetAttribute("RebirthLevel"))
 		* require(script.Parent.BoostService).Multiplier(player, "Luck")
 		* require(script.Parent.WeatherService).Multipliers().Luck
+		* require(script.Parent.FriendBoostService).Multi(player) -- docs/FRIENDS_BOOST_SPEC.md
 	if player:GetAttribute("InWorkshop") == true then
 		local WorkshopConfig = require(Shared.WorkshopConfig)
 		luck *= WorkshopConfig.LuckMulti(player:GetAttribute("WorkshopLevel"))

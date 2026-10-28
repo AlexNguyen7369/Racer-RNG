@@ -990,6 +990,15 @@ Idle Vehicle Simulator — Game Design Requirements
        car turns slowly on a round platform; its odds, its name and the player's name are shown
        above it.
 
+  Friends-in-server boost
+  Contract: docs/FRIENDS_BOOST_SPEC.md.
+
+       Owner decision, 2026-10-28 (World 1 feature nf3): every Roblox friend in the same server
+       gives +10% Luck and +10% Money, capped at +40% (4 friends). Multi = 1 + min(0.10 x friends, 0.40).
+       It multiplies the player's roll Luck and Money multi alongside the other multipliers; it
+       never changes Speed gain, cruise speed or car physics. The server counts friends and decides
+       the multi; the client only displays it. The 10% per friend and the 40% cap are placeholders.
+
   Weather events
   Contract: docs/WEATHER_EVENTS_SPEC.md.
 

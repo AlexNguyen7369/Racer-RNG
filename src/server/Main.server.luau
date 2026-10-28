@@ -76,6 +76,7 @@ WorkshopService.Start(track1Start) -- 7 workshop plots in the spawn area, one pe
 MarketService.Start() -- the spawn-area aura and trail market (physical prompt + client button)
 RebirthService.Start()
 BoostService.Start()
+require(script.Parent.FriendBoostService).Start() -- friends-in-server Luck / Money boost (docs/FRIENDS_BOOST_SPEC.md)
 DailyLoginService.Start()
 LevelService.Start()
 PassCarService.Start() -- gamepass cars on the two small pedestals (docs/GAMEPASS_CARS_SPEC.md)
