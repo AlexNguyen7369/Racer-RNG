@@ -641,6 +641,18 @@ local function marketTabScale(obj, child, ctx)
 	return math.clamp((rr.h / railScale - (n - 1) * fit.Gap) / (n * fit.TabSize), min, fit.Max)
 end
 
+-- The visible HudChrome bottom-pair blockers (Money, Speed) at ctx.vp: { [path] = rect }.
+local function hudPairShown(ctx)
+	local shown = {}
+	for _, path in UiResponsive.HudChrome.Blockers do
+		local o = findPath(path)
+		if o and o:IsA("GuiObject") and o.Visible then
+			shown[path] = simRect(o, ctx)
+		end
+	end
+	return shown
+end
+
 -- HudChrome's bottom-pair scale at ctx.vp (UiResponsive.HudChromePairScale), nil for other nodes.
 local function hudPairScale(obj, ctx)
 	local cfg = UiResponsive.HudChrome
@@ -648,14 +660,7 @@ local function hudPairScale(obj, ctx)
 	if not (cfg.Slots[pathOf(obj)] and level and turbo) then
 		return nil
 	end
-	local blockers = {}
-	for _, path in cfg.Blockers do
-		local o = findPath(path)
-		if o and o:IsA("GuiObject") and o.Visible then
-			table.insert(blockers, simRect(o, ctx))
-		end
-	end
-	return UiResponsive.HudChromePairScale(ctx.vp, simRect(level, ctx), simRect(turbo, ctx), blockers)
+	return UiResponsive.HudChromePairScale(ctx.vp, simRect(level, ctx), simRect(turbo, ctx), hudPairShown(ctx))
 end
 
 -- The layout factor of obj's own UIScale children at ctx.vp (1 without one). UIScale scales the object about its
@@ -1176,7 +1181,13 @@ simRect = function(obj, ctx)
 				local level = findPath(UiResponsive.HudChrome.Level)
 				local turbo = findPath(UiResponsive.HudChrome.Turbo)
 				if level and turbo then
-					position = UiResponsive.HudChromeSlot(path, simRect(level, ctx), simRect(turbo, ctx))
+					position, anchor = UiResponsive.HudChromeSlot(
+						path,
+						ctx.vp,
+						simRect(level, ctx),
+						simRect(turbo, ctx),
+						hudPairShown(ctx)
+					)
 				else
 					ctx.unsupported[path] = "missing runtime layout dependency"
 				end
@@ -3101,6 +3112,149 @@ local function showcaseAutoButtonLayout(res, vpName, sim, vp, sgui, backdrop, ca
 	end
 end
 
+-- Owner 2026-10-28 (UiSpec.HudPair, docs/HUD_LAYOUT_SPEC.md section 6): the Items / Upgrade pair stacks above the
+-- LEVEL bar at viewport height <= StackMaxHeight, stays beside the bars elsewhere, and is never shrunk on desktop.
+local function hudPairChecks(res)
+	local spec = UiSpec.HudPair
+	local restore = setPanels({})
+	local function byName(name)
+		for _, vpSpec in UiSpec.Viewports do
+			if vpSpec.Name == name then
+				return vpSpec
+			end
+		end
+		return nil
+	end
+	-- Rects of the pair and its neighbours at one viewport, or nil (with a failed check) when a node is missing.
+	local function rectsAt(vpSpec, prefix)
+		local rectOf = provider(vpSpec)
+		local out = {}
+		for _, key in { "Items", "Upgrade", "Level", "Turbo", "Money", "Speed" } do
+			local o = findPath(spec[key])
+			if not (o and o:IsA("GuiObject")) then
+				check(res, prefix .. "_present", spec[key], "GuiObject", false)
+				return nil
+			end
+			out[key] = rectOf(o)
+		end
+		out.rectOf = rectOf
+		return out
+	end
+	local function bottom(r)
+		return r.y + r.h
+	end
+	-- Stacked: bottoms at or above Level top and Money top, no overlap with Clear, the brief's rects
+	local function stacked(vpSpec, want)
+		local tag = vpSpec.Name
+		local r = rectsAt(vpSpec, "hud_pair_" .. tag)
+		if not r then
+			return
+		end
+		local low = math.max(bottom(r.Items), bottom(r.Upgrade))
+		check(res, "hud_pair_above_level_" .. tag, low, "<= " .. r.Level.y, low <= r.Level.y + 0.5)
+		check(res, "hud_pair_above_money_" .. tag, low, "<= " .. r.Money.y, low <= r.Money.y + 0.5)
+		local hits = {}
+		for _, key in { "Items", "Upgrade" } do
+			for _, path in spec.Clear do
+				local o = findPath(path)
+				local other = o and o:IsA("GuiObject") and effectivelyVisible(o) and r.rectOf(o)
+				if other and intersects(r[key], other) then
+					table.insert(hits, ("%s %s x %s %s"):format(key, rstr(r[key]), path, rstr(other)))
+				end
+			end
+		end
+		checkList(res, "hud_pair_clear_" .. tag, hits)
+		if want then
+			for _, key in { "Items", "Upgrade" } do
+				local got, w = r[key], want[key]
+				local ok = math.abs(got.x - w.x0) <= spec.Tol
+					and math.abs(got.x + got.w - w.x1) <= spec.Tol
+					and math.abs(got.y - w.y0) <= spec.Tol
+					and math.abs(got.y + got.h - w.y1) <= spec.Tol
+				check(
+					res,
+					("hud_pair_%s_rect_%s"):format(string.lower(key), tag),
+					rstr(got),
+					("x %d..%d y %d..%d +-%d"):format(w.x0, w.x1, w.y0, w.y1, spec.Tol),
+					ok
+				)
+			end
+		end
+	end
+	-- Beside: Items right edge / Upgrade left edge SlotGap outside the bars, icon centre on the Level / Turbo gap
+	local function beside(vpSpec)
+		local tag = vpSpec.Name
+		local r = rectsAt(vpSpec, "hud_pair_" .. tag)
+		if not r then
+			return
+		end
+		local left = math.min(r.Level.x, r.Turbo.x) - spec.SlotGap
+		local right = math.max(r.Level.x + r.Level.w, r.Turbo.x + r.Turbo.w) + spec.SlotGap
+		local gap = (bottom(r.Level) + r.Turbo.y) / 2
+		local bad = {}
+		if math.abs(r.Items.x + r.Items.w - left) > TOL then
+			table.insert(bad, ("Items right %.1f want %.1f"):format(r.Items.x + r.Items.w, left))
+		end
+		if math.abs(r.Upgrade.x - right) > TOL then
+			table.insert(bad, ("Upgrade left %.1f want %.1f"):format(r.Upgrade.x, right))
+		end
+		for _, key in { "Items", "Upgrade" } do
+			local mid = r[key].y + spec.IconMid * r[key].h
+			if math.abs(mid - gap) > TOL then
+				table.insert(bad, ("%s icon centre y %.1f want %.1f"):format(key, mid, gap))
+			end
+		end
+		checkList(res, "hud_pair_beside_bars_" .. tag, bad)
+	end
+
+	local live = viewport()
+	for _, st in spec.Stacked do
+		local vpSpec = byName(st.Viewport)
+		if vpSpec then
+			stacked(vpSpec, st)
+		else
+			check(res, "hud_pair_viewport_" .. st.Viewport, "missing", "in UiSpec.Viewports", false)
+		end
+	end
+	for _, name in spec.Beside do
+		local vpSpec = byName(name)
+		if vpSpec then
+			beside(vpSpec)
+		else
+			check(res, "hud_pair_viewport_" .. name, "missing", "in UiSpec.Viewports", false)
+		end
+	end
+	-- The live screen by the same rule as its height
+	if live.Y <= spec.StackMaxHeight then
+		stacked({ Name = "current" }, nil)
+	else
+		beside({ Name = "current" })
+	end
+	-- Desktop: the pair's UIScale is exactly BottomScale (shrink factor 1), modelled and live
+	for _, name in spec.Desktop do
+		local vpSpec = byName(name)
+		local slot = findPath(spec.Items)
+		if vpSpec and slot then
+			local k = hudPairScale(slot, { vp = vpSpec.Size, cache = {}, unsupported = {} })
+			check(res, "hud_pair_unshrunk_" .. name, k, spec.BottomScale, k == spec.BottomScale)
+		end
+	end
+	if live.Y > UiResponsive.PHONE_MAX_HEIGHT then
+		local bad = {}
+		for _, key in { "Items", "Upgrade" } do
+			local slot = findPath(spec[key])
+			local scale = slot and slot:FindFirstChild(UiResponsive.HudChrome.ScaleName)
+			if not (scale and scale:IsA("UIScale")) then
+				table.insert(bad, spec[key] .. ": no UIScale")
+			elseif scale.Scale ~= spec.BottomScale then
+				table.insert(bad, ("%s: Scale %s want %s"):format(spec[key], tostring(scale.Scale), spec.BottomScale))
+			end
+		end
+		checkList(res, "hud_pair_unshrunk_current", bad)
+	end
+	restore()
+end
+
 function S.ui_layout(res)
 	waitGuis()
 	for _, state in STATES do
@@ -3536,6 +3690,7 @@ function S.ui_layout(res)
 		end
 		restore()
 	end
+	hudPairChecks(res)
 end
 
 -- docs/HUD_LAYOUT_SPEC.md section 6 / UPGRADE_TREE_SPEC.md section 5: while a full-screen overlay panel

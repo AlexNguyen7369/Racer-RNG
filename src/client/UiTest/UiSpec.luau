@@ -709,6 +709,43 @@ UiSpec.Band = {
 	-- the old 240x160 floor pushed panels over the Race button on short phones, e72e9fc).
 }
 
+-- Owner 2026-10-28 (docs/HUD_LAYOUT_SPEC.md section 6): at viewport height <= StackMaxHeight the Items / Upgrade
+-- pair stacks ABOVE the LEVEL bar (both bottoms at or above the Level top and the Money top) and overlaps none of
+-- Clear; elsewhere it stays beside the bars (Items right edge = bars left - SlotGap, Upgrade left = bars right +
+-- SlotGap, icon centre on the gap between Level and Turbo) and on desktop (height > 500) the pair is never shrunk
+-- (pair UIScale = BottomScale exactly). Expected rects at 667x375 from the brief (screen pixels, +-Tol).
+UiSpec.HudPair = {
+	-- The slot holders (one CELL each, scaled by their UIScale "Scale"), not the buttons inside
+	Items = "HudChrome/ItemsSlot",
+	Upgrade = "HudChrome/UpgradeSlot",
+	Level = "RacerHud/Level",
+	Turbo = "RacerHud/Turbo",
+	Money = "RacerHud/Money",
+	Speed = "RacerHud/Speed",
+	Clear = {
+		"RacerHud/Speed",
+		"RacerHud/Money",
+		"RacerHud/Level",
+		"RacerHud/Turbo",
+		"HudChrome/Grid",
+		"HudChrome/ShopColumn",
+	},
+	StackMaxHeight = 400,
+	SlotGap = 10,
+	BottomScale = 0.75,
+	IconMid = 36 / 94,
+	Tol = 2,
+	Stacked = {
+		{
+			Viewport = "phone_small_landscape",
+			Items = { x0 = 187, x1 = 229, y0 = 217, y1 = 264 },
+			Upgrade = { x0 = 482, x1 = 525, y0 = 217, y1 = 264 },
+		},
+	},
+	Beside = { "phone_landscape", "hd_720p" },
+	Desktop = { "desktop_1080p", "laptop_768p", "hd_720p", "tablet_4x3" },
+}
+
 -- CLAUDE.md: panels open BELOW the Race (Auto Race) button and end ABOVE the bottom TURBO LUCK bar. The progression
 -- panels (Upgrades / Workshop / Welcome) keep their rule: below the Race button by this margin (and in the PanelBand,
 -- Band.Gap below it; the compact roll hides under panels, owner 2026-10-28), and this far above the TURBO bar
