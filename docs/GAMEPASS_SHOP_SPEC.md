@@ -39,3 +39,10 @@ from the references `images/UI_ShopReference1-4.png`. Purchases and codes: `docs
 
 Server Luck (2x / 4x / 8x, 15 min, from the design doc) is listed with `ProductId = 0` and no `Grants`. It is
 display-only until the Server Luck feature exists; the receipt handler never grants it.
+
+
+## Owner override — 2026-10-28 UI
+
+
+
+Owner-approved UI delivery, 2026-10-28: white rounded racing-check Welcome reward panel, larger OFFLINE REWARD heading, smaller subtitle, centered speed icon and thick outlines; Claim dismisses using the existing flow. DOUBLE IT / 19 ROBUX is a visual placeholder until the owner creates the product. Offline amounts/rates/caps and server grants unchanged. Shop uses the same white checks. Detailed gamepass cutouts and separately drifting fire/space backgrounds, pooled embers/nebula/stars, Money-style card shine and scale-only 3.5% mouse hover (0.16s); no white hover border. Singularity art reduced about 12%. Gamepass section follows every rollable Index car and contributes no discoveries or stat points. Wyvern 799 Robux / x2000 Speed, Singularity 399 / x500; gamepass IDs remain 0. No Equip/Gift on these two cards; equip remains available elsewhere. Source art, Roblox IDs and prompts: ui/gamepass-cards/20261028. Focused desktop Studio checks and Luau compilation passed; full compatibility, phone and FPS checks not run. Shared Studio saved with version notes; no live publish. Other sessions have newer HUD/offline purchase work in Studio; this branch deliberately isolates this session's presentation changes.

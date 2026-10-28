@@ -863,4 +863,6 @@ hud.TurboLabel.ZIndex = 5
 
 playerGui:SetAttribute("RacerUiReady", true)
 
+require(client:WaitForChild("IndexGamepasses")).Attach(index)
+
 return true
