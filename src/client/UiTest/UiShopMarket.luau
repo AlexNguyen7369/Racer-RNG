@@ -33,14 +33,13 @@ function ShopMarket.Band(vp, d)
 	return margin, d.Race.y + d.Race.h + gap, vp.X - margin, bottom - gap
 end
 
--- Client/PanelBand.Fit for the layout solver: centred in the band, at most maxWidth wide, never under Band.MinSize.
+-- Client/PanelBand.Fit for the layout solver: centred in the band, at most maxWidth wide, never larger than the band.
 function ShopMarket.BandFit(vp, d, maxWidth)
 	local left, top, right, bottom = ShopMarket.Band(vp, d)
-	local min = Spec.Band.MinSize
 	return {
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromOffset((left + right) / 2, (top + bottom) / 2),
-		Size = UDim2.fromOffset(math.max(min.X, math.min(maxWidth, right - left)), math.max(min.Y, bottom - top)),
+		Size = UDim2.fromOffset(math.max(0, math.min(maxWidth, right - left)), math.max(0, bottom - top)),
 	}
 end
 

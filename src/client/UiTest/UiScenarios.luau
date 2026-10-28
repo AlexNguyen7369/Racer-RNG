@@ -119,10 +119,12 @@ UiScenarios.Names = {
 	"ui_roll_anim",
 	"ui_showcase",
 	"ui_loser",
+	-- Racing part (win pads, NPC label) here; its hub pedestal part runs in the on_foot fixture run
+	-- (UiSpec.Progression.FixtureChecks: StreamingEnabled streams the hub out while the main run races)
 	"ui_billboards",
+	-- (ui_workshop_modal reads the owned plot near the hub: it runs only through the on_foot fixture run)
 	"ui_panels",
 	"ui_upgrades",
-	"ui_workshop_modal",
 	"ui_progression_layout",
 	"ui_progression_hud",
 	-- Workshop Showcase (docs/WORKSHOP_SPEC.md "5b. Showcase"); also after showcase_filled (UiSpec.Progression.FixtureChecks)
@@ -634,7 +636,31 @@ local function marketTabScale(obj, child, ctx)
 			n += 1
 		end
 	end
-	return math.clamp((rr.h / railScale - (n - 1) * fit.Gap) / (n * fit.TabSize), fit.Min, fit.Max)
+	local min = (railPath == UiSpec.Market.Tabs and ctx.vp.Y <= UiSpec.Market.PhoneMaxHeight) and fit.PhoneMin
+		or fit.Min
+	return math.clamp((rr.h / railScale - (n - 1) * fit.Gap) / (n * fit.TabSize), min, fit.Max)
+end
+
+-- The visible HudChrome bottom-pair blockers (Money, Speed) at ctx.vp: { [path] = rect }.
+local function hudPairShown(ctx)
+	local shown = {}
+	for _, path in UiResponsive.HudChrome.Blockers do
+		local o = findPath(path)
+		if o and o:IsA("GuiObject") and o.Visible then
+			shown[path] = simRect(o, ctx)
+		end
+	end
+	return shown
+end
+
+-- HudChrome's bottom-pair scale at ctx.vp (UiResponsive.HudChromePairScale), nil for other nodes.
+local function hudPairScale(obj, ctx)
+	local cfg = UiResponsive.HudChrome
+	local level, turbo = findPath(cfg.Level), findPath(cfg.Turbo)
+	if not (cfg.Slots[pathOf(obj)] and level and turbo) then
+		return nil
+	end
+	return UiResponsive.HudChromePairScale(ctx.vp, simRect(level, ctx), simRect(turbo, ctx), hudPairShown(ctx))
 end
 
 -- The layout factor of obj's own UIScale children at ctx.vp (1 without one). UIScale scales the object about its
@@ -649,6 +675,7 @@ local function ownScale(obj, ctx)
 			local override = child.Name == "UIScale" and ctx.scaleOverride and ctx.scaleOverride[obj]
 			local modelled = override
 				or (child.Name == "UIScale" and UiResponsive.ScaleAt(pathOf(obj), ctx.vp))
+				or (child.Name == UiResponsive.HudChrome.ScaleName and hudPairScale(obj, ctx))
 				or (child.Name == UiResponsive.HudChrome.ScaleName and UiResponsive.HudChromeScale(pathOf(obj), ctx.vp))
 				or marketTabScale(obj, child, ctx)
 			if modelled then
@@ -1154,7 +1181,13 @@ simRect = function(obj, ctx)
 				local level = findPath(UiResponsive.HudChrome.Level)
 				local turbo = findPath(UiResponsive.HudChrome.Turbo)
 				if level and turbo then
-					position = UiResponsive.HudChromeSlot(path, simRect(level, ctx), simRect(turbo, ctx))
+					position, anchor = UiResponsive.HudChromeSlot(
+						path,
+						ctx.vp,
+						simRect(level, ctx),
+						simRect(turbo, ctx),
+						hudPairShown(ctx)
+					)
 				else
 					ctx.unsupported[path] = "missing runtime layout dependency"
 				end
@@ -2572,9 +2605,19 @@ end
 
 -- Every element that is interactive or always on in the given state: AlwaysOn elements (minus the ones declared hidden
 -- while that panel is open, UiSpec.HiddenWhilePanelOpen: ui_panels / ui_toast prove they really are hidden then), the
--- open panels and every button inside an open panel (buttons that only show in some data state, e.g. Equip on an
--- undiscovered tile, are included: they WILL be shown, so their place must already be free). At rest the compact
--- roll's rect is reserved even between rolls.
+-- open panels and every button inside an open panel that is shown now (it and every ancestor up to the panel Visible:
+-- view-switched parts such as ShopUi GiftPicker, DailyBoosts QuestTabs and the desktop-hidden Market Detail/Back are
+-- not drawn, so they are measured when their view is open). At rest the compact roll's rect is reserved even between
+-- rolls.
+local function shownInPanel(obj, panel)
+	while obj and obj ~= panel do
+		if obj:IsA("GuiObject") and not obj.Visible then
+			return false
+		end
+		obj = obj.Parent
+	end
+	return true
+end
 local function elementsFor(open)
 	local list = {}
 	for _, guiName in declaredGuis() do
@@ -2591,7 +2634,9 @@ local function elementsFor(open)
 		if panel then
 			table.insert(list, { path = pathOf(panel), obj = panel, panel = true })
 			for _, b in buttonsIn(panel) do
-				table.insert(list, { path = pathOf(b), obj = b })
+				if shownInPanel(b, panel) then
+					table.insert(list, { path = pathOf(b), obj = b })
+				end
 			end
 		end
 	end
@@ -2630,7 +2675,18 @@ local function panelCoverProblem(panelPath, readoutPath, region, rectOf)
 	if pg.DisplayOrder <= rg.DisplayOrder then
 		return ("panel DisplayOrder %d <= read-out %d"):format(pg.DisplayOrder, rg.DisplayOrder)
 	end
-	local surface = panel:FindFirstChild(cfg.Surface) or panel
+	local surface = panel
+	local deeper = true
+	while deeper do
+		deeper = false
+		for _, name in cfg.Surfaces do
+			local child = surface:FindFirstChild(name)
+			if child and child:IsA("GuiObject") then
+				surface, deeper = child, true
+				break
+			end
+		end
+	end
 	if not (surface:IsA("GuiObject") and effectivelyVisible(surface)) then
 		return "panel surface not shown"
 	end
@@ -3054,6 +3110,149 @@ local function showcaseAutoButtonLayout(res, vpName, sim, vp, sgui, backdrop, ca
 			where == "backdrop" or where == "card"
 		)
 	end
+end
+
+-- Owner 2026-10-28 (UiSpec.HudPair, docs/HUD_LAYOUT_SPEC.md section 6): the Items / Upgrade pair stacks above the
+-- LEVEL bar at viewport height <= StackMaxHeight, stays beside the bars elsewhere, and is never shrunk on desktop.
+local function hudPairChecks(res)
+	local spec = UiSpec.HudPair
+	local restore = setPanels({})
+	local function byName(name)
+		for _, vpSpec in UiSpec.Viewports do
+			if vpSpec.Name == name then
+				return vpSpec
+			end
+		end
+		return nil
+	end
+	-- Rects of the pair and its neighbours at one viewport, or nil (with a failed check) when a node is missing.
+	local function rectsAt(vpSpec, prefix)
+		local rectOf = provider(vpSpec)
+		local out = {}
+		for _, key in { "Items", "Upgrade", "Level", "Turbo", "Money", "Speed" } do
+			local o = findPath(spec[key])
+			if not (o and o:IsA("GuiObject")) then
+				check(res, prefix .. "_present", spec[key], "GuiObject", false)
+				return nil
+			end
+			out[key] = rectOf(o)
+		end
+		out.rectOf = rectOf
+		return out
+	end
+	local function bottom(r)
+		return r.y + r.h
+	end
+	-- Stacked: bottoms at or above Level top and Money top, no overlap with Clear, the brief's rects
+	local function stacked(vpSpec, want)
+		local tag = vpSpec.Name
+		local r = rectsAt(vpSpec, "hud_pair_" .. tag)
+		if not r then
+			return
+		end
+		local low = math.max(bottom(r.Items), bottom(r.Upgrade))
+		check(res, "hud_pair_above_level_" .. tag, low, "<= " .. r.Level.y, low <= r.Level.y + 0.5)
+		check(res, "hud_pair_above_money_" .. tag, low, "<= " .. r.Money.y, low <= r.Money.y + 0.5)
+		local hits = {}
+		for _, key in { "Items", "Upgrade" } do
+			for _, path in spec.Clear do
+				local o = findPath(path)
+				local other = o and o:IsA("GuiObject") and effectivelyVisible(o) and r.rectOf(o)
+				if other and intersects(r[key], other) then
+					table.insert(hits, ("%s %s x %s %s"):format(key, rstr(r[key]), path, rstr(other)))
+				end
+			end
+		end
+		checkList(res, "hud_pair_clear_" .. tag, hits)
+		if want then
+			for _, key in { "Items", "Upgrade" } do
+				local got, w = r[key], want[key]
+				local ok = math.abs(got.x - w.x0) <= spec.Tol
+					and math.abs(got.x + got.w - w.x1) <= spec.Tol
+					and math.abs(got.y - w.y0) <= spec.Tol
+					and math.abs(got.y + got.h - w.y1) <= spec.Tol
+				check(
+					res,
+					("hud_pair_%s_rect_%s"):format(string.lower(key), tag),
+					rstr(got),
+					("x %d..%d y %d..%d +-%d"):format(w.x0, w.x1, w.y0, w.y1, spec.Tol),
+					ok
+				)
+			end
+		end
+	end
+	-- Beside: Items right edge / Upgrade left edge SlotGap outside the bars, icon centre on the Level / Turbo gap
+	local function beside(vpSpec)
+		local tag = vpSpec.Name
+		local r = rectsAt(vpSpec, "hud_pair_" .. tag)
+		if not r then
+			return
+		end
+		local left = math.min(r.Level.x, r.Turbo.x) - spec.SlotGap
+		local right = math.max(r.Level.x + r.Level.w, r.Turbo.x + r.Turbo.w) + spec.SlotGap
+		local gap = (bottom(r.Level) + r.Turbo.y) / 2
+		local bad = {}
+		if math.abs(r.Items.x + r.Items.w - left) > TOL then
+			table.insert(bad, ("Items right %.1f want %.1f"):format(r.Items.x + r.Items.w, left))
+		end
+		if math.abs(r.Upgrade.x - right) > TOL then
+			table.insert(bad, ("Upgrade left %.1f want %.1f"):format(r.Upgrade.x, right))
+		end
+		for _, key in { "Items", "Upgrade" } do
+			local mid = r[key].y + spec.IconMid * r[key].h
+			if math.abs(mid - gap) > TOL then
+				table.insert(bad, ("%s icon centre y %.1f want %.1f"):format(key, mid, gap))
+			end
+		end
+		checkList(res, "hud_pair_beside_bars_" .. tag, bad)
+	end
+
+	local live = viewport()
+	for _, st in spec.Stacked do
+		local vpSpec = byName(st.Viewport)
+		if vpSpec then
+			stacked(vpSpec, st)
+		else
+			check(res, "hud_pair_viewport_" .. st.Viewport, "missing", "in UiSpec.Viewports", false)
+		end
+	end
+	for _, name in spec.Beside do
+		local vpSpec = byName(name)
+		if vpSpec then
+			beside(vpSpec)
+		else
+			check(res, "hud_pair_viewport_" .. name, "missing", "in UiSpec.Viewports", false)
+		end
+	end
+	-- The live screen by the same rule as its height
+	if live.Y <= spec.StackMaxHeight then
+		stacked({ Name = "current" }, nil)
+	else
+		beside({ Name = "current" })
+	end
+	-- Desktop: the pair's UIScale is exactly BottomScale (shrink factor 1), modelled and live
+	for _, name in spec.Desktop do
+		local vpSpec = byName(name)
+		local slot = findPath(spec.Items)
+		if vpSpec and slot then
+			local k = hudPairScale(slot, { vp = vpSpec.Size, cache = {}, unsupported = {} })
+			check(res, "hud_pair_unshrunk_" .. name, k, spec.BottomScale, k == spec.BottomScale)
+		end
+	end
+	if live.Y > UiResponsive.PHONE_MAX_HEIGHT then
+		local bad = {}
+		for _, key in { "Items", "Upgrade" } do
+			local slot = findPath(spec[key])
+			local scale = slot and slot:FindFirstChild(UiResponsive.HudChrome.ScaleName)
+			if not (scale and scale:IsA("UIScale")) then
+				table.insert(bad, spec[key] .. ": no UIScale")
+			elseif scale.Scale ~= spec.BottomScale then
+				table.insert(bad, ("%s: Scale %s want %s"):format(spec[key], tostring(scale.Scale), spec.BottomScale))
+			end
+		end
+		checkList(res, "hud_pair_unshrunk_current", bad)
+	end
+	restore()
 end
 
 function S.ui_layout(res)
@@ -3491,6 +3690,7 @@ function S.ui_layout(res)
 		end
 		restore()
 	end
+	hudPairChecks(res)
 end
 
 -- docs/HUD_LAYOUT_SPEC.md section 6 / UPGRADE_TREE_SPEC.md section 5: while a full-screen overlay panel
@@ -3549,13 +3749,15 @@ function S.ui_hitboxes(res)
 				-- inside the visible parent (or the ScreenGui's area)
 				local parent = b.Parent
 				local pr = parent:IsA("LayerCollector") and rootRect(parent, vp) or realRect(parent)
-				if pathOf(parent) == "RacerUpgrades/Panel/Canvas" and parent:IsA("ScrollingFrame") then
-					-- A panning tree's parent is the full canvas. Off-window clicks remain checked below.
+				if parent:IsA("ScrollingFrame") then
+					-- Any scrolling parent (the panning Upgrades tree, the Backpack Items list, ...): the button must lie
+					-- inside the full scrolled canvas, not the window. Off-window clicks remain checked below
+					-- (clipped_buttons_not_clickable_*).
 					pr = R(
 						pr.x - parent.CanvasPosition.X,
 						pr.y - parent.CanvasPosition.Y,
-						pr.w * parent.CanvasSize.X.Scale + parent.CanvasSize.X.Offset,
-						pr.h * parent.CanvasSize.Y.Scale + parent.CanvasSize.Y.Offset
+						math.max(pr.w, parent.AbsoluteCanvasSize.X),
+						math.max(pr.h, parent.AbsoluteCanvasSize.Y)
 					)
 				end
 				if not contains(pr, r) then
@@ -3984,11 +4186,19 @@ function S.ui_speed_dial(res)
 		stateMissing(res, "speed_dial_follows_car", "auto_racing", "AutoRacing but the avatar is in no seat")
 		return
 	end
-	-- Real speed = seat displacement / time over SampleSeconds; DialValue and DialSpeed averaged over the same frames
-	local p0, t0 = seat.Position, os.clock()
+	-- Real speed = path distance (sum of per-frame seat steps, so a curve does not read short as a chord would) / time
+	-- over SampleSeconds, skipping teleport steps (> TeleportStep: a restart / loop back to the start); DialValue and
+	-- DialSpeed averaged over the same frames
+	local last, t0 = seat.Position, os.clock()
+	local path = 0
 	local sum, textSum, n, textBad = 0, 0, 0, nil
 	repeat
 		renderFrame()
+		local step = (seat.Position - last).Magnitude
+		last = seat.Position
+		if step <= cfg.TeleportStep then
+			path += step
+		end
 		local v = needle:GetAttribute(H.DialValueAttr)
 		local shown = tonumber(text.Text)
 		sum += type(v) == "number" and v or 0
@@ -3999,7 +4209,7 @@ function S.ui_speed_dial(res)
 		end
 		n += 1
 	until os.clock() - t0 >= cfg.SampleSeconds
-	local real = (seat.Position - p0).Magnitude / (os.clock() - t0)
+	local real = path / (os.clock() - t0)
 	local dialAvg, textAvg = sum / n, textSum / n
 	local tol = math.max(cfg.Tolerance, cfg.RelTolerance * real)
 	check(
@@ -5417,46 +5627,8 @@ function S.ui_loser(res)
 	loserRecapChecks(res, rec)
 end
 
-function S.ui_billboards(res)
-	local pads = CollectionService:GetTagged("WinPad")
-	check(res, "win_pads_present", #pads, ">= 1", #pads >= 1)
-	local wrong = {}
-	for _, pad in pads do
-		local bb = pad:FindFirstChild("WinText")
-		local label = bb and bb:FindFirstChild("Amount")
-		local cash = pad:GetAttribute("Cash")
-		if not (bb and bb:IsA("BillboardGui")) then
-			table.insert(wrong, pad:GetFullName() .. ": no WinText")
-		else
-			if bb.MaxDistance ~= TrackBuilder.WIN_TEXT_DISTANCE then
-				table.insert(
-					wrong,
-					("%s: MaxDistance %s want %s"):format(
-						pad:GetFullName(),
-						tostring(bb.MaxDistance),
-						tostring(TrackBuilder.WIN_TEXT_DISTANCE)
-					)
-				)
-			end
-			if not (label and label.Text == HudFormat.MoneyText(cash)) then
-				table.insert(
-					wrong,
-					("%s: text %q want %s"):format(
-						pad:GetFullName(),
-						label and label.Text or "nil",
-						HudFormat.MoneyText(cash)
-					)
-				)
-			end
-			if bb.Active or #buttonsIn(bb) > 0 then
-				table.insert(wrong, pad:GetFullName() .. ": WinText is clickable")
-			end
-		end
-	end
-	checkList(res, "win_text_matches_pad", wrong)
-
-	-- Pedestal billboards (UiSpec.Billboards.BestRollStats / PassCarStats). Run before the NPC part, which returns
-	-- early when no NPC is on track.
+-- ui_billboards on foot at the hub: the pedestal billboards (UiSpec.Billboards.BestRollStats / PassCarStats).
+local function billboardsAtHub(res)
 	local spawnArea = Workspace:WaitForChild("SpawnArea", UiSpec.Waits.GuiAppear)
 	-- A GuiObject's rectangle lies inside its parent's, judged from UDim2 alone (a billboard's pixel size depends on
 	-- the camera): scale edges within 0..1 and offsets that only pull inward. Each ancestor up to the billboard too.
@@ -5568,7 +5740,52 @@ function S.ui_billboards(res)
 			isPrompt and prompt.ObjectText == carName and prompt.ActionText == wantAction
 		)
 	end
+end
 
+function S.ui_billboards(res)
+	-- Two runs judge it: on foot at the hub (UiSpec.Progression.FixtureChecks on_foot) the pedestal billboards; auto
+	-- racing (the main run) the win pads beside the car and the NPC label. StreamingEnabled streams the hub out while
+	-- the car races and the chain out while the avatar stands at the hub.
+	if player:GetAttribute("AutoRacing") ~= true then
+		billboardsAtHub(res)
+		return
+	end
+	local pads = CollectionService:GetTagged("WinPad")
+	check(res, "win_pads_present", #pads, ">= 1", #pads >= 1)
+	local wrong = {}
+	for _, pad in pads do
+		local bb = pad:FindFirstChild("WinText")
+		local label = bb and bb:FindFirstChild("Amount")
+		local cash = pad:GetAttribute("Cash")
+		if not (bb and bb:IsA("BillboardGui")) then
+			table.insert(wrong, pad:GetFullName() .. ": no WinText")
+		else
+			if bb.MaxDistance ~= TrackBuilder.WIN_TEXT_DISTANCE then
+				table.insert(
+					wrong,
+					("%s: MaxDistance %s want %s"):format(
+						pad:GetFullName(),
+						tostring(bb.MaxDistance),
+						tostring(TrackBuilder.WIN_TEXT_DISTANCE)
+					)
+				)
+			end
+			if not (label and label.Text == HudFormat.MoneyText(cash)) then
+				table.insert(
+					wrong,
+					("%s: text %q want %s"):format(
+						pad:GetFullName(),
+						label and label.Text or "nil",
+						HudFormat.MoneyText(cash)
+					)
+				)
+			end
+			if bb.Active or #buttonsIn(bb) > 0 then
+				table.insert(wrong, pad:GetFullName() .. ": WinText is clickable")
+			end
+		end
+	end
+	checkList(res, "win_text_matches_pad", wrong)
 	local function npcs()
 		local list = {}
 		for _, m in Workspace:GetChildren() do
@@ -6264,6 +6481,7 @@ local progressionChecks = Progression.Build({
 	rect = realRect,
 	contains = contains,
 	intersects = intersects,
+	rstr = rstr,
 	setPanels = setPanels,
 	top = topAt,
 	centre = centre,

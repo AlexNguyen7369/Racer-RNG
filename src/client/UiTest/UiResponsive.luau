@@ -1887,6 +1887,9 @@ end
 --   fromOffset(left - SlotGap, gap), UpgradeSlot's = fromOffset(right + SlotGap, gap), where left / right are the
 --   outer edges of RacerHud/Level and RacerHud/Turbo together and gap = (Level bottom + Turbo top) / 2, in screen
 --   pixels (HudChrome ignores the inset). The pair is Visible only when Level and Turbo exist.
+--   Owner 2026-10-28 (section 6): at viewport height <= StackMaxHeight the pair stacks ABOVE the bars instead:
+--   AnchorPoint (1, 1) / (0, 1), bottom y = min(Level top, Money top) - StackGap, ItemsSlot x = min(left, Speed
+--   left) - StackGap, UpgradeSlot x = max(right, Speed right) + StackGap (Money / Speed only when visible).
 Model.HudChrome = {
 	Phone = 0.68,
 	BottomScale = 0.75,
@@ -1901,6 +1904,17 @@ Model.HudChrome = {
 	Level = "RacerHud/Level",
 	Turbo = "RacerHud/Turbo",
 	Bar = "HudChrome/TopRight",
+	-- Owner 2026-10-28 (docs/HUD_LAYOUT_SPEC.md section 6): the bottom pair shrinks about its anchor until its cell
+	-- (Cell x k, anchored at (1 | 0, IconMid)) clears every visible Blocker; steps of Step x base, floor Floor x base.
+	Cell = Vector2.new(84, 94), -- HudChrome CELL = (TILE + 12, TILE + LABEL), TILE 72, LABEL 22
+	IconMid = 36 / 94, -- ICON_MID = TILE / 2 / (TILE + LABEL)
+	Step = 0.02,
+	Floor = 0.3,
+	Blockers = { "RacerHud/Money", "RacerHud/Speed" },
+	StackMaxHeight = 400, -- HudChrome STACK_MAX_HEIGHT (phone_small, owner 2026-10-28)
+	StackGap = 6,
+	Money = "RacerHud/Money",
+	Speed = "RacerHud/Speed",
 }
 -- HudChrome's UIScale "Scale" factor of the node at `path` at a viewport, or nil when it is not a HudChrome holder.
 function Model.HudChromeScale(path, viewport)
@@ -1914,17 +1928,73 @@ function Model.HudChromeScale(path, viewport)
 	end
 	return nil
 end
--- The bottom pair's Position (screen offsets) from the Level and Turbo screen rects, or nil for other paths.
-function Model.HudChromeSlot(path, level, turbo)
-	local side = Model.HudChrome.Slots[path]
-	if not side then
-		return nil
+-- The bottom pair's unshrunk placement: { [slot path] = { Position = Vector2 (screen offsets), Anchor = Vector2 } }
+-- from the Level / Turbo screen rects and `shown` = { [path] = rect } of the visible Blockers (Money, Speed).
+function Model.HudChromePair(viewport, level, turbo, shown)
+	local cfg = Model.HudChrome
+	local left = math.min(level.x, turbo.x)
+	local right = math.max(level.x + level.w, turbo.x + turbo.w)
+	local out = {}
+	if viewport.Y <= cfg.StackMaxHeight then
+		local speed, money = shown[cfg.Speed], shown[cfg.Money]
+		local y = math.min(level.y, money and money.y or math.huge) - cfg.StackGap
+		for path, side in cfg.Slots do
+			if side == "left" then
+				out[path] = {
+					Position = Vector2.new(math.min(left, speed and speed.x or left) - cfg.StackGap, y),
+					Anchor = Vector2.new(1, 1),
+				}
+			else
+				out[path] = {
+					Position = Vector2.new(math.max(right, speed and speed.x + speed.w or right) + cfg.StackGap, y),
+					Anchor = Vector2.new(0, 1),
+				}
+			end
+		end
+		return out
 	end
 	local gap = (level.y + level.h + turbo.y) / 2
-	if side == "left" then
-		return UDim2.fromOffset(math.min(level.x, turbo.x) - Model.HudChrome.SlotGap, gap)
+	for path, side in cfg.Slots do
+		if side == "left" then
+			out[path] = { Position = Vector2.new(left - cfg.SlotGap, gap), Anchor = Vector2.new(1, cfg.IconMid) }
+		else
+			out[path] = { Position = Vector2.new(right + cfg.SlotGap, gap), Anchor = Vector2.new(0, cfg.IconMid) }
+		end
 	end
-	return UDim2.fromOffset(math.max(level.x + level.w, turbo.x + turbo.w) + Model.HudChrome.SlotGap, gap)
+	return out
+end
+-- The bottom pair's shrunk UIScale (HudChrome refresh, owner 2026-10-28): the base pair scale lowered in Step
+-- steps until both cells (about their anchors) clear every visible blocker rect, never below Floor x base.
+function Model.HudChromePairScale(viewport, level, turbo, shown)
+	local cfg = Model.HudChrome
+	local base = (viewport.Y <= Model.PHONE_MAX_HEIGHT and cfg.Phone or 1) * cfg.BottomScale
+	local pair = Model.HudChromePair(viewport, level, turbo, shown)
+	local function clear(k)
+		local w, h = cfg.Cell.X * k, cfg.Cell.Y * k
+		for _, slot in pair do
+			local x = slot.Position.X - slot.Anchor.X * w
+			local y = slot.Position.Y - slot.Anchor.Y * h
+			for _, b in shown do
+				if x < b.x + b.w and x + w > b.x and y < b.y + b.h and y + h > b.y then
+					return false
+				end
+			end
+		end
+		return true
+	end
+	local k = base
+	while k > base * cfg.Floor and not clear(k) do
+		k -= base * cfg.Step
+	end
+	return k
+end
+-- The bottom pair's Position (UDim2 screen offsets) and AnchorPoint, or nil for other paths.
+function Model.HudChromeSlot(path, viewport, level, turbo, shown)
+	if not Model.HudChrome.Slots[path] then
+		return nil
+	end
+	local slot = Model.HudChromePair(viewport, level, turbo, shown)[path]
+	return UDim2.fromOffset(slot.Position.X, slot.Position.Y), slot.Anchor
 end
 -- AutomaticSize nodes whose content does not depend on the viewport (fixed TextSize captions in HudChrome's pills):
 -- the solver measures their size live (AbsoluteSize divided by the live UIScale factors, i.e. design pixels) and
