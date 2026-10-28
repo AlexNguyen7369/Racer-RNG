@@ -185,6 +185,15 @@ function CarPhysics:Step(input, dt)
 			local g1, g2, g3 = 1, -r.Z, r.X -- mount velocity along up = G . q; up-force f gives wrench f * G
 			w.G1, w.G2, w.G3 = g1, g2, g3
 			w.DampEff = c + dt * w.Stiffness
+			-- The damper must see the ray length's rate relative to the ROAD (hit normal), not the mount's velocity
+			-- along body-up: at speed, a body tilted a few degrees against the road (or a road curving over a crest)
+			-- otherwise reads speed x angle as compression and the damper fights the pitch the road demands.
+			-- RateBias = true ray-length rate - G . q, kept explicit (it depends on q only through that small angle).
+			local normal = w.Hit.Normal
+			local vm = vel + angVel:Cross(cf:PointToWorldSpace(w.Cfg.Mount) - com)
+			local trueRate = (normal:Dot(vm) - w.Hit.Distance * normal:Dot(angVel:Cross(up)))
+				/ math.max(normal:Dot(up), 0.5)
+			w.RateBias = trueRate - up:Dot(vm)
 			local cd = dt * w.DampEff
 			a11 += cd * g1 * g1
 			a12 += cd * g1 * g2
@@ -192,9 +201,10 @@ function CarPhysics:Step(input, dt)
 			a22 += cd * g2 * g2
 			a23 += cd * g2 * g3
 			a33 += cd * g3 * g3
-			r1 += dt * w.SpringLoad * g1
-			r2 += dt * w.SpringLoad * g2
-			r3 += dt * w.SpringLoad * g3
+			local load = w.SpringLoad - w.DampEff * w.RateBias
+			r1 += dt * load * g1
+			r2 += dt * load * g2
+			r3 += dt * load * g3
 		end
 	end
 	-- Symmetric 3x3 solve (Cramer's rule)
@@ -216,7 +226,7 @@ function CarPhysics:Step(input, dt)
 			w.Grounded = true
 
 			-- Suspension force from the post-step compression rate (never pulls the car down)
-			local compRate = -(w.G1 * p1 + w.G2 * p2 + w.G3 * p3)
+			local compRate = -(w.G1 * p1 + w.G2 * p2 + w.G3 * p3 + w.RateBias)
 			local springForce = math.max(w.SpringLoad + w.DampEff * compRate, 0)
 
 			-- Ground-plane wheel basis (front wheels are steered)

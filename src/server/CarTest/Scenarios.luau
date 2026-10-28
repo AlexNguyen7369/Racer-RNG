@@ -2515,8 +2515,8 @@ function Scenarios.flip_recovery()
 			)
 			-- Owner 2026-10-28: the multi, damped to 1 + log10(multi) and capped at 4x, scales the final studs/s;
 			-- the 2800x car is far past the cap, so its cruise is exactly SpeedFor(stat) x 4, then held to the hard
-			-- cruise cap of 800 studs/s (docs/WORLDS_SPEC.md section 1, owner 2026-10-27).
-			local capped = math.min(RaceConfig.SpeedFor(BIG_STAT) * 4, 800)
+			-- cruise cap RaceConfig.MAX_CRUISE (1250 studs/s, docs/WORLDS_SPEC.md section 1, owner 2026-10-28).
+			local capped = math.min(RaceConfig.SpeedFor(BIG_STAT) * 4, 1250)
 			check(
 				checks,
 				"high_multi_target_is_shown_speed_cruise",
@@ -2524,7 +2524,7 @@ function Scenarios.flip_recovery()
 				capped,
 				math.abs(ts - want) <= 1e-6 * want and math.abs(want - capped) <= 1e-6 * capped
 			)
-			-- SpeedFor(MAX_STAT) x the damped car multi (4, capped to 800) is above SpeedFor(MAX_STAT): faster than the max-stat race
+			-- SpeedFor(MAX_STAT) x the damped car multi (4, capped to 1250) is above SpeedFor(MAX_STAT): faster than the max-stat race
 			local maxStatSpeed = RaceConfig.SpeedFor(RaceConfig.MAX_STAT)
 			check(checks, "high_multi_target_above_max_stat_speed", want, maxStatSpeed, want > maxStatSpeed)
 			local len = 0
@@ -4027,8 +4027,8 @@ function Scenarios.economy()
 	-- Design doc "Core stat model" (owner 2026-10-27 "speed feel"), written out here, not read from RaceConfig: the
 	-- curve is linear to HALF_STAT, then each doubling adds HALF the range; the multi is damped to 1 + log10(m),
 	-- clamped to 0.1 .. 4 (owner 2026-10-28, was 1.5), and multiplies the FINAL studs/s (it no longer scales the stat). The result is held to
-	-- the hard cruise cap of 800 studs/s (docs/WORLDS_SPEC.md section 1, owner 2026-10-27).
-	local CRUISE_CAP = 800
+	-- the hard cruise cap of 1250 studs/s (docs/WORLDS_SPEC.md section 1, owner 2026-10-28; was 800 from 2026-10-27).
+	local CRUISE_CAP = 1250
 	local function formula(stat, multi)
 		local damped = math.clamp(1 + math.log10(multi), 0.1, 4)
 		local curve
@@ -4112,13 +4112,23 @@ function Scenarios.economy()
 	-- aura 3 -> 1.23856, trail 5 -> 1.34949: x1.67142 -> 349.44
 	local v135 = sf4(86000, 1, 3, 5)
 	check(checks, "speed_for_86000_aura_3_trail_5", v135 or -1, 349.44, near(v135, 349.44, 5e-3))
-	-- car 1000 (4) x aura 3 x trail 5 = 6.69 -> total cap 4; studs never past 800
+	-- car 1000 (4) x aura 3 x trail 5 = 6.69 -> total cap 4; studs = min(SpeedFor(86000) x 4, cap)
 	local okTot, tot = pcall(RaceConfig.CruiseMulti, 1000, 3, 5)
 	local studs = sf4(86000, 1000, 3, 5)
-	local totOk = okTot and near(tot, 4, 1e-12) and num(studs) and studs <= 800 and near(studs, 800, 1e-9)
+	local totOk = okTot
+		and near(tot, 4, 1e-12)
+		and num(studs)
+		and studs <= CRUISE_CAP
+		and near(studs, math.min(sf(86000) * 4, CRUISE_CAP), 1e-9)
 	check(checks, "cruise_total_multi_capped_at_4", okTot and tot or -1, 4, totOk)
 	local studsBig = sf4(1e9, 1000, 3, 5)
-	check(checks, "cruise_total_studs_capped_800", studsBig or -1, 800, num(studsBig) and studsBig <= 800)
+	check(
+		checks,
+		"cruise_total_studs_capped_1250",
+		studsBig or -1,
+		CRUISE_CAP,
+		num(studsBig) and studsBig <= CRUISE_CAP
+	)
 	-- Speed 0: 10 x 1.75587 x 1.67142 = 29.35 (total 2.93, under the cap)
 	local v0 = sf4(0, 5.7, 3, 5)
 	check(checks, "speed_for_zero_car_5_7_aura_3_trail_5", v0 or -1, 29.35, near(v0, 29.35, 5e-3))
@@ -4148,9 +4158,9 @@ function Scenarios.economy()
 	end
 	badMultiOk = badMultiOk and rel(sfm(half, nil), sf(half))
 	check(checks, "speed_for_bad_multi_is_one", badMultiOk and 1 or 0, 1, badMultiOk)
-	-- Hard cruise cap (docs/WORLDS_SPEC.md section 1, owner 2026-10-27): MAX_CRUISE = 800 and no stat or multi
+	-- Hard cruise cap (docs/WORLDS_SPEC.md section 1, owner 2026-10-27): MAX_CRUISE = 1250 (owner 2026-10-28) and no stat or multi
 	-- ever drives faster; every NPC stays below it (NpcConfig.SPEED_GROWTH 1.51, Track 10 = 653).
-	check(checks, "cruise_cap_is_800", RaceConfig.MAX_CRUISE or -1, CRUISE_CAP, RaceConfig.MAX_CRUISE == CRUISE_CAP)
+	check(checks, "cruise_cap_is_1250", RaceConfig.MAX_CRUISE or -1, CRUISE_CAP, RaceConfig.MAX_CRUISE == CRUISE_CAP)
 	local capWorst, cruiseCapOk = 0, true
 	for _, x in { 0, half, 1e6, maxStat, 1e12, 1e15, 1e100, 1e308, math.huge } do
 		for _, m in { 1, 1.5, 10 ^ 0.5, 2800, 1e6, 1e100, 1e300 } do
@@ -4161,7 +4171,7 @@ function Scenarios.economy()
 			capWorst = math.max(capWorst, num(v) and v or math.huge)
 		end
 	end
-	-- the cap is reached, not just respected: MAX_STAT x the 4x cap is past 800
+	-- the cap is reached, not just respected: MAX_STAT x the 4x cap is past 1250
 	cruiseCapOk = cruiseCapOk and sfm(maxStat, 2800) == CRUISE_CAP and sfm(1e15) == CRUISE_CAP
 	check(checks, "speed_for_never_above_cap", capWorst, CRUISE_CAP, cruiseCapOk)
 	local NpcConfig = sharedModule("NpcConfig")
@@ -4190,7 +4200,7 @@ function Scenarios.economy()
 		local function close(a, b)
 			return num(a) and num(b) and math.abs(a - b) <= 1e-6 * math.max(1, math.abs(b))
 		end
-		-- below the cruise cap StatFor inverts SpeedFor; a stat whose curve is past the cap drives exactly 800
+		-- below the cruise cap StatFor inverts SpeedFor; a stat whose curve is past the cap drives exactly 1250
 		-- (docs/WORLDS_SPEC.md section 1), so no inverse exists there
 		local tripOk = true
 		for _, x in { 0, 1, 100, half, 1e6, maxStat, 1e12, 1e15 } do

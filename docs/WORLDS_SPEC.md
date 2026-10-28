@@ -5,7 +5,9 @@ placeholder are tuned by `tools/balance_sim.py` and the speed probe, then approv
 
 ## 1. Cruise cap
 
-- `RaceConfig.MAX_CRUISE` = 800 studs/s (set 2026-10-27: `speed_probe` was green at every probe up to 1000, tightest
+- `RaceConfig.MAX_CRUISE` = 1250 studs/s (owner 2026-10-28: after the CarPhysics damper fix and the RaceService rail-window fix
+  the speed_probe was green on all 10 tracks through 1250 (worst minUpY 0.904, maxDev 2.03); the owner set the cap there with no
+  margin. Earlier: 800 studs/s, set 2026-10-27: `speed_probe` was green at every probe up to 1000, tightest
   Track 9 minUpY 0.902 at 1000; 1000 - 10 % = 900, clamped to the 800 maximum). Rule: the `speed_probe` scenario gives the highest speed
   with 0 flips, up-vector Y >= `PhysicsTargets.lap.MinUpYStrict` and path deviation <= `race.MaxPathDeviation` on
   every track, minus 10 %, kept within 700 .. 800).
