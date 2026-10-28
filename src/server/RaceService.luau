@@ -356,7 +356,9 @@ function RaceService.NewRun(car, raceRoute, player, options)
 	local function constrainToPath(dt)
 		local index = math.clamp(driver.Index, 1, #wps - 1)
 		local first = math.max(1, index - 2)
-		local last = math.min(#wps - 1, index + 2)
+		-- driver.Index is from before this step's move: reach as far as the car travelled (1250 studs/s = 21 studs a
+		-- frame, more than 2 segments of 8-stud slope / 8.6-stud R82 waypoints), or it projects onto a point behind
+		local last = math.min(#wps - 1, index + 2 + math.ceil(math.max(run.TargetSpeed or 0, 0) * (dt or 0) / 4))
 		local bestK, bestT, bestDistance = nil, 0, math.huge
 		for k = first, last do
 			local a, b = wps[k], wps[k + 1]
