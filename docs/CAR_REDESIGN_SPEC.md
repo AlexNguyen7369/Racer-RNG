@@ -48,8 +48,9 @@ Owner decision, 2026-10-20. Design doc entry: `GAME_DESIGN_REQUIREMENTS.md`, "Ow
 
 ## 4. Load order
 `Shared/DraftCarModels.Ensure` fills `ReplicatedStorage.CarModels`. A model in `RedesignCarModels` always wins and
-replaces a template with the same name. After that come the existing fallbacks: `ExpansionCarModels` exports, the
-`CarModels.rbxm` imports, the expansion placeholders and the `BUILDERS` stand-ins. Old models stay as fallbacks.
+replaces a template with the same name. After that come the fallbacks: the `CarModels.rbxm` imports, the expansion
+placeholders and the `BUILDERS` stand-ins. Owner 2026-10-27: every catalog, expansion and NPC car has a redesign, so the
+superseded `ExpansionCarModels` exports (and their pre-redesign Blender art) were removed to keep the Rojo sync small.
 Redesigned templates carry the attribute `Redesign = true`; `Shared/CarAppearance` does not apply the catalog
 `Tint` to them, because their colours already follow the reference.
 
