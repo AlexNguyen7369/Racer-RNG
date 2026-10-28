@@ -105,8 +105,10 @@ adds the shared slight enlargement without a white hover box; its Claim button r
   and `MarketConfig.Icon`. Details: `PANEL_ART_GIFTING_SPEC.md`.
 
 - Whenever a `PanelSwitch` panel is open, every persistent HUD entry remains drawn: the HudChrome
-  tiles/pills, Auto Race, the compact roll when it would otherwise be shown, the weather button and active potion
-  buttons. Owner 2026-10-20 (replaces the per-HUD veil): a panel never dims the whole screen. Only the world
+  tiles/pills, Auto Race, the weather button and active potion buttons. Owner 2026-10-28 (replaces the 2026-10-20
+  wording for the roll): the compact roll HIDES while a panel is open (ROLL_ANIMATION_CONTRACT), so it never covers
+  a panel's top or takes its clicks. Owner 2026-10-28: on phones (viewport height <= 500) Market shows its grid only;
+  tapping an item swaps the grid for the detail view, which has a Back button. Owner 2026-10-20 (replaces the per-HUD veil): a panel never dims the whole screen. Only the world
   behind the UI is dimmed, by one non-interactive layer (`HudChrome` creates ScreenGui `PanelDim`, DisplayOrder 0,
   below every HUD ScreenGui); the HUD stays at full brightness. Panels' own full-screen `Backdrop` frames are
   transparent. The full-screen roll showcase and the full-screen upgrade tree (owner 2026-10-26) are exempt because
