@@ -1014,7 +1014,12 @@ UiSpec.IgnoreGuis = {
 }
 
 UiSpec.Billboards = {
-	WinText = { Tag = "WinPad", Label = "Amount", MaxDistance = "TrackBuilder.WIN_TEXT_DISTANCE", Text = "$<Cash>" },
+	WinText = {
+		Tag = "WinPad",
+		Label = "Amount",
+		MaxDistance = "TrackBuilder.WIN_TEXT_DISTANCE",
+		Text = "HudFormat.MoneyText(Cash)",
+	},
 	NpcLabel = { Label = "Text", MaxDistance = "NpcConfig.LABEL_DISTANCE", Text = "NpcConfig.For(track).Label" },
 	-- Mechanical Workshop (docs/WORKSHOP_SPEC.md section 2): Workspace.Workshops.Plot_1..PLOT_COUNT
 	WorkshopSign = {

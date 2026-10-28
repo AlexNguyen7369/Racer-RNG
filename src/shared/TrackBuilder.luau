@@ -23,6 +23,7 @@ local CollectionService = game:GetService("CollectionService")
 local BiomeDressing = require(script.Parent.BiomeDressing)
 local UiTheme = require(script.Parent.UiTheme)
 local PayoutCurve = require(script.Parent.PayoutCurve)
+local HudFormat = require(script.Parent.HudFormat)
 
 local TrackBuilder = {}
 
@@ -478,7 +479,7 @@ function TrackBuilder.Build(spec, origin)
 	label.Name = "Amount"
 	label.Size = UDim2.fromScale(1, 1)
 	label.BackgroundTransparency = 1
-	label.Text = "$" .. cash
+	label.Text = HudFormat.MoneyText(cash) -- short "$1.5m" (owner 2026-10-28)
 	label.TextScaled = true
 	label.Font = UiTheme.Font
 	label.TextColor3 = colors.WinPad

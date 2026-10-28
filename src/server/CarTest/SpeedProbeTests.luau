@@ -4,14 +4,17 @@
 -- flips, up-vector Y >= PhysicsTargets.lap.MinUpYStrict and path deviation <= race.MaxPathDeviation on every track,
 -- minus 10 %, kept within 700 .. 800)."
 --
--- speed_probe is a MEASUREMENT, run on demand (not in TestConfig.Scenarios: it drives the whole chain five times).
+-- speed_probe is a MEASUREMENT, run on demand (not in TestConfig.Scenarios: it drives the whole chain once per probe speed).
 -- For each probe speed the whole track chain (TrackRegistry.Chain, every track, so every lap:<Track> route plus the
 -- joints) is auto-raced by RaceService with RaceConfig.SpeedFor stubbed to return that speed (restored afterwards,
 -- as the race scenario's huge_multi run does). Per speed it records flips, the minimum body up-vector Y outside
 -- loops, the max distance to the route (start to the last finish) and whether the car reached the end, overall and
 -- per track. highest_green = the highest probe speed that finished with 0 flips, minUpY >= lap.MinUpYStrict and
 -- maxDev <= race.MaxPathDeviation on every track. Only speed_probe_ran and speed_probe_600_green can fail;
--- 900 / 1000 results are data.
+-- 700+ results are data.
+-- Owner 2026-10-28: the probe also steps 1250, 1500, 2000 and 3000 studs/s (same criteria) to find the real limit
+-- above 1000, so MAX_CRUISE and the cruise multiplier cap can rise. highest_green_contiguous = the highest step with
+-- every lower step green too (use it for MAX_CRUISE: a lucky green above a red step does not count).
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
@@ -19,7 +22,7 @@ local H = require(script.Parent.AcceptanceSupport)
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Server = script.Parent.Parent
 
-local SPEEDS = { 600, 700, 800, 900, 1000 } -- studs/s, WORLDS_SPEC section 1 (MAX_CRUISE 700 .. 800)
+local SPEEDS = { 600, 700, 800, 900, 1000, 1250, 1500, 2000, 3000 } -- studs/s, ascending (WORLDS_SPEC section 1)
 local MUST_BE_GREEN = 600 -- far below today's max cruise
 local ORIGIN = Vector3.new(-20000, 0, 20000) -- the race scenario's corner, far from the play area
 local SAMPLE_AFTER_STUDS = 30 -- as Scenarios.race: route samples start after 30 studs of travel
@@ -200,8 +203,14 @@ local function speedProbe()
 	end
 
 	local realSpeedFor = RaceConfig.SpeedFor
-	local metrics = { speeds = {}, highest_green = 0, route_length = round(totalLen), tracks = #route.Tracks }
-	local ran, green600 = 0, false
+	local metrics = {
+		speeds = {},
+		highest_green = 0,
+		highest_green_contiguous = 0,
+		route_length = round(totalLen),
+		tracks = #route.Tracks,
+	}
+	local ran, green600, allGreenSoFar = 0, false, true
 	for _, speed in SPEEDS do
 		RaceConfig.SpeedFor = function()
 			return speed
@@ -229,6 +238,10 @@ local function speedProbe()
 		end
 		if green then
 			metrics.highest_green = math.max(metrics.highest_green, speed)
+		end
+		allGreenSoFar = allGreenSoFar and green
+		if allGreenSoFar then
+			metrics.highest_green_contiguous = speed
 		end
 		if speed == MUST_BE_GREEN then
 			green600 = green

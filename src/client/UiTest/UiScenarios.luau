@@ -5615,10 +5615,14 @@ function S.ui_billboards(res)
 					)
 				)
 			end
-			if not (label and label.Text == "$" .. tostring(cash)) then
+			if not (label and label.Text == HudFormat.MoneyText(cash)) then
 				table.insert(
 					wrong,
-					("%s: text %q want $%s"):format(pad:GetFullName(), label and label.Text or "nil", tostring(cash))
+					("%s: text %q want %s"):format(
+						pad:GetFullName(),
+						label and label.Text or "nil",
+						HudFormat.MoneyText(cash)
+					)
 				)
 			end
 			if bb.Active or #buttonsIn(bb) > 0 then
