@@ -216,6 +216,9 @@ Idle Vehicle Simulator — Game Design Requirements
        Owner decision, 2026-10-27 (later): Speed numbers keep full digits with thousands separators
        ("123,456") up to 1,000,000 and shorten from there ("1.23m"), so every second's gain is visible
        early. Money and Unbanked still shorten from 1,000. Both thresholds are placeholders.
+       Owner decision, 2026-10-28 (owner approved): the winnings pad's billboard shows its money in the
+       HUD's short format (Shared/HudFormat.MoneyText: "$100", "$1.5m", "$31.6b"), not full digits.
+       The pad's Cash value itself stays the full number.
        Historical decision, 2026-10-21 (superseded later the same day): Track 1 must not need ~10M Speed.
        Placeholders: MAX_SPEED 22 (was 18; +5 studs/s per Speed doubling), Track 1 NPC 15 studs/s
        (was 45), x1.37 per track (was x2.5). Recommended Speed: Track 1 ~2.6K, Track 5 ~1.4M,
