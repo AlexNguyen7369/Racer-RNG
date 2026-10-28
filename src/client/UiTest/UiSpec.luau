@@ -2111,7 +2111,27 @@ UiSpec.Guis.RacerWorkshop = {
 UiSpec.Guis.RacerWelcome = {
 	Source = "Client/ProgressionUi",
 	Panels = { "Panel" },
-	Buttons = { { Path = "Panel/Close", Does = "close_panel", Panel = "RacerWelcome/Panel" } },
+	Buttons = {
+		{ Path = "Panel/Close", Does = "close_panel", Panel = "RacerWelcome/Panel" },
+		-- Client/WelcomeStyle: Claim closes the panel like Close (the credit is already in Speed).
+		{ Path = "Panel/Claim", Does = "close_panel", Panel = "RacerWelcome/Panel" },
+		-- docs/OFFLINE_DOUBLE_SPEC.md section 5: visible only while OfflineDoubleOpen; ProductId 0 = "COMING SOON",
+		-- inactive, a click does nothing; ProductId > 0 = PromptProductPurchase (Roblox's prompt, no game remote).
+		{ Path = "Panel/Double", Does = "local", Effect = "prompt_purchase_or_nothing" },
+	},
+}
+-- Offline reward double (docs/OFFLINE_DOUBLE_SPEC.md, owner 2026-10-28). Judged by ui_offline_double
+-- (Progression.FixtureChecks, setup offline_welcome) and the offline_double_click click.
+UiSpec.OfflineDouble = {
+	Panel = "RacerWelcome/Panel",
+	Button = "RacerWelcome/Panel/Double",
+	Price = "RacerWelcome/Panel/Double/Price",
+	Earnings = "RacerWelcome/Panel/Earnings",
+	ComingSoon = "COMING SOON", -- section 5, ProductId == 0
+	PriceFormat = "%d ROBUX", -- section 5, ProductId > 0
+	EarningsFormat = "+%s SPEED", -- section 5, HudFormat.SpeedText(OfflineSpeed + OfflineDoubled)
+	-- The Double button never intersects these (the button row vs the Away line and the amount)
+	NoOverlap = { "RacerWelcome/Panel/Claim", "RacerWelcome/Panel/Away", "RacerWelcome/Panel/Earnings" },
 }
 UiSpec.Progression = {
 	-- Owner 2026-10-26 (UPGRADE_TREE_SPEC section 5): the click box is 100 x 106 (NODE_HEIGHT = STEP_Y), so
@@ -2167,6 +2187,10 @@ for _, item in
 			Id = "offline_welcome",
 			What = "OfflineSeconds=3661, OfflineSpeed=1234; no credit added. Snapshot required.",
 		},
+		{
+			Id = "offline_double_open",
+			What = "OfflineSeconds=3661, OfflineSpeed=1234, OfflineDoubleOpen=true, OfflineDoubled=nil; no credit added, no receipt. Snapshot required.",
+		},
 	}
 do
 	item.When = "before the corresponding progression scenario/click; restore afterwards"
@@ -2183,6 +2207,30 @@ for _, name in { "Upgrades", "Workshop", "Welcome" } do
 		Expect = { Panels = { [path] = false }, Remote = false },
 	})
 end
+table.insert(UiSpec.Clicks, {
+	Id = "claim_welcome",
+	Gui = "RacerWelcome",
+	Path = "Panel/Claim",
+	Prepare = only("RacerWelcome/Panel"),
+	NeedSetup = { "spy", "offline_welcome" },
+	Expect = { Panels = { ["RacerWelcome/Panel"] = false }, Remote = false },
+})
+-- OFFLINE_DOUBLE_SPEC section 5. ProductId 0: nothing happens (panel and button stay, no game remote, no purchase
+-- prompt; ui-tester also confirms on screen that no Roblox purchase prompt opened). ProductId > 0: the Roblox
+-- product prompt opens (ui-tester closes it without buying).
+table.insert(UiSpec.Clicks, {
+	Id = "offline_double_click",
+	Gui = "RacerWelcome",
+	Path = "Panel/Double",
+	Prepare = only("RacerWelcome/Panel"),
+	NeedSetup = { "spy", "offline_double_open" },
+	Expect = {
+		Panels = { ["RacerWelcome/Panel"] = true },
+		Remote = false,
+		After = { "offline_double_click_result" },
+	},
+	Note = "ProductId 0: no purchase prompt may appear. ProductId > 0: the prompt for that product appears; cancel it.",
+})
 table.insert(UiSpec.Clicks, {
 	Id = "exit_upgrades",
 	Gui = "RacerUpgrades",
@@ -2509,6 +2557,7 @@ UiSpec.Progression.FixtureChecks = {
 	-- The Speed float sums real gains too: judged on foot only (HUD_LAYOUT_SPEC section 10; main run is auto_racing)
 	{ Setup = "on_foot", Scenario = "ui_speed_float" },
 	{ Setup = "offline_welcome", Scenario = "ui_offline_welcome" },
+	{ Setup = "offline_welcome", Scenario = "ui_offline_double" },
 	{ Setup = "offline_zero", Scenario = "ui_offline_zero" },
 	{ Setup = "weather_rain", Scenario = "ui_weather" },
 	{ Setup = "weather_night", Scenario = "ui_weather" },
