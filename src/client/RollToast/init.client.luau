@@ -691,12 +691,12 @@ local function isEnlarged()
 	return gui:GetAttribute("View") == "Enlarged"
 end
 
--- The compact roll is the always-available top-centre entry point. Clicking it
--- opens the enlarged showcase, where the AUTO option lives. It remains visible
--- while a panel is open so HUD entry points never disappear on click.
+-- The compact roll is the top-centre entry point. Clicking it opens the enlarged showcase, where the AUTO option
+-- lives. Owner 2026-10-28 (docs/HUD_LAYOUT_SPEC.md section 6, ROLL_ANIMATION_CONTRACT): it HIDES while any
+-- PanelSwitch panel is open, so it never covers a panel's top or takes its clicks; the roll keeps playing.
 local function refreshToast()
 	local playing = phase ~= "Idle"
-	local show = not isEnlarged() and (playing or not autoRollOn())
+	local show = not isEnlarged() and not PanelSwitch.AnyOpen() and (playing or not autoRollOn())
 	local hud = playerGui:FindFirstChild("RacerHud")
 	if hud and not isEnlarged() then
 		hud.Enabled = true

@@ -346,6 +346,65 @@ local function preview(item, kind)
 	end
 end
 
+-- Phones (viewport height <= 500, owner 2026-10-28, docs/HUD_LAYOUT_SPEC.md section 6): the grid only; tapping an
+-- item swaps the grid for the detail view, whose Back button swaps back. Desktop shows both side by side.
+local back = make("TextButton", "Back", detail, {
+	BackgroundColor3 = Color3.fromRGB(68, 104, 180),
+	Text = "",
+	AutoButtonColor = true,
+	Visible = false,
+})
+corner(back, 8)
+stroke(back, OUTLINE, 3)
+caption("Label", back, { Size = UDim2.fromScale(1, 1), Text = "BACK", TextSize = 18 })
+local DESKTOP = {
+	[rail] = { Position = rail.Position, Size = rail.Size },
+	[grid] = { Position = grid.Position, Size = grid.Size },
+	[detail] = { AnchorPoint = detail.AnchorPoint, Position = detail.Position, Size = detail.Size },
+}
+for _, part in { rarity, nameLabel, viewport, priceRow, description, action } do
+	DESKTOP[part] = { AnchorPoint = part.AnchorPoint, Position = part.Position, Size = part.Size }
+end
+-- Phone detail: the preview on the left, the text rows and BACK / action on the right, in fractions of the pane so
+-- nothing overlaps however short the band is.
+local function column(y, h)
+	return { AnchorPoint = Vector2.zero, Position = UDim2.new(0.4, 6, y, 0), Size = UDim2.new(0.6, -12, h, 0) }
+end
+local PHONE = {
+	[rail] = { Position = UDim2.fromOffset(8, 56), Size = UDim2.new(0, 96, 1, -64) },
+	[grid] = { Position = UDim2.fromOffset(112, 56), Size = UDim2.new(1, -120, 1, -64) },
+	[detail] = { AnchorPoint = Vector2.zero, Position = UDim2.fromOffset(112, 56), Size = UDim2.new(1, -120, 1, -64) },
+	[viewport] = { AnchorPoint = Vector2.zero, Position = UDim2.fromOffset(6, 6), Size = UDim2.new(0.4, -6, 1, -12) },
+	[rarity] = column(0.03, 0.13),
+	[nameLabel] = column(0.17, 0.18),
+	[priceRow] = column(0.37, 0.15),
+	[description] = column(0.54, 0.2),
+	[action] = { AnchorPoint = Vector2.zero, Position = UDim2.fromScale(0.7, 0.77), Size = UDim2.new(0.3, -6, 0.2, 0) },
+	[back] = { AnchorPoint = Vector2.zero, Position = UDim2.new(0.4, 6, 0.77, 0), Size = UDim2.new(0.3, -12, 0.2, 0) },
+}
+local showingDetail = false
+local function applyLayout()
+	local camera = workspace.CurrentCamera
+	local phone = camera ~= nil and camera.ViewportSize.Y <= 500
+	for part, props in phone and PHONE or DESKTOP do
+		for key, value in props do
+			part[key] = value
+		end
+	end
+	description.TextScaled = phone
+	grid.Visible = not (phone and showingDetail)
+	detail.Visible = not phone or showingDetail
+	back.Visible = phone
+end
+back.Activated:Connect(function()
+	showingDetail = false
+	applyLayout()
+end)
+if workspace.CurrentCamera then
+	workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(applyLayout)
+end
+applyLayout()
+
 local selectedKind = "Trail"
 local selected = nil -- item id
 local busy = false
@@ -453,6 +512,8 @@ function render()
 		})
 		b.Activated:Connect(function()
 			selected = item.Id
+			showingDetail = true
+			applyLayout()
 			render()
 		end)
 	end
@@ -469,6 +530,8 @@ end
 for kind, refs in tabs do
 	refs.Button.Activated:Connect(function()
 		selectedKind = kind
+		showingDetail = false
+		applyLayout()
 		selected = nil
 		status.Text = ""
 		render()
@@ -521,6 +584,8 @@ fitTabs()
 backdrop:GetPropertyChangedSignal("Visible"):Connect(function()
 	if backdrop.Visible then
 		entering = true
+		showingDetail = false
+		applyLayout()
 		render()
 	end
 end)
