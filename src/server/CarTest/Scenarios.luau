@@ -14222,6 +14222,8 @@ Scenarios.wyvern_flight = require(script.Parent.WyvernFlightTests).wyvern_flight
 Scenarios.wyvern_breath = require(script.Parent.WyvernBreathTests).wyvern_breath
 -- docs/CAR_REDESIGN_SPEC.md section 11: Singularity orb parts, OrbMotion, animated orb welds, bounds, race stability
 Scenarios.singularity_orb = require(script.Parent.SingularityOrbTests).singularity_orb
+-- docs/FRIENDS_BOOST_SPEC.md: friend count multi on Luck and Money only, Studio override, attributes
+Scenarios.friends_boost = require(script.Parent.FriendBoostTests).friends_boost
 -- docs/WORLDS_SPEC.md section 1: on-demand cruise speed probe for RaceConfig.MAX_CRUISE (TestConfig.OnDemand)
 Scenarios.speed_probe = require(script.Parent.SpeedProbeTests).speed_probe
 -- docs/PANEL_ART_GIFTING_SPEC.md: cosmetic effects on the chassis, no mass/controls change, equip preserved
