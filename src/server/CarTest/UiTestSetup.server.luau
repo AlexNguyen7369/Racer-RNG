@@ -6,7 +6,7 @@
 -- Player, then ReplicatedStorage UiTestSetupDone = the same string. On error UiTestSetupError =
 -- "<id>:<nonce>:<message>" is set first, and Done is still set.
 --
--- Ids: snapshot, restore, spy, index_states, stat_points, no_stat_points, auto_racing, on_foot, lose_event, turbo_next,
+-- Ids: snapshot, restore, spy, index_states, daily_unclaimed, daily_claimed, checkpoint_locked, checkpoint_open, stat_points, no_stat_points, auto_racing, on_foot, lose_event, turbo_next,
 -- emphasized_next, auto_roll_on, rebirth_eligible, rebirth_not_eligible, duel_* (every id: UiSpec.ServerSetup), roll_odds_*, weather_* (rain, night, gold, aurora, clear, clear_event, rain_roll).
 -- (Ported from the ServerSetup snippets in Client/UiTest/UiSpec.luau.)
 
@@ -367,6 +367,49 @@ function setups.progression_no_money(player)
 	live("UpgradeService").Refresh(player)
 end
 
+-- Daily reward fixtures (UiSpec.ServerSetup daily_*): unsaved DailyLast; 'restore' puts DailyLast / DailyStreak back.
+local function dailyFixture(player, last)
+	progressionSnapshot(player)
+	local attributes = progressionSnapshots[player].attributes
+	for _, name in { "DailyLast", "DailyStreak" } do
+		if attributes[name] == nil then
+			attributes[name] = { value = player:GetAttribute(name) }
+		end
+	end
+	player:SetAttribute("DailyLast", last)
+end
+
+function setups.daily_unclaimed(player)
+	dailyFixture(player, -1)
+end
+
+function setups.daily_claimed(player)
+	dailyFixture(player, math.floor(os.time() / 86400)) -- DailyLoginService dayNumber
+end
+
+-- Checkpoint fixtures (UiSpec checkpoint_*, docs/CHECKPOINT_SPEC.md): racing and rolls paused (a finish would raise
+-- BestTrack), unsaved Checkpoint = 1 and BestTrack. 'restore' puts Checkpoint, BestTrack (the upgrade snapshot),
+-- AutoRacing and AutoRoll back.
+local function checkpointFixture(player, best)
+	progressionSnapshot(player)
+	local attributes = progressionSnapshots[player].attributes
+	if attributes.Checkpoint == nil then
+		attributes.Checkpoint = { value = player:GetAttribute("Checkpoint") }
+	end
+	setups.on_foot(player)
+	setAutoRoll(player, false)
+	player:SetAttribute("Checkpoint", 1)
+	player:SetAttribute("BestTrack", best)
+end
+
+function setups.checkpoint_locked(player)
+	checkpointFixture(player, 0)
+end
+
+function setups.checkpoint_open(player)
+	checkpointFixture(player, 2)
+end
+
 function setups.offline_welcome(player)
 	progressionSnapshot(player)
 	player:SetAttribute("OfflineSeconds", 3661)
@@ -673,6 +716,8 @@ local function progressionSpy()
 			"DailyClaim",
 			"QuestClaim",
 			"RedeemCode",
+			"SetCheckpoint",
+			"PrepareGift",
 		}
 	do
 		local target = remotes:FindFirstChild(name)
