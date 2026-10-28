@@ -123,6 +123,8 @@ adds the shared slight enlargement without a white hover box; its Claim button r
 - Owner 2026-10-28: the Roblox chat window starts collapsed (TextChatService `ChatWindowConfiguration`), so it never
   covers the left icon tiles; players open it with the chat button. On phone and tablet viewports the Items and Upgrade
   buttons beside the LEVEL / TURBO bars scale down until they clear the Money and Speed readouts (desktop unchanged).
+- Owner 2026-10-28: at viewport height <= 400 (phone_small, e.g. 667x375) the Items and Upgrade buttons stack ABOVE the
+  LEVEL / TURBO bars instead of beside them, so the Items anchor never sits inside the Speed readout; other sizes unchanged.
 
 ## 7. Motion, safe area and gamepad (owner 2026-10-26)
 
