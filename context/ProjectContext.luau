@@ -3,7 +3,19 @@
 PROJECT CONTEXT - Idle Vehicle Simulator (read me first)
 Shown in Studio at: ServerScriptService > ProjectContext   (source file: context/ProjectContext.luau)
 Do NOT edit this in Studio: edit the file on disk, Rojo syncs it. Claude updates it at the end of every loop.
-Last updated: 2026-10-27 (Claude: Ember Wyvern flight, bigger, long tail, blue fire breath)
+Last updated: 2026-10-27 (Claude: car redesign v3 toy racers, Singularity orb)
+
+CAR REDESIGN V3 (TOY RACER) + SINGULARITY ORB - 2026-10-27 (Claude, branch feature/alex/car-redesign-v3-toy-racer)
+- Owner: every car a stylised toy racer, 15,000-triangle cap, pilot (Rusty Hatchback / Street Racer / Singularity)
+  approved, big wings kept. Singularity's black hole: smaller, floating, spins and bobs, bright neon glow.
+- Rules: CAR_REDESIGN_SPEC sections 10-11; build STYLE/TOY in tools/build_redesign_cars.py; orb parts Metal2/Light3/
+  Light4 (attribute Orb, PointLight OrbGlow), Shared/OrbMotion, Client/OrbAnimator, CarAppearance orb Weld
+  (AnimatedOrb), BestRollView orb offset. 111 cars re-uploaded, meshes.json + rbxmx rewritten.
+- Tests: singularity_orb red before the code. Full suite 2026-10-27: END pass=50 fail=3; car_redesign,
+  singularity_orb, car_size, pass_cars, car_expansion, showcase, vehicle_effects, gacha, index, race all PASS; the 3
+  failures (spawn_area, workshop: Hill Block_5L2.GiantOak2 overlaps spawn floor / Plot_2; environment
+  city_blocks_gap) come from the uncommitted giant-scenery / City Blocks work. Orb moves on the pass pedestal
+  (Light3 CFrame read on the client). Unverified: owner look; no Studio screenshot of the orb.
 
 WYVERN LOW-SPEED FLAP FIX - 2026-10-27 (Claude): flap phase integrated (WyvernMotion.CycleSeconds, state.Cycle in
   WyvernAnimator) so speed jitter below 45 studs/s no longer jumps the wings; FLAP_DOWN 34 deg, BANK_MAX 8 deg

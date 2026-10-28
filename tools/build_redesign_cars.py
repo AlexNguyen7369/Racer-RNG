@@ -17,11 +17,15 @@ from pathlib import Path
 from mathutils import Euler, Matrix, Vector
 
 ROOT = Path('/Users/alexnguyen7369/Documents/RobloxGames')
-MAX_X, MAX_Y, MAX_TRIS = 1.95, 3.3, 6000
+MAX_X, MAX_Y, MAX_TRIS = 1.95, 3.3, 15000  # 15,000 since the toy pass (owner 2026-10-27, spec section 10)
+# Toy racer pass (CAR_REDESIGN_SPEC section 10): wheels scaled about their axle, the rest of the car scaled about the
+# base centre and lifted with the axles. Placeholders tuned on the pilot. STYLE = None builds the 2026-10-26 look.
+STYLE = 'toy'
+TOY = {'wheel': 1.2, 'length': 0.94, 'width': 0.96, 'height': 1.1, 'wheel_face': 1.92}
 # Geometry pass (owner 2026-10-26, CAR_REDESIGN_SPEC section 8): paint groups get rounder, wider bevels that catch the
 # glossy finish, tyres get more sides.
 PAINT = re.compile(r'(Body|Accent)\d*$')
-TYRE_SIDES = 24
+TYRE_SIDES = 32 if STYLE == 'toy' else 24
 # Geometry level: 2 = strong (more rounded panels, door seams, arch flares, rim lips), 1 = light, 0 = pre-pass.
 # build() steps down a level while a car would pass MAX_TRIS.
 GEOM = 2
@@ -32,7 +36,7 @@ def paint_segments(group, size):
     """Bevel segments for a part (0 = not a rounded paint panel)."""
     if not GEOM or PAINT.match(group) is None or min(size) < ROUND_MIN[GEOM]:
         return 0
-    return 2
+    return 4 if STYLE == 'toy' else 2
 
 ROBLOX_TO_BLENDER = Matrix(((1, 0, 0, 0), (0, 0, -1, 0), (0, 1, 0, 0), (0, 0, 0, 1)))
 
@@ -50,6 +54,9 @@ class Car:
         self.id = car_id
         self.colors = colors  # group -> (r, g, b) 0..1
         self.pieces = {}  # group or wheel name -> [objects]
+        self.anchor = None  # (centre, radius, width) of the wheel the next parts belong to (toy pass)
+        self.anchors = {}  # object -> anchor
+        self.orb = []  # part names the client spins and bobs (Singularity, spec section 11)
         self.scene = bpy.data.scenes.new('Redesign_' + car_id)
         if bpy.context.window:  # None when Blender runs headless (-b)
             bpy.context.window.scene = self.scene
@@ -57,6 +64,7 @@ class Car:
     def _take(self, group, ob):
         self.scene.collection.objects.link(ob)
         self.pieces.setdefault(group, []).append(ob)
+        self.anchors[ob] = self.anchor
         return ob
 
     def box(self, group, center, size, bevel=0.06, taper=None, rot=(0, 0, 0)):
@@ -74,7 +82,7 @@ class Car:
                     v.co.y += taper[2]  # shift the top face forward (+) or back (-)
         if bevel > 0:
             paint = paint_segments(group, size)
-            bmesh.ops.bevel(bm, geom=bm.edges[:], offset=bevel * (1.25 if paint else 1),
+            bmesh.ops.bevel(bm, geom=bm.edges[:], offset=bevel * ((2.2 if STYLE == 'toy' else 1.25) if paint else 1),
                             segments=max(self.seg, paint) if paint else self.seg, profile=0.5, affect='EDGES',
                             clamp_overlap=True)
         return self._finish(group, bm, center, rot)
@@ -84,7 +92,11 @@ class Car:
         bmesh.ops.create_cone(bm, cap_ends=True, segments=verts, radius1=radius, radius2=radius, depth=depth)
         if bevel > 0:
             rim = [e for e in bm.edges if abs(e.verts[0].co.z) > depth / 2 - 1e-4 and abs(e.verts[1].co.z) > depth / 2 - 1e-4]
-            bmesh.ops.bevel(bm, geom=rim, offset=bevel, segments=1 if GEOM and group.startswith('Wheel_') else 2, profile=0.5, affect='EDGES')
+            tyre = group.startswith('Wheel_')
+            if tyre and STYLE == 'toy':  # balloon tyre: wide rounded shoulders
+                bevel = min(depth * 0.3, radius * 0.3)
+            bmesh.ops.bevel(bm, geom=rim, offset=bevel, segments=(3 if STYLE == 'toy' else 1) if GEOM and tyre else 2,
+                            profile=0.5, affect='EDGES', clamp_overlap=True)
         r = rot or {'X': (0, math.pi / 2, 0), 'Y': (math.pi / 2, 0, 0), 'Z': (0, 0, 0)}[axis]
         return self._finish(group, bm, center, r)
 
@@ -131,7 +143,7 @@ class Car:
                 bmesh.ops.create_cube(bm, size=1)
                 bm.transform(Matrix.Diagonal((sx, sy, sz, 1)))
             paint = paint_segments(group, size)
-            b = bevel if bevel is not None else (min(0.12, min(size) * 0.3) if GEOM >= 2 else min(0.08, min(size) * 0.25)) if paint else min(0.06, min(size) * 0.22)
+            b = bevel if bevel is not None else (min(0.24 if STYLE == 'toy' else 0.12, min(size) * (0.4 if STYLE == 'toy' else 0.3)) if GEOM >= 2 else min(0.08, min(size) * 0.25)) if paint else min(0.06, min(size) * 0.22)
             if b > 0.008:
                 bmesh.ops.bevel(bm, geom=bm.edges[:], offset=b, segments=paint or 1, profile=0.5, affect='EDGES',
                                 clamp_overlap=True)
@@ -141,6 +153,22 @@ class Car:
 
     def wheel(self, name, center, radius, width, hub_color_group='Metal', hub_sides=8, cap_group='Trim', hub_scale=0.48):
         """Tyre (its own Wheel_* part, bevelled shoulders) plus an octagonal hub cap in the Metal group."""
+        with self.on_wheel(center, radius, width):
+            self._wheel(name, center, radius, width, hub_color_group, hub_sides, cap_group, hub_scale)
+
+    def on_wheel(self, center, radius, width):
+        """Parts made inside this block move and scale with that wheel in the toy pass (arch flares, hubs)."""
+        car = self
+
+        class Ctx:
+            def __enter__(self):
+                car.anchor = (Vector(center).freeze(), radius, width)
+
+            def __exit__(self, *exc):
+                car.anchor = None
+        return Ctx()
+
+    def _wheel(self, name, center, radius, width, hub_color_group, hub_sides, cap_group, hub_scale):
         side = 1 if center[0] > 0 else -1
         self.cyl(name, center, radius, width, verts=TYRE_SIDES if GEOM else 20, bevel=min(0.12, radius * 0.22))
         cap = (center[0] + side * (width / 2 + 0.02), center[1], center[2])
@@ -192,10 +220,33 @@ class Car:
         for side in (-1, 1):
             fn(side)
 
+    def toy(self):
+        """Toy racer proportions (spec section 10): bigger wheels kept on the ground, a shorter, taller body."""
+        wheels = {a for a in self.anchors.values() if a}
+        if STYLE != 'toy' or not wheels:
+            return
+        k = TOY['wheel']
+        lift = sum(c.z for c, _, _ in wheels) / len(wheels) * (k - 1)  # axle rise
+        bpy.context.view_layer.update()
+        reach = {}  # anchor -> outermost |x| of its parts (tyre, hub caps, flares)
+        for ob, a in self.anchors.items():
+            if a:
+                reach[a] = max([reach.get(a, 0)] + [abs((ob.matrix_world @ Vector(v)).x) for v in ob.bound_box])
+        for ob, a in self.anchors.items():
+            if a:
+                c, r, w = a
+                x = math.copysign(min(abs(c.x), TOY['wheel_face'] - (reach[a] - abs(c.x)) * k), c.x)
+                # Scaled about the ground point under the axle: a wheel on the ground stays on it, a hover pod keeps its gap.
+                m = Matrix.Translation((x, c.y * TOY['length'], c.z * k + 0.002)) @ Matrix.Scale(k, 4) @ Matrix.Translation(-c)
+            else:
+                m = Matrix.Translation((0, 0, lift)) @ Matrix.Diagonal((TOY['width'], TOY['length'], TOY['height'], 1))
+            ob.matrix_world = m @ ob.matrix_world
+
     def finish(self):
         """Join each group into one object, apply transforms, check budgets, write files. Returns a report."""
         out = ROOT / 'drafts/cars' / self.id / 'redesign'
         out.mkdir(parents=True, exist_ok=True)
+        self.toy()
         joined = []
         for group, obs in self.pieces.items():
             if not obs:
@@ -251,7 +302,7 @@ class Car:
         wheels = sorted(g for g in self.pieces if g.startswith('Wheel_'))
         kind = lambda g: 'Tyre' if g.startswith('Wheel_') else re.sub(r'\d+$', '', g)
         report = {'id': self.id, 'parts': [g for g, _ in joined], 'tris': tris, 'wheels': wheels,
-                  'min': [round(c, 3) for c in lo], 'max': [round(c, 3) for c in hi],
+                  'min': [round(c, 3) for c in lo], 'max': [round(c, 3) for c in hi], 'orb': self.orb,
                   'materials': {g: {'material': GROUP_MATERIAL[kind(g)],
                                     'color': list(self.colors.get(g) or self.colors['Tyre'])}
                                 for g, _ in joined}}
@@ -296,7 +347,7 @@ class Car:
         scene.display.shading.background_type = 'VIEWPORT'
         scene.display.shading.background_color = (0.04, 0.04, 0.05)
         scene.display.shading.show_shadows = True
-        scene.display.shading.show_cavity = True
+        scene.display.shading.show_cavity = STYLE != 'toy'  # cavity draws false teeth on the rounder tyres
         scene.render.filepath = str(out / 'preview.png')
         bpy.ops.render.render(write_still=True)
 
@@ -370,8 +421,11 @@ def sedan(car_id, paint, accent=(0.93, 0.91, 0.87), light=WARM, hood=None, roof=
     lift = 0.25 if hover else 0.0
     z0, z1, z2 = 0.49 + lift, 1.39 + lift, 2.32 + lift  # sill, belt line, roof (lowered for the sport look)
     cy, cl = -0.35, 2.6  # cabin centre and length
+    toy = STYLE == 'toy'
+    if toy:
+        z2 += 0.2  # taller, bubblier cabin
     c.box('Body', (0, 0, (z0 + z1) / 2), (3.0, 2 * L, z1 - z0), bevel=0.1)
-    c.box('Body', (0, cy, (z1 + z2) / 2), (2.6, cl, z2 - z1), bevel=0.08, taper=(0.86, 0.7))
+    c.box('Body', (0, cy, (z1 + z2) / 2), (2.6, cl, z2 - z1), bevel=0.08, taper=(0.9, 0.78) if toy else (0.86, 0.7))
     if roof:  # roof plate a touch bigger than the roof
         c.box('Accent', (0, cy, z2 + 0.06), (2.4, 1.95, 0.12), bevel=0.04)
     # Glass: windshield, rear window, two side panes per side (slopes follow the cabin taper).
@@ -423,9 +477,16 @@ def sedan(car_id, paint, accent=(0.93, 0.91, 0.87), light=WARM, hood=None, roof=
     if flares:  # dark arches wrapping the top of each wheel
         for y in (AX, -AX):
             def flare(s, y=y):
-                c.box('Trim', (s * 1.56, y, r + r * 0.92), (0.36, 1.05, 0.16), bevel=0.04)
-                for e in (-1, 1):
-                    c.box('Trim', (s * 1.56, y + e * 0.66, r + 0.62), (0.36, 0.42, 0.16), bevel=0.04, rot=(-e * 0.7, 0, 0))
+                x = s * (1.83 - w * 1.2 / 2 - 0.12)
+                with c.on_wheel((x, y, r), r, w * 1.2):
+                    if toy:  # rounded fender arch: two tubes over the top of the tyre
+                        for dx in (0.08, 0.32):
+                            c.torus('Trim', (s * (1.71 - dx), y, r), r + 0.14, 0.13, rot=(0, math.pi / 2, 0),
+                                    segments=16, ring=6, arc=(math.pi / 2 + 0.2, 3 * math.pi / 2 - 0.2))
+                        return
+                    c.box('Trim', (s * 1.56, y, r + r * 0.92), (0.36, 1.05, 0.16), bevel=0.04)
+                    for e in (-1, 1):
+                        c.box('Trim', (s * 1.56, y + e * 0.66, r + 0.62), (0.36, 0.42, 0.16), bevel=0.04, rot=(-e * 0.7, 0, 0))
             c.mirror(flare)
     if wing:
         c.box('Body', (0, -L + 0.3, z2 + 0.12), (3.4, 0.62, 0.1), bevel=0.04, taper=(1.0, 0.8))
@@ -514,14 +575,16 @@ def singularity():
         c.box('Light', (s * 1.66, 0.4, 0.55), (0.03, 3.4, 0.07), bevel=0)  # gold sill line
     c.mirror(flank)
     # Black hole (never removed, owner 2026-10-20): a black core inside a tilted neon-gold accretion ring and a pale
-    # neon halo, standing on a chrome spindle above the engine deck. Metal here is the near-black core.
-    hole = (0, -1.7, 1.72)
-    c.tube('Accent', (0, -1.7, 1.12), (0, -1.7, 1.4), 0.06)
-    c.sphere('Metal', hole, 0.34, segments=12)
+    # neon halo. Since 2026-10-27 (spec section 11) it is smaller, floats (no spindle) and is three separate Orb parts
+    # the client spins and bobs: Metal2 core, Light3 ring, Light4 halo, all centred on the orb centre.
+    hole = (0, -1.7, 1.62)
+    c.orb = ['Metal2', 'Light3', 'Light4']
+    c.colors.update({'Metal2': (0.01, 0.01, 0.015), 'Light3': gold, 'Light4': (0.8, 0.92, 1.0)})
+    c.sphere('Metal2', hole, 0.26, segments=20)
     tilt = (math.radians(24), math.radians(8), 0)
-    c.torus('Light', hole, 0.6, 0.075, tilt)
-    c.torus('Light', hole, 0.84, 0.03, tilt, segments=20, ring=4)
-    c.torus('Light2', hole, 0.44, 0.022, (math.radians(90), 0, math.radians(25)), segments=20, ring=4)
+    c.torus('Light3', hole, 0.46, 0.065, tilt, segments=32, ring=8)
+    c.torus('Light3', hole, 0.64, 0.025, tilt, segments=32, ring=4)
+    c.torus('Light4', hole, 0.36, 0.035, (math.radians(90), 0, math.radians(25)), segments=32, ring=6)
     # Rear wing with endplates and a gold lip, chrome posts; diffuser blocks and exhaust.
     c.box('Body', (0, -2.85, 1.75), (3.5, 0.6, 0.08), bevel=0.02)
     c.box('Light', (0, -2.6, 1.8), (3.3, 0.06, 0.03), bevel=0)
@@ -602,10 +665,11 @@ def strong_details(c, parts):
         face = x + side * w / 2  # outer tyre face
         centre = (face, -z, y)  # Blender (x, y, z) = Roblox (x, -z, y)
         # Arch flare over the top half of the tyre, a rim lip on its face.
-        c.torus('Trim', (face - side * 0.06, -z, y), r + 0.1, 0.06, rot=(0, math.pi / 2, 0), segments=8, ring=3,
-                arc=(math.pi / 2 + 0.25, 3 * math.pi / 2 - 0.25))
-        c.torus('Metal', (centre[0] + side * 0.01, centre[1], centre[2]), r * 0.72, 0.03, rot=(0, math.pi / 2, 0),
-                segments=12, ring=3)
+        with c.on_wheel((x, -z, y), r, w):
+            c.torus('Trim', (face - side * 0.06, -z, y), r + 0.1, 0.06, rot=(0, math.pi / 2, 0), segments=8, ring=3,
+                    arc=(math.pi / 2 + 0.25, 3 * math.pi / 2 - 0.25))
+            c.torus('Metal', (centre[0] + side * 0.01, centre[1], centre[2]), r * 0.72, 0.03, rot=(0, math.pi / 2, 0),
+                    segments=12, ring=3)
     body = next((p for p in parts if p['name'] == 'Body' and not any(p['rotation'])), None)
     if body:
         (x, y, z), (w, h, l) = body['pos'], body['size']
@@ -673,10 +737,26 @@ def recipe_car(car_id):
             grow = p['size'][0] * 0.2
             p['size'] = [p['size'][0] + grow, p['size'][1], p['size'][2]]
             p['pos'] = [p['pos'][0] - math.copysign(grow / 2, p['pos'][0]), p['pos'][1], p['pos'][2]]
+    # Toy pass: tyres, hubs and spokes move with their wheel (Blender centre (x, -z, y), radius, width).
+    axles = [((p['pos'][0], -p['pos'][2], p['pos'][1]), p['size'][1] / 2, p['size'][0]) for p in parts
+             if re.fullmatch(r'Wheel_(FL|FR|RL|RR)', p['name'])]
+
+    def wheel_of(p):
+        if not wheelish(p) or not axles:
+            return None
+        here = Vector((p['pos'][0], -p['pos'][2], p['pos'][1]))
+        a = min(axles, key=lambda a: (Vector(a[0]) - here).length)
+        return a if (Vector(a[0]) - here).length <= 2 * a[1] else None
+
     for p in parts:
         r = role(p)
         group = r if r.startswith('Wheel_') else names[(r, key(p))]
-        c.prim(group, p['shape'], p['pos'], p['size'], p['rotation'])
+        a = wheel_of(p)
+        if a:
+            with c.on_wheel(*a):
+                c.prim(group, p['shape'], p['pos'], p['size'], p['rotation'])
+        else:
+            c.prim(group, p['shape'], p['pos'], p['size'], p['rotation'])
     if GEOM >= 2:
         strong_details(c, parts)
     # Kit pieces in Roblox space (front is -Z): splitter + neon lip, diffuser fins, lip spoiler or (novelty) a wing.

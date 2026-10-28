@@ -64,8 +64,11 @@
 61. 2026-10-27 — Alex Nguyen — Made the scenery bigger and denser (layer scale factors, budget 1200) and rebuilt the City track's buildings as detailed skyscrapers, with new UI checks and the reduced-motion reveal fix; full harness 50/0 (940bea3).
 62. 2026-10-27 — Alex Nguyen — Shipped the Ember Wyvern as a textured cyan shadow-wyvern skin (Blender build, colour + normal maps, uploaded Model 103082461956401, RedesignCarModels rbxmx, car_redesign coverage) and pushed it to main (820cd25).
 63. 2026-10-27 — Alex Nguyen — Shipped the Ember Wyvern flight (33-bone rig, flap bursts and glides, SkinScale 2.5, long whip tail) and blue fire breath with the wyvern_flight / wyvern_breath tests; full suite 51/1 (only the unrelated City Blocks gap) and pushed to main (b067894).
+64. 2026-10-27 — Alex Nguyen — Rebuilt all 111 reference cars as toy racers (15,000-triangle cap, pilot approved, re-uploaded) and gave Singularity a floating, spinning, bobbing neon-glow black hole orb with the singularity_orb test, on feature/alex/car-redesign-v3-toy-racer (ce060e6).
+65. 2026-10-27 — Alex Nguyen — Verified car redesign v3 in Studio: full harness 50/3 with every car and Singularity orb scenario green (the 3 failures come from the uncommitted giant-scenery work, bug b99e2c0b logged) (c390103).
+66. 2026-10-27 — Alex Nguyen — Merged car redesign v3 (toy racer skins for all 111 cars and the Singularity orb) into main (6ad9717).
 
 ## What's next
-**Car redesign v3: write the owner's new rules (stylised toy racer look, 15,000-triangle cap per car) into the design doc and CAR_REDESIGN_SPEC, then build a 3-car pilot (Rusty Hatchback, Street Racer, Singularity) on its own feature branch for owner approval before the other 108 cars.**
+**Owner looks at the toy racer cars and the Singularity orb while racing in Studio and tunes the placeholder numbers (`TOY` proportions in tools/build_redesign_cars.py, `OrbMotion` spin / bob, `OrbGlow` brightness) if needed.**
 
-**Why this is next:** the owner asked on 2026-10-27 for a redesign of all 111 cars in this style and budget, pilot first; every later wave builds on the approved pilot look.
+**Why this is next:** every proportion and orb number is a placeholder in CAR_REDESIGN_SPEC sections 10-11, and any change means a rebuild and re-upload of the cars, so it should be settled before further car art builds on them.

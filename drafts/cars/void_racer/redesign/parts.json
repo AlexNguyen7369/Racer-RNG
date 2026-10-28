@@ -8,7 +8,7 @@
     "Accent",
     "Light"
   ],
-  "tris": 3308,
+  "tris": 4268,
   "wheels": [],
   "min": [
     -1.907,
@@ -18,8 +18,9 @@
   "max": [
     1.907,
     3.015,
-    3.357
+    3.557
   ],
+  "orb": [],
   "materials": {
     "Body": {
       "material": "SmoothPlastic",

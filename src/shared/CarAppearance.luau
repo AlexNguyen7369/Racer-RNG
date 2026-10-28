@@ -63,11 +63,22 @@ function CarAppearance.Apply(car, id, config)
 				part.Massless = true
 				part.RootPriority = -127
 				part.CollisionGroup = chassis.CollisionGroup
-				local weld = Instance.new("WeldConstraint")
-				weld.Name = "SkinWeld"
-				weld.Part0 = chassis
-				weld.Part1 = part
-				weld.Parent = part
+				if part:GetAttribute("Orb") then
+					-- Singularity's orb (docs/CAR_REDESIGN_SPEC.md section 11): a Weld whose C0 Client/OrbAnimator moves.
+					local weld = Instance.new("Weld")
+					weld.Name = "SkinWeld"
+					weld.Part0 = chassis
+					weld.Part1 = part
+					weld.C0 = chassis.CFrame:ToObjectSpace(part.CFrame)
+					weld:SetAttribute("AnimatedOrb", true)
+					weld.Parent = part
+				else
+					local weld = Instance.new("WeldConstraint")
+					weld.Name = "SkinWeld"
+					weld.Part0 = chassis
+					weld.Part1 = part
+					weld.Parent = part
+				end
 				part.Anchored = false
 			end
 		end

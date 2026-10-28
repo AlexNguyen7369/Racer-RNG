@@ -36,6 +36,38 @@ in git history (`git log -p -- handoff.md`, last full version at 2d99d78) and in
    suite). Next: serve the worktree with rojo (stop the other rojo only when robloxgames-e7 says Studio is free),
    run [CARTEST] (hud/format, race_progress_map, environment, npc) and [UITEST], screenshot desktop + phone, fix,
    then ProjectContext/todo, commit, progress-tracker.
+00000. **Rebirth curve rev. 2 + lost race gain** (2026-10-27, uncommitted). Owner: x10 per rebirth too high, and
+   multi "not applied" while racing. Rules: design doc "Rebirth system" (rev. 2), REBIRTH_SPEC "Automatic bonus".
+   Code: `RebirthConfig` (+EARLY_STEP 5 per rebirth, capped at x100 from ADD_UNTIL 20), `RaceService` commitStat caps
+   each AddSpeed at `PlayerData.MAX_ADD` and carries the rest (was silently dropped above 1e6). test-writer updating
+   Phase2Tests / UiSpec. Next: run `rebirth`, `economy`, `gacha` and the UI rebirth tests live.
+
+0000. **Speed gain rebalance** (2026-10-27, uncommitted, on the car-redesign branch's tree; owner: balance like the
+   "+1 Speed" keyboard games). Rules: design doc "Owner decision, 2026-10-27 (Speed gain rebalance", "Rebirth system",
+   "Aura and trail ladders"; REBIRTH_SPEC; CLAUDE.md car-gacha bullets. Code: `RebirthConfig` (REBIRTH_TOTALS,
+   REPEAT_FACTOR), `MarketConfig` (new multis/prices, frost_trail, prism_trail, `GainMulti`), `GachaService.SpeedGainMulti`,
+   `VehicleEffects` / `MarketArtConfig` / `VfxArea` (2 trails, 9 lanes), `MarketUi` subtitle. Tests updated by
+   test-writer + ui-test-writer. Next: run rebirth, gacha, economy, vehicle_effects, shop_purchases, data + UI tests
+   live; look at the 2 new trails in `/tp vfxarea`; commit on its own feature branch, separate from the car redesign.
+
+000. **Giant scenery in every biome** (2026-10-27, uncommitted, on this branch's tree): owner asked every biome to get
+   big assets like the City. Design doc + BIOME_DRESSING_SPEC Layers 9 "Every biome"; data only in
+   `src/shared/BiomeThemes.luau` (`giant`/`giants`, a `Blocks` entry per biome). Live: `environment` 343/344 (only
+   city_blocks_gap, bug ab037b16). Next: owner looks while racing; full suite; commit separately from the car redesign.
+
+00. **Car redesign v3 (toy racer) + Singularity orb: DONE, merged to main 2026-10-27 (6ad9717); full suite 50/3, all car / orb scenarios green, the 3 failures are the uncommitted giant-scenery work (bugs ab037b16, b99e2c0b). Left: owner look while racing, placeholder tuning.** History: (branch
+   `feature/alex/car-redesign-v3-toy-racer`). Owner approved the pilot 2026-10-27 ("keep big wing"), then asked for the
+   Singularity orb (small, spinning, floating / bobbing, bright neon glow). Rules: design doc entries 2026-10-27,
+   CAR_REDESIGN_SPEC sections 10-11, VEHICLE_SKINS_SPEC. Done: all 111 cars rebuilt (max 13,496 tris, |x| <= 1.92),
+   uploaded (new ids.json), meshes.json dumped, RedesignCarModels rbxmx rewritten (singularity: Orb parts + OrbGlow);
+   `Shared/OrbMotion`, `Client/OrbAnimator`, `CarAppearance` orb Weld, `BestRollView` orb offset; test
+   `singularity_orb` (test-writer) seen RED (missing feature only). Full suite run was cut off at `npc` by someone
+   playtesting in the same Studio (FrozenCookie12345 admin commands); all scenarios through `npc` PASS, car_size
+   length_ratio 0.534. NEXT: with Studio free, physics-tester full suite (car_redesign, singularity_orb, pass_cars,
+   car_expansion, showcase, vehicle_effects must pass), Studio screenshot of the orb, then the owner looks at the cars
+   in Studio; merge to main only after that. Upload needs `SSL_CERT_FILE=/etc/ssl/cert.pem` (python 3.14 has no CA
+   bundle). Bug 1ec93137 (CarPhysics:266 clamp NaN on manual cars) logged, not fixed. The UI visual-pass session
+   (worktree ../RobloxGames-ui) is waiting for Studio too.
 
 0. **Ember Wyvern flight + breath — DONE, committed and pushed to main 2026-10-27; full suite END pass=51 fail=1 (only environment city_blocks_gap, bug ab037b16, City Blocks work still uncommitted in the tree)**. Next session goal: car redesign v3 (toy racer style, 15,000-triangle cap, pilot Rusty Hatchback / Street Racer / Singularity, owner 2026-10-27) on its own branch. (branch `feature/alex/ember-wyvern-flight`, all
    uncommitted; owner 2026-10-27: "stop test suite, begin implementation of features first").

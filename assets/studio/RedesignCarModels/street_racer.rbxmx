@@ -30,22 +30,22 @@
         <bool name="Massless">true</bool>
         <bool name="CastShadow">true</bool>
         <Content name="MeshId">
-          <url>rbxassetid://128925117113647</url>
+          <url>rbxassetid://103820605322483</url>
         </Content>
         <Vector3 name="InitialSize">
-          <X>0.96</X>
-          <Y>0.02</Y>
-          <Z>1.0</Z>
+          <X>0.9216</X>
+          <Y>0.022</Y>
+          <Z>0.94</Z>
         </Vector3>
         <Vector3 name="size">
-          <X>0.96</X>
-          <Y>0.02</Y>
-          <Z>1.0</Z>
+          <X>0.9216</X>
+          <Y>0.022</Y>
+          <Z>0.94</Z>
         </Vector3>
         <CoordinateFrame name="CFrame">
           <X>0.0</X>
-          <Y>1.395</Y>
-          <Z>-1.825</Z>
+          <Y>1.6745</Y>
+          <Z>-1.7155</Z>
           <R00>1</R00>
           <R01>0</R01>
           <R02>0</R02>
@@ -75,21 +75,21 @@
         <bool name="Massless">true</bool>
         <bool name="CastShadow">true</bool>
         <Content name="MeshId">
-          <url>rbxassetid://111360230586384</url>
+          <url>rbxassetid://84248560108128</url>
         </Content>
         <Vector3 name="InitialSize">
-          <X>3.4</X>
-          <Y>2.0</Y>
-          <Z>5.4</Z>
+          <X>3.264</X>
+          <Y>2.42</Y>
+          <Z>5.076</Z>
         </Vector3>
         <Vector3 name="size">
-          <X>3.4</X>
-          <Y>2.0</Y>
-          <Z>5.4</Z>
+          <X>3.264</X>
+          <Y>2.42</Y>
+          <Z>5.076</Z>
         </Vector3>
         <CoordinateFrame name="CFrame">
           <X>0.0</X>
-          <Y>1.49</Y>
+          <Y>1.889</Y>
           <Z>0.0</Z>
           <R00>1</R00>
           <R01>0</R01>
@@ -120,22 +120,22 @@
         <bool name="Massless">true</bool>
         <bool name="CastShadow">true</bool>
         <Content name="MeshId">
-          <url>rbxassetid://130276345476549</url>
+          <url>rbxassetid://70489557736438</url>
         </Content>
         <Vector3 name="InitialSize">
-          <X>2.5833</X>
-          <Y>0.6902</Y>
-          <Z>2.5737</Z>
+          <X>2.4752</X>
+          <Y>0.7639</Y>
+          <Z>2.416</Z>
         </Vector3>
         <Vector3 name="size">
-          <X>2.5833</X>
-          <Y>0.6902</Y>
-          <Z>2.5737</Z>
+          <X>2.4752</X>
+          <Y>0.7639</Y>
+          <Z>2.416</Z>
         </Vector3>
         <CoordinateFrame name="CFrame">
           <X>0.0</X>
-          <Y>1.875</Y>
-          <Z>0.3442</Z>
+          <Y>2.3125</Y>
+          <Z>0.3237</Z>
           <R00>1</R00>
           <R01>0</R01>
           <R02>0</R02>
@@ -165,22 +165,22 @@
         <bool name="Massless">true</bool>
         <bool name="CastShadow">true</bool>
         <Content name="MeshId">
-          <url>rbxassetid://118033078495148</url>
+          <url>rbxassetid://116028843599906</url>
         </Content>
         <Vector3 name="InitialSize">
-          <X>2.9</X>
-          <Y>0.8975</Y>
-          <Z>0.275</Z>
+          <X>2.784</X>
+          <Y>0.9873</Y>
+          <Z>0.2585</Z>
         </Vector3>
         <Vector3 name="size">
-          <X>2.9</X>
-          <Y>0.8975</Y>
-          <Z>0.275</Z>
+          <X>2.784</X>
+          <Y>0.9873</Y>
+          <Z>0.2585</Z>
         </Vector3>
         <CoordinateFrame name="CFrame">
           <X>0.0</X>
-          <Y>0.7713</Y>
-          <Z>-2.8775</Z>
+          <Y>0.9884</Y>
+          <Z>-2.7048</Z>
           <R00>1</R00>
           <R01>0</R01>
           <R02>0</R02>
@@ -210,22 +210,22 @@
         <bool name="Massless">true</bool>
         <bool name="CastShadow">true</bool>
         <Content name="MeshId">
-          <url>rbxassetid://71275671353565</url>
+          <url>rbxassetid://92196554289251</url>
         </Content>
         <Vector3 name="InitialSize">
-          <X>3.56</X>
-          <Y>1.1394</Y>
-          <Z>5.063</Z>
+          <X>3.7368</X>
+          <Y>1.3766</Y>
+          <Z>4.903</Z>
         </Vector3>
         <Vector3 name="size">
-          <X>3.56</X>
-          <Y>1.1394</Y>
-          <Z>5.063</Z>
+          <X>3.7368</X>
+          <Y>1.3766</Y>
+          <Z>4.903</Z>
         </Vector3>
         <CoordinateFrame name="CFrame">
           <X>0.0</X>
-          <Y>0.7167</Y>
-          <Z>-0.2285</Z>
+          <Y>0.8667</Y>
+          <Z>-0.1429</Z>
           <R00>1</R00>
           <R01>0</R01>
           <R02>0</R02>
@@ -255,22 +255,22 @@
         <bool name="Massless">true</bool>
         <bool name="CastShadow">true</bool>
         <Content name="MeshId">
-          <url>rbxassetid://86642984161736</url>
+          <url>rbxassetid://121025298155815</url>
         </Content>
         <Vector3 name="InitialSize">
-          <X>3.64</X>
-          <Y>2.17</Y>
-          <Z>5.95</Z>
+          <X>3.8328</X>
+          <Y>2.607</Y>
+          <Z>5.593</Z>
         </Vector3>
         <Vector3 name="size">
-          <X>3.64</X>
-          <Y>2.17</Y>
-          <Z>5.95</Z>
+          <X>3.8328</X>
+          <Y>2.607</Y>
+          <Z>5.593</Z>
         </Vector3>
         <CoordinateFrame name="CFrame">
           <X>0.0</X>
-          <Y>1.355</Y>
-          <Z>-0.03</Z>
+          <Y>1.7405</Y>
+          <Z>-0.0282</Z>
           <R00>1</R00>
           <R01>0</R01>
           <R02>0</R02>
@@ -300,22 +300,22 @@
         <bool name="Massless">true</bool>
         <bool name="CastShadow">true</bool>
         <Content name="MeshId">
-          <url>rbxassetid://91948495335836</url>
+          <url>rbxassetid://102890490210311</url>
         </Content>
         <Vector3 name="InitialSize">
-          <X>0.744</X>
-          <Y>1.3836</Y>
-          <Z>1.3836</Z>
+          <X>0.8928</X>
+          <Y>1.6694</Y>
+          <Z>1.6694</Z>
         </Vector3>
         <Vector3 name="size">
-          <X>0.744</X>
-          <Y>1.3836</Y>
-          <Z>1.3836</Z>
+          <X>0.8928</X>
+          <Y>1.6694</Y>
+          <Z>1.6694</Z>
         </Vector3>
         <CoordinateFrame name="CFrame">
           <X>-1.338</X>
-          <Y>0.7</Y>
-          <Z>-1.75</Z>
+          <Y>0.842</Y>
+          <Z>-1.645</Z>
           <R00>1</R00>
           <R01>0</R01>
           <R02>0</R02>
@@ -345,22 +345,22 @@
         <bool name="Massless">true</bool>
         <bool name="CastShadow">true</bool>
         <Content name="MeshId">
-          <url>rbxassetid://97954118659445</url>
+          <url>rbxassetid://81179473149904</url>
         </Content>
         <Vector3 name="InitialSize">
-          <X>0.744</X>
-          <Y>1.3836</Y>
-          <Z>1.3836</Z>
+          <X>0.8928</X>
+          <Y>1.6694</Y>
+          <Z>1.6694</Z>
         </Vector3>
         <Vector3 name="size">
-          <X>0.744</X>
-          <Y>1.3836</Y>
-          <Z>1.3836</Z>
+          <X>0.8928</X>
+          <Y>1.6694</Y>
+          <Z>1.6694</Z>
         </Vector3>
         <CoordinateFrame name="CFrame">
           <X>1.338</X>
-          <Y>0.7</Y>
-          <Z>-1.75</Z>
+          <Y>0.842</Y>
+          <Z>-1.645</Z>
           <R00>1</R00>
           <R01>0</R01>
           <R02>0</R02>
@@ -390,22 +390,22 @@
         <bool name="Massless">true</bool>
         <bool name="CastShadow">true</bool>
         <Content name="MeshId">
-          <url>rbxassetid://114041609763166</url>
+          <url>rbxassetid://104712119035322</url>
         </Content>
         <Vector3 name="InitialSize">
-          <X>0.744</X>
-          <Y>1.3836</Y>
-          <Z>1.3836</Z>
+          <X>0.8928</X>
+          <Y>1.6694</Y>
+          <Z>1.6694</Z>
         </Vector3>
         <Vector3 name="size">
-          <X>0.744</X>
-          <Y>1.3836</Y>
-          <Z>1.3836</Z>
+          <X>0.8928</X>
+          <Y>1.6694</Y>
+          <Z>1.6694</Z>
         </Vector3>
         <CoordinateFrame name="CFrame">
           <X>-1.338</X>
-          <Y>0.7</Y>
-          <Z>1.75</Z>
+          <Y>0.842</Y>
+          <Z>1.645</Z>
           <R00>1</R00>
           <R01>0</R01>
           <R02>0</R02>
@@ -435,22 +435,22 @@
         <bool name="Massless">true</bool>
         <bool name="CastShadow">true</bool>
         <Content name="MeshId">
-          <url>rbxassetid://70825321050662</url>
+          <url>rbxassetid://93800754649871</url>
         </Content>
         <Vector3 name="InitialSize">
-          <X>0.744</X>
-          <Y>1.3836</Y>
-          <Z>1.3836</Z>
+          <X>0.8928</X>
+          <Y>1.6694</Y>
+          <Z>1.6694</Z>
         </Vector3>
         <Vector3 name="size">
-          <X>0.744</X>
-          <Y>1.3836</Y>
-          <Z>1.3836</Z>
+          <X>0.8928</X>
+          <Y>1.6694</Y>
+          <Z>1.6694</Z>
         </Vector3>
         <CoordinateFrame name="CFrame">
           <X>1.338</X>
-          <Y>0.7</Y>
-          <Z>1.75</Z>
+          <Y>0.842</Y>
+          <Z>1.645</Z>
           <R00>1</R00>
           <R01>0</R01>
           <R02>0</R02>

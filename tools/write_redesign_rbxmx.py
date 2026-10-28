@@ -31,11 +31,16 @@ def cframe(parent, name, comps):
 
 
 def attributes(values):
-    """Roblox AttributesSerialize for string attributes: u32 count, then (u32 len, name, 0x02, u32 len, value)."""
+    """Roblox AttributesSerialize: u32 count, then (u32 len, name, type, value); strings 0x02 + u32 len, bools 0x03."""
     out = struct.pack('<I', len(values))
     for k, v in values.items():
-        kb, vb = k.encode(), v.encode()
-        out += struct.pack('<I', len(kb)) + kb + b'\x02' + struct.pack('<I', len(vb)) + vb
+        kb = k.encode()
+        out += struct.pack('<I', len(kb)) + kb
+        if isinstance(v, bool):
+            out += b'\x03' + bytes([v])
+        else:
+            vb = v.encode()
+            out += b'\x02' + struct.pack('<I', len(vb)) + vb
     return base64.b64encode(out).decode()
 
 
@@ -44,6 +49,7 @@ def write(car_id, meshes):
     parts = report['materials']
     # Blender (x, y, z) lands in Roblox at (x, z, -y) (export turn + importer axes, tools/build_redesign_cars.py).
     hinges = {name: (h[0], h[2], -h[1]) for name, h in report.get('wing_hinge', {}).items()}
+    orb = report.get('orb', [])  # Singularity orb parts (CAR_REDESIGN_SPEC section 11); the first is the core
     assert set(parts) == set(meshes), (car_id, sorted(parts), sorted(meshes))
     doc = ET.Element('roblox', version='4')
     model = ET.SubElement(doc, 'Item', {'class': 'Model', 'referent': 'RBXMODEL'})
@@ -77,6 +83,16 @@ def write(car_id, meshes):
         vec(pr, 'Color3', 'Color', look['color'], 'RGB')
         ET.SubElement(pr, 'token', name='Material').text = str(MATERIAL[look['material']])
         ET.SubElement(pr, 'token', name='CollisionFidelity').text = str(BOX_FIDELITY)
+        if name in orb:
+            ET.SubElement(pr, 'BinaryString', name='AttributesSerialize').text = attributes({'Orb': True})
+        if orb and name == orb[0]:  # the core's glow (placeholders, spec section 11)
+            light = ET.SubElement(item, 'Item', {'class': 'PointLight', 'referent': f'RBX{i}GLOW'})
+            lp = ET.SubElement(light, 'Properties')
+            ET.SubElement(lp, 'string', name='Name').text = 'OrbGlow'
+            vec(lp, 'Color3', 'Color', parts[orb[1]]['color'], 'RGB')
+            ET.SubElement(lp, 'float', name='Brightness').text = '3'
+            ET.SubElement(lp, 'float', name='Range').text = '10'
+            ET.SubElement(lp, 'bool', name='Shadows').text = 'false'
         if name in hinges:
             pivot = vec(pr, 'CoordinateFrame', 'PivotOffset', [h - p for h, p in zip(hinges[name], mesh['Pos'])])
             for a in range(3):

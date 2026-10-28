@@ -51,5 +51,6 @@ return {
 		"showcase",
 		"wyvern_flight",
 		"wyvern_breath",
+		"singularity_orb",
 	},
 }

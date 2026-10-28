@@ -30,21 +30,21 @@
         <bool name="Massless">true</bool>
         <bool name="CastShadow">true</bool>
         <Content name="MeshId">
-          <url>rbxassetid://95417880762247</url>
+          <url>rbxassetid://89058993290148</url>
         </Content>
         <Vector3 name="InitialSize">
           <X>2.496</X>
-          <Y>0.9259</Y>
+          <Y>0.9248</Y>
           <Z>5.175</Z>
         </Vector3>
         <Vector3 name="size">
           <X>2.496</X>
-          <Y>0.9259</Y>
+          <Y>0.9248</Y>
           <Z>5.175</Z>
         </Vector3>
         <CoordinateFrame name="CFrame">
           <X>0.0</X>
-          <Y>0.843</Y>
+          <Y>0.8424</Y>
           <Z>0.0375</Z>
           <R00>1</R00>
           <R01>0</R01>
@@ -120,21 +120,21 @@
         <bool name="Massless">true</bool>
         <bool name="CastShadow">true</bool>
         <Content name="MeshId">
-          <url>rbxassetid://85416571174021</url>
+          <url>rbxassetid://114517499177395</url>
         </Content>
         <Vector3 name="InitialSize">
           <X>2.3</X>
-          <Y>0.1261</Y>
+          <Y>0.125</Y>
           <Z>3.404</Z>
         </Vector3>
         <Vector3 name="size">
           <X>2.3</X>
-          <Y>0.1261</Y>
+          <Y>0.125</Y>
           <Z>3.404</Z>
         </Vector3>
         <CoordinateFrame name="CFrame">
           <X>0.0</X>
-          <Y>1.1631</Y>
+          <Y>1.1625</Y>
           <Z>0.598</Z>
           <R00>1</R00>
           <R01>0</R01>
@@ -210,7 +210,7 @@
         <bool name="Massless">true</bool>
         <bool name="CastShadow">true</bool>
         <Content name="MeshId">
-          <url>rbxassetid://109298668297973</url>
+          <url>rbxassetid://96553643679908</url>
         </Content>
         <Vector3 name="InitialSize">
           <X>2.6</X>
@@ -300,7 +300,7 @@
         <bool name="Massless">true</bool>
         <bool name="CastShadow">true</bool>
         <Content name="MeshId">
-          <url>rbxassetid://81754911130070</url>
+          <url>rbxassetid://80037865143914</url>
         </Content>
         <Vector3 name="InitialSize">
           <X>3.2</X>
