@@ -625,7 +625,7 @@ return {
 			},
 		},
 		Landmarks = {
-			Offset = 40,
+			Offset = 96, -- placeholder: towers stand behind both Blocks rows (Near 22 + RowDepth 40 + depth <= 31)
 			Every = 10,
 			Props = {
 				skyscraper("Skyscraper", 24, 60, 30, {
@@ -692,7 +692,7 @@ return {
 		},
 		Budget = 2600, -- owner 2026-10-27: the Blocks street walls need the room (spec Rules, Theme budget)
 		Blocks = {
-			Spacing = 34,
+			Spacing = 32, -- placeholder: just over the widest building (30.6), so the street wall has no wide gaps
 			Near = 22,
 			Rows = 2,
 			RowDepth = 40,

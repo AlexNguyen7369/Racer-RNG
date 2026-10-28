@@ -67,6 +67,8 @@ Prop lists, sizes, colours and spacing are placeholders that can be tuned.
   above the road and walls. **Oriented boxes (2026-10-26):** the test is an oriented-box (separating axis)
   overlap of each prop part, grown in its own axes, against each blocker part, the same test as the acceptance
   scenario. The earlier axis-aligned shortcut removed about half the roadside props beside diagonal roads.
+  Owner 2026-10-28: the spawn area (floor and workshop plots) blocks at every height, so no prop may hang
+  over it either (a giant canopy above the floor is pruned too); roads, walls, checkpoints and pads keep the box test.
 - **Horizon fit (2026-10-26):** a horizon piece that does not fit on its track's ground at its `Offset` moves in
   toward the road (3/4, 1/2, then 1/3 of `Offset`, never nearer than the landmark `Offset`) before it is skipped.
 - **Short tracks (2026-10-26):** landmark spacing starts at `min(Landmarks.Every, #waypoints // 2)` and horizon

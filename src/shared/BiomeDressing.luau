@@ -163,11 +163,13 @@ local function flat(vector)
 end
 
 -- World base CFrame `distance` studs to one side (-1 left, 1 right) of waypoint i, on the ground, facing the road.
-local function beside(layout, origin, i, side, distance)
+-- `t` (optional, 0..1) slides the point that far toward waypoint i + 1, for layers spaced in studs, not waypoints.
+local function beside(layout, origin, i, side, distance, t)
 	local wps = layout.Waypoints
 	local tangent = flat(wps[math.min(#wps, i + 1)] - wps[math.max(1, i - 1)])
 	local right = Vector3.new(-tangent.Z, 0, tangent.X)
-	local point = origin:PointToWorldSpace(wps[i] + right * side * distance)
+	local at = t and wps[i]:Lerp(wps[math.min(#wps, i + 1)], t) or wps[i]
+	local point = origin:PointToWorldSpace(at + right * side * distance)
 	local toRoad = flat(origin:VectorToWorldSpace(-right * side))
 	local base = Vector3.new(point.X, GROUND_Y, point.Z)
 	return CFrame.lookAt(base, base + toRoad)
@@ -404,17 +406,20 @@ local function blocks(folder, layout, origin, theme, biome, edge, count, onGroun
 			table.insert(placed, { CFrame = cf, Half = Vector2.new(size.X / 2, size.Z / 2) })
 		end
 	end
+	-- Slots sit exactly `Spacing` studs apart along the road (between waypoints too), so equal-width buildings
+	-- never land closer than `Spacing` and the street wall has no waypoint-rounding gaps or overlaps.
 	local travelled, nextSlot, slot = 0, 0, 0
 	for i = 2, #wps - 1 do
-		travelled += (Vector3.new(wps[i].X, 0, wps[i].Z) - Vector3.new(wps[i - 1].X, 0, wps[i - 1].Z)).Magnitude
-		if travelled >= nextSlot then
+		local len = (Vector3.new(wps[i].X, 0, wps[i].Z) - Vector3.new(wps[i - 1].X, 0, wps[i - 1].Z)).Magnitude
+		while len > 0 and nextSlot <= travelled + len do
+			local t = (nextSlot - travelled) / len
 			slot += 1
 			nextSlot += b.Spacing
 			for _, side in { -1, 1 } do
 				for row = 1, b.Rows do
 					local def = b.Props[math.floor(hash(slot, side, row + 10) * 1000) % #b.Props + 1]
 					local distance = edge + b.Near + (row - 1) * b.RowDepth + def.Size.Z / 2
-					local base = beside(layout, origin, i, side, distance)
+					local base = beside(layout, origin, i - 1, side, distance, t)
 					local box = { CFrame = base, Half = Vector2.new(def.Size.X / 2, def.Size.Z / 2) }
 					local clear = count + #def.Parts <= budget
 						and onGround(base, Vector2.new(def.Size.X, def.Size.Z).Magnitude / 2)
@@ -438,6 +443,7 @@ local function blocks(folder, layout, origin, theme, biome, edge, count, onGroun
 				end
 			end
 		end
+		travelled += len
 	end
 	return count
 end
@@ -620,13 +626,16 @@ local function blockers(trackModels, extra)
 			addAll(pad)
 		end
 	end
+	local columns = #list -- parts after this index are `extra` (the spawn area): blockers at every height
 	for _, inst in extra or {} do
 		addAll(inst)
 	end
-	return list
+	return list, columns
 end
 
 -- Removes every Environment prop whose box, grown by CLEARANCE, touches a blocker. Returns how many.
+-- The spawn area (`extra`) is an area on the ground, so a prop also may not hang over it at any height (a giant
+-- tree's canopy above the floor or a workshop plot): its parts block as vertical columns.
 function BiomeDressing.Prune(trackModels, extra)
 	local grid = {}
 	local function cells(lo, hi, fn)
@@ -636,9 +645,10 @@ function BiomeDressing.Prune(trackModels, extra)
 			end
 		end
 	end
-	for _, part in blockers(trackModels, extra) do
+	local list, columns = blockers(trackModels, extra)
+	for k, part in list do
 		local lo, hi = bounds(part.CFrame, part.Size)
-		local box = { lo, hi, part.CFrame, part.Size / 2 }
+		local box = { lo, hi, part.CFrame, part.Size / 2, k > columns }
 		cells(lo, hi, function(key)
 			grid[key] = grid[key] or {}
 			table.insert(grid[key], box)
@@ -657,15 +667,17 @@ function BiomeDressing.Prune(trackModels, extra)
 					local lo, hi = bounds(part.CFrame, half * 2)
 					cells(lo, hi, function(key)
 						for _, box in grid[key] or {} do
+							-- a column: test the part as if it stood at the blocker's height (yaw-only parts: a 2D test)
+							local cf = box[5] and part.CFrame + Vector3.new(0, box[3].Position.Y - part.Position.Y, 0)
+								or part.CFrame
 							hit = hit
 								or (
 									lo.X < box[2].X
 									and hi.X > box[1].X
-									and lo.Y < box[2].Y
-									and hi.Y > box[1].Y
+									and (box[5] or lo.Y < box[2].Y and hi.Y > box[1].Y)
 									and lo.Z < box[2].Z
 									and hi.Z > box[1].Z
-									and overlaps(part.CFrame, half, box[3], box[4])
+									and overlaps(cf, half, box[3], box[4])
 								)
 						end
 					end)
