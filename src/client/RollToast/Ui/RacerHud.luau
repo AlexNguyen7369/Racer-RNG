@@ -1490,7 +1490,7 @@ function Ui.Build(playerGui)
 		Size = UDim2.fromOffset(40, 40),
 		Visible = true,
 		BackgroundTransparency = 1,
-		Image = "rbxassetid://81490848854515",
+		Image = "rbxassetid://131875159358960",
 		ScaleType = Enum.ScaleType.Fit,
 		ZIndex = 3,
 	}, v36f)
@@ -3016,7 +3016,7 @@ function Ui.Bind(playerGui)
 		Size = UDim2.fromOffset(40, 40),
 		Visible = true,
 		BackgroundTransparency = 1,
-		Image = "rbxassetid://81490848854515",
+		Image = "rbxassetid://131875159358960",
 		ScaleType = Enum.ScaleType.Fit,
 		ZIndex = 3,
 	}, v36f)

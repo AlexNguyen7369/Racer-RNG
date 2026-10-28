@@ -34,16 +34,7 @@ function Motion.Attach(root)
 		local scale = Instance.new("UIScale")
 		scale.Name = "HoverScale"
 		scale.Parent = object
-		local hoverStroke = object:FindFirstChild("RacerHoverHighlight")
-		if not hoverStroke then
-			hoverStroke = Instance.new("UIStroke")
-			hoverStroke.Name = "RacerHoverHighlight"
-			hoverStroke.Color = Color3.new(1, 1, 1)
-			hoverStroke.Thickness = 3
-			hoverStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-			hoverStroke.Transparency = 1
-			hoverStroke.Parent = object
-		end
+		-- Hover feedback is scale-only; preserve the button's authored border.
 		local hovering = false
 		local activeTween
 		local function animate(value)
@@ -57,32 +48,21 @@ function Motion.Attach(root)
 			)
 			activeTween:Play()
 		end
-		local function highlight(value)
-			UiMotion.Create(
-				hoverStroke,
-				TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-				{ Transparency = value }
-			)
-				:Play()
-		end
 		object.MouseEnter:Connect(function()
 			if not UserInputService.MouseEnabled then
 				return
 			end
 			hovering = true
 			animate(1.035)
-			highlight(0)
 		end)
 		object.MouseLeave:Connect(function()
 			hovering = false
 			animate(1)
-			highlight(1)
 		end)
 		object:GetPropertyChangedSignal("Visible"):Connect(function()
 			if not object.Visible then
 				hovering = false
 				animate(1)
-				highlight(1)
 			end
 		end)
 		if object:IsA("GuiButton") then

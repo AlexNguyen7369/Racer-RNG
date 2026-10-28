@@ -70,6 +70,7 @@
 67. 2026-10-27 — Alex Nguyen — Committed and pushed the speed gain rebalance (aura and trail multiply all Speed gain, Frost/Prism trails), the additive x5-per-rebirth multi capped at x100 with a Rebirth leaderstat, giant roadside scenery in every biome and the Codex workflow doc (fc97c34).
 68. 2026-10-27 — Alex Nguyen — Merged the UI visual pass (theme, counters, speedometer, loser recap, map) and main's repo slim into the car redesign branch (4997ba8) and served it on Rojo port 34872.
 69. 2026-10-28 — Alex Nguyen — Landed World 1 balance (payout curve, rebirth rev 4, XP 122/37.2, cruise cap 800, odds rev) and the giant scenery fix on feature/alex/world1-ship; harness 53/0.
+70. 2026-10-27 — Isaac Li — Added the approved ten-icon transparent HUD set, uploaded asset mapping, scale-only hover feedback, saved Settings artwork and project documentation with focused Studio checks.
 
 ## What's next
 **Merge Isaac's simple HUD icons (origin/feature/isaac/simple-hud-icons-20261027) into feature/alex/world1-ship, regenerate RacerHud and re-bake StarterGui.rbxm, then run the full UI suite.**

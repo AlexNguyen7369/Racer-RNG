@@ -43,6 +43,12 @@ recap loser screen (times, gap, PB, countdown); a smoother progress map (Path2D 
 gap); and motion graphics through `Client/UiMotion` (pop, slide, shine, pulse, shake, cascade) that respect reduced
 motion.
 
+Approved HUD icons (2026-10-27): ten simple transparent cartoon icons, including
+the red/tan Shop house, brown Items backpack and detailed red Market bag without
+a coin. Hover feedback is scale-only (no white box). Source PNGs and Roblox IDs:
+[icon art](ui/icons/simple-20261027/README.md). Focused Studio checks passed;
+full compatibility was not rerun for this art-only update.
+
 Accessibility and devices (2026-10-26, `docs/HUD_LAYOUT_SPEC.md` section 7): UI motion follows Roblox's Reduced
 Motion setting or the in-game REDUCED EFFECTS toggle (tweens land at once, the roll reel lands without spinning),
 buttons stay inside the device safe area on notched phones, and panels support gamepads (first button selected,

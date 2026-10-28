@@ -45,6 +45,17 @@ GIANT SCENERY IN EVERY BIOME - 2026-10-27 (Claude, uncommitted; owner: every bio
 - Live 2026-10-27: parts per track 215-926 (BUDGET 1200), blocks 17-78 per track; `environment` 343/344, the only fail is
   city_blocks_gap (bug ab037b16, City Blocks work, unchanged). Full suite not run. Not seen while racing by eye except Forest.
 
+APPROVED HUD ICONS - 2026-10-27 (Isaac Li / Codex)
+- HudIcons uses ten standalone transparent PNGs, no atlas crop. Shop red/tan house,
+  Items brown backpack, Market detailed red shopping bag with blank tag, no coin/logo.
+- Sources and IDs: ui/icons/simple-20261027/. RacerHud Build/Bind and saved Settings
+  image agree; car-icon atlas and unrelated authored GUI instances are unchanged.
+- RacerMotion hover only scales to 1.035; white RacerHoverHighlight removed.
+  Existing UiMotion accessibility, click compression and press sound preserved.
+- Shared Studio save verified. All ten images loaded in PlayerGui, geometry unchanged,
+  real Items click opened Backpack and hover showed 1.035 without a white box.
+- Compile/build/UI-generation checks are focused evidence, not a full compatibility run.
+
 CAR REDESIGN V3 (TOY RACER) + SINGULARITY ORB - 2026-10-27 (Claude, branch feature/alex/car-redesign-v3-toy-racer)
 - Owner: every car a stylised toy racer, 15,000-triangle cap, pilot (Rusty Hatchback / Street Racer / Singularity)
   approved, big wings kept. Singularity's black hole: smaller, floating, spins and bobs, bright neon glow.
