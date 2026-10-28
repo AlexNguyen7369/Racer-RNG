@@ -587,7 +587,7 @@ local function refreshWelcome()
 		Switch.Close("Welcome")
 		lastCredit = nil
 	end
-	earnings.Text = string.format("+%s Speed earned while away", Format.SpeedText(credit))
+	earnings.Text = string.format("+%s SPEED", Format.SpeedText(credit))
 	away.Text = string.format(
 		"Away %dh %dm %ds • 25%% gain • 8h maximum",
 		math.floor(seconds / 3600),
@@ -650,3 +650,8 @@ refreshWelcome()
 for _, root in themed do
 	UiTheme.Apply(root)
 end
+
+-- Offline reward presentation; the existing credit amount and close flow are unchanged.
+require(script.Parent:WaitForChild("WelcomeStyle")).Apply(welcome, function()
+	Switch.Close("Welcome")
+end)
