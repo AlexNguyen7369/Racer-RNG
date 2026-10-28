@@ -948,15 +948,17 @@ function Progression.Build(h)
 						),
 						math.abs(right - W.PhoneRight) <= Spec.Tolerance and bottomOk
 					)
+					-- WEATHER_EVENTS_SPEC's "8 px left of the Market button" assumed the bottom-right Bag / Daily / Market
+					-- stack, which HUD_LAYOUT_SPEC (owner 2026-10-15) replaced with the top-right pills: the 140 px rule
+					-- above stays; against Market only the no-overlap rule remains.
 					local market = h.find(W.MarketButton)
 					local m = market and rect(market)
 					h.check(
 						res,
-						"weather_icon_left_of_market_" .. tag,
-						-- px the icon's right edge passes the Market button's left edge (a number, not a table)
-						m and (r.x + r.w) - m.x or "MarketButton missing",
-						"<= " .. Spec.Tolerance .. " (icon right edge - Market button left edge)",
-						m ~= nil and r.x + r.w <= m.x + Spec.Tolerance and not h.intersects(r, m)
+						"weather_icon_clear_of_market_" .. tag,
+						m and h.rstr(m) or "MarketButton missing",
+						"no overlap with icon " .. h.rstr(r),
+						m ~= nil and not h.intersects(r, m)
 					)
 				else
 					h.check(

@@ -1901,6 +1901,13 @@ Model.HudChrome = {
 	Level = "RacerHud/Level",
 	Turbo = "RacerHud/Turbo",
 	Bar = "HudChrome/TopRight",
+	-- Owner 2026-10-28 (docs/HUD_LAYOUT_SPEC.md section 6): the bottom pair shrinks about its anchor until its cell
+	-- (Cell x k, anchored at (1 | 0, IconMid)) clears every visible Blocker; steps of Step x base, floor Floor x base.
+	Cell = Vector2.new(84, 94), -- HudChrome CELL = (TILE + 12, TILE + LABEL), TILE 72, LABEL 22
+	IconMid = 36 / 94, -- ICON_MID = TILE / 2 / (TILE + LABEL)
+	Step = 0.02,
+	Floor = 0.3,
+	Blockers = { "RacerHud/Money", "RacerHud/Speed" },
 }
 -- HudChrome's UIScale "Scale" factor of the node at `path` at a viewport, or nil when it is not a HudChrome holder.
 function Model.HudChromeScale(path, viewport)
@@ -1913,6 +1920,32 @@ function Model.HudChromeScale(path, viewport)
 		return (phone and cfg.Phone or 1) * (cfg.Slots[path] and cfg.BottomScale or 1)
 	end
 	return nil
+end
+-- The bottom pair's shrunk UIScale (HudChrome refresh, owner 2026-10-28): the base pair scale lowered in Step
+-- steps until both cells clear every blocker rect (screen pixels), never below Floor x base.
+function Model.HudChromePairScale(viewport, level, turbo, blockers)
+	local cfg = Model.HudChrome
+	local base = (viewport.Y <= Model.PHONE_MAX_HEIGHT and cfg.Phone or 1) * cfg.BottomScale
+	local left = math.min(level.x, turbo.x)
+	local right = math.max(level.x + level.w, turbo.x + turbo.w)
+	local gap = (level.y + level.h + turbo.y) / 2
+	local function clear(k)
+		local w, h = cfg.Cell.X * k, cfg.Cell.Y * k
+		local top, bottom = gap - cfg.IconMid * h, gap + (1 - cfg.IconMid) * h
+		for _, x in { { left - cfg.SlotGap - w, left - cfg.SlotGap }, { right + cfg.SlotGap, right + cfg.SlotGap + w } } do
+			for _, b in blockers do
+				if x[1] < b.x + b.w and x[2] > b.x and top < b.y + b.h and bottom > b.y then
+					return false
+				end
+			end
+		end
+		return true
+	end
+	local k = base
+	while k > base * cfg.Floor and not clear(k) do
+		k -= base * cfg.Step
+	end
+	return k
 end
 -- The bottom pair's Position (screen offsets) from the Level and Turbo screen rects, or nil for other paths.
 function Model.HudChromeSlot(path, level, turbo)

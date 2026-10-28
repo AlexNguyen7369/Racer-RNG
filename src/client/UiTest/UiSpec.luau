@@ -679,8 +679,10 @@ UiSpec.Market = {
 	Back = "MarketUi/Backdrop/Panel/Detail/Back",
 	BackText = "BACK",
 	-- Client/MarketUi fitTabs: a UIScale "Scale" in each side tab (not on the rail), fitted to the rail's height.
-	-- Mirrored so the layout solver models it at every viewport (UiScenarios marketTabScale).
-	TabFit = { ScaleName = "Scale", RailWidth = 96, TabSize = 96, Gap = 10, Min = 0.4, Max = 1 },
+	-- Mirrored so the layout solver models it at every viewport (UiScenarios marketTabScale). PhoneMin: Market only, on
+	-- phones (height <= PhoneMaxHeight) the tabs may shrink to it so every tab stays inside the rail (6365809, section 6
+	-- no overlap; Backpack keeps Min).
+	TabFit = { ScaleName = "Scale", RailWidth = 96, TabSize = 96, Gap = 10, Min = 0.4, PhoneMin = 0.1, Max = 1 },
 }
 
 -- Panels fitted by Client/PanelBand.Fit (docs/HUD_LAYOUT_SPEC.md: between the left grid and the Shop column, below the
@@ -703,7 +705,8 @@ UiSpec.Band = {
 	ShopColumn = "HudChrome/ShopColumn",
 	Money = "RacerHud/Money",
 	Gap = 8,
-	MinSize = Vector2.new(240, 160),
+	-- No minimum size: PanelBand.Fit never makes a panel larger than the band (HUD_LAYOUT_SPEC section 6, no overlap;
+	-- the old 240x160 floor pushed panels over the Race button on short phones, e72e9fc).
 }
 
 -- CLAUDE.md: panels open BELOW the Race (Auto Race) button and end ABOVE the bottom TURBO LUCK bar. The progression
@@ -810,13 +813,15 @@ end
 -- A PanelSwitch panel (every entry of UiSpec.PanelSwitch.Names, incl. the progression panels) AND everything inside it
 -- may overlap these read-outs (not interactive), but ONLY where the panel really draws over them (ui_layout verifies
 -- it for every such overlap, panel and button alike): the panel's ScreenGui has a higher DisplayOrder than the
--- read-out's, and the overlap lies inside the panel's opaque, shown surface (Panel/<Surface>, or the Panel itself when
--- it has no <Surface>) whose BackgroundTransparency is at most MaxSurfaceTransparency, with no CanvasGroup fading it.
+-- read-out's, and the overlap lies inside the panel's opaque, shown surface whose BackgroundTransparency is at most
+-- MaxSurfaceTransparency, with no CanvasGroup fading it. The surface: from the PanelSwitch node, step into the first
+-- child named in Surfaces while there is one (Racer panels: Panel/Face; Shop / Market: the transparent Backdrop ->
+-- Panel; Daily: ModalBackdrop -> Modal), so a full-screen transparent Backdrop is never read as the surface.
 -- A read-out drawn above a panel button is never allowed.
 UiSpec.PanelCoversReadouts = {
 	-- Money (and MoneyValue / Unbanked inside it) is a display-only read-out like Speed (2026-10-08, gate run 5).
 	Readouts = { "RacerHud/Speed", "RacerHud/Money" },
-	Surface = "Face",
+	Surfaces = { "Panel", "Modal", "Face" },
 	MaxSurfaceTransparency = 0.05,
 }
 
@@ -2503,6 +2508,10 @@ UiSpec.Progression.FixtureChecks = {
 	{ Setup = "on_foot", Scenario = "ui_speed_dial" },
 	-- The Speed float sums real gains too: judged on foot only (HUD_LAYOUT_SPEC section 10; main run is auto_racing)
 	{ Setup = "on_foot", Scenario = "ui_speed_float" },
+	-- World billboards and the workshop modal read parts near the hub: with StreamingEnabled they exist only while the
+	-- avatar stands there (on_foot = at the walk spawn in the hub), not while the main run races the chain
+	{ Setup = "on_foot", Scenario = "ui_billboards" },
+	{ Setup = "on_foot", Scenario = "ui_workshop_modal" },
 	{ Setup = "offline_welcome", Scenario = "ui_offline_welcome" },
 	{ Setup = "offline_zero", Scenario = "ui_offline_zero" },
 	{ Setup = "weather_rain", Scenario = "ui_weather" },
@@ -3383,7 +3392,8 @@ table.insert(UiSpec.Clicks, {
 -- UI visual pass (owner 2026-10-27): docs/HUD_LAYOUT_SPEC.md sections 8-10, docs/NPC_RACER_SPEC.md "Loser screen",
 -- docs/RACE_PROGRESS_MAP_SPEC.md "Look". Numbers are measurement tolerances, not layout values.
 UiSpec.SpeedDial = {
-	SampleSeconds = 0.6, -- ui_speed_dial measures the car's real speed (seat displacement / time) over this window
+	SampleSeconds = 0.6, -- ui_speed_dial measures the car's real speed (seat path distance / time) over this window
+	TeleportStep = 60, -- studs: a single-frame seat step longer than this is a teleport, not driving
 	Tolerance = 3, -- studs/s: DialValue and DialSpeed vs the measured car speed ...
 	RelTolerance = 0.15, -- ... or this share of it, whichever is larger
 	CarWait = 5, -- s: while AutoRacing the avatar must sit in its car's seat within this
