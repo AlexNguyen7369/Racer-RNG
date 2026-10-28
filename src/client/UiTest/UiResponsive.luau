@@ -1749,13 +1749,13 @@ function Model.SpeedGroup(viewport, group, visibleWidth, toast, turbo)
 	return r
 end
 
--- RacerUiController.fitPanels (owner decision 2026-10-08, R2), every Heartbeat, for each Racer panel's outer Frame:
---   band top = Race Face bottom + Gap, band bottom = RacerHud/Turbo top - Gap (screen pixels, inset included),
---   side = column right + Gap, where column right = the max right edge of RacerHud/Navigation and every GuiObject
---   descendant of it whose own Visible is true (the STATS PointsBadge sticks out; Model.ColumnRight),
---   width = viewport X - 2 * side, height = bottom - top;
+-- RacerUiController.fitPanels, every Heartbeat, for each Racer panel's outer Frame. Since the PanelBand merge it reads
+-- Client/PanelBand.Rect (docs/HUD_LAYOUT_SPEC.md sections 1 and 6: below the Race button, above the TURBO LUCK bar
+-- and the Money read-out, between the left grid and the Shop column), the same band as the Shop / Market:
+--   band = { left, top, right, bottom } (UiShopMarket.Band, screen pixels, inset included),
+--   width = right - left, height = bottom - top;
 --   its UIScale = max(MinScale, min(k, width / Size.X.Offset, height / Size.Y.Offset)) (Size = generated variant size);
---   AnchorPoint (0.5, 0.5), Position UDim2(0.5, 0, 0, top + height / 2).
+--   AnchorPoint (0.5, 0.5), Position UDim2.fromOffset((left + right) / 2, top + height / 2).
 Model.RacerPanels = {
 	Paths = { "RacerIndex/Panel", "RacerStats/Panel", "RacerSettings/Panel", "RacerRebirth/Panel" },
 	Gap = 8,
@@ -1775,24 +1775,21 @@ function Model.ColumnRight(navigation, parts)
 	return right
 end
 
--- deps = { Race = rect, Turbo = rect, Navigation = rect, NavigationParts = { rect, ... } }; size = the panel's
--- generated variant Size (UDim2). Returns { AnchorPoint, Position, Size, Scale, Band = { top, bottom, side } }.
-function Model.RacerPanelFit(viewport, deps, size)
-	local gap = Model.RacerPanels.Gap
-	local top = deps.Race.y + deps.Race.h + gap
-	local bottom = deps.Turbo.y - gap
-	local side = Model.ColumnRight(deps.Navigation, deps.NavigationParts) + gap
-	local width, height = viewport.X - 2 * side, bottom - top
+-- band = { left, top, right, bottom } (UiShopMarket.Band); size = the panel's generated variant Size (UDim2).
+-- Returns { AnchorPoint, Position, Size, Scale, Band = { top, bottom, side } }.
+function Model.RacerPanelFit(viewport, band, size)
+	local left, top, right, bottom = band[1], band[2], band[3], band[4]
+	local width, height = right - left, bottom - top
 	local scale = Model.K(viewport)
 	if size.X.Offset > 0 and size.Y.Offset > 0 then
 		scale = math.max(Model.RacerPanels.MinScale, math.min(scale, width / size.X.Offset, height / size.Y.Offset))
 	end
 	return {
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.new(0.5, 0, 0, top + height / 2),
+		Position = UDim2.fromOffset((left + right) / 2, top + height / 2),
 		Size = size,
 		Scale = scale,
-		Band = { top = top, bottom = bottom, side = side },
+		Band = { top = top, bottom = bottom, side = left },
 	}
 end
 -- Client/RollToast copies PreviewCar's Position / Size into these enlarged-card parts (fitRollArt, on every viewport

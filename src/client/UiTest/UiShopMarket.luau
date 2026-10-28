@@ -304,13 +304,16 @@ function ShopMarket.Build(h)
 		return found[1], buys[1]
 	end
 
-	-- What a price button must show: the listed price (thousands separated) and "Coming soon" for id 0; an owned
-	-- gamepass car "Owned" instead.
+	-- What a price button must show: the listed price (thousands separated) and "Coming soon" for id 0.
+	-- ownedNow: the car id of an owned gamepass car (its button shows Equip / Equipped, SH.OwnedCar), else false
 	local function priceProblems(bad, label, buy, price, onSaleId, ownedNow)
 		local text = h.allText(buy)
 		if ownedNow then
-			if not has(text, SH.Owned) then
-				table.insert(bad, label .. ": shows " .. text .. ", want " .. SH.Owned)
+			local equipped = attr("EquippedCar") == ownedNow
+			local want = equipped and SH.OwnedCar.Equipped or SH.OwnedCar.Equip
+			-- "Equipped" contains "Equip": the not-equipped button must not read "Equipped"
+			if not has(text, want) or (not equipped and has(text, SH.OwnedCar.Equipped)) then
+				table.insert(bad, label .. ": shows " .. text .. ", want " .. want)
 			end
 			return
 		end
@@ -418,7 +421,7 @@ function ShopMarket.Build(h)
 				buy,
 				car.RobuxPrice or 0,
 				car.GamepassId or 0,
-				attr("Pass_" .. car.Id) == true
+				attr("Pass_" .. car.Id) == true and car.Id
 			)
 		end)
 		sectionCards("Gamepasses", MonetizationConfig.Gamepasses, function(pass, c, buy)
@@ -617,8 +620,10 @@ function ShopMarket.Build(h)
 		if kind ~= "Potion" and attr("Own" .. kind .. "_" .. item.Id) == true then
 			want = attr("Equipped" .. kind) == item.Id and MK.ActionText.Equipped or MK.ActionText.Equip
 		end
-		if textOf(part("Action")) ~= want then
-			table.insert(bad, ("Action shows %q, want %q"):format(textOf(part("Action")), want))
+		-- The text the Action button shows (its own Text, else its Label child's: Client/MarketUi actionLabel)
+		local shown = shownText(part("Action"))
+		if shown ~= want then
+			table.insert(bad, ("Action shows %q, want %q"):format(shown, want))
 		end
 		return bad
 	end

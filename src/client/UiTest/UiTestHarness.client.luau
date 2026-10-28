@@ -56,6 +56,7 @@ local function runAll()
 		print(("[UITEST] MANUAL %s reason=%s"):format(scenario.Name, scenario.Manual))
 	end
 	print(("[UITEST] END pass=%d fail=%d"):format(pass, fail))
+	pcall(UiScenarios.CloseFixturePanels)
 	busy = false
 end
 
@@ -73,6 +74,7 @@ local function runClick(id)
 			checks = { { name = "click_ran", value = tostring(res), limit = "no error", pass = false } },
 		}
 	end
+	pcall(UiScenarios.CloseFixturePanels)
 	local json = HttpService:JSONEncode(res)
 	print("[UITEST] " .. json)
 	player:SetAttribute("UiTestClickResult", json)
@@ -111,6 +113,7 @@ ReplicatedStorage:GetAttributeChangedSignal("UiTestScenario"):Connect(function()
 				checks = { { name = "scenario_ran", value = tostring(res), limit = "no error", pass = false } },
 			}
 		end
+		pcall(UiScenarios.CloseFixturePanels)
 		local json = HttpService:JSONEncode(res)
 		print("[UITEST] " .. json)
 		player:SetAttribute("UiTestScenarioResult", json)
