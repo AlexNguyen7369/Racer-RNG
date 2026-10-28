@@ -4,7 +4,7 @@
       "id": "94bec0d3",
       "name": "[SAMPLE] Cruise speed ignores negative stat clamp",
       "kind": "fault",
-      "status": "open",
+      "status": "fixed",
       "file": "src/shared/RaceConfig.luau",
       "line": 23,
       "endLine": 25,
@@ -28,13 +28,16 @@
       "error": "[CARTEST] {\"scenario\":\"race\",\"check\":\"cruise_at_least_base\",\"pass\":false,\"value\":12.4,\"min\":20}",
       "foundBy": "physics-tester",
       "foundAt": "2026-10-07T19:31:47-07:00",
-      "loggedBy": "Alex Nguyen"
+      "loggedBy": "Alex Nguyen",
+      "fixedAt": "2026-10-28T16:32:44-07:00",
+      "fixedBy": "Alex Nguyen",
+      "fixNote": "sample entry, not a real bug"
     },
     {
       "id": "19770ea1",
       "name": "[SAMPLE] Car slows to a crawl on Track 1",
       "kind": "failure",
-      "status": "open",
+      "status": "fixed",
       "file": "src/shared/RaceConfig.luau",
       "line": 30,
       "endLine": 30,
@@ -56,7 +59,10 @@
       "error": "",
       "foundBy": "regression-tester",
       "foundAt": "2026-10-07T19:31:47-07:00",
-      "loggedBy": "Alex Nguyen"
+      "loggedBy": "Alex Nguyen",
+      "fixedAt": "2026-10-28T16:32:44-07:00",
+      "fixedBy": "Alex Nguyen",
+      "fixNote": "sample entry, not a real bug"
     },
     {
       "id": "31efc3cb",
@@ -295,7 +301,7 @@
       "id": "aaee9aa5",
       "name": "workshop_phase2 leaks fake player's plot",
       "kind": "fault",
-      "status": "open",
+      "status": "fixed",
       "file": "src/server/CarTest/Phase2Tests.luau",
       "line": 108,
       "endLine": 108,
@@ -317,13 +323,16 @@
       "error": "",
       "foundBy": "physics-tester",
       "foundAt": "2026-10-08T17:08:40-07:00",
-      "loggedBy": "Alex Nguyen"
+      "loggedBy": "Alex Nguyen",
+      "fixedAt": "2026-10-28T16:32:44-07:00",
+      "fixedBy": "Alex Nguyen",
+      "fixNote": "Phase2Tests.luau:263/457 releases fake players' plots; full harness 2026-10-28 END pass=53 fail=0"
     },
     {
       "id": "99c953ae",
       "name": "Workshop phase2 harness OfflineMoney nil",
       "kind": "failure",
-      "status": "open",
+      "status": "fixed",
       "file": "src\\server\\CarTest\\Phase2Tests.luau",
       "line": 281,
       "endLine": 281,
@@ -345,7 +354,10 @@
       "error": "attempt to index nil with OfflineMoney",
       "foundBy": "roblox_tester",
       "foundAt": "2026-10-10T00:56:15-07:00",
-      "loggedBy": "Alex Nguyen"
+      "loggedBy": "Alex Nguyen",
+      "fixedAt": "2026-10-28T16:32:44-07:00",
+      "fixedBy": "Alex Nguyen",
+      "fixNote": "Phase2Tests.luau:328-331 guards OfflineMoney nil; full harness 2026-10-28 END pass=53 fail=0"
     },
     {
       "id": "d4ec7b85",
@@ -997,7 +1009,7 @@
       "id": "a3762c99",
       "name": "workshop_rate_formula hardcodes BASE_RATE 1",
       "kind": "fault",
-      "status": "open",
+      "status": "fixed",
       "file": "src/server/CarTest/Scenarios.luau",
       "line": 12422,
       "endLine": 12430,
@@ -1027,13 +1039,16 @@
       "error": "workshop_rate_formula: 0.2 (0.2)",
       "foundBy": "physics-tester",
       "foundAt": "2026-10-21T00:06:50-07:00",
-      "loggedBy": "Alex Nguyen"
+      "loggedBy": "Alex Nguyen",
+      "fixedAt": "2026-10-28T16:32:44-07:00",
+      "fixedBy": "Alex Nguyen",
+      "fixNote": "Scenarios.luau:13298 compares against WSHOP.BASE_RATE; workshop green in full harness 2026-10-28 END pass=53 fail=0"
     },
     {
       "id": "7100e017",
       "name": "Progress checks too strict at 12 stud/s cruise",
       "kind": "failure",
-      "status": "open",
+      "status": "fixed",
       "file": "src/server/CarTest/Scenarios.luau",
       "line": 2092,
       "endLine": 2194,
@@ -1126,13 +1141,16 @@
       "error": "fall_below_keeps_progressing: 3 (5) | launched_above_keeps_progressing: 3 (5) | rapid_progresses: 3 (5)",
       "foundBy": "physics-tester",
       "foundAt": "2026-10-21T00:06:50-07:00",
-      "loggedBy": "Alex Nguyen"
+      "loggedBy": "Alex Nguyen",
+      "fixedAt": "2026-10-28T16:32:45-07:00",
+      "fixedBy": "Alex Nguyen",
+      "fixNote": "flip_recovery and auto_toggle green in full harness 2026-10-28 END pass=53 fail=0"
     },
     {
       "id": "798b50ad",
       "name": "data: locked-save load takes over the lock",
       "kind": "failure",
-      "status": "open",
+      "status": "fixed",
       "file": "src/server/CarTest/Scenarios.luau",
       "line": 5140,
       "endLine": 5176,
@@ -1190,7 +1208,10 @@
       "error": "locked_load_leaves_record_unchanged: 0 (1) | locked_load_attempts: 4 (3) | locked_player_save_writes_nothing: 0 (1)",
       "foundBy": "physics-tester",
       "foundAt": "2026-10-21T00:06:50-07:00",
-      "loggedBy": "Alex Nguyen"
+      "loggedBy": "Alex Nguyen",
+      "fixedAt": "2026-10-28T16:32:45-07:00",
+      "fixedBy": "Alex Nguyen",
+      "fixNote": "data scenario green in full harness 2026-10-28 END pass=53 fail=0"
     },
     {
       "id": "4c8bf3c0",
@@ -1572,7 +1593,7 @@
       "id": "174dfe8f",
       "name": "Loser screen often showed 'The NPC'",
       "kind": "failure",
-      "status": "open",
+      "status": "fixed",
       "file": "src/client/NpcRacerView.client.luau",
       "line": 90,
       "endLine": 96,
@@ -1600,13 +1621,16 @@
       "error": "",
       "foundBy": "Explore",
       "foundAt": "2026-10-27T18:01:30-07:00",
-      "loggedBy": "Alex Nguyen"
+      "loggedBy": "Alex Nguyen",
+      "fixedAt": "2026-10-28T16:32:44-07:00",
+      "fixedBy": "Alex Nguyen",
+      "fixNote": "NpcRacerView.client.luau:180 reads NpcConfig.Tracks[n]"
     },
     {
       "id": "f4973a5b",
       "name": "Shop featured car multi rounded down",
       "kind": "fault",
-      "status": "open",
+      "status": "fixed",
       "file": "src/client/ShopUi.client.luau",
       "line": null,
       "endLine": null,
@@ -1615,7 +1639,10 @@
       "error": "",
       "foundBy": "general-purpose",
       "foundAt": "2026-10-27T18:01:30-07:00",
-      "loggedBy": "Alex Nguyen"
+      "loggedBy": "Alex Nguyen",
+      "fixedAt": "2026-10-28T16:32:44-07:00",
+      "fixedBy": "Alex Nguyen",
+      "fixNote": "ShopUi.client.luau:278 uses HudFormat.Multi"
     },
     {
       "id": "1ec93137",
@@ -1649,7 +1676,7 @@
       "id": "6e39efe6",
       "name": "Race Speed gain lost at high rebirth multi",
       "kind": "fault",
-      "status": "open",
+      "status": "fixed",
       "file": "src/server/RaceService.luau",
       "line": 463,
       "endLine": 471,
@@ -1679,7 +1706,10 @@
       "error": "",
       "foundBy": "claude",
       "foundAt": "2026-10-27T18:16:15-07:00",
-      "loggedBy": "Alex Nguyen"
+      "loggedBy": "Alex Nguyen",
+      "fixedAt": "2026-10-28T16:32:44-07:00",
+      "fixedBy": "Alex Nguyen",
+      "fixNote": "RaceService.luau:467-468 carries pending above MAX_ADD (1e18); huge_multi_run_gained_matches_stat pass 2026-10-28"
     },
     {
       "id": "b99e2c0b",
@@ -1712,7 +1742,7 @@
       "id": "2a5381da",
       "name": "Race map Path2D over 100 points",
       "kind": "fault",
-      "status": "open",
+      "status": "fixed",
       "file": "src/client/RaceProgressMap.luau",
       "line": 228,
       "endLine": 232,
@@ -1738,13 +1768,16 @@
       "error": "Path2D:SetControlPoints() only supports 100 control points.",
       "foundBy": "physics-tester",
       "foundAt": "2026-10-27T20:42:09-07:00",
-      "loggedBy": "Alex Nguyen"
+      "loggedBy": "Alex Nguyen",
+      "fixedAt": "2026-10-28T16:32:44-07:00",
+      "fixedBy": "Alex Nguyen",
+      "fixNote": "RaceProgressMap.luau:229-230 thins route to 99 points per Path2D"
     },
     {
       "id": "a392a5e0",
       "name": "Hill GiantOak2 overlaps spawn floor and Plot_2",
       "kind": "failure",
-      "status": "open",
+      "status": "fixed",
       "file": "src/shared/BiomeDressing.luau",
       "line": 1,
       "endLine": 1,
@@ -1762,13 +1795,16 @@
       "error": "spawn_area_no_track_overlap 2 (0); workshop_live_no_track_overlap 2 (0)",
       "foundBy": "physics-tester",
       "foundAt": "2026-10-27T23:20:13-07:00",
-      "loggedBy": "Alex Nguyen"
+      "loggedBy": "Alex Nguyen",
+      "fixedAt": "2026-10-28T16:32:45-07:00",
+      "fixedBy": "Alex Nguyen",
+      "fixNote": "spawn_area and workshop no_track_overlap green in full harness 2026-10-28 END pass=53 fail=0"
     },
     {
       "id": "1617a72a",
       "name": "City blocks coverage below 0.7",
       "kind": "failure",
-      "status": "open",
+      "status": "fixed",
       "file": "src/shared/BiomeThemes.luau",
       "line": 1,
       "endLine": 1,
@@ -1786,13 +1822,16 @@
       "error": "city_blocks_gap 0.431 (0.7)",
       "foundBy": "physics-tester",
       "foundAt": "2026-10-27T23:20:13-07:00",
-      "loggedBy": "Alex Nguyen"
+      "loggedBy": "Alex Nguyen",
+      "fixedAt": "2026-10-28T16:32:45-07:00",
+      "fixedBy": "Alex Nguyen",
+      "fixNote": "environment scenario green in full harness 2026-10-28 END pass=53 fail=0"
     },
     {
       "id": "28599cd0",
       "name": "Wyvern leaves its path by 7 studs",
       "kind": "failure",
-      "status": "open",
+      "status": "fixed",
       "file": "src/server/CarTest/WyvernFlightTests.luau",
       "line": 1,
       "endLine": 1,
@@ -1810,13 +1849,16 @@
       "error": "wyvern_race_max_path_deviation 7.034 (5)",
       "foundBy": "physics-tester",
       "foundAt": "2026-10-27T23:56:37-07:00",
-      "loggedBy": "Alex Nguyen"
+      "loggedBy": "Alex Nguyen",
+      "fixedAt": "2026-10-28T16:32:45-07:00",
+      "fixedBy": "Alex Nguyen",
+      "fixNote": "wyvern_flight path deviation 1.69-2.04 (limit 5), 2026-10-28"
     },
     {
       "id": "c7354755",
       "name": "Track 9-10 payouts silently refused",
       "kind": "fault",
-      "status": "open",
+      "status": "fixed",
       "file": "src/server/MoneyService.luau",
       "line": 15,
       "endLine": 15,
@@ -1838,7 +1880,10 @@
       "error": "",
       "foundBy": "physics-tester",
       "foundAt": "2026-10-28T00:20:35-07:00",
-      "loggedBy": "Alex Nguyen"
+      "loggedBy": "Alex Nguyen",
+      "fixedAt": "2026-10-28T16:32:44-07:00",
+      "fixedBy": "Alex Nguyen",
+      "fixNote": "MoneyService.luau:16 MAX_AWARD = MAX_MONEY; money/economy green in full harness 2026-10-28 END pass=53 fail=0"
     },
     {
       "id": "3e2ab51f",
