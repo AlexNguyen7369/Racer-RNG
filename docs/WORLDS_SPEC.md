@@ -9,7 +9,7 @@ placeholder are tuned by `tools/balance_sim.py` and the speed probe, then approv
   Track 9 minUpY 0.902 at 1000; 1000 - 10 % = 900, clamped to the 800 maximum). Rule: the `speed_probe` scenario gives the highest speed
   with 0 flips, up-vector Y >= `PhysicsTargets.lap.MinUpYStrict` and path deviation <= `race.MaxPathDeviation` on
   every track, minus 10 %, kept within 700 .. 800).
-- `RaceConfig.SpeedFor(stat, multi) = min(curve(stat) x CruiseStatMulti(multi), MAX_CRUISE)`.
+- `RaceConfig.SpeedFor(stat, car, aura, trail) = min(curve(stat) x CruiseMulti(car, aura, trail), MAX_CRUISE)`; `CruiseMulti` = `CruiseStatMulti(car)` (1 + log10, 0.1 .. `MAX_CRUISE_CAR_MULTI` 4) x `ItemCruiseMulti(aura)` x `ItemCruiseMulti(trail)` (1 + 0.5 x log10, min 1), capped at `MAX_CRUISE_TOTAL_MULTI` 4 (owner 2026-10-28, numbers placeholder).
 - `RaceConfig.StatFor(speed)` returns `math.huge` for a speed above `MAX_CRUISE`.
 - Every NPC drives below `MAX_CRUISE`.
 

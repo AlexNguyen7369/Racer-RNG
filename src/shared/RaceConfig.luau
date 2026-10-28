@@ -10,7 +10,9 @@ RaceConfig.BASE_SPEED = 10 -- cruise speed at Speed stat 0 (owner 2026-10-21: lo
 RaceConfig.MAX_SPEED = 88 -- cruise reference at the point where post-100K diminishing returns begin; owner 2026-10-22 early-game lift
 RaceConfig.HALF_STAT = 10000 -- owner 2026-10-27 (was 100K): early Speed moves the car 10x more; diminishing returns begin here
 RaceConfig.MAX_CRUISE = 800 -- hard cruise cap, studs/s (owner 2026-10-27; speed_probe green to 1000, minus 10 %, max 800)
-RaceConfig.MAX_CRUISE_CAR_MULTI = 1.5 -- high car/market multipliers cannot exceed this effective cruise contribution
+RaceConfig.MAX_CRUISE_CAR_MULTI = 4 -- damped car cruise multi cap (owner 2026-10-28, placeholder; was 1.5)
+RaceConfig.ITEM_CRUISE_DAMP = 0.5 -- aura / trail cruise multi = 1 + this x log10(item multi) (owner 2026-10-28, placeholder)
+RaceConfig.MAX_CRUISE_TOTAL_MULTI = 4 -- car x aura x trail cruise multi cap (owner 2026-10-28, placeholder)
 RaceConfig.GAIN_PER_SECOND = 2 -- (owner 2026-10-22, placeholder) friendlier early Speed progression
 RaceConfig.MAX_STAT = 1e9 -- stability-test reference stat only, NOT a cap: the Speed stat has no cap (owner 2026-10-20)
 
@@ -40,12 +42,28 @@ function RaceConfig.CruiseStatMulti(speedMulti)
 	return math.clamp(1 + math.log10(speedMulti), 0.1, RaceConfig.MAX_CRUISE_CAR_MULTI)
 end
 
--- Cruise speed (studs/s) for a Speed stat and optional car/market multi. The first HALF_STAT points are linear
+-- Damped cruise multi of an equipped aura or trail (owner 2026-10-28): 1 + ITEM_CRUISE_DAMP x log10(multi), min 1.
+function RaceConfig.ItemCruiseMulti(itemMulti)
+	if type(itemMulti) ~= "number" or itemMulti ~= itemMulti or itemMulti <= 1 or itemMulti == math.huge then
+		return 1
+	end
+	return 1 + RaceConfig.ITEM_CRUISE_DAMP * math.log10(itemMulti)
+end
+
+-- Total cruise multi: damped car x damped aura x damped trail, capped at MAX_CRUISE_TOTAL_MULTI (owner 2026-10-28).
+function RaceConfig.CruiseMulti(carMulti, auraMulti, trailMulti)
+	local total = RaceConfig.CruiseStatMulti(carMulti)
+		* RaceConfig.ItemCruiseMulti(auraMulti)
+		* RaceConfig.ItemCruiseMulti(trailMulti)
+	return math.min(total, RaceConfig.MAX_CRUISE_TOTAL_MULTI)
+end
+
+-- Cruise speed (studs/s) for a Speed stat and the optional raw car, aura and trail multis (RaceConfig.CruiseMulti). The first HALF_STAT points are linear
 -- and generous; only the Speed above that threshold enters the logarithmic diminishing-return tail. The damped
 -- car/market multi scales the resulting studs/s (owner 2026-10-27), so cars differ from the first second.
-function RaceConfig.SpeedFor(stat, speedMulti)
+function RaceConfig.SpeedFor(stat, speedMulti, auraMulti, trailMulti)
 	stat = math.min(cleanStat(stat) or 0, 1e308)
-	local carMulti = RaceConfig.CruiseStatMulti(speedMulti)
+	local carMulti = RaceConfig.CruiseMulti(speedMulti, auraMulti, trailMulti)
 	local range = RaceConfig.MAX_SPEED - RaceConfig.BASE_SPEED
 	if stat <= RaceConfig.HALF_STAT then
 		return math.min((RaceConfig.BASE_SPEED + range * stat / RaceConfig.HALF_STAT) * carMulti, RaceConfig.MAX_CRUISE)

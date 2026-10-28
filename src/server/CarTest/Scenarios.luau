@@ -2475,7 +2475,7 @@ function Scenarios.flip_recovery()
 		end
 		local multi = best and best.SpeedMulti or 0
 		check(checks, "high_multi_car_found", multi, 2800, multi >= 2800)
-		-- The raw multi is damped and capped at 1.5x (design doc "Core stat model", owner 2026-10-21), so the stat
+		-- The raw multi is damped and capped at 4x (design doc "Core stat model", owner 2026-10-28), so the stat
 		-- itself must be MAX_STAT for this run to stay faster than the max-stat stability race.
 		local BIG_STAT = RaceConfig.MAX_STAT
 		local car = CarFactory.build(CarConfig)
@@ -2513,10 +2513,10 @@ function Scenarios.flip_recovery()
 				multi,
 				type(shown) == "number" and math.abs(shown - multi) <= 1e-9 * multi
 			)
-			-- Owner 2026-10-27: the multi, damped to 1 + log10(multi) and capped at 1.5x, scales the final studs/s;
-			-- the 2800x car is far past the cap, so its cruise is exactly SpeedFor(stat) x 1.5, then held to the hard
-			-- cruise cap MAX_CRUISE (800 studs/s, docs/WORLDS_SPEC.md section 1, owner 2026-10-27).
-			local capped = math.min(RaceConfig.SpeedFor(BIG_STAT) * 1.5, RaceConfig.MAX_CRUISE)
+			-- Owner 2026-10-28: the multi, damped to 1 + log10(multi) and capped at 4x, scales the final studs/s;
+			-- the 2800x car is far past the cap, so its cruise is exactly SpeedFor(stat) x 4, then held to the hard
+			-- cruise cap of 800 studs/s (docs/WORLDS_SPEC.md section 1, owner 2026-10-27).
+			local capped = math.min(RaceConfig.SpeedFor(BIG_STAT) * 4, 800)
 			check(
 				checks,
 				"high_multi_target_is_shown_speed_cruise",
@@ -2524,7 +2524,7 @@ function Scenarios.flip_recovery()
 				capped,
 				math.abs(ts - want) <= 1e-6 * want and math.abs(want - capped) <= 1e-6 * capped
 			)
-			-- SpeedFor(MAX_STAT) x the damped car multi (1.5) is above SpeedFor(MAX_STAT): faster than the max-stat race
+			-- SpeedFor(MAX_STAT) x the damped car multi (4, capped to 800) is above SpeedFor(MAX_STAT): faster than the max-stat race
 			local maxStatSpeed = RaceConfig.SpeedFor(RaceConfig.MAX_STAT)
 			check(checks, "high_multi_target_above_max_stat_speed", want, maxStatSpeed, want > maxStatSpeed)
 			local len = 0
@@ -2565,6 +2565,60 @@ function Scenarios.flip_recovery()
 			metrics.highMultiTarget = round(want)
 			metrics.highMultiSeconds = round(elapsed)
 			metrics.highMultiRailSnaps = type(run.RailSnaps) == "number" and run.RailSnaps or -1
+			pcall(function()
+				run:Destroy()
+			end)
+		end
+		car:Destroy()
+		player:Destroy()
+	end
+
+	-- Live aura (owner 2026-10-28): equipping an aura mid-race raises the run's target cruise within 0.25 s
+	-- (RaceService.COMMIT_INTERVAL). Ember Aura (x2) -> item cruise multi 1 + 0.5 x log10 2 = 1.150515.
+	do
+		local car = CarFactory.build(CarConfig)
+		car.Name = "CarTestAuraCar"
+		car:PivotTo(railStart)
+		car.Parent = Workspace
+		local player = Instance.new("Folder")
+		player.Name = "CarTestAuraPlayer"
+		player.Parent = Workspace
+		local okSetup = pcall(function()
+			Money.Setup(player)
+			PlayerData.Setup(player)
+			player.BaseSpeed.Value = RaceConfig.HALF_STAT
+		end)
+		local okRun, run = false, nil
+		if okSetup then
+			okRun, run = pcall(RaceService.NewRun, car, route, player, nil)
+		end
+		local started = okSetup and okRun and type(run) == "table"
+		check(checks, "aura_live_run_started", started and 1 or 0, 1, started)
+		if started then
+			frames(0.5)
+			local before = type(run.TargetSpeed) == "number" and run.TargetSpeed or -1
+			player:SetAttribute("EquippedAura", "ember_aura")
+			local seen = nil
+			-- one Heartbeat of slack past 0.25 s: the commit can only land on a frame boundary
+			frames(0.25 + 1 / 30, function(t)
+				local ts = run.TargetSpeed
+				if type(ts) == "number" and before > 0 and ts > before * 1.1 then
+					seen = t
+					return "stop"
+				end
+			end)
+			local ts = type(run.TargetSpeed) == "number" and run.TargetSpeed or -1
+			local okStat, stat = pcall(PlayerData.SpeedStat, player)
+			local want = okStat and type(stat) == "number" and RaceConfig.SpeedFor(stat) * (1 + 0.5 * math.log10(2))
+				or -1
+			check(checks, "aura_live_raises_target_cruise", seen or -1, 0.25, seen ~= nil)
+			check(
+				checks,
+				"aura_live_target_is_damped_aura",
+				ts,
+				want,
+				seen ~= nil and want > 0 and math.abs(ts - want) <= 1e-9 * want
+			)
 			pcall(function()
 				run:Destroy()
 			end)
@@ -3794,7 +3848,9 @@ function Scenarios.economy()
 		BASE_SPEED = 10, -- owner 2026-10-21: lowered from 12
 		MAX_SPEED = 88, -- owner 2026-10-26: confirmed 88 (commit 8e0a20f), +39 studs/s per high-speed doubling
 		HALF_STAT = 10000, -- owner 2026-10-27 (was 100K): linear start, diminishing tail after 10K
-		MAX_CRUISE_CAR_MULTI = 1.5,
+		MAX_CRUISE_CAR_MULTI = 4, -- owner 2026-10-28 (was 1.5)
+		ITEM_CRUISE_DAMP = 0.5, -- owner 2026-10-28: aura / trail cruise multi = 1 + 0.5 x log10(multi)
+		MAX_CRUISE_TOTAL_MULTI = 4, -- owner 2026-10-28: car x aura x trail cruise multi cap
 		GAIN_PER_SECOND = 2, -- owner 2026-10-22: friendlier early Speed progression
 		MAX_STAT = 1e9,
 	}
@@ -3970,11 +4026,11 @@ function Scenarios.economy()
 	end
 	-- Design doc "Core stat model" (owner 2026-10-27 "speed feel"), written out here, not read from RaceConfig: the
 	-- curve is linear to HALF_STAT, then each doubling adds HALF the range; the multi is damped to 1 + log10(m),
-	-- clamped to 0.1 .. 1.5, and multiplies the FINAL studs/s (it no longer scales the stat). The result is held to
+	-- clamped to 0.1 .. 4 (owner 2026-10-28, was 1.5), and multiplies the FINAL studs/s (it no longer scales the stat). The result is held to
 	-- the hard cruise cap of 800 studs/s (docs/WORLDS_SPEC.md section 1, owner 2026-10-27).
 	local CRUISE_CAP = 800
 	local function formula(stat, multi)
-		local damped = math.clamp(1 + math.log10(multi), 0.1, 1.5)
+		local damped = math.clamp(1 + math.log10(multi), 0.1, 4)
 		local curve
 		if stat <= half then
 			curve = base + (top - base) * stat / half
@@ -4006,20 +4062,20 @@ function Scenarios.economy()
 	local dampedHighOk = num(dampedHigh) and num(rawHigh) and dampedHigh < rawHigh and dampedHigh > sf(half)
 	check(checks, "speed_for_high_multi_is_damped", dampedHigh or -1, "< raw", dampedHighOk)
 	-- Owner 2026-10-27: the multi multiplies the final studs/s, so cars differ from the first second: at Speed 0
-	-- the starter drives BASE_SPEED (10) and a DAMPED x1.5 car 15 studs/s (design doc "speed feel", clarified
-	-- 2026-10-27): CruiseStatMulti(m) = clamp(1 + log10 m, 0.1, 1.5), so a RAW x1.5 car gets 10 x 1.176 and only a
-	-- raw multi >= 10^0.5 (3.17) reaches 15; x2 gives 10 x 1.301.
+	-- the starter drives BASE_SPEED (10); CruiseStatMulti(m) = clamp(1 + log10 m, 0.1, 4) (owner 2026-10-28, was
+	-- 1.5), so a RAW x1.5 car gets 10 x 1.176, a raw 10^0.5 (3.17) 15, and a raw multi >= 1000 the 4x cap: 40.
 	local want15 = base * (1 + math.log10(1.5))
 	local zeroStatOk = sfm(0, 1) == base
 		and rel(sfm(0, 1.5), want15)
 		and rel(sfm(0, 10 ^ 0.5), 15)
-		and rel(sfm(0, 2800), 15)
-		and rel(sfm(0, 1e6), 15)
+		and rel(sfm(0, 1000), 40)
+		and rel(sfm(0, 2800), 40)
+		and rel(sfm(0, 1e6), 40)
 		and rel(sfm(0, 2), base * (1 + math.log10(2)))
 	check(checks, "speed_for_multi_at_zero_stat_scales_base", sfm(0, 1.5) or -1, want15, zeroStatOk)
-	-- SpeedMulti 2800 at the threshold: damped past the 1.5 cap, so SpeedFor(HALF_STAT) x 1.5 = MAX_SPEED x 1.5
-	-- (132 studs/s at MAX_SPEED 88, owner 2026-10-27).
-	local want2800 = top * 1.5
+	-- SpeedMulti 2800 at the threshold: damped past the 4x cap, so SpeedFor(HALF_STAT) x 4 = MAX_SPEED x 4
+	-- (352 studs/s at MAX_SPEED 88, owner 2026-10-28).
+	local want2800 = top * 4
 	check(checks, "speed_for_multi_2800_at_half_stat", sfm(half, 2800) or -1, want2800, rel(sfm(half, 2800), want2800))
 	local multis = { 1, 1.0001, 1.01, 1.5, 2, 3, 10, 100, 1000, 2600, 2800, 1e6, 1e12 }
 	local multiInc = true
@@ -4034,8 +4090,40 @@ function Scenarios.economy()
 		end
 	end
 	check(checks, "speed_for_multi_strictly_increasing", multiInc and 1 or 0, 1, multiInc)
-	local capOk = RaceConfig.CruiseStatMulti(2800) == RaceConfig.MAX_CRUISE_CAR_MULTI
-	check(checks, "speed_for_car_multi_cap", capOk and 1 or 0, 1, capOk)
+	local okCap, carCap = pcall(RaceConfig.CruiseStatMulti, 2800)
+	local capOk = okCap and carCap == 4
+	check(checks, "speed_for_car_multi_cap", okCap and carCap or -1, 4, capOk)
+	-- Owner 2026-10-28 (design doc, entry after "speed feel"): cruise multi = car (1 + log10, cap 4) x aura x trail,
+	-- each item 1 + 0.5 x log10(multi) (min 1), total capped at 4; SpeedFor(stat, car, aura, trail). Numbers below
+	-- are worked out from that rule by hand, not read from RaceConfig.
+	local function sf4(x, c, a, t)
+		local ok, v = pcall(RaceConfig.SpeedFor, x, c, a, t)
+		return ok and v or nil
+	end
+	local function near(a, b, tol)
+		return num(a) and math.abs(a - b) <= tol
+	end
+	-- 86000: curve 88 + 39 x log2(8.6) = 209.07; car 5.7 -> 1 + log10 5.7 = 1.7559 -> 367.10
+	local okCm, cm57 = pcall(RaceConfig.CruiseMulti, 5.7, 1, 1)
+	check(checks, "cruise_multi_car_5_7", okCm and cm57 or -1, 1.7559, okCm and near(cm57, 1.7559, 5e-5))
+	check(checks, "speed_for_86000_car_5_7", sf4(86000, 5.7) or -1, 367.10, near(sf4(86000, 5.7), 367.10, 5e-3))
+	local okC1k, c1k = pcall(RaceConfig.CruiseStatMulti, 1000)
+	check(checks, "cruise_stat_multi_1000_is_4", okC1k and c1k or -1, 4, okC1k and near(c1k, 4, 1e-12))
+	-- aura 3 -> 1.23856, trail 5 -> 1.34949: x1.67142 -> 349.44
+	local v135 = sf4(86000, 1, 3, 5)
+	check(checks, "speed_for_86000_aura_3_trail_5", v135 or -1, 349.44, near(v135, 349.44, 5e-3))
+	-- car 1000 (4) x aura 3 x trail 5 = 6.69 -> total cap 4; studs never past 800
+	local okTot, tot = pcall(RaceConfig.CruiseMulti, 1000, 3, 5)
+	local studs = sf4(86000, 1000, 3, 5)
+	local totOk = okTot and near(tot, 4, 1e-12) and num(studs) and studs <= 800 and near(studs, 800, 1e-9)
+	check(checks, "cruise_total_multi_capped_at_4", okTot and tot or -1, 4, totOk)
+	local studsBig = sf4(1e9, 1000, 3, 5)
+	check(checks, "cruise_total_studs_capped_800", studsBig or -1, 800, num(studsBig) and studsBig <= 800)
+	-- Speed 0: 10 x 1.75587 x 1.67142 = 29.35 (total 2.93, under the cap)
+	local v0 = sf4(0, 5.7, 3, 5)
+	check(checks, "speed_for_zero_car_5_7_aura_3_trail_5", v0 or -1, 29.35, near(v0, 29.35, 5e-3))
+	local okI, i05 = pcall(RaceConfig.ItemCruiseMulti, 0.5)
+	check(checks, "item_cruise_multi_below_one_is_1", okI and i05 or -1, 1, okI and i05 == 1)
 	-- A multi below 1 slows the car (at these stats it stays above BASE_SPEED)
 	local lowOk = true
 	for _, x in { half, 1e6 } do
@@ -4073,7 +4161,7 @@ function Scenarios.economy()
 			capWorst = math.max(capWorst, num(v) and v or math.huge)
 		end
 	end
-	-- the cap is reached, not just respected: MAX_STAT x the 1.5 cap is past 800
+	-- the cap is reached, not just respected: MAX_STAT x the 4x cap is past 800
 	cruiseCapOk = cruiseCapOk and sfm(maxStat, 2800) == CRUISE_CAP and sfm(1e15) == CRUISE_CAP
 	check(checks, "speed_for_never_above_cap", capWorst, CRUISE_CAP, cruiseCapOk)
 	local NpcConfig = sharedModule("NpcConfig")
@@ -7506,10 +7594,10 @@ function Scenarios.index()
 		check(checks, "race_gain_baseline_unchanged", ratios[1], "1 +- 15%", ratios[1] >= 0.85 and ratios[1] <= 1.15)
 		local scale = ratios[1] > 0 and ratios[2] / ratios[1] or 0
 		check(checks, "race_gain_ignores_car_multi", scale, "1 +- 15%", scale >= 0.85 and scale <= 1.15)
-		-- Owner 2026-10-27 (design doc "speed feel"): the car multi, damped to 1 + log10(multi) and capped at 1.5x,
-		-- multiplies the final cruise studs/s. The start stat moves by under 0.1 % while driving.
+		-- Owner 2026-10-27 (design doc "speed feel"): the car multi, damped to 1 + log10(multi) and capped at 4x
+		-- (owner 2026-10-28), multiplies the final cruise studs/s. The start stat moves by under 0.1 % while driving.
 		local kartSpec = CarCatalog.Get("go_kart")
-		local damped = math.clamp(1 + math.log10(kartSpec and kartSpec.SpeedMulti or 1), 0.1, 1.5)
+		local damped = math.clamp(1 + math.log10(kartSpec and kartSpec.SpeedMulti or 1), 0.1, 4)
 		local want1, want2 = RaceConfig.SpeedFor(INDEX_STAT), RaceConfig.SpeedFor(INDEX_STAT) * damped
 		check(
 			checks,
