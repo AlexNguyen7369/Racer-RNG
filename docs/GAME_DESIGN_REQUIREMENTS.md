@@ -865,6 +865,13 @@ Idle Vehicle Simulator — Game Design Requirements
   HUD layout
   Contract: docs/HUD_LAYOUT_SPEC.md.
 
+       Owner decision, 2026-10-27 (HUD art and hover): use the approved simple
+       transparent cartoon icons; Shop is a red/tan house, Items a brown backpack,
+       Market a detailed red shopping bag without coin/logo. Hover feedback is
+       slight enlargement only, with no white outlined hover box. The icon set,
+       layouts/actions and existing accessibility behavior are documented in
+       HUD_LAYOUT_SPEC.md; no economy or gameplay values change.
+
   Race progress map
        During NPC auto-races, the HUD shows the current track's non-interactive
        route map and personal-best timer described by docs/RACE_PROGRESS_MAP_SPEC.md.

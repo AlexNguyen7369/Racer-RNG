@@ -68,7 +68,9 @@
 65. 2026-10-27 — Alex Nguyen — Verified car redesign v3 in Studio: full harness 50/3 with every car and Singularity orb scenario green (the 3 failures come from the uncommitted giant-scenery work, bug b99e2c0b logged) (c390103).
 66. 2026-10-27 — Alex Nguyen — Merged car redesign v3 (toy racer skins for all 111 cars and the Singularity orb) into main (6ad9717).
 
-## What's next
-**Owner looks at the toy racer cars and the Singularity orb while racing in Studio and tunes the placeholder numbers (`TOY` proportions in tools/build_redesign_cars.py, `OrbMotion` spin / bob, `OrbGlow` brightness) if needed.**
+67. 2026-10-27 — Isaac Li — Added the approved ten-icon transparent HUD set, uploaded asset mapping, scale-only hover feedback, saved Settings artwork and project documentation with focused Studio checks.
 
-**Why this is next:** every proportion and orb number is a placeholder in CAR_REDESIGN_SPEC sections 10-11, and any change means a rebuild and re-upload of the cars, so it should be settled before further car art builds on them.
+## What's next
+**Review the approved HUD icons at phone size, then review and merge the icon feature branch.**
+
+**Why this is next:** all ten images loaded in desktop Studio and the layout stayed unchanged, but small-screen readability needs review before adopting the new art on main.

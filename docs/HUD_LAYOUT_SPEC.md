@@ -6,6 +6,15 @@ SHOP / DAILY / QUESTS / MARKET stack, and the Bag / Upgrades icons beside the bo
 
 ## 1. Icon tiles
 
+Owner, 2026-10-27 (art/hover revision; layout and actions unchanged):
+the shared ten-icon set uses simple rounded cartoon shapes, dark outlines and
+light shading. Shop is a red-roof/tan house; Items a brown backpack; Index a cyan
+car book; Upgrade a gold arrow; Stats green bars; Rebirth red/white arrows;
+Daily a gold/red gift; Quests a clipboard; Market a detailed red shopping bag
+with a blank tag and no coin/logo; Settings a silver gear with blue center.
+Hover adds only slight enlargement (1.035), never a white outlined button box.
+Authored selection borders, badges and gamepad focus remain unchanged.
+
 Owner, 2026-10-15 (same day, replaces the first 2 x 3 grid):
 
 - Left edge, vertically centred: `HudChrome/Grid`, one column of Index, Stats, Rebirth.
@@ -29,7 +38,7 @@ Owner, 2026-10-15 (same day, replaces the first 2 x 3 grid):
 These sit in the Roblox top-bar row at the top right, styled like Roblox's own top-bar buttons: dark translucent
 pills, white text, and a round button for Settings.
 
-- `Daily`: a calendar icon and the text "Daily". When today's reward was claimed, it shows the time left until
+- `Daily`: a gift icon (owner art revision 2026-10-27) and the text "Daily". When today's reward was claimed, it shows the time left until
   the next one. It opens the 7-day daily reward panel.
 - `Quests`: it opens the Daily / Weekly quest panel.
 - `Market`: it opens the Money market (trails, auras and potions bought with Money). Owner 2026-10-16: it uses the
@@ -49,7 +58,7 @@ Fredoka text with a dark outline.
 The quest panel follows the supplied quest reference using only existing quest data: Daily / Weekly category tabs,
 a scrollable selectable quest list, and a read-only detail pane showing the selected quest's name, progress and
 reward. On phone landscape the detail pane collapses and the list uses the available width. Hovering a quest row
-adds the shared white highlight and slight enlargement; its Claim button remains the only action that grants a reward.
+adds the shared slight enlargement without a white hover box; its Claim button remains the only action that grants a reward.
 
 ## 3. Backpack (Items)
 

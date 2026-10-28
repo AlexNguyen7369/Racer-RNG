@@ -5,6 +5,14 @@ in git history (`git log -p -- handoff.md`, last full version at 2d99d78) and in
 
 ## State — 2026-10-27
 
+- Codex delivery: `feature/isaac/simple-hud-icons-20261027` from main `c9dadc5`.
+  Ten approved transparent HUD PNGs + IDs, scale-only hover, generated Settings
+  icon and narrow StarterGui asset update. Saved and focused-live-checked in Studio.
+  No server/gameplay changes, no main merge, no live publish. Full compatibility
+  not rerun. Review phone readability before merging; retain all open work below.
+  Luau compilation, Rojo build, deterministic UI generation and image-only
+  StarterGui preservation checks passed; source PNGs + asset IDs are included.
+
 - Current branch: `feature/alex/ember-wyvern-flight` (from origin/main 820cd25 + c4f4fee); see Open work 0.
 
 - Branch `feature/alex/race-progress-map-completion`, everything committed and pushed (2d99d78): biome visual pass
