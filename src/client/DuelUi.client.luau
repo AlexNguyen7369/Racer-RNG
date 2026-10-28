@@ -151,7 +151,9 @@ local countdown = make("TextLabel", "Countdown", root, {
 	Visible = false,
 })
 UiTheme.Stroke(countdown, 4)
-local TOAST_HOME = UDim2.new(1, -16, 0.22, 48)
+-- Right edge at 92% - 20 px: left of HudChrome's Shop column (desktop: 98 px from the edge, phone: 65 px) and right of
+-- the top-centre compact roll at every tested viewport, from 667 px phones to 1920 px desktops.
+local TOAST_HOME = UDim2.new(0.92, -20, 0.22, 48)
 local toast = make("TextLabel", "Toast", root, {
 	-- Reserve the right notification band below Auto Race: the compact roll owns the top
 	-- centre, while Speed owns the lower centre on narrow landscape phones.
