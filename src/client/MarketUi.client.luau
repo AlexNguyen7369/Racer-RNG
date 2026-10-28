@@ -573,7 +573,10 @@ local function fitTabs()
 	for _ in tabs do
 		count += 1
 	end
-	local scale = math.clamp((rail.AbsoluteSize.Y / ancestor - (count - 1) * 10) / (count * 96), 0.4, 1)
+	-- Owner 2026-10-28: on phones (viewport height <= 500) the tabs may shrink below 0.4 so all stay inside the rail.
+	local phone = workspace.CurrentCamera.ViewportSize.Y <= 500
+	local scale =
+		math.clamp((rail.AbsoluteSize.Y / ancestor - (count - 1) * 10) / (count * 96), phone and 0.1 or 0.4, 1)
 	for _, refs in tabs do
 		refs.Scale.Scale = scale
 	end
