@@ -2665,7 +2665,15 @@ function S.ui_motion(res)
 		end
 	end
 	local missing = {}
+	local outlined = {}
 	local targets = {}
+	-- A target the real mouse rests on may legitimately sit at the documented hover / press scale
+	local function hoverRestOk(target)
+		local scale = target:FindFirstChild(cfg.Scale)
+		return scale ~= nil
+			and math.abs(scale.Scale - cfg.HoverScaleValue) <= 0.001
+			and target.GuiState == Enum.GuiState.Hover
+	end
 	for _, descendant in playerGui:GetDescendants() do
 		local eligible = descendant:IsA("GuiButton") and descendant.Name ~= "Backdrop" and descendant.Name ~= "Toast"
 			or descendant:IsA("Frame")
@@ -2676,25 +2684,23 @@ function S.ui_motion(res)
 	end
 	for _, target in targets do
 		local scale = target:FindFirstChild(cfg.Scale)
-		local stroke = target:FindFirstChild(cfg.Highlight)
 		if not (scale and scale:IsA("UIScale")) then
 			table.insert(missing, pathOf(target) .. ": no " .. cfg.Scale)
+		elseif math.abs(scale.Scale - cfg.RestScale) > 0.001 and not hoverRestOk(target) then
+			table.insert(missing, pathOf(target) .. ": " .. cfg.Scale .. " at rest is " .. scale.Scale)
 		end
-		if not (stroke and stroke:IsA("UIStroke")) then
-			table.insert(missing, pathOf(target) .. ": no " .. cfg.Highlight)
-		elseif
-			-- Color3 has no arithmetic in Luau: compare channel by channel
-			math.abs(stroke.Color.R - cfg.HighlightColour.R) > 0.01
-			or math.abs(stroke.Color.G - cfg.HighlightColour.G) > 0.01
-			or math.abs(stroke.Color.B - cfg.HighlightColour.B) > 0.01
-			or math.abs(stroke.Thickness - cfg.HighlightThickness) > 0.01
-			or stroke.ApplyStrokeMode ~= Enum.ApplyStrokeMode.Border
-		then
-			table.insert(missing, pathOf(target) .. ": highlight is not white 3px border")
+		for _, child in target:GetChildren() do
+			if
+				child.Name == cfg.ForbiddenHighlight
+				or (child:IsA("UIStroke") and string.find(string.lower(child.Name), "hover", 1, true))
+			then
+				table.insert(outlined, pathOf(target) .. ": hover outline " .. child.Name)
+			end
 		end
 	end
 	check(res, "motion_targets_found", #targets, "> 0", #targets > 0)
 	checkList(res, "buttons_and_hover_rows_have_shared_motion", missing)
+	checkList(res, "hover_is_scale_only_no_outline", outlined)
 	restore()
 end
 

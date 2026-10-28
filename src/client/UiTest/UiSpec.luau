@@ -773,9 +773,12 @@ UiSpec.Motion = {
 	PlaybackSpeed = 1.35,
 	Volume = 0.22,
 	Scale = "HoverScale",
-	Highlight = "RacerHoverHighlight",
-	HighlightColour = Color3.new(1, 1, 1),
-	HighlightThickness = 3,
+	-- Owner 2026-10-27 (docs/HUD_LAYOUT_SPEC.md section 1, design doc "HUD art and hover"): hover is scale-only,
+	-- "slight enlargement (1.035), never a white outlined button box". Every target carries HoverScale at rest 1;
+	-- no target may carry the old hover outline (ForbiddenHighlight) or any UIStroke whose name contains "Hover".
+	RestScale = 1,
+	HoverScaleValue = 1.035,
+	ForbiddenHighlight = "RacerHoverHighlight",
 }
 
 -- Owner 2026-10-26 (docs/UPGRADE_TREE_SPEC.md section 5, docs/HUD_LAYOUT_SPEC.md sections 1 and 6): like the roll
