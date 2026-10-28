@@ -10,6 +10,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local WorkshopConfig = require(script.Parent.WorkshopConfig)
 local WorkshopMeshAssets = require(script.Parent.WorkshopMeshAssets)
+local UiTheme = require(script.Parent.UiTheme)
 
 -- Prepare once during module loading, before assignment or a purchase can run.
 -- Rojo hot updates can leave existing MeshParts with empty MeshContent. A mesh
@@ -70,10 +71,10 @@ local function billboard(parent, name, offset, size)
 	text.Name = "Text"
 	text.Size = UDim2.fromScale(1, 1)
 	text.BackgroundTransparency = 1
-	text.Font = Enum.Font.GothamBlack
+	text.Font = UiTheme.Font
 	text.TextScaled = true
 	text.TextColor3 = Color3.new(1, 1, 1)
-	text.TextStrokeTransparency = 0.3
+	UiTheme.Stroke(text, 2)
 	text.Parent = gui
 	return text
 end

@@ -16,6 +16,7 @@ local LeaderboardConfig = require(script.Parent.LeaderboardConfig)
 local PassCarConfig = require(script.Parent.PassCarConfig)
 local CarCatalog = require(script.Parent.CarCatalog)
 local CheckpointConfig = require(script.Parent.CheckpointConfig)
+local UiTheme = require(script.Parent.UiTheme)
 local Players = game:GetService("Players")
 
 -- Match WorkshopBuilder's native-mesh safeguard before Main builds the area.
@@ -211,10 +212,10 @@ function SpawnArea.Build(startCFrame)
 	text.Size = UDim2.fromScale(1, 1)
 	text.BackgroundTransparency = 1
 	text.Text = "RACE ▶"
-	text.Font = Enum.Font.GothamBlack
+	text.Font = UiTheme.Font
 	text.TextScaled = true
 	text.TextColor3 = Color3.new(1, 1, 1)
-	text.TextStrokeTransparency = 0.3
+	UiTheme.Stroke(text, 2)
 	text.Parent = billboard
 
 	-- Blender meshes are decorative; the original pad remains the touch trigger.
@@ -346,14 +347,15 @@ function SpawnArea.Build(startCFrame)
 			label.TextColor3 = colour
 			label.TextXAlignment = Enum.TextXAlignment.Left
 			label.Text = ""
+			UiTheme.Stroke(label, 2)
 			label.Parent = gui
 			return label
 		end
-		local title = line("Title", 0.02, 0.14, Color3.fromRGB(255, 214, 90), Enum.Font.GothamBlack)
+		local title = line("Title", 0.02, 0.14, Color3.fromRGB(255, 214, 90), UiTheme.Font)
 		title.TextXAlignment = Enum.TextXAlignment.Center
 		title.Text = board.Title
 		for row = 1, LeaderboardConfig.TOP_N do
-			line("Row" .. row, 0.18 + (row - 1) * 0.08, 0.07, Color3.new(1, 1, 1), Enum.Font.GothamBold)
+			line("Row" .. row, 0.18 + (row - 1) * 0.08, 0.07, Color3.new(1, 1, 1), UiTheme.Font)
 		end
 	end
 	boards.Parent = model
@@ -405,10 +407,10 @@ function SpawnArea.Build(startCFrame)
 		label.BackgroundTransparency = 1
 		label.Position = UDim2.fromScale(0, y)
 		label.Size = UDim2.fromScale(1, height)
-		label.Font = Enum.Font.GothamBlack
+		label.Font = UiTheme.Font
 		label.TextScaled = true
 		label.TextColor3 = colour
-		label.TextStrokeTransparency = 0
+		UiTheme.Stroke(label, 2)
 		label.Text = value
 		label.Parent = stats
 	end
@@ -524,11 +526,11 @@ function SpawnArea.Build(startCFrame)
 		label.BackgroundTransparency = 1
 		label.Position = UDim2.fromScale(0, (i - 1) * 0.58)
 		label.Size = UDim2.fromScale(1, i == 1 and 0.58 or 0.42)
-		label.Font = Enum.Font.FredokaOne
+		label.Font = UiTheme.Font
 		label.TextScaled = true
 		label.Text = line[2]
 		label.TextColor3 = line[3]
-		label.TextStrokeTransparency = 0
+		UiTheme.Stroke(label, 2)
 		label.Parent = title
 	end
 	npc.PrimaryPart = anchor

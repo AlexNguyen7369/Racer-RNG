@@ -35,6 +35,14 @@ Auto race / workshop ──Speed/sec──▶ SPEED ──▶ Race the NPC ladde
 
 ## Features implemented
 
+UI visual pass (2026-10-27, `docs/HUD_LAYOUT_SPEC.md` sections 8-10): one theme for every screen (`Shared/UiTheme`:
+Fredoka text with a dark outline, token corner radii, multipliers written `x1.5`); numbers shortened with lowercase
+suffixes from 1,000 (`10.2m`, `$3.4b`, `10qd`); Money and UNBANKED on a gradient plate that counts up and pops on gain
+with a rising `+$` float; a speedometer dial beside the Speed stat whose needle shows the car's real speed; a full race
+recap loser screen (times, gap, PB, countdown); a smoother progress map (Path2D route, heading arrow, NPC name, time
+gap); and motion graphics through `Client/UiMotion` (pop, slide, shine, pulse, shake, cascade) that respect reduced
+motion.
+
 Accessibility and devices (2026-10-26, `docs/HUD_LAYOUT_SPEC.md` section 7): UI motion follows Roblox's Reduced
 Motion setting or the in-game REDUCED EFFECTS toggle (tweens land at once, the roll reel lands without spinning),
 buttons stay inside the device safe area on notched phones, and panels support gamepads (first button selected,

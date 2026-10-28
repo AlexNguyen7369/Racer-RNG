@@ -6,6 +6,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local BoostConfig = require(Shared:WaitForChild("BoostConfig"))
+local HudFormat = require(Shared:WaitForChild("HudFormat"))
 local DailyLoginConfig = require(Shared:WaitForChild("DailyLoginConfig"))
 local LevelConfig = require(Shared:WaitForChild("LevelConfig"))
 local RebirthConfig = require(Shared:WaitForChild("RebirthConfig"))
@@ -103,7 +104,7 @@ function Extras.Build(h)
 			else
 				local want
 				if tile.Multiplier then
-					want = tile.Format:format(value)
+					want = tile.Format:format(HudFormat.Multi(value))
 				else
 					local n = tile.Percent and math.floor(value * 100 + 0.5) or value
 					want = (tile.Plural and n ~= 1) and tile.Plural:format(n) or tile.Format:format(n)
@@ -371,8 +372,12 @@ function Extras.Build(h)
 				elseif not (label and label:IsA("TextLabel") and use and use:IsA("TextButton")) then
 					table.insert(bad, item.Id .. ": no row with Label and Use")
 				else
-					if not (has(label.Text, item.Name) and string.find(label.Text, "x" .. count .. "%f[%D]")) then
-						table.insert(bad, ("%s: label %q, want %s x%d"):format(item.Id, label.Text, item.Name, count))
+					-- Counts are shortened like every number ("x1.2k", docs/HUD_LAYOUT_SPEC.md section 8)
+					local short = "x" .. HudFormat.Short(count)
+					local at = string.find(label.Text, short, 1, true)
+					local nextChar = at and string.sub(label.Text, at + #short, at + #short)
+					if not (has(label.Text, item.Name) and at and not string.match(nextChar, "[%w%.]")) then
+						table.insert(bad, ("%s: label %q, want %s %s"):format(item.Id, label.Text, item.Name, short))
 					end
 					local usable = count > 0 and not active
 					if use.Active ~= usable then

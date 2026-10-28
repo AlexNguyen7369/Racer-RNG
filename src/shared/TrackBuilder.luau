@@ -21,6 +21,7 @@
 
 local CollectionService = game:GetService("CollectionService")
 local BiomeDressing = require(script.Parent.BiomeDressing)
+local UiTheme = require(script.Parent.UiTheme)
 
 local TrackBuilder = {}
 
@@ -479,9 +480,9 @@ function TrackBuilder.Build(spec, origin)
 	label.BackgroundTransparency = 1
 	label.Text = "$" .. cash
 	label.TextScaled = true
-	label.Font = Enum.Font.GothamBlack
+	label.Font = UiTheme.Font
 	label.TextColor3 = colors.WinPad
-	label.TextStrokeTransparency = 0
+	UiTheme.Stroke(label, 2)
 	label.Parent = billboard
 
 	-- Grass under everything so falling off the road is survivable

@@ -804,7 +804,7 @@ local function fillResult(b, roll)
 		b.GlowGradient.Color = ColorSequence.new(CARD_BG:Lerp(color, 0.15), CARD_BG)
 		b.CarName.Text = spec.Name
 		b.CarName.TextColor3 = WHITE
-		b.SpeedMulti.Text = "x" .. tostring(spec.SpeedMulti or 1) .. " SPEED MULTIPLIER"
+		b.SpeedMulti.Text = HudFormat.Multi(spec.SpeedMulti or 1) .. " SPEED"
 		b.Rarity.Text = spec.Rarity
 		b.Rarity.TextColor3 = textColor(spec)
 		b.Rarity.TextStrokeColor3 = spec.Rarity == "Secret" and color or BLACK
@@ -816,7 +816,7 @@ local function fillResult(b, roll)
 			b.ScrapBadge.Text = "+1 COPY"
 		end
 		b.Aliases.Name.Text = spec.Name
-		b.Aliases.Speed.Text = tostring(spec.SpeedMulti or 1) .. "x Speed"
+		b.Aliases.Speed.Text = "Speed " .. HudFormat.Multi(spec.SpeedMulti or 1)
 		b.Aliases.Rarity.Text = spec.Rarity
 		b.Aliases.Odds.Text = b.Odds.Text
 		b.Aliases.Name.TextColor3 = b.CarName.TextColor3

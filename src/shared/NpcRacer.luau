@@ -15,6 +15,7 @@ local CarFactory = require(script.Parent.CarFactory)
 local NpcConfig = require(script.Parent.NpcConfig)
 local TrackBuilder = require(script.Parent.TrackBuilder)
 local TrackRegistry = require(script.Parent.TrackRegistry)
+local UiTheme = require(script.Parent.UiTheme)
 
 local NpcRacer = {}
 
@@ -158,9 +159,9 @@ function NpcRacer.BuildModel(info)
 	title.BackgroundTransparency = 1
 	title.Text = "NPC RIVAL"
 	title.TextScaled = true
-	title.Font = Enum.Font.GothamBold
+	title.Font = UiTheme.Font
 	title.TextColor3 = info.Color:Lerp(Color3.new(1, 1, 1), 0.4) -- readable on the dark backing, even for black
-	title.TextStrokeTransparency = 0
+	UiTheme.Stroke(title, 2)
 	title.Parent = billboard
 	-- Bottom line "track01_NPC · Car Name": two labels so `Text` stays exactly info.Label, centred as one line.
 	local spec = info.Model and CarCatalog.Get(info.Model)
@@ -174,18 +175,18 @@ function NpcRacer.BuildModel(info)
 		l.TextSize = LABEL_TEXT_SIZE
 		l.Font = font
 		l.TextColor3 = Color3.new(1, 1, 1)
-		l.TextStrokeTransparency = 0
+		UiTheme.Stroke(l, 2)
 		l.Parent = billboard
 		return l
 	end
 	local carText = spec and " · " .. spec.Name or ""
 	local bounds = Vector2.new(1e4, 100)
-	local w1 = TextService:GetTextSize(info.Label, LABEL_TEXT_SIZE, Enum.Font.GothamBlack, bounds).X
-	local w2 = TextService:GetTextSize(carText, LABEL_TEXT_SIZE, Enum.Font.GothamBold, bounds).X
+	local w1 = TextService:GetTextSize(info.Label, LABEL_TEXT_SIZE, UiTheme.Font, bounds).X
+	local w2 = TextService:GetTextSize(carText, LABEL_TEXT_SIZE, UiTheme.Font, bounds).X
 	local x = (billboard.Size.X.Offset - w1 - w2) / 2
-	piece("Text", info.Label, Enum.Font.GothamBlack, x, w1)
+	piece("Text", info.Label, UiTheme.Font, x, w1)
 	if spec then
-		piece("Car", carText, Enum.Font.GothamBold, x + w1, w2)
+		piece("Car", carText, UiTheme.Font, x + w1, w2)
 	end
 	return model
 end

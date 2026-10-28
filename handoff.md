@@ -22,6 +22,21 @@ in git history (`git log -p -- handoff.md`, last full version at 2d99d78) and in
 
 ## Open work
 
+000. **UI visual pass** (owner 2026-10-27; branch `feature/alex/ui-visual-pass`, git WORKTREE
+   `/Users/alexnguyen7369/Documents/RobloxGames-ui` so the car-redesign tree stays untouched). Rules: design doc
+   (lowercase suffixes from 1k incl. Money; "UI visual pass" entry), HUD_LAYOUT_SPEC 8-10, NPC_RACER_SPEC "Loser
+   screen", RACE_PROGRESS_MAP_SPEC "Look". Code: `Shared/UiTheme` (new), `Client/UiMotion` presets
+   (Pop/SlideIn/Shine/Pulse/Shake/Float/Cascade), `HudFormat` (lowercase, SUFFIX_FROM 1e3, MoneyText short, Multi),
+   RacerHud spec (`SpeedDial`, `MoneyPlate`; regenerated + baked), `RollToast/Ui/SpeedDial` (Path2D arc + needle,
+   real car speed), RacerUiController (count-up, pops, +$ float, bank pulse, Race breathing, turbo punch-in),
+   NpcRacerView loser recap, RaceProgressMap Path2D route, restyle of HudChrome/Backpack/Market/Shop/BoostDaily/
+   Progression/Checkpoint/Duel/GiftPicker/PanelSwitch open motion, billboards to Fredoka + UIStroke.
+   Tests written first (test-writer: HudFormat, TimeAt, on_foot fixture; ui-test-writer: ui_hud, ui_speed_dial,
+   ui_theme, ui_motion_reduced, loser recap, map). NOT RUN in Studio yet (Studio was busy with the car-redesign
+   suite). Next: serve the worktree with rojo (stop the other rojo only when robloxgames-e7 says Studio is free),
+   run [CARTEST] (hud/format, race_progress_map, environment, npc) and [UITEST], screenshot desktop + phone, fix,
+   then ProjectContext/todo, commit, progress-tracker.
+
 0. **Ember Wyvern flight + breath — DONE, committed and pushed to main 2026-10-27; full suite END pass=51 fail=1 (only environment city_blocks_gap, bug ab037b16, City Blocks work still uncommitted in the tree)**. Next session goal: car redesign v3 (toy racer style, 15,000-triangle cap, pilot Rusty Hatchback / Street Racer / Singularity, owner 2026-10-27) on its own branch. (branch `feature/alex/ember-wyvern-flight`, all
    uncommitted; owner 2026-10-27: "stop test suite, begin implementation of features first").
    - Done: 33-bone rig (`drafts/cars/ember-wyvern/wyvern_rig.py`), long whip tail (template |z| 5.62), rigged upload

@@ -181,10 +181,10 @@
     "files": "All UI"
   },
   "ui_hud": {
-    "checks": "The left HUD shows the server's Speed, Money and Unbanked.",
-    "why": "Client only displays; it must match leaderstats.",
-    "limits": "UiSpec",
-    "files": "Client/SpeedHud"
+    "checks": "The HUD shows the server's Speed, Money and Unbanked: each label's text is exactly HudFormat (SpeedText + \" SPEED\", MoneyText, \"UNBANKED \" + MoneyText) of a server value from the last 0.5 s (count-up lag), re-sampled each frame for up to 2 s. MoneyPlate (owner 2026-10-27) exists, sits behind MoneyValue and Unbanked (lower ZIndex), holds both and takes no click; MoneyValue, Unbanked and SpeedValue each have a UIGradient.",
+    "why": "Client only displays; it must match leaderstats. Design doc suffix rule (lowercase k m b t qd, Money too) and HUD_LAYOUT_SPEC sections 8-9.",
+    "limits": "UiSpec.Waits.HudLag 0.5 s, HudFollow 2 s, UiSpec.Hud.MoneyPlate / GradientLabels",
+    "files": "Client/RollToast/RacerUiController, Shared/HudFormat, UiTest/UiScenarios"
   },
   "ui_index": {
     "checks": "The Index panel lists cars, owned state and opens below the Auto Race button. Open, it shows the car gallery (GridHost) and no consumables tab or view (index_open_index_gallery_shown, index_open_index_no_consumables_view); its one header tab, CarsTab, is declared and the index_cars_tab click keeps the gallery shown and fires no remote.",
@@ -223,10 +223,10 @@
     "files": "Client/RollToast"
   },
   "ui_loser": {
-    "checks": "The loser screen shows after a lost NPC race and goes away after LOSE_SCREEN_SECONDS.",
-    "why": "Players must know why they were sent back.",
-    "limits": "NpcConfig.LOSE_SCREEN_SECONDS",
-    "files": "Client/LoserScreen"
+    "checks": "The loser screen shows after a lost NPC race (on top of every gui, full-screen, non-interactive) and hides after the next Reset / Start / Stop. Its recap (read 1.2 s after the Lose) has Banner (\"YOU LOST\"), NpcName (the track's NpcConfig label, never \"The NPC\"), TrackTitle (\"TRACK n · ...\"), YourTime / NpcTime (the Result's times as mm:ss.cc), Gap (\"+1.50s\" = PlayerTime - NpcTime), Pb (\"PB --\" or \"PB mm:ss.cc\"), BackTo, a Countdown frame with Fill, and every text in FredokaOne.",
+    "why": "Players must know why they were sent back. NPC_RACER_SPEC \"Loser screen (owner 2026-10-27)\".",
+    "limits": "NpcConfig.LOSE_SCREEN_SECONDS, UiSpec.Loser, UiSpec.Waits.LoserShowGrace / LoserHideGrace",
+    "files": "Client/NpcRacerView"
   },
   "ui_billboards": {
     "checks": "Pad $ text and NPC labels show only within their MaxDistance. The Best Roll Ever pedestal and the two gamepass car pedestals have their Stats billboard (finite MaxDistance from config, label texts, labels inside the billboard, not clickable) and the gamepass Buy prompt text.",
@@ -449,5 +449,35 @@
     "why": "The wyvern must breathe blue fire in its glides, built and played only on clients in the owner's palette with the uploaded textures, never on the server.",
     "limits": "docs/WYVERN_BREATH_SPEC.md sections 1-3; docs/WYVERN_FLIGHT_SPEC.md section 3 (60 deg, 4 deg glide flutter)",
     "files": "WyvernMotion, WyvernBreath, VehicleEffects, Client/WyvernAnimator, CarModels.ember_wyvern"
+  },
+  "ui_speed_dial": {
+    "checks": "RacerHud/Speed/SpeedDial (Frame) exists with a Needle and a DialSpeed TextLabel, nothing in it is clickable, and SpeedIcon is its hub (child of Speed, ZIndex above the dial, centre inside it). On foot the Needle's DialValue is 0 and DialSpeed reads \"0\" (on_foot fixture); while auto racing DialValue and DialSpeed follow the car's real speed (seat displacement over 0.6 s), within max(3 studs/s, 15%).",
+    "why": "HUD_LAYOUT_SPEC section 9 (owner 2026-10-27): the speedometer shows the car's real speed, rests at 0 on foot, and is presentation only.",
+    "limits": "UiSpec.SpeedDial (SampleSeconds 0.6, Tolerance 3, RelTolerance 0.15, CarWait 5)",
+    "files": "Client/RollToast/RacerUiController, RollToast/Ui/RacerHud, UiTest/UiScenarios"
+  },
+  "ui_theme": {
+    "checks": "Every TextLabel / TextButton in the game's ScreenGuis (UiSpec.Guis) uses FredokaOne. Multiplier labels (RollShowcase SpeedMulti, Index tile Info, Backpack car Multi) write every multi as HudFormat.Multi (x + digits, at most 2 decimals, no trailing zero) and never \"25x\"; at least one such multi is found.",
+    "why": "HUD_LAYOUT_SPEC section 8 (owner 2026-10-27): one theme, Fredoka text, multipliers written x1.5 everywhere.",
+    "limits": "UiSpec.Theme",
+    "files": "Shared/UiTheme, Shared/HudFormat, every client UI script"
+  },
+  "ui_motion_reduced": {
+    "checks": "With ReduceEffects on, UiMotion.Pop leaves no MotionScale away from 1, SlideIn leaves the gui at its place and fully shown, Shine leaves no band mid-sweep, Pulse returns a stop function and does not loop, Shake does not move, Float shows nothing. With it off (and Roblox Reduced Motion off) Pop grows above 1x, Pulse moves and its stop puts the value back. ReduceEffects is restored.",
+    "why": "HUD_LAYOUT_SPEC section 10 (owner 2026-10-27): every preset lands on its end state at once while motion is reduced and no loop runs.",
+    "limits": "none (exact end states)",
+    "files": "Client/UiMotion, UiTest/UiAccessibility"
+  },
+  "ui_race_progress_map": {
+    "checks": "Standalone client test (require UiTest.UiRaceProgressMap .Run()): the map card stays transparent and non-interactive, the route is the Path2D lines RouteOutline / RouteDriven / RouteAhead once each inside a CanvasGroup with a UIGradient fade, driven / ahead split exactly at YOU, a 180 degree turn mirrors the route, YouDot has a Heading, the NPC caption is NpcConfig.For(n).Label, the status is a pill reading AHEAD 1.2s / BEHIND 1.2s / EVEN, markers once each, everything empty after Result / Reset / Stop, far NPC clamped to the edge.",
+    "why": "RACE_PROGRESS_MAP_SPEC Contract and Look (owner 2026-10-27).",
+    "limits": "UiSpec.RaceMapLook",
+    "files": "Client/RaceProgressMap, Shared/RaceProgressMap, UiTest/UiRaceProgressMap"
+  },
+  "ui_checkpoints": {
+    "checks": "Checkpoints panel (also re-run after every checkpoint click): one TextButton card Track_n per track in order, each with a Preview ViewportFrame, \"TRACK n\", the biome in upper case and a Lock (shown, 40% dim, \"Beat Track n\", icon, never taking the click) on locked tracks; every card is clickable. On open, Detail shows the current checkpoint: Preview, Title \"TRACK n · NAME\", Biome, RecSpeed \"REC. SPEED \" + HudFormat.SpeedText(RaceConfig.StatFor(NpcConfig.For(n).Speed)), YourSpeed \"YOUR SPEED \" + the player's Speed, Status READY / NEED <x> MORE, Cash = MoneyText(CashFor(n)), and Start \"START HERE\" (Active) / \"SELECTED\" / \"LOCKED\" (disabled). Header, hint, grid and detail never overlap. Clicks (ui-tester): a card click (selected, locked or open) fires nothing and shows that track in Detail; Start on LOCKED or SELECTED fires nothing; Start on START HERE fires SetCheckpoint(2) exactly once and the Checkpoint attribute only follows the server.",
+    "why": "CHECKPOINT_SPEC section 4 (owner 2026-10-27): cards only show a track, the Detail pane's Start does the pick; the server decides (section 1).",
+    "limits": "UiSpec.Checkpoints (Detail texts, LockTransparency 0.4), UiSpec.Clicks checkpoint_*",
+    "files": "Client/CheckpointUi, Client/BiomePreview, UiTest/UiContracts, UiTest/UiSpec"
   }
 }

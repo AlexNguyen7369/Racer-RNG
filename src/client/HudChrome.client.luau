@@ -9,8 +9,9 @@ local gui = player:WaitForChild("PlayerGui")
 local client = script.Parent
 local PanelSwitch = require(client:WaitForChild("PanelSwitch"))
 local Icons = require(client:WaitForChild("RollToast"):WaitForChild("Ui"):WaitForChild("HudIcons"))
+local UiTheme = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("UiTheme"))
+local UiMotion = require(client:WaitForChild("UiMotion"))
 
-local OUTLINE = Color3.fromRGB(17, 19, 31)
 local RED = Color3.fromRGB(232, 60, 76)
 local TILE = 72
 local LABEL = 22
@@ -30,7 +31,7 @@ local function outlined(label, thickness)
 		"UIStroke",
 		"Outline",
 		label,
-		{ Color = OUTLINE, Thickness = thickness, LineJoinMode = Enum.LineJoinMode.Round }
+		{ Color = UiTheme.Outline, Thickness = thickness, LineJoinMode = Enum.LineJoinMode.Round }
 	)
 	return label
 end
@@ -203,11 +204,12 @@ local function pill(name, order, caption)
 			Size = UDim2.fromScale(0, 1),
 			AutomaticSize = Enum.AutomaticSize.X,
 			BackgroundTransparency = 1,
-			Font = Enum.Font.BuilderSansMedium,
+			Font = UiTheme.Font,
 			TextSize = 19,
 			TextColor3 = Color3.new(1, 1, 1),
 			Text = caption,
 		})
+		outlined(text, 1.5)
 	end
 	b.Activated:Connect(function()
 		PanelSwitch.Action(name)
@@ -226,9 +228,14 @@ pill("Market", 3, "Market")
 pill("Settings", 4)
 
 -- Live state -----------------------------------------------------------------------------------------------------
+-- Section 10: a red badge pops when its count changes (never every refresh).
 local function setBadge(b, count)
+	local text = tostring(count)
+	if count > 0 and b.Text ~= text then
+		UiMotion.Pop(b)
+	end
 	b.Visible = count > 0
-	b.Text = tostring(count)
+	b.Text = text
 end
 
 local function refresh()
@@ -237,6 +244,9 @@ local function refresh()
 	-- Same UTC day key the daily reward panel and DailyLoginService use.
 	local now = os.time()
 	local claimed = (player:GetAttribute("DailyLast") or -1) == math.floor(now / 86400)
+	if not claimed and not dailyBadge.Visible then
+		UiMotion.Pop(dailyBadge)
+	end
 	dailyBadge.Visible = not claimed
 	if claimed then
 		local left = 86400 - now % 86400
@@ -290,3 +300,4 @@ RunService.Heartbeat:Connect(function(dt)
 	end
 end)
 refresh()
+UiTheme.Apply(root)

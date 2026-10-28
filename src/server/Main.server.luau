@@ -58,6 +58,7 @@ for _, entry in entries do
 	table.insert(trackModels, entry.Model)
 end
 BiomeDressing.Prune(trackModels, { spawnArea }) -- scenery keeps clear of every road and the spawn area
+require(Shared.TrackPreviews).Bake(trackModels) -- checkpoint card previews (docs/CHECKPOINT_SPEC.md section 4)
 VfxArea.Build().Parent = Workspace -- the admin-only VFX showcase floor (/tp vfxarea)
 
 -- The lighting baseline goes in before WeatherService snapshots it (docs/RENDERING_SPEC.md)

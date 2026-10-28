@@ -49,3 +49,19 @@ presentation-only and must not overlap existing controls or panels.
 The map stays at its authored HUD position; the panel band does not reserve space for it and panels do not shift the
 map. A roll showcase temporarily suppresses the icon; closing it restores the active track with its continuing
 server-clock timer.
+
+## Look (owner 2026-10-27)
+
+- The route is drawn with `Path2D` lines, not rotated frames: a dark outline line under a coloured line. The part
+  already driven is violet and the part ahead cyan, split exactly at the player's position (not per segment).
+- The route sits in a `CanvasGroup` whose edges fade out (`UIGradient` transparency), so clipped road fades
+  instead of ending at a hard edge. Still no card, fill, shadow or border behind it.
+- `YOU` gets a small heading chevron pointing up (the map is heading-up). The NPC caption shows the NPC's short
+  name (`NpcConfig` label) instead of `NPC`; the test-facing child names stay `YouDot` / `NpcDot` / `Finish`.
+- START and the finish use larger markers (a flag tile for the finish), readable at phone size.
+- The status is a rounded pill coloured by state (green AHEAD, red BEHIND, white EVEN) followed by the time gap in
+  seconds when it is not EVEN (`AHEAD 1.2s`); the gap is the NPC's and the player's time to reach the same
+  progress, from the same displayed data (presentation only).
+- The map fades in when a track starts and out when it hides (instantly while motion is reduced).
+- Performance: the route lines are rebuilt only when the view moved or turned enough to matter, not every frame;
+  markers move every frame.

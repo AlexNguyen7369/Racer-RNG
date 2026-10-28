@@ -45,7 +45,9 @@ end
 
 function Tests.Geometry(map)
 	local result, flag = report("race_progress_geometry")
-	for _, name in { "Build", "Progress", "Point", "Normalized", "ViewPoint", "ClampViewPoint", "Status", "FormatTime" } do
+	for _, name in
+		{ "Build", "Progress", "Point", "Normalized", "ViewPoint", "ClampViewPoint", "Status", "FormatTime", "TimeAt" }
+	do
 		flag("api_" .. name, type(map[name]) == "function")
 	end
 	local function route(points)
@@ -265,6 +267,47 @@ function Tests.Geometry(map)
 		}
 	do
 		flag("time_exact_centiseconds_" .. index, map.FormatTime(case[1]) == case[2], map.FormatTime(case[1]))
+	end
+	-- TimeAt (spec "Look (owner 2026-10-27)": the AHEAD/BEHIND gap is the NPC's and the player's time to reach the
+	-- same progress): per-point times interpolated by 3D route length. `hill` is 50 + 150 studs; the times are
+	-- not proportional to distance, so index-based interpolation would give other values.
+	if type(map.TimeAt) == "function" then
+		local hillTimes = { 0, 10, 16 }
+		for index, case in
+			{
+				{ 0, 0 }, -- route point 1
+				{ 0.25, 10 }, -- route point 2 (50 of 200 studs)
+				{ 1, 16 }, -- route point 3
+				{ 0.125, 5 }, -- middle of segment 1
+				{ 0.625, 13 }, -- middle of segment 2 (125 studs)
+				{ 0.5, 12 }, -- 100 studs: a third into segment 2, not the halfway time 10 (point index)
+			}
+		do
+			local got = map.TimeAt(hill, hillTimes, case[1])
+			flag("time_at_length_interpolation_" .. index, near(got, case[2]), got)
+		end
+		flag("time_at_clamps_below_start", near(map.TimeAt(hill, hillTimes, -1), 0))
+		flag("time_at_clamps_past_finish", near(map.TimeAt(hill, hillTimes, 2), 16))
+		local lastTime, monotone = -math.huge, true
+		for step = -2, 22 do
+			local got = map.TimeAt(hill, hillTimes, step / 20)
+			if not finite(got) or got < lastTime - 1e-9 then
+				monotone = false
+			end
+			lastTime = got
+		end
+		flag("time_at_monotonic", monotone)
+		local okEmpty, empty = pcall(map.TimeAt, route({}), {}, 0.5)
+		flag("time_at_empty_route_zero", okEmpty and empty == 0, empty)
+		local okEmptyTimes, emptyTimes = pcall(map.TimeAt, hill, {}, 0.5)
+		flag("time_at_empty_times_zero", okEmptyTimes and emptyTimes == 0, emptyTimes)
+		for index, progress in { 0 / 0, math.huge, -math.huge } do
+			local ok, got = pcall(map.TimeAt, hill, hillTimes, progress)
+			flag("time_at_bad_progress_safe_" .. index, ok and finite(got) and got >= 0 and got <= 16, got)
+		end
+		flag("time_at_nil_progress_is_start", near(map.TimeAt(hill, hillTimes, nil), 0))
+		local okShort, short = pcall(map.TimeAt, hill, { 0, 10 }, 1)
+		flag("time_at_fewer_times_than_points_safe", okShort and finite(short) and short >= 0 and short <= 10, short)
 	end
 	return result
 end

@@ -407,7 +407,7 @@ function ShopMarket.Build(h)
 			if not preview then
 				table.insert(cardBad, "Featured/" .. car.Id .. ': no ViewportFrame car preview (or "?")')
 			end
-			for _, piece in { car.Name, car.Rarity, "x" .. tostring(car.SpeedMulti) } do
+			for _, piece in { car.Name, car.Rarity, HudFormat.Multi(car.SpeedMulti) } do
 				if not has(text, piece) then
 					table.insert(cardBad, ("Featured/%s: text has no %q"):format(car.Id, piece))
 				end
@@ -574,9 +574,10 @@ function ShopMarket.Build(h)
 		local wantPrice = { HudFormat.MoneyText(item.Price) }
 		local ok = has(priceText, wantPrice[1])
 		if kind == "Potion" then
-			local count = tostring(attr("Boost_" .. item.Id) or 0)
+			-- Backpack counts are shortened like every number ("x1.2k", docs/HUD_LAYOUT_SPEC.md section 8)
+			local count = HudFormat.Short(attr("Boost_" .. item.Id) or 0)
 			table.insert(wantPrice, "x" .. count)
-			ok = ok and string.match(priceText, "[xX](%d+)%s*$") == count
+			ok = ok and string.match(priceText, "[xX]([%d%.]+%a*)%s*$") == count
 		elseif attr("Own" .. kind .. "_" .. item.Id) == true then
 			wantPrice = { "Owned" }
 			ok = has(priceText, "Owned")

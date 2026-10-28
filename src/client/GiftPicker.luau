@@ -3,6 +3,10 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local MarketplaceService = game:GetService("MarketplaceService")
+local UiTheme = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("UiTheme"))
+local Palette = UiTheme.Palette
+local TILE_BLUE = Color3.fromRGB(47, 107, 255)
+local SELECTED = Color3.fromRGB(60, 220, 90)
 local Picker = {}
 local function make(class, name, parent, props)
 	local obj = Instance.new(class)
@@ -15,20 +19,32 @@ local function make(class, name, parent, props)
 end
 local function label(name, parent, props)
 	props.BackgroundTransparency = 1
-	props.Font = Enum.Font.GothamBold
-	props.TextColor3 = Color3.fromRGB(25, 26, 40)
+	props.Font = UiTheme.Font
+	props.TextColor3 = Palette.White
 	props.TextSize = 16
 	props.TextWrapped = true
-	return make("TextLabel", name, parent, props)
+	local object = make("TextLabel", name, parent, props)
+	UiTheme.Stroke(object, 1.5)
+	return object
+end
+-- Navy tile with a coloured glow edge and outlined white text (Backpack look, docs/HUD_LAYOUT_SPEC.md section 8).
+local function skin(button, glow)
+	UiTheme.Corner(button, "S")
+	UiTheme.Stroke(button, 1.5)
+	local edge = button:FindFirstChild("Edge") or make("UIStroke", "Edge", button, {})
+	edge.Color = glow
+	edge.Thickness = 2
+	edge.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	return button
 end
 function Picker.Create(panel, items, backdrop)
 	local root = make("Frame", "GiftPicker", panel, {
 		Position = UDim2.fromOffset(12, 76),
 		Size = UDim2.new(1, -24, 1, -88),
-		BackgroundColor3 = Color3.fromRGB(236, 236, 246),
 		Visible = false,
 		Active = true,
 	})
+	UiTheme.Plate(root, TILE_BLUE).BackgroundTransparency = 0
 	local summary =
 		label("Summary", root, { Position = UDim2.fromOffset(8, 0), Size = UDim2.new(1, -16, 0, 40), Text = "" })
 	local recipients = make("ScrollingFrame", "Recipients", root, {
@@ -50,22 +66,24 @@ function Picker.Create(panel, items, backdrop)
 		Position = UDim2.new(0, 8, 1, -40),
 		Size = UDim2.new(0.35, -12, 0, 34),
 		Text = "Back",
-		Font = Enum.Font.GothamBold,
+		Font = UiTheme.Font,
 		TextSize = 16,
-		BackgroundColor3 = Color3.fromRGB(200, 204, 220),
-		TextColor3 = Color3.fromRGB(25, 26, 40),
+		BackgroundColor3 = Palette.Muted,
+		TextColor3 = Palette.White,
 	})
+	skin(cancel, Palette.Row)
 	local confirm = make("TextButton", "Confirm", root, {
 		Position = UDim2.new(0.35, 4, 1, -40),
 		Size = UDim2.new(0.65, -12, 0, 34),
 		Text = "Confirm gift",
-		Font = Enum.Font.GothamBold,
+		Font = UiTheme.Font,
 		TextSize = 16,
-		BackgroundColor3 = Color3.fromRGB(104, 210, 124),
-		TextColor3 = Color3.fromRGB(25, 26, 40),
+		BackgroundColor3 = Palette.MoneyDeep,
+		TextColor3 = Palette.White,
 		Active = false,
 		AutoButtonColor = false,
 	})
+	skin(confirm, Palette.Money)
 	local product, selected, submitting, generation, price = nil, nil, false, 0, nil
 	local function update()
 		confirm.Active = selected ~= nil and not submitting
@@ -93,13 +111,13 @@ function Picker.Create(panel, items, backdrop)
 				local button = make("TextButton", tostring(recipient.UserId), recipients, {
 					Size = UDim2.new(1, -8, 0, 36),
 					LayoutOrder = count,
-					BackgroundColor3 = selected == recipient and Color3.fromRGB(160, 224, 180)
-						or Color3.fromRGB(211, 215, 232),
+					BackgroundColor3 = Palette.Row,
 					Text = recipient.DisplayName .. " (@" .. recipient.Name .. ")",
 					TextSize = 15,
-					Font = Enum.Font.GothamBold,
-					TextColor3 = Color3.fromRGB(25, 26, 40),
+					Font = UiTheme.Font,
+					TextColor3 = Palette.White,
 				})
+				skin(button, selected == recipient and SELECTED or TILE_BLUE)
 				button.Activated:Connect(function()
 					if submitting then
 						return
@@ -163,6 +181,7 @@ function Picker.Create(panel, items, backdrop)
 			end
 		end)
 	end)
+	UiTheme.Apply(root)
 	backdrop:GetPropertyChangedSignal("Visible"):Connect(function()
 		if not backdrop.Visible then
 			close()

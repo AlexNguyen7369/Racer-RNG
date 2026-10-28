@@ -5,6 +5,7 @@
 local ContextActionService = game:GetService("ContextActionService")
 local GuiService = game:GetService("GuiService")
 local UserInputService = game:GetService("UserInputService")
+local UiMotion = require(script.Parent:WaitForChild("UiMotion"))
 
 local PanelSwitch = {}
 
@@ -117,6 +118,68 @@ local function takeFocus(panel)
 	end)
 end
 
+-- Open motion (docs/HUD_LAYOUT_SPEC.md section 10): scale from 92% to 100%; a panel with a layout UIScale (Racer
+-- panels) slides 12 px up instead. Closing is instant: a hide cancels the motion and puts the panel back home.
+local OPEN_INFO = TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+local motions = {} -- target -> { Tween, Home (position or nil) }
+
+-- A registered full-screen backdrop animates the PanelFrame card inside it, not the whole screen.
+local function motionTarget(panel)
+	if panel:GetAttribute("PanelFrame") then
+		return panel
+	end
+	for _, inst in panel:GetDescendants() do
+		if inst:IsA("GuiObject") and inst:GetAttribute("PanelFrame") then
+			return inst
+		end
+	end
+	return panel
+end
+
+local function stopMotion(target)
+	local motion = motions[target]
+	if not motion then
+		return
+	end
+	motions[target] = nil
+	motion.Tween:Cancel()
+	if motion.Home then
+		target.Position = motion.Home
+	else
+		motion.Scale.Scale = 1
+	end
+end
+
+local function openMotion(panel)
+	local target = motionTarget(panel)
+	stopMotion(target)
+	if UiMotion.Reduced() then
+		return
+	end
+	local scale = target:FindFirstChildOfClass("UIScale")
+	local motion
+	if scale and scale.Name ~= "MotionScale" then
+		local home = target.Position
+		target.Position = home + UDim2.fromOffset(0, 12)
+		motion = { Tween = UiMotion.Create(target, OPEN_INFO, { Position = home }), Home = home }
+	else
+		if not scale then
+			scale = Instance.new("UIScale")
+			scale.Name = "MotionScale"
+			scale.Parent = target
+		end
+		scale.Scale = 0.92
+		motion = { Tween = UiMotion.Create(scale, OPEN_INFO, { Scale = 1 }), Scale = scale }
+	end
+	motions[target] = motion
+	motion.Tween.Completed:Connect(function()
+		if motions[target] == motion then
+			motions[target] = nil
+		end
+	end)
+	motion.Tween:Play()
+end
+
 function PanelSwitch.Register(name, panel)
 	panels[name] = panel
 	wanted[name] = panel.Visible
@@ -128,9 +191,11 @@ function PanelSwitch.Register(name, panel)
 			return
 		end
 		if panel.Visible then
+			openMotion(panel)
 			takeFocus(panel)
 		else
 			wanted[name] = false
+			stopMotion(motionTarget(panel))
 			releaseFocus(panel)
 		end
 		notify()

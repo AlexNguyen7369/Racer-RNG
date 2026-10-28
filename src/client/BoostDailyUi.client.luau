@@ -11,6 +11,9 @@ local HttpService = game:GetService("HttpService")
 local PanelSwitch = require(script.Parent:WaitForChild("PanelSwitch"))
 local HudIcons = require(script.Parent.RollToast.Ui.HudIcons)
 local PotionIcons = require(script.Parent.RollToast.Ui.PotionIcons)
+local UiTheme = require(ReplicatedStorage.Shared:WaitForChild("UiTheme"))
+local HudFormat = require(ReplicatedStorage.Shared:WaitForChild("HudFormat"))
+local UiMotion = require(script.Parent:WaitForChild("UiMotion"))
 
 local screen = Instance.new("ScreenGui")
 screen.Name = "DailyBoosts"
@@ -22,7 +25,8 @@ screen.Parent = gui
 
 -- Backpack / Market vocabulary (HUD_LAYOUT_SPEC section 3): dark body, navy tiles with a blue glow border,
 -- white border on the selection, Fredoka text with a dark outline.
-local OUTLINE = Color3.fromRGB(17, 19, 31)
+local OUTLINE = UiTheme.Outline
+local PALETTE = UiTheme.Palette
 local BODY = Color3.fromRGB(32, 27, 36)
 local TILE = Color3.fromRGB(14, 24, 52)
 local TILE_BLUE = Color3.fromRGB(47, 107, 255)
@@ -63,7 +67,12 @@ local function button(name, parent, position, size, text)
 		instance,
 		{ Color = OUTLINE, Thickness = 3, ApplyStrokeMode = Enum.ApplyStrokeMode.Border }
 	)
+	UiTheme.Gradient(instance, Color3.new(1, 1, 1), Color3.fromRGB(185, 185, 185)) -- depth on whatever colour it shows
 	return instance
+end
+
+local function cascade(rows, edgeName)
+	UiMotion.Cascade(rows, edgeName)
 end
 
 local backdrop = make("Frame", "ModalBackdrop", screen, {
@@ -108,7 +117,7 @@ local title = make("TextLabel", "Title", modal, {
 	Size = UDim2.new(1, -150, 0, 48),
 	BackgroundTransparency = 1,
 	TextColor3 = Color3.new(1, 1, 1),
-	Font = Enum.Font.GothamBlack,
+	Font = UiTheme.Font,
 	TextSize = 30,
 	TextStrokeColor3 = Color3.fromRGB(35, 0, 0),
 	TextStrokeTransparency = 0,
@@ -208,7 +217,7 @@ local progressText = make("TextLabel", "Progress", progressTrack, {
 	BackgroundTransparency = 1,
 	Text = "0 / 0",
 	TextColor3 = Color3.new(1, 1, 1),
-	Font = Enum.Font.GothamBold,
+	Font = UiTheme.Font,
 	TextSize = 13,
 })
 local questReward =
@@ -220,12 +229,26 @@ local status = make("TextLabel", "Status", screen, {
 	Size = UDim2.fromOffset(160, 42),
 	BackgroundTransparency = 1,
 	TextColor3 = Color3.new(1, 1, 1),
-	Font = Enum.Font.GothamBold,
+	Font = UiTheme.Font,
 	TextSize = 13,
 	TextWrapped = true,
 	TextXAlignment = Enum.TextXAlignment.Right,
 	Text = "",
 })
+local statusHome = status.Position
+-- A claim answer slides in from the right edge.
+local function notify(text)
+	status.Text = text
+	status.Position = statusHome
+	UiMotion.SlideIn(status, Vector2.new(40, 0))
+end
+local stopClaimPulse = nil -- the Daily claim button glows while it can be claimed
+local function stopPulse()
+	if stopClaimPulse then
+		stopClaimPulse()
+		stopClaimPulse = nil
+	end
+end
 
 local view = nil -- "Daily" or "Quests": which content the shared modal shows
 local questCategory = "Daily"
@@ -261,9 +284,15 @@ local function refreshChrome()
 end
 
 PanelSwitch.OnChange(refreshChrome)
-backdrop:GetPropertyChangedSignal("Visible"):Connect(refreshChrome)
+backdrop:GetPropertyChangedSignal("Visible"):Connect(function()
+	if not backdrop.Visible then
+		stopPulse() -- no loop while hidden
+	end
+	refreshChrome()
+end)
 
 local function clearContent()
+	stopPulse()
 	for _, child in content:GetChildren() do
 		if child:IsA("GuiObject") or child:IsA("UIListLayout") then
 			child:Destroy()
@@ -285,10 +314,13 @@ local function dailyCard(parent, day, reward, done, featured, position, size)
 	local card = make("Frame", "Day" .. day, parent, {
 		Position = position,
 		Size = size,
-		BackgroundColor3 = Color3.fromRGB(12, 15, 22),
+		BackgroundColor3 = done and Color3.fromRGB(12, 15, 22) or Color3.new(1, 1, 1),
 		BorderSizePixel = 0,
 	})
 	rounded(card, 12)
+	if not done then -- completed cards stay dark and flat
+		UiTheme.Gradient(card, PALETTE.Row, PALETTE.PanelDeep)
+	end
 	local edge = Instance.new("UIStroke")
 	edge.Color = done and Color3.fromRGB(43, 190, 73)
 		or (featured and Color3.fromRGB(184, 85, 255) or Color3.fromRGB(45, 122, 220))
@@ -300,7 +332,7 @@ local function dailyCard(parent, day, reward, done, featured, position, size)
 		BackgroundTransparency = 1,
 		Text = "DAY " .. day,
 		TextColor3 = done and Color3.fromRGB(120, 120, 120) or Color3.new(1, 1, 1),
-		Font = Enum.Font.GothamBlack,
+		Font = UiTheme.Font,
 		TextSize = featured and 24 or 17,
 		TextStrokeTransparency = 0,
 		TextStrokeColor3 = Color3.new(0, 0, 0),
@@ -315,7 +347,7 @@ local function dailyCard(parent, day, reward, done, featured, position, size)
 		ImageTransparency = done and 0.55 or 0,
 	})
 	local detail = reward.GuaranteedRare and "GUARANTEED RARE"
-		or string.format("x%d %s POTION", reward.BoostCount or 1, (reward.Boost or ""):upper())
+		or string.format("x%s %s POTION", HudFormat.Short(reward.BoostCount or 1), (reward.Boost or ""):upper())
 	make("TextLabel", "RewardText", card, {
 		AnchorPoint = Vector2.new(0.5, 1),
 		Position = UDim2.new(0.5, 0, 1, -8),
@@ -323,7 +355,7 @@ local function dailyCard(parent, day, reward, done, featured, position, size)
 		BackgroundTransparency = 1,
 		Text = detail,
 		TextColor3 = done and Color3.fromRGB(115, 115, 115) or Color3.fromRGB(235, 240, 255),
-		Font = Enum.Font.GothamBold,
+		Font = UiTheme.Font,
 		TextSize = featured and 15 or 11,
 		TextScaled = false,
 	})
@@ -334,7 +366,7 @@ local function dailyCard(parent, day, reward, done, featured, position, size)
 		BackgroundTransparency = 1,
 		Text = done and "✓" or "",
 		TextColor3 = Color3.fromRGB(50, 210, 75),
-		Font = Enum.Font.GothamBlack,
+		Font = UiTheme.Font,
 		TextScaled = true,
 		TextStrokeTransparency = 0,
 		TextStrokeColor3 = Color3.fromRGB(0, 30, 0),
@@ -343,6 +375,7 @@ local function dailyCard(parent, day, reward, done, featured, position, size)
 end
 
 local function showDaily()
+	local opening = not backdrop.Visible or view ~= "Daily"
 	view = "Daily"
 	panelFrame:SetTheme("Daily", nil, HudIcons.Daily.Image)
 	if not backdrop.Visible then
@@ -396,11 +429,16 @@ local function showDaily()
 			dailyCard(area, day, reward, done, true, UDim2.new(0.75, 8, 0, 0), UDim2.new(0.245, -8, 1, 0))
 		end
 	end
+	if opening then -- cards rise in, each a little later (section 10)
+		for day = 1, #dailyConfig.Rewards do
+			UiMotion.SlideIn(area["Day" .. day], Vector2.new(0, 24), 0.22 + 0.03 * day)
+		end
+	end
 	make("TextLabel", "NextReward", content, {
 		Size = UDim2.new(1, -8, 0, 34),
 		BackgroundTransparency = 1,
 		TextColor3 = Color3.fromRGB(184, 255, 28),
-		Font = Enum.Font.GothamBlack,
+		Font = UiTheme.Font,
 		TextSize = phone and 16 or 21,
 		TextStrokeTransparency = 0,
 		TextStrokeColor3 = Color3.fromRGB(30, 45, 0),
@@ -416,6 +454,11 @@ local function showDaily()
 	claim.LayoutOrder = 20
 	claim.Active = not claimedToday
 	claim.AutoButtonColor = claim.Active
+	if claim.Active then
+		claim.BackgroundColor3 = GREEN
+		claim.Edge.Color = PALETTE.Speed
+		stopClaimPulse = UiMotion.Pulse(claim.Edge, { Transparency = 0.75 }, 0.7)
+	end
 	claim.Activated:Connect(function()
 		if not claim.Active then
 			return
@@ -424,10 +467,10 @@ local function showDaily()
 			return ReplicatedStorage.Remotes:WaitForChild("DailyClaim"):InvokeServer()
 		end)
 		if ok and success then
-			status.Text = "Claimed Day " .. tostring(reward.Day)
+			notify("Claimed Day " .. tostring(reward.Day))
 			showDaily()
 		else
-			status.Text = ok and tostring(reward) or "Connection error"
+			notify(ok and tostring(reward) or "Connection error")
 		end
 	end)
 end
@@ -452,15 +495,16 @@ local function selectQuest(quest, current, weekly)
 	questGoal.Text = quest.Name
 	progressFill.Size = UDim2.fromScale(math.clamp(current / math.max(1, quest.Target), 0, 1), 1)
 	progressText.Text = string.format(
-		"%d / %d  (%d%%)",
-		current,
-		quest.Target,
+		"%s / %s  (%d%%)",
+		HudFormat.Short(current),
+		HudFormat.Short(quest.Target),
 		math.floor(current / math.max(1, quest.Target) * 100 + 0.5)
 	)
-	questReward.Text = string.format("REWARD  •  %dx %s", quest.RewardCount or 1, quest.Reward)
+	questReward.Text = string.format("REWARD  •  x%s %s", HudFormat.Short(quest.RewardCount or 1), quest.Reward)
 end
 
 local function showQuests()
+	local opening = not backdrop.Visible or view ~= "Quests"
 	view = "Quests"
 	panelFrame:SetTheme("Quests", nil, HudIcons.Quests.Image)
 	if not backdrop.Visible then
@@ -482,13 +526,16 @@ local function showQuests()
 	local progress = decode(weekly and "QuestWeeklyProgress" or "QuestDailyProgress")
 	local claimed = decode(weekly and "QuestWeeklyClaimed" or "QuestDailyClaimed")
 	local selectedQuest, selectedCurrent = nil, 0
+	local rows = {}
 	for _, quest in quests do
 		local current = math.min(quest.Target, progress[quest.Id] or 0)
 		local done = claimed[quest.Id] == 1
 		local row = button(quest.Id, content, UDim2.new(), UDim2.new(1, -8, 0, 72), "")
 		row.AutoButtonColor = false
-		row.BackgroundColor3 = TILE
+		row.BackgroundColor3 = Color3.new(1, 1, 1)
+		UiTheme.Gradient(row, PALETTE.Row, PALETTE.PanelDeep)
 		row.Edge:Destroy()
+		table.insert(rows, row)
 		rounded(row, 12)
 		local rowEdge = Instance.new("UIStroke")
 		rowEdge.Name = "Selection"
@@ -510,7 +557,12 @@ local function showQuests()
 			Position = UDim2.fromOffset(12, 38),
 			Size = UDim2.new(1, -124, 0, 20),
 			BackgroundTransparency = 1,
-			Text = string.format("%d / %d  •  %s", current, quest.Target, quest.Reward),
+			Text = string.format(
+				"%s / %s  •  %s",
+				HudFormat.Short(current),
+				HudFormat.Short(quest.Target),
+				quest.Reward
+			),
 			Font = Enum.Font.FredokaOne,
 			TextSize = 15,
 			TextColor3 = Color3.fromRGB(210, 220, 240),
@@ -540,13 +592,15 @@ local function showQuests()
 			local ok, success, message = pcall(function()
 				return ReplicatedStorage.Remotes.QuestClaim:InvokeServer(weekly, quest.Id)
 			end)
-			status.Text = ok and (success and ("Claimed " .. tostring(message)) or tostring(message))
-				or "Connection error"
+			notify(ok and (success and ("Claimed " .. tostring(message)) or tostring(message)) or "Connection error")
 			showQuests()
 		end)
 	end
 	if selectedQuest then
 		selectQuest(selectedQuest, selectedCurrent, weekly)
+	end
+	if opening then
+		cascade(rows, "Selection")
 	end
 end
 
@@ -613,3 +667,4 @@ task.spawn(function()
 end)
 
 -- Opens in the shared band between the HUD entries (docs/HUD_LAYOUT_SPEC.md section 6).
+UiTheme.Apply(screen)
