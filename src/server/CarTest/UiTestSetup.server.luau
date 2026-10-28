@@ -6,7 +6,7 @@
 -- Player, then ReplicatedStorage UiTestSetupDone = the same string. On error UiTestSetupError =
 -- "<id>:<nonce>:<message>" is set first, and Done is still set.
 --
--- Ids: snapshot, restore, spy, index_states, daily_unclaimed, daily_claimed, checkpoint_locked, checkpoint_open, stat_points, no_stat_points, auto_racing, on_foot, lose_event, turbo_next,
+-- Ids: snapshot, restore, spy, index_states, daily_unclaimed, daily_claimed, checkpoint_locked, checkpoint_open, quest_incomplete, quest_complete, stat_points, no_stat_points, auto_racing, on_foot, lose_event, turbo_next,
 -- emphasized_next, auto_roll_on, rebirth_eligible, rebirth_not_eligible, duel_* (every id: UiSpec.ServerSetup), roll_odds_*, weather_* (rain, night, gold, aurora, clear, clear_event, rain_roll).
 -- (Ported from the ServerSetup snippets in Client/UiTest/UiSpec.luau.)
 
@@ -31,6 +31,7 @@ local spied = {} -- [RemoteEvent] = connection (never connect twice)
 local functionSpies = {} -- original RemoteFunction -> { name, proxy }; original callback is untouched.
 local progressionSnapshots = {}
 local weatherSnapshot = nil
+local questSnapshots = {} -- [Player] = QuestService.Snapshot before a quest_* fixture
 
 local function stat(player, name)
 	if name == "Speed" then
@@ -170,6 +171,10 @@ function setups.restore(player)
 	if snap.upgrades then
 		-- The baseline taken before any fixture (TurboCount after turbo_next included)
 		live("UpgradeService").Apply(player, snap.upgrades)
+	end
+	if questSnapshots[player] then
+		live("QuestService").Apply(player, questSnapshots[player])
+		questSnapshots[player] = nil
 	end
 	if weatherSnapshot then
 		for name, entry in weatherSnapshot do
@@ -408,6 +413,42 @@ end
 
 function setups.checkpoint_open(player)
 	checkpointFixture(player, 2)
+end
+
+-- Quest fixtures (UiSpec quest_claim_*, docs/QUESTS_SPEC.md): today's daily_races quest unclaimed with progress 0
+-- (incomplete: Claim disabled) or at its Target (complete: Claim enabled). Unsaved; 'restore' applies the
+-- QuestService snapshot taken before the first quest fixture.
+local function questFixture(player, complete)
+	assert(
+		snapshots[player],
+		"snapshot required before quest fixtures ('restore' consumes it: take a fresh 'snapshot')"
+	)
+	local QuestService = live("QuestService")
+	local saved = QuestService.Snapshot(player)
+	if not questSnapshots[player] then
+		questSnapshots[player] = saved
+	end
+	local target
+	for _, quest in require(Shared.QuestConfig).Daily do
+		if quest.Id == "daily_races" then
+			target = quest.Target
+		end
+	end
+	assert(target, "QuestConfig.Daily has no daily_races")
+	local fixture = table.clone(saved)
+	fixture.QuestDaily = table.clone(saved.QuestDaily)
+	fixture.QuestDailyClaimed = table.clone(saved.QuestDailyClaimed)
+	fixture.QuestDaily.daily_races = complete and target or 0
+	fixture.QuestDailyClaimed.daily_races = nil
+	QuestService.Apply(player, fixture)
+end
+
+function setups.quest_incomplete(player)
+	questFixture(player, false)
+end
+
+function setups.quest_complete(player)
+	questFixture(player, true)
 end
 
 function setups.offline_welcome(player)
