@@ -1972,6 +1972,282 @@
       "fixedAt": "2026-10-28T09:21:06-07:00",
       "fixedBy": "Alex Nguyen",
       "fixNote": "flake: track:Space 1/0 alone and in full run 53/0"
+    },
+    {
+      "id": "17636d35",
+      "name": "Roll toast stays over open panels",
+      "kind": "failure",
+      "status": "open",
+      "file": "src/client/RollToast/init.client.luau",
+      "line": 695,
+      "endLine": 695,
+      "snippet": {
+        "from": 691,
+        "lines": [
+          "",
+          "-- The compact roll is the always-available top-centre entry point. Clicking it",
+          "-- opens the enlarged showcase, where the AUTO option lives. It remains visible",
+          "-- while a panel is open so HUD entry points never disappear on click.",
+          "local function refreshToast()",
+          "\tlocal playing = phase ~= \"Idle\"",
+          "\tlocal show = not isEnlarged() and (playing or not autoRollOn())",
+          "\tlocal hud = playerGui:FindFirstChild(\"RacerHud\")",
+          "\tif hud and not isEnlarged() then"
+        ]
+      },
+      "summary": "RollToast/Toast stays visible over open panels (Rebirth, Settings, Stats, Index, Workshop, Backpack, Duel) and eats their clicks (e.g. Workshop Slot1/Clear at 559,62). Must hide while a panel is open.",
+      "error": "",
+      "foundBy": "ui-tester",
+      "foundAt": "2026-10-28T10:05:44-07:00",
+      "loggedBy": "Alex Nguyen"
+    },
+    {
+      "id": "206b3f65",
+      "name": "Index HUD tile does not toggle RacerIndex",
+      "kind": "fault",
+      "status": "open",
+      "file": "src/client/PanelSwitch.luau",
+      "line": 232,
+      "endLine": 232,
+      "snippet": {
+        "from": 228,
+        "lines": [
+          "function PanelSwitch.SetAction(name, fn)",
+          "\tactions[name] = fn",
+          "end",
+          "",
+          "function PanelSwitch.Action(name)",
+          "\tif actions[name] then",
+          "\t\tactions[name]()",
+          "\telse",
+          "\t\tPanelSwitch.Toggle(name)"
+        ]
+      },
+      "summary": "HudChrome/Grid/Index never toggles RacerIndex; PanelSwitch.Action(\"Index\") does nothing. Players cannot open the Index from the HUD.",
+      "error": "",
+      "foundBy": "ui-tester",
+      "foundAt": "2026-10-28T10:05:44-07:00",
+      "loggedBy": "Alex Nguyen"
+    },
+    {
+      "id": "2b3981d2",
+      "name": "Market and Shop do not close on outside click",
+      "kind": "failure",
+      "status": "open",
+      "file": "src/client/MarketUi.client.luau",
+      "line": 66,
+      "endLine": 66,
+      "snippet": {
+        "from": 62,
+        "lines": [
+          "\t\"MarketUi\",",
+          "\tgui,",
+          "\t{ ResetOnSpawn = false, IgnoreGuiInset = true, DisplayOrder = 4, ZIndexBehavior = Enum.ZIndexBehavior.Sibling }",
+          ")",
+          "local backdrop = make(\"Frame\", \"Backdrop\", root, {",
+          "\tSize = UDim2.fromScale(1, 1),",
+          "\tBackgroundColor3 = Color3.fromRGB(8, 10, 22),",
+          "\tBackgroundTransparency = 1, -- the world dim is HudChrome/PanelDim, below the HUD",
+          "\tVisible = false,"
+        ]
+      },
+      "summary": "Market and Shop panels (Backdrop in MarketUi.client.luau:66, ShopUi.client.luau:107) stay open on a click outside them.",
+      "error": "",
+      "foundBy": "ui-tester",
+      "foundAt": "2026-10-28T10:05:44-07:00",
+      "loggedBy": "Alex Nguyen"
+    },
+    {
+      "id": "749ec010",
+      "name": "Upgrades panel covers its own HUD toggle",
+      "kind": "failure",
+      "status": "open",
+      "file": "src/client/ProgressionUi.client.luau",
+      "line": 268,
+      "endLine": 268,
+      "snippet": {
+        "from": 264,
+        "lines": [
+          "\tpotionStatus.Visible = activeCount > 0 and hud.Enabled",
+          "end",
+          "local treeView = require(script.Parent.RollToast.Ui.UpgradeTreeView).Create(gui, Tree, Format)",
+          "local treePanel, feedback, tiles = treeView.Panel, treeView.Feedback, treeView.Tiles",
+          "Switch.Register(\"Upgrades\", treePanel)",
+          "panels.Upgrades = treePanel",
+          "for _, close in { treeView.Refs.Close, treeView.Refs.Exit } do",
+          "\tclose.Activated:Connect(function()",
+          "\t\tSwitch.Close(\"Upgrades\")"
+        ]
+      },
+      "summary": "Upgrades panel covers toggle_upgrades_closed and the HUD tiles while open; player cannot close it from its button.",
+      "error": "",
+      "foundBy": "ui-tester",
+      "foundAt": "2026-10-28T10:05:44-07:00",
+      "loggedBy": "Alex Nguyen"
+    },
+    {
+      "id": "b53e7fa8",
+      "name": "Market phone layout and empty Action label",
+      "kind": "failure",
+      "status": "open",
+      "file": "src/client/MarketUi.client.luau",
+      "line": 378,
+      "endLine": 378,
+      "snippet": {
+        "from": 374,
+        "lines": [
+          "\t\t\t\tFormat.Short(player:GetAttribute(\"Boost_\" .. item.Id) or 0)",
+          "\t\t\t)",
+          "\t\tor (isOwned and \"Owned\" or Format.MoneyText(item.Price))",
+          "\tdescription.Text = item.Description",
+          "\tactionLabel.Text = kind == \"Potion\" and \"BUY\" or (equipped and \"EQUIPPED\" or isOwned and \"EQUIP\" or \"BUY\")",
+          "\taction.BackgroundColor3 = equipped and Color3.fromRGB(55, 110, 180) or TILE_GREEN",
+          "\tpreview(item, kind)",
+          "end",
+          ""
+        ]
+      },
+      "summary": "Phone: tabs fall outside Tabs, detail parts overlap, Action button shows empty text instead of EQUIP; trail tab grid shows no trails.",
+      "error": "",
+      "foundBy": "ui-tester",
+      "foundAt": "2026-10-28T10:05:45-07:00",
+      "loggedBy": "Alex Nguyen"
+    },
+    {
+      "id": "93e8fade",
+      "name": "Shop buttons overlap, panel outside band on phone",
+      "kind": "failure",
+      "status": "open",
+      "file": "src/client/ShopUi.client.luau",
+      "line": 560,
+      "endLine": 560,
+      "snippet": {
+        "from": 556,
+        "lines": [
+          "input.TextColor3 = Color3.new(1, 1, 1)",
+          "corner(input, 10)",
+          "stroke(input, 3)",
+          "make(\"UIPadding\", \"Padding\", input, { PaddingTop = UDim.new(0.18, 0), PaddingBottom = UDim.new(0.18, 0) })",
+          "local redeem = make(\"TextButton\", \"Redeem\", codeBox, {",
+          "\tAnchorPoint = Vector2.new(0.5, 0),",
+          "\tPosition = UDim2.fromScale(0.5, 0.6),",
+          "\tSize = UDim2.fromScale(0.26, 0.2),",
+          "\tText = \"\","
+        ]
+      },
+      "summary": "Shop buttons overlap on desktop, panel sits outside PanelBand on phone, shop_redeem status shows money.",
+      "error": "",
+      "foundBy": "ui-tester",
+      "foundAt": "2026-10-28T10:05:45-07:00",
+      "loggedBy": "Alex Nguyen"
+    },
+    {
+      "id": "0fe7d49b",
+      "name": "Pedestal BillboardGui and ProximityPrompt nil",
+      "kind": "failure",
+      "status": "open",
+      "file": "src/client/BestRollView.client.luau",
+      "line": 1,
+      "endLine": 1,
+      "snippet": {
+        "from": 1,
+        "lines": [
+          "--!nonstrict",
+          "-- Turns the cars on the spawn-area showcase pedestals (docs/LEADERBOARD_SPEC.md 3a, docs/GAMEPASS_CARS_SPEC.md 5),",
+          "-- bobs the ones marked Hover, flaps parts named Wing_L / Wing_R and spins / bobs Orb parts (Shared/OrbMotion). Display only: the servers pick the cars. The",
+          "-- motion is local, so nothing replicates per frame.",
+          ""
+        ]
+      },
+      "summary": "ui_billboards: best-roll and gamepass pedestal BillboardGui and ProximityPrompt are nil; pedestals show no label or prompt.",
+      "error": "",
+      "foundBy": "ui-tester",
+      "foundAt": "2026-10-28T10:05:45-07:00",
+      "loggedBy": "Alex Nguyen"
+    },
+    {
+      "id": "281298b2",
+      "name": "HUD polish: MoneyValue, fonts, Stats label, Speed float, weather, Consumables",
+      "kind": "failure",
+      "status": "open",
+      "file": "src/client/RollToast/Ui/RacerHud.luau",
+      "line": 832,
+      "endLine": 832,
+      "snippet": {
+        "from": 828,
+        "lines": [
+          "\t\t\tVisible = true,",
+          "\t\t},",
+          "\t})",
+          "\tlocal v21 = new(\"Frame\", {",
+          "\t\tName = \"MoneyPlate\",",
+          "\t\tAnchorPoint = Vector2.new(0, 0),",
+          "\t\tPosition = UDim2.fromOffset(94, 22),",
+          "\t\tSize = UDim2.fromOffset(188, 92),",
+          "\t\tVisible = true,"
+        ]
+      },
+      "summary": "MoneyValue outside MoneyPlate; theme fonts LegacyArial not Fredoka; Stats tile reads 'Stats 37'; Speed float +9 vs +0.5; weather icon not left of Market on phone; Index shows ConsumablesTab (RacerIndex.luau:279).",
+      "error": "",
+      "foundBy": "ui-tester",
+      "foundAt": "2026-10-28T10:05:45-07:00",
+      "loggedBy": "Alex Nguyen"
+    },
+    {
+      "id": "787427b0",
+      "name": "RollShowcase Viewport outside card, backdrop miss",
+      "kind": "failure",
+      "status": "open",
+      "file": "src/client/RollToast/init.client.luau",
+      "line": 436,
+      "endLine": 436,
+      "snippet": {
+        "from": 432,
+        "lines": [
+          "\t\t\tZIndex = z + 5,",
+          "\t\t}, smoke)",
+          "\t\tround(puff, UDim.new(0.5, 0))",
+          "\tend",
+          "\tlocal viewport = make(\"ViewportFrame\", {",
+          "\t\tName = \"Viewport\",",
+          "\t\tSize = artSize,",
+          "\t\tPosition = UDim2.fromOffset(0, 0),",
+          "\t\tBackgroundTransparency = 1,"
+        ]
+      },
+      "summary": "RollShowcase card Viewport sits outside the card; clicking the backdrop over the Index button does not close the showcase.",
+      "error": "",
+      "foundBy": "ui-tester",
+      "foundAt": "2026-10-28T10:05:45-07:00",
+      "loggedBy": "Alex Nguyen"
+    },
+    {
+      "id": "5e217ee6",
+      "name": "Duel invite panel left open",
+      "kind": "failure",
+      "status": "open",
+      "file": "src/client/DuelUi.client.luau",
+      "line": 114,
+      "endLine": 114,
+      "snippet": {
+        "from": 110,
+        "lines": [
+          "\tCellPadding = UDim2.fromOffset(8, 8),",
+          "\tSortOrder = Enum.SortOrder.Name,",
+          "})",
+          "",
+          "local invitePanel = panel(\"InvitePanel\", \"DUEL REQUEST\")",
+          "local inviteText = make(\"TextLabel\", \"Text\", invitePanel, {",
+          "\tPosition = UDim2.fromOffset(18, 58),",
+          "\tSize = UDim2.new(1, -36, 0, 42),",
+          "\tText = \"A racer challenges you.\","
+        ]
+      },
+      "summary": "DuelUi InvitePanel stays open at the end of the UI run; blocks other UI.",
+      "error": "",
+      "foundBy": "ui-tester",
+      "foundAt": "2026-10-28T10:05:45-07:00",
+      "loggedBy": "Alex Nguyen"
     }
   ]
 }
