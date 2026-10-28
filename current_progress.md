@@ -68,8 +68,9 @@
 65. 2026-10-27 — Alex Nguyen — Verified car redesign v3 in Studio: full harness 50/3 with every car and Singularity orb scenario green (the 3 failures come from the uncommitted giant-scenery work, bug b99e2c0b logged) (c390103).
 66. 2026-10-27 — Alex Nguyen — Merged car redesign v3 (toy racer skins for all 111 cars and the Singularity orb) into main (6ad9717).
 67. 2026-10-27 — Alex Nguyen — Committed and pushed the speed gain rebalance (aura and trail multiply all Speed gain, Frost/Prism trails), the additive x5-per-rebirth multi capped at x100 with a Rebirth leaderstat, giant roadside scenery in every biome and the Codex workflow doc (fc97c34).
+68. 2026-10-27 — Alex Nguyen — Merged the UI visual pass (theme, counters, speedometer, loser recap, map) and main's repo slim into the car redesign branch (4997ba8) and served it on Rojo port 34872.
 
 ## What's next
-**Fix the 3 harness failures from the giant-scenery work (the giant oak overlap bug in the Bugs tab), then rerun the full suite to fail=0.**
+**Run the full harness and UI tests on the merged branch (4997ba8), then fix the giant-scenery failures (giant oak overlap bug) until the suite is fail=0.**
 
-**Why this is next:** the giant scenery just landed on this branch and the suite is not green, so it cannot merge to main and every later track or biome change builds on that scenery.
+**Why this is next:** the merge combines the UI visual pass with the speed gain rebalance and giant scenery, and none of that combination has run live yet; the branch cannot merge to main until it is green.
