@@ -9,7 +9,7 @@ local RaceConfig = {}
 RaceConfig.BASE_SPEED = 10 -- cruise speed at Speed stat 0 (owner 2026-10-21: lowered from 12)
 RaceConfig.MAX_SPEED = 88 -- cruise reference at the point where post-100K diminishing returns begin; owner 2026-10-22 early-game lift
 RaceConfig.HALF_STAT = 10000 -- owner 2026-10-27 (was 100K): early Speed moves the car 10x more; diminishing returns begin here
-RaceConfig.MAX_CRUISE = 800 -- hard cruise cap, studs/s (owner 2026-10-27; speed_probe green to 1000, minus 10 %, max 800)
+RaceConfig.MAX_CRUISE = 1250 -- hard cruise cap, studs/s (owner 2026-10-28: speed_probe green on every track to 1250 after the damper + rail-window fixes; was 800)
 RaceConfig.MAX_CRUISE_CAR_MULTI = 4 -- damped car cruise multi cap (owner 2026-10-28, placeholder; was 1.5)
 RaceConfig.ITEM_CRUISE_DAMP = 0.5 -- aura / trail cruise multi = 1 + this x log10(item multi) (owner 2026-10-28, placeholder)
 RaceConfig.MAX_CRUISE_TOTAL_MULTI = 4 -- car x aura x trail cruise multi cap (owner 2026-10-28, placeholder)

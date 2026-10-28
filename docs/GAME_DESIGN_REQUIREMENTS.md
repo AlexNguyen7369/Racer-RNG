@@ -245,7 +245,7 @@ Idle Vehicle Simulator — Game Design Requirements
        equipped trail each also add a damped cruise multi, 1 + 0.5 x log10(that item's multi from MarketConfig), min 1
        (the 0.5 is a placeholder, RaceConfig.ITEM_CRUISE_DAMP), so equipping one makes the car faster at once.
        (3) Total cruise multi = car x aura x trail, capped at RaceConfig.MAX_CRUISE_TOTAL_MULTI = 4 (placeholder);
-       it multiplies the cruise studs/s, which stay capped at RaceConfig.MAX_CRUISE (800). Gain rules are unchanged:
+       it multiplies the cruise studs/s, which stay capped at RaceConfig.MAX_CRUISE (1250 since 2026-10-28). Gain rules are unchanged:
        the aura and trail still multiply Speed gain, the car never does.
        Owner decision, 2026-10-22 (speed feel): make the first 100K Speed easier to gain and begin
        the stronger diminishing-return tail only after 100K. Placeholders MAX_SPEED 88 and HALF_STAT 100K.
@@ -566,7 +566,8 @@ Idle Vehicle Simulator — Game Design Requirements
   Owner decision, 2026-10-27 (cruise cap and worlds):
        Cruise speed is capped at RaceConfig.MAX_CRUISE: just under the speed where the car starts to
        fail the stability tests (flip, tilt or leaving the path), kept between 700 and 800 studs/s.
-       Set to 800 studs/s on 2026-10-27 (the speed probe was clean up to 1000). Speed numbers keep
+       Set to 800 studs/s on 2026-10-27 (the speed probe was clean up to 1000). Owner decision, 2026-10-28: raised to
+       1250 studs/s (probe green on every track to 1250 after two physics fixes; replaces the 700 .. 800 range). Speed numbers keep
        growing past the cap; cruise does not.
        The game has two worlds. World 1 is today's game: rebirths 1-10 (x1.5 .. x10). Reaching
        rebirth 10 unlocks World 2, a separate Roblox place in the same universe, reached through a
