@@ -809,6 +809,12 @@ end
 -- box, and a short last row fills from the block's left edge like the others (it is NOT centred on its own: the
 -- engine put the Index's last-row tiles one column pitch left of a per-row-centred model, layout_model_matches_engine
 -- 162 px at 1081x638). Other options are recorded as unsupported.
+-- How far below a whole number of columns a fit may fall and still count as that number. UDim scales are float32:
+-- Client/ShopUi's ServerLuck Tiers (CellSize 1/3 - 8, padding 12) give (W + 12) / (cw + 12) = 2.99999991, where the
+-- engine lays out 3 columns; 1e-9 dropped server_luck_8x to a second row (layout_model_matches_engine_shop_open
+-- 546.9 px on 2026-10-28). 1e-4 is far above float32 error and far below any real fraction of a column.
+local GRID_FIT_EPS = 1e-4
+
 local function gridCell(obj, parent, grid, base, ctx, scale)
 	if
 		grid.FillDirection ~= Enum.FillDirection.Horizontal
@@ -837,8 +843,8 @@ local function gridCell(obj, parent, grid, base, ctx, scale)
 	if not idx then
 		return R(base.x, base.y, 0, 0)
 	end
-	-- (1e-9: an exact fit, e.g. the phone Index 3 x 146 + 2 x 12 = 462, must not lose a column to float error)
-	local cols = math.max(1, math.floor((base.w + px) / (cw + px) + 1e-9))
+	-- (GRID_FIT_EPS: an exact fit, e.g. the phone Index 3 x 146 + 2 x 12 = 462, must not lose a column to float error)
+	local cols = math.max(1, math.floor((base.w + px) / (cw + px) + GRID_FIT_EPS))
 	if grid.FillDirectionMaxCells > 0 then
 		cols = math.min(cols, grid.FillDirectionMaxCells)
 	end
@@ -909,7 +915,7 @@ autoHeight = function(obj, w, h, ctx, c)
 			local ch = inner.h * grid.CellSize.Y.Scale + c * grid.CellSize.Y.Offset
 			local px = inner.w * grid.CellPadding.X.Scale + c * grid.CellPadding.X.Offset
 			local py = inner.h * grid.CellPadding.Y.Scale + c * grid.CellPadding.Y.Offset
-			local cols = math.max(1, math.floor((inner.w + px) / (cw + px) + 1e-9))
+			local cols = math.max(1, math.floor((inner.w + px) / (cw + px) + GRID_FIT_EPS))
 			if grid.FillDirectionMaxCells > 0 then
 				cols = math.min(cols, grid.FillDirectionMaxCells)
 			end
@@ -3447,7 +3453,25 @@ function S.ui_layout(res)
 			end
 		end
 
-		-- The solver agrees with the engine on the live viewport (so the other viewports can be trusted)
+		-- The solver agrees with the engine on the live viewport (so the other viewports can be trusted). Measured at
+		-- rest: PanelSwitch's open motion (MotionScale 0.92 -> 1, Back easing, HUD_LAYOUT_SPEC section 10) is the
+		-- spec'd motion, not its layout (2026-10-28: RacerWelcome/Panel was caught at the 0.7% overshoot, 705x356 for
+		-- 700x353, 4.97 px). Waits at most Waits.MotionRest; a motion that never rests still fails below.
+		local function moving()
+			for _, panelPath in state.Open do
+				local p = findPath(panelPath)
+				for _, o in p and { p, table.unpack(p:GetDescendants()) } or {} do
+					if o.Name == "MotionScale" and o:IsA("UIScale") and math.abs(o.Scale - 1) > 1e-3 then
+						return true
+					end
+				end
+			end
+			return false
+		end
+		local restBy = os.clock() + UiSpec.Waits.MotionRest
+		repeat
+			renderFrame()
+		until not moving() or os.clock() > restBy
 		local sim = provider({ Name = "current_sim", Size = viewport() })
 		local worst, worstPath = 0, "none"
 		for _, e in elementsFor(state.Open) do
@@ -3456,7 +3480,8 @@ function S.ui_layout(res)
 				local a, b = realRect(e.obj), sim(e.obj)
 				local d = math.max(math.abs(a.x - b.x), math.abs(a.y - b.y), math.abs(a.w - b.w), math.abs(a.h - b.h))
 				if d > worst then
-					worst, worstPath = d, e.path
+					-- (both rects in the value, so a mismatch names where engine and model part)
+					worst, worstPath = d, e.path .. " engine " .. rstr(a) .. " model " .. rstr(b)
 				end
 			end
 		end
@@ -4509,11 +4534,15 @@ function S.ui_toast(res)
 			local untilT = os.clock() + animNum("SPIN") + animNum("LAND")
 			repeat
 				samples += 1
-				if effectivelyVisible(toast) then
+				local shownNow = effectivelyVisible(toast)
+				if shownNow then
 					shownFrames += 1
 				end
+				-- GetGuiObjectsAtPosition keeps listing a just-hidden object for ~2 frames (live debugging
+				-- 2026-10-28), though a hidden GuiObject takes no input: a hit counts only while it is shown
+				-- (any shown frame already fails through shownFrames).
 				local cx, cy = centre(realRect(toast))
-				if table.find(hitsAt(cx, cy), toast) then
+				if shownNow and table.find(hitsAt(cx, cy), toast) then
 					clickFrames += 1
 				end
 				RunService.Heartbeat:Wait()
@@ -7078,7 +7107,10 @@ function UiScenarios.RunClick(id)
 			end
 			return nil
 		end
-		return centre(realRect(button))
+		-- The centre of the part that can be seen and clicked: a tile cut by its ScrollingFrame (or any
+		-- ClipsDescendants ancestor) takes no click outside it (market_select_tile 2026-10-28 aimed at a clipped
+		-- centre and hit nothing). Fully clipped: the plain centre, so target_topmost_before_click still fails.
+		return centre(clipped(button, realRect) or realRect(button))
 	end
 
 	local attempts = 1 + (spec.Retries or 0)
@@ -7162,7 +7194,25 @@ function UiScenarios.RunClick(id)
 				local tl = inset()
 				local px, py = input.Position.X + tl.X, input.Position.Y + tl.Y
 				button = findPath(spec.Gui .. "/" .. path) or button
-				press = { x = px, y = py, hit = topAt(px, py), targetShown = shownNow(button), t = os.clock() }
+				local hit = topAt(px, py)
+				-- The press can be seen after Activated already opened what this click promises (the toast opens the
+				-- RollShowcase Card over itself). Such a hit is the click's own result, not where it landed: judge
+				-- the press by the probe taken just before the click, at the same point (within the 0.5 px the
+				-- published click point was rounded by). Anything else that covers the button still fails.
+				if hit and top and math.abs(px - cx) <= 1 and math.abs(py - cy) <= 1 then
+					local showcaseGui = if spec.Expect.Showcase == true and preShowcase ~= "open"
+						then showcaseParts()
+						else nil
+					local opened = showcaseGui ~= nil and showcaseGui:IsAncestorOf(hit)
+					for p, want in spec.Expect.Panels or {} do
+						local o = want == true and not prePanels[p] and findPath(p)
+						opened = opened or (o and (o == hit or o:IsAncestorOf(hit))) or false
+					end
+					if opened then
+						hit = top
+					end
+				end
+				press = { x = px, y = py, hit = hit, targetShown = shownNow(button), t = os.clock() }
 				press.target = button
 			end
 		end)
@@ -7197,7 +7247,30 @@ function UiScenarios.RunClick(id)
 		pressConn:Disconnect()
 		-- Retry only a click that came too late for a fading target and hit nothing else
 		local missedFade = done and press ~= nil and press.hit == nil and press.targetShown == false
-		if not (missedFade and attempt < attempts) then
+		-- RetryLostPress (one fixture: showcase_show_row): the press landed on the target but no remote was logged
+		-- within ClickSettle (the Showcase list re-renders its rows, e.g. after a roll changes Copies, and a press on
+		-- a row being replaced is lost). Retried only while NOTHING fired, so the final fires_* check stays exact.
+		local lostPress = false
+		if spec.RetryLostPress and attempt < attempts and done and press ~= nil and not missedFade then
+			local onTarget = press.hit ~= nil and (press.hit == press.target or press.target:IsAncestorOf(press.hit))
+			local function firedAny()
+				for name, list in readSpy() or {} do
+					if #list > (preSpy[name] and #preSpy[name] or 0) then
+						return true
+					end
+				end
+				return false
+			end
+			local settleUntil = os.clock() + UiSpec.Waits.ClickSettle
+			while onTarget and not firedAny() and os.clock() < settleUntil do
+				task.wait(0.1)
+			end
+			lostPress = onTarget and not firedAny()
+		end
+		if lostPress then
+			print(("[UITEST] LOST-PRESS %s: nothing fired, retrying"):format(id))
+		end
+		if not ((missedFade or lostPress) and attempt < attempts) then
 			break
 		end
 		task.wait(UiSpec.Waits.ClickSettle) -- nothing happened; let the view settle before the next try
