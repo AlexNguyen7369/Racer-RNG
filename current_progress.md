@@ -67,8 +67,9 @@
 64. 2026-10-27 — Alex Nguyen — Rebuilt all 111 reference cars as toy racers (15,000-triangle cap, pilot approved, re-uploaded) and gave Singularity a floating, spinning, bobbing neon-glow black hole orb with the singularity_orb test, on feature/alex/car-redesign-v3-toy-racer (ce060e6).
 65. 2026-10-27 — Alex Nguyen — Verified car redesign v3 in Studio: full harness 50/3 with every car and Singularity orb scenario green (the 3 failures come from the uncommitted giant-scenery work, bug b99e2c0b logged) (c390103).
 66. 2026-10-27 — Alex Nguyen — Merged car redesign v3 (toy racer skins for all 111 cars and the Singularity orb) into main (6ad9717).
+67. 2026-10-28 — Alex Nguyen — Added the orchestrator setup (`.claude/orchestrator.md`, `rules-auditor` agent, `/orchestrate`, goals draft in `docs/ORCHESTRATOR_GOALS.md`) and the dashboard orchestration flow page (`/api/flow`, `static/flow.html`) on `feature/alex/orchestrator-and-flow-dashboard` (68ab0c4).
 
 ## What's next
-**Owner looks at the toy racer cars and the Singularity orb while racing in Studio and tunes the placeholder numbers (`TOY` proportions in tools/build_redesign_cars.py, `OrbMotion` spin / bob, `OrbGlow` brightness) if needed.**
+**Owner confirms the goals in `docs/ORCHESTRATOR_GOALS.md` (order, deliverables, done = full green), then `/orchestrate tick` starts the first test-debt task (td1: reconcile UI tests with the inventory / upgrade-tree UI).**
 
-**Why this is next:** every proportion and orb number is a placeholder in CAR_REDESIGN_SPEC sections 10-11, and any change means a rebuild and re-upload of the cars, so it should be settled before further car art builds on them.
+**Why this is next:** the owner put test debt first, and every later goal (World 1 ship, World 2, new features) is verified by these suites, so they must be trustworthy before the orchestrator lands anything else.
