@@ -22,7 +22,26 @@ in git history (`git log -p -- handoff.md`, last full version at 2d99d78) and in
 
 ## Open work
 
-00. **Car redesign v3 (toy racer) + Singularity orb: BUILT, partly verified** (branch
+00000. **Rebirth curve rev. 2 + lost race gain** (2026-10-27, uncommitted). Owner: x10 per rebirth too high, and
+   multi "not applied" while racing. Rules: design doc "Rebirth system" (rev. 2), REBIRTH_SPEC "Automatic bonus".
+   Code: `RebirthConfig` (+EARLY_STEP 5 per rebirth, capped at x100 from ADD_UNTIL 20), `RaceService` commitStat caps
+   each AddSpeed at `PlayerData.MAX_ADD` and carries the rest (was silently dropped above 1e6). test-writer updating
+   Phase2Tests / UiSpec. Next: run `rebirth`, `economy`, `gacha` and the UI rebirth tests live.
+
+0000. **Speed gain rebalance** (2026-10-27, uncommitted, on the car-redesign branch's tree; owner: balance like the
+   "+1 Speed" keyboard games). Rules: design doc "Owner decision, 2026-10-27 (Speed gain rebalance", "Rebirth system",
+   "Aura and trail ladders"; REBIRTH_SPEC; CLAUDE.md car-gacha bullets. Code: `RebirthConfig` (REBIRTH_TOTALS,
+   REPEAT_FACTOR), `MarketConfig` (new multis/prices, frost_trail, prism_trail, `GainMulti`), `GachaService.SpeedGainMulti`,
+   `VehicleEffects` / `MarketArtConfig` / `VfxArea` (2 trails, 9 lanes), `MarketUi` subtitle. Tests updated by
+   test-writer + ui-test-writer. Next: run rebirth, gacha, economy, vehicle_effects, shop_purchases, data + UI tests
+   live; look at the 2 new trails in `/tp vfxarea`; commit on its own feature branch, separate from the car redesign.
+
+000. **Giant scenery in every biome** (2026-10-27, uncommitted, on this branch's tree): owner asked every biome to get
+   big assets like the City. Design doc + BIOME_DRESSING_SPEC Layers 9 "Every biome"; data only in
+   `src/shared/BiomeThemes.luau` (`giant`/`giants`, a `Blocks` entry per biome). Live: `environment` 343/344 (only
+   city_blocks_gap, bug ab037b16). Next: owner looks while racing; full suite; commit separately from the car redesign.
+
+00. **Car redesign v3 (toy racer) + Singularity orb: DONE, merged to main 2026-10-27 (6ad9717); full suite 50/3, all car / orb scenarios green, the 3 failures are the uncommitted giant-scenery work (bugs ab037b16, b99e2c0b). Left: owner look while racing, placeholder tuning.** History: (branch
    `feature/alex/car-redesign-v3-toy-racer`). Owner approved the pilot 2026-10-27 ("keep big wing"), then asked for the
    Singularity orb (small, spinning, floating / bobbing, bright neon glow). Rules: design doc entries 2026-10-27,
    CAR_REDESIGN_SPEC sections 10-11, VEHICLE_SKINS_SPEC. Done: all 111 cars rebuilt (max 13,496 tris, |x| <= 1.92),
