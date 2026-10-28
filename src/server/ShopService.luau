@@ -1,6 +1,7 @@
 --!nonstrict
 -- Robux developer-product receipts and redeem codes (docs/SHOP_PURCHASES_SPEC.md). Both grant potions only, through
--- BoostService; neither ever touches Money or Speed.
+-- BoostService; neither ever touches Money or Speed. The one exception is the offline-reward double
+-- (docs/OFFLINE_DOUBLE_SPEC.md): it adds the player's last offline Speed reward once more, never Money.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local MarketplaceService = game:GetService("MarketplaceService")
@@ -17,6 +18,7 @@ ShopService.MAX_CODE_LENGTH = 32
 local state = {} -- [player] = { Receipts = { id, ... }, Codes = { [CODE] = true } }
 local processing = {} -- [purchaseId] = true while a receipt is being granted
 local lastRedeem = {}
+local offline = {} -- [player] = { Amount, Doubled, Closed }: this session's offline reward (Closed = window over)
 local saveFn = nil
 
 local function stateFor(player)
@@ -32,11 +34,15 @@ local function loaded(player)
 	return player:GetAttribute("DataLoaded") == true and not player:GetAttribute("DataFailed")
 end
 
+local function playerData()
+	return require(script.Parent.PlayerData) -- lazy: PlayerData requires this module
+end
+
 local function save(player)
 	if saveFn then
 		return saveFn(player)
 	end
-	return require(script.Parent.PlayerData).Save(player)
+	return playerData().Save(player)
 end
 
 local function grant(player, grants, sign)
@@ -94,14 +100,83 @@ function ShopService.Snapshot(player)
 	return { Receipts = table.clone(s.Receipts), Codes = codes }
 end
 
+-- Applies a receipt once: give() grants (false = can not grant now), the purchase id is recorded, then saved.
+-- A failed save runs undo() and drops the id, so Roblox's retry grants it exactly once later.
+local function commit(player, purchaseId, give, undo)
+	processing[purchaseId] = true
+	if not give() then
+		processing[purchaseId] = nil
+		return Enum.ProductPurchaseDecision.NotProcessedYet
+	end
+	local s = stateFor(player)
+	table.insert(s.Receipts, purchaseId)
+	local dropped = nil
+	if #s.Receipts > ShopService.MAX_RECEIPTS then
+		dropped = table.remove(s.Receipts, 1)
+	end
+	local ok, saved = pcall(save, player)
+	processing[purchaseId] = nil
+	if ok and saved then
+		return Enum.ProductPurchaseDecision.PurchaseGranted
+	end
+	undo()
+	table.remove(s.Receipts, table.find(s.Receipts, purchaseId))
+	if dropped then
+		table.insert(s.Receipts, 1, dropped)
+	end
+	return Enum.ProductPurchaseDecision.NotProcessedYet
+end
+
+-- Called by PlayerData once the save is loaded, with the offline Speed it just credited (0 = none).
+function ShopService.SetOfflineReward(player, amount)
+	if type(amount) ~= "number" or amount ~= amount or amount <= 0 or amount == math.huge then
+		offline[player] = nil
+		player:SetAttribute("OfflineDoubleOpen", false)
+		return
+	end
+	local reward = { Amount = amount, Doubled = false, Closed = false }
+	offline[player] = reward
+	player:SetAttribute("OfflineDoubled", nil)
+	player:SetAttribute("OfflineDoubleOpen", true)
+	task.delay(Monetization.OfflineDouble.WINDOW_SECONDS, function()
+		reward.Closed = true
+		if offline[player] == reward then
+			player:SetAttribute("OfflineDoubleOpen", false)
+		end
+	end)
+end
+
+-- Offline double receipt: grants the remembered amount once, even if the panel window closed while Roblox's
+-- prompt was open. No undoubled reward this session: NotProcessedYet (Roblox retries; a later reward takes it).
+local function processOfflineDouble(player, purchaseId)
+	local reward = offline[player]
+	return commit(player, purchaseId, function()
+		if not reward or reward.Doubled or not playerData().AddSpeed(player, reward.Amount) then
+			return false
+		end
+		reward.Doubled = true
+		player:SetAttribute("OfflineDoubleOpen", false)
+		player:SetAttribute("OfflineDoubled", reward.Amount)
+		return true
+	end, function()
+		reward.Doubled = false
+		player:SetAttribute("OfflineDoubled", nil)
+		local speed = playerData().Setup(player)
+		speed.Value = math.max(0, speed.Value - reward.Amount)
+		player:SetAttribute("OfflineDoubleOpen", offline[player] == reward and not reward.Closed)
+	end)
+end
+
 function ShopService.ProcessReceipt(info)
 	local giftDecision = require(script.Parent.GiftService).ProcessReceipt(info)
 	if giftDecision then
 		return giftDecision
 	end
+	local doubleId = Monetization.OfflineDouble.ProductId
+	local isDouble = doubleId > 0 and info.ProductId == doubleId
 	local product = ShopService.Product(info.ProductId)
 	local player = Players:GetPlayerByUserId(info.PlayerId)
-	if not product or not product.Grants or not player or not loaded(player) then
+	if not (isDouble or (product and product.Grants)) or not player or not loaded(player) then
 		return Enum.ProductPurchaseDecision.NotProcessedYet
 	end
 	local purchaseId = tostring(info.PurchaseId)
@@ -113,25 +188,15 @@ function ShopService.ProcessReceipt(info)
 	if table.find(s.Receipts, purchaseId) then
 		return Enum.ProductPurchaseDecision.PurchaseGranted
 	end
-	processing[purchaseId] = true
-	grant(player, product.Grants, 1)
-	table.insert(s.Receipts, purchaseId)
-	local dropped = nil
-	if #s.Receipts > ShopService.MAX_RECEIPTS then
-		dropped = table.remove(s.Receipts, 1)
+	if isDouble then
+		return processOfflineDouble(player, purchaseId)
 	end
-	local ok, saved = pcall(save, player)
-	processing[purchaseId] = nil
-	if ok and saved then
-		return Enum.ProductPurchaseDecision.PurchaseGranted
-	end
-	-- Not saved: undo, so Roblox's retry grants it exactly once later.
-	grant(player, product.Grants, -1)
-	table.remove(s.Receipts, table.find(s.Receipts, purchaseId))
-	if dropped then
-		table.insert(s.Receipts, 1, dropped)
-	end
-	return Enum.ProductPurchaseDecision.NotProcessedYet
+	return commit(player, purchaseId, function()
+		grant(player, product.Grants, 1)
+		return true
+	end, function()
+		grant(player, product.Grants, -1)
+	end)
 end
 
 function ShopService.Redeem(player, text)
@@ -175,6 +240,7 @@ function ShopService.Start()
 	require(script.Parent.GiftService).Start(remotes)
 	Players.PlayerRemoving:Connect(function(player)
 		lastRedeem[player] = nil
+		offline[player] = nil
 		-- shortcut: the leave save reads this state, so drop it later instead of racing PlayerData's handler.
 		task.delay(60, function()
 			if not player.Parent then

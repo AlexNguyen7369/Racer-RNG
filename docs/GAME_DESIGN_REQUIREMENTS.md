@@ -938,6 +938,14 @@ Idle Vehicle Simulator — Game Design Requirements
        Gift state was introduced as additive VERSION 10 data; it is part of the current VERSION 11 schema and older
        saves default to empty gift state.
 
+     Offline reward double (owner, 2026-10-28: "Build it now". Contract: docs/OFFLINE_DOUBLE_SPEC.md):
+       The offline reward (welcome-back) panel has a DOUBLE IT! button: a developer product
+       (19 Robux, proposed price) that adds the same offline Speed amount once more. Speed
+       only, never Money. The server decides the amount (the offline Speed it credited on
+       that join). One double per offline reward. The button shows only while the reward is
+       claimable (the panel is open and the window, placeholder 5 minutes from the join, has
+       not run out). It is not listed in the Shop.
+
   Implementation notes
 
        Rising prices need one item per tier. Each gamepass or product has one fixed price.

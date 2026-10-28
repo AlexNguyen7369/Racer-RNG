@@ -587,7 +587,9 @@ local function refreshWelcome()
 		Switch.Close("Welcome")
 		lastCredit = nil
 	end
-	earnings.Text = string.format("+%s SPEED", Format.SpeedText(credit))
+	-- After a bought double the server sets OfflineDoubled to the extra amount it added.
+	local doubled = player:GetAttribute("OfflineDoubled") or 0
+	earnings.Text = string.format("+%s SPEED", Format.SpeedText(credit + doubled))
 	away.Text = string.format(
 		"Away %dh %dm %ds • 25%% gain • 8h maximum",
 		math.floor(seconds / 3600),
@@ -605,7 +607,7 @@ end
 for _, attr in { "BestTrack", "UpgradesBuyable", "WorkshopLevel", "InWorkshop", "WorkshopRate" } do
 	player:GetAttributeChangedSignal(attr):Connect(refresh)
 end
-for _, attr in { "OfflineSpeed", "OfflineSeconds" } do
+for _, attr in { "OfflineSpeed", "OfflineSeconds", "OfflineDoubled" } do
 	player:GetAttributeChangedSignal(attr):Connect(refreshWelcome)
 end
 task.spawn(function()
