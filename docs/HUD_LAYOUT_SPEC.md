@@ -120,6 +120,10 @@ adds the shared slight enlargement without a white hover box; its Claim button r
   (`UiSpec` / `UiResponsive`).
 - On phones (viewport height <= 500) the grid tiles and pills shrink.
 
+- Owner 2026-10-28: the Roblox chat window starts collapsed (TextChatService `ChatWindowConfiguration`), so it never
+  covers the left icon tiles; players open it with the chat button. On phone and tablet viewports the Items and Upgrade
+  buttons beside the LEVEL / TURBO bars scale down until they clear the Money and Speed readouts (desktop unchanged).
+
 ## 7. Motion, safe area and gamepad (owner 2026-10-26)
 
 - **Reduced motion.** Motion is reduced while Roblox's `GuiService.ReducedMotionEnabled` is on OR the player's
