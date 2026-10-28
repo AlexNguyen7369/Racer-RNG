@@ -1,9 +1,9 @@
 # Straightaway Star (redesign)
 
-- **Status:** Geometry pass 2026-10-26 (CAR_REDESIGN_SPEC section 8). built 2026-10-20, rebuilt 2026-10-21 with the sport kit (splitter + neon lip, diffuser, spoiler/wing, wider tyres, lowered) (docs/CAR_REDESIGN_SPEC.md); family track_hyper.
+- **Status:** Toy racer pass 2026-10-27 (CAR_REDESIGN_SPEC section 10). Geometry pass 2026-10-26 (CAR_REDESIGN_SPEC section 8). built 2026-10-20, rebuilt 2026-10-21 with the sport kit (splitter + neon lip, diffuser, spoiler/wing, wider tyres, lowered) (docs/CAR_REDESIGN_SPEC.md); family track_hyper.
 - **Reference:** `references/car_redesign/Straightaway Star.png` (git-ignored concept render; modelling aid only).
 - **Source:** `tools/build_redesign_cars.py` `recipe_car()`: the car's `recipe.json` blockout converted part by part (bevelled edges, wider tyres, neon at full brightness), run through the Blender MCP. Original artwork: no brand, logo or extracted asset.
-- **Files:** `straightaway_star.blend`, `straightaway_star.fbx`, `preview.png`, `parts.json`. Uploaded as Roblox Model 103454952826752
+- **Files:** `straightaway_star.blend`, `straightaway_star.fbx`, `preview.png`, `parts.json`. Uploaded as Roblox Model 132705798093454
   (`assets/meshes/cars/ids.json`); Roblox export `assets/studio/RedesignCarModels/straightaway_star.rbxmx`.
-- **Budget:** 5056 triangles; bounds min [-1.6, -2.6, 0.004] max [1.6, 2.807, 2.001] (Blender x/y/z, 1 unit = 1 stud).
+- **Budget:** 7552 triangles (cap 15,000); bounds min [-1.654, -2.444, 0.002] max [1.654, 2.639, 2.293] (Blender x/y/z, 1 unit = 1 stud).
 - **Parts:** Trim2, Body, Accent2, Light, Glass, Light2, Light3, Accent4, Wheel_FL, Metal2, Wheel_RL, Wheel_FR, Wheel_RR, Trim, Metal, Accent, Accent3.

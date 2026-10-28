@@ -3,7 +3,17 @@
 PROJECT CONTEXT - Idle Vehicle Simulator (read me first)
 Shown in Studio at: ServerScriptService > ProjectContext   (source file: context/ProjectContext.luau)
 Do NOT edit this in Studio: edit the file on disk, Rojo syncs it. Claude updates it at the end of every loop.
-Last updated: 2026-10-27 (Claude: Ember Wyvern flight, bigger, long tail, blue fire breath)
+Last updated: 2026-10-27 (Claude: car redesign v3 toy racers, Singularity orb)
+
+CAR REDESIGN V3 (TOY RACER) + SINGULARITY ORB - 2026-10-27 (Claude, branch feature/alex/car-redesign-v3-toy-racer)
+- Owner: every car a stylised toy racer, 15,000-triangle cap, pilot (Rusty Hatchback / Street Racer / Singularity)
+  approved, big wings kept. Singularity's black hole: smaller, floating, spins and bobs, bright neon glow.
+- Rules: CAR_REDESIGN_SPEC sections 10-11; build STYLE/TOY in tools/build_redesign_cars.py; orb parts Metal2/Light3/
+  Light4 (attribute Orb, PointLight OrbGlow), Shared/OrbMotion, Client/OrbAnimator, CarAppearance orb Weld
+  (AnimatedOrb), BestRollView orb offset. 111 cars re-uploaded, meshes.json + rbxmx rewritten.
+- Tests: singularity_orb red before the code. Full suite interrupted at npc by a live playtest in the same Studio
+  (all PASS up to there). Unverified: car_redesign, singularity_orb, pass_cars, car_expansion, showcase,
+  vehicle_effects; look in Studio.
 
 WYVERN LOW-SPEED FLAP FIX - 2026-10-27 (Claude): flap phase integrated (WyvernMotion.CycleSeconds, state.Cycle in
   WyvernAnimator) so speed jitter below 45 studs/s no longer jumps the wings; FLAP_DOWN 34 deg, BANK_MAX 8 deg

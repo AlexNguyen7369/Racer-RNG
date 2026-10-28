@@ -12,7 +12,7 @@
     "Wheel_RL",
     "Wheel_RR"
   ],
-  "tris": 5492,
+  "tris": 12452,
   "wheels": [
     "Wheel_FL",
     "Wheel_FR",
@@ -20,15 +20,16 @@
     "Wheel_RR"
   ],
   "min": [
-    -1.82,
-    -2.945,
-    0.008
+    -1.916,
+    -2.786,
+    0.007
   ],
   "max": [
-    1.82,
-    3.015,
-    2.32
+    1.916,
+    2.834,
+    2.912
   ],
+  "orb": [],
   "materials": {
     "Body": {
       "material": "SmoothPlastic",

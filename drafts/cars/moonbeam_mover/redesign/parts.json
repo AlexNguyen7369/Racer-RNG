@@ -16,7 +16,7 @@
     "Metal2",
     "Light4"
   ],
-  "tris": 3240,
+  "tris": 4344,
   "wheels": [],
   "min": [
     -1.45,
@@ -28,6 +28,7 @@
     2.747,
     2.58
   ],
+  "orb": [],
   "materials": {
     "Trim": {
       "material": "SmoothPlastic",

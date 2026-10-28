@@ -1465,6 +1465,34 @@
       "fixedAt": "2026-10-27T15:55:47-07:00",
       "fixedBy": "Alex Nguyen",
       "fixNote": "Integrated cycle phase (WyvernMotion.CycleSeconds + state.Cycle); wyvern_low_speed_* green live 2026-10-27"
+    },
+    {
+      "id": "1ec93137",
+      "name": "CarPhysics lateral clamp NaN on manual cars",
+      "kind": "failure",
+      "status": "open",
+      "file": "src/shared/CarPhysics.luau",
+      "line": 266,
+      "endLine": 266,
+      "snippet": {
+        "from": 262,
+        "lines": [
+          "\t\t\t\tmu *= cfg.HandbrakeRearMu",
+          "\t\t\tend",
+          "\t\t\tlocal maxF = mu * springForce",
+          "\t\t\tlocal latLimit = math.min(maxF, math.abs(vLat) * cornerMass / dt)",
+          "\t\t\tlocal fLat = math.clamp(-vLat * cornerMass * cfg.LateralResponse, -latLimit, latLimit)",
+          "",
+          "\t\t\t-- Friction circle",
+          "\t\t\tlocal mag = math.sqrt(fLong * fLong + fLat * fLat)",
+          "\t\t\tif mag > maxF and mag > 0 then"
+        ]
+      },
+      "summary": "Manual CarController on a car without AutoRace throws every frame: latLimit is likely NaN (springForce NaN), so math.clamp errors and the manual car gets no lateral force.",
+      "error": "ReplicatedStorage.Shared.CarPhysics:266: invalid argument #3 to 'clamp' (max must be greater than or equal to min)",
+      "foundBy": "physics-tester",
+      "foundAt": "2026-10-27T17:44:09-07:00",
+      "loggedBy": "Alex Nguyen"
     }
   ]
 }

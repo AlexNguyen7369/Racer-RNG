@@ -22,6 +22,20 @@ in git history (`git log -p -- handoff.md`, last full version at 2d99d78) and in
 
 ## Open work
 
+00. **Car redesign v3 (toy racer) + Singularity orb: BUILT, partly verified** (branch
+   `feature/alex/car-redesign-v3-toy-racer`). Owner approved the pilot 2026-10-27 ("keep big wing"), then asked for the
+   Singularity orb (small, spinning, floating / bobbing, bright neon glow). Rules: design doc entries 2026-10-27,
+   CAR_REDESIGN_SPEC sections 10-11, VEHICLE_SKINS_SPEC. Done: all 111 cars rebuilt (max 13,496 tris, |x| <= 1.92),
+   uploaded (new ids.json), meshes.json dumped, RedesignCarModels rbxmx rewritten (singularity: Orb parts + OrbGlow);
+   `Shared/OrbMotion`, `Client/OrbAnimator`, `CarAppearance` orb Weld, `BestRollView` orb offset; test
+   `singularity_orb` (test-writer) seen RED (missing feature only). Full suite run was cut off at `npc` by someone
+   playtesting in the same Studio (FrozenCookie12345 admin commands); all scenarios through `npc` PASS, car_size
+   length_ratio 0.534. NEXT: with Studio free, physics-tester full suite (car_redesign, singularity_orb, pass_cars,
+   car_expansion, showcase, vehicle_effects must pass), Studio screenshot of the orb, then the owner looks at the cars
+   in Studio; merge to main only after that. Upload needs `SSL_CERT_FILE=/etc/ssl/cert.pem` (python 3.14 has no CA
+   bundle). Bug 1ec93137 (CarPhysics:266 clamp NaN on manual cars) logged, not fixed. The UI visual-pass session
+   (worktree ../RobloxGames-ui) is waiting for Studio too.
+
 0. **Ember Wyvern flight + breath — DONE, committed and pushed to main 2026-10-27; full suite END pass=51 fail=1 (only environment city_blocks_gap, bug ab037b16, City Blocks work still uncommitted in the tree)**. Next session goal: car redesign v3 (toy racer style, 15,000-triangle cap, pilot Rusty Hatchback / Street Racer / Singularity, owner 2026-10-27) on its own branch. (branch `feature/alex/ember-wyvern-flight`, all
    uncommitted; owner 2026-10-27: "stop test suite, begin implementation of features first").
    - Done: 33-bone rig (`drafts/cars/ember-wyvern/wyvern_rig.py`), long whip tail (template |z| 5.62), rigged upload

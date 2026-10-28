@@ -20,6 +20,8 @@ not a car at all (example: a dragon). Models do not have to follow the starter c
   `Wheel_FL/FR/RL/RR` (spin with speed and steer, as today), `Wing_L/Wing_R` or other names declared in the catalog
   (e.g. `Animations = { Flap = "Wing_*" }`) or an `AnimationController` + animation ids (a dragon's flying loop).
   A skin with no wheels is valid: nothing spins.
+  Parts with the attribute `Orb = true` (Singularity's black hole, `docs/CAR_REDESIGN_SPEC.md` section 11) spin and
+  bob on the client.
 - **Effects:** a skin may bring its own trail, particles or sounds (e.g. fire breath, engine). Client-side only.
 - **Same skin everywhere:** the race car, the NPC car (`NpcConfig.Tracks[n].Model`), the Index tile, the roll card's
   ViewportFrame and the discovery cutscene all clone the same `CarModels` entry.

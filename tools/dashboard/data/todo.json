@@ -1119,6 +1119,21 @@
       "ownerGithub": "AlexNguyen7369",
       "updated": "2026-10-27T23:30:00-07:00",
       "updatedBy": "Claude"
+    },
+    {
+      "id": "a36d3e34",
+      "title": "Car redesign v3 toy racer",
+      "detail": "Owner 2026-10-27: all 111 cars as toy racers (15,000 tris), pilot approved; Singularity orb spins / bobs / glows. Built, uploaded, rbxmx + orb code done (CAR_REDESIGN_SPEC 10-11). Left: full suite with Studio free (car_redesign, singularity_orb, pass_cars, showcase), owner look in Studio, merge.",
+      "status": "doing",
+      "source": "feature branch",
+      "by": "Alex Nguyen",
+      "added": "2026-10-27T17:24:09-07:00",
+      "branch": "feature/alex/car-redesign-v3-toy-racer",
+      "featureId": "899f1a9c",
+      "owner": "Alex Nguyen",
+      "ownerGithub": "AlexNguyen7369",
+      "updated": "2026-10-27T18:30:00-07:00",
+      "updatedBy": "Alex Nguyen"
     }
   ]
 }

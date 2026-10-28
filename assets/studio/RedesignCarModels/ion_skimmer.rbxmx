@@ -30,7 +30,7 @@
         <bool name="Massless">true</bool>
         <bool name="CastShadow">true</bool>
         <Content name="MeshId">
-          <url>rbxassetid://134293734327901</url>
+          <url>rbxassetid://117007728568969</url>
         </Content>
         <Vector3 name="InitialSize">
           <X>2.276</X>
@@ -210,7 +210,7 @@
         <bool name="Massless">true</bool>
         <bool name="CastShadow">true</bool>
         <Content name="MeshId">
-          <url>rbxassetid://124264724536084</url>
+          <url>rbxassetid://97690738161367</url>
         </Content>
         <Vector3 name="InitialSize">
           <X>2.3</X>
@@ -300,7 +300,7 @@
         <bool name="Massless">true</bool>
         <bool name="CastShadow">true</bool>
         <Content name="MeshId">
-          <url>rbxassetid://80373748870919</url>
+          <url>rbxassetid://138552585453986</url>
         </Content>
         <Vector3 name="InitialSize">
           <X>2.9</X>

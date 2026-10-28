@@ -13507,3 +13507,5 @@ Scenarios.vehicle_effects = require(script.Parent.VehicleEffectTests).make({
 })
 
 return Scenarios
+-- docs/CAR_REDESIGN_SPEC.md section 11: Singularity orb parts, OrbMotion, animated orb welds, bounds, race stability
+Scenarios.singularity_orb = require(script.Parent.SingularityOrbTests).singularity_orb

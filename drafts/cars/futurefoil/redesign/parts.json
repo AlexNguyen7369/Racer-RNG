@@ -15,7 +15,7 @@
     "Accent4",
     "Metal2"
   ],
-  "tris": 3252,
+  "tris": 4356,
   "wheels": [],
   "min": [
     -1.55,
@@ -27,6 +27,7 @@
     2.847,
     2.5
   ],
+  "orb": [],
   "materials": {
     "Trim": {
       "material": "SmoothPlastic",

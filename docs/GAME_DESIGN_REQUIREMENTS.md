@@ -692,6 +692,21 @@ Idle Vehicle Simulator — Game Design Requirements
          Explain a luck purchase's effect in numbers before purchase.
          Keep the catalog rarity visible while boosts are active; boosts change the server's actual roll probability,
          not the advertised "1 in N" rarity.
+       Owner, 2026-10-27 (car redesign v3, docs/CAR_REDESIGN_SPEC.md section 10): every car
+       skin moves to a stylised toy racer look: chunky, rounded bodies, big chunky wheels, short
+       overhangs and a taller, bubblier cabin, keeping each car's colours and signature parts.
+       The per-car budget rises from 6,000 to 15,000 triangles. Applies to all 111 cars with a
+       reference; the Ember Wyvern and the built-in starter keep their models. Flat colours stay
+       (no textures). A 3-car pilot (Rusty Hatchback, Street Racer, Singularity) is approved
+       by the owner before the other cars are rebuilt. Proportion numbers are placeholders.
+       Owner, 2026-10-27 (after approving the pilot): the rollout keeps big rear wings as they are.
+       Owner, 2026-10-27 (Singularity orb, docs/CAR_REDESIGN_SPEC.md section 11): Singularity's
+       black hole is smaller and floats above the engine deck (no stand). It spins and bobs up
+       and down, with a bright neon glow around its black core. The motion plays on each client
+       only; it never changes physics, speed or payouts.
+
+  Owner rendering pass, 2026-10-26 (docs/RENDERING_SPEC.md):
+       The world gets a richer lighting baseline (coloured ambient, colour grading, soft
          Check ArePaidRandomItemsRestricted per player and block or hide paid luck for
          restricted players.
 

@@ -20,7 +20,7 @@
     "Metal3",
     "Light3"
   ],
-  "tris": 4324,
+  "tris": 6196,
   "wheels": [
     "Wheel_FL",
     "Wheel_FR",
@@ -28,15 +28,16 @@
     "Wheel_RR"
   ],
   "min": [
-    -1.65,
-    -2.6,
-    0.004
+    -1.704,
+    -2.444,
+    0.002
   ],
   "max": [
-    1.65,
-    2.697,
-    2.78
+    1.704,
+    2.536,
+    3.154
   ],
+  "orb": [],
   "materials": {
     "Trim": {
       "material": "SmoothPlastic",

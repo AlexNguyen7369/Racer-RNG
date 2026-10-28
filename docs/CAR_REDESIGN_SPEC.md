@@ -33,7 +33,8 @@ Owner decision, 2026-10-20. Design doc entry: `GAME_DESIGN_REQUIREMENTS.md`, "Ow
   pale neon halo, standing on the engine deck. It must never be removed.
 - The 100 expansion cars start from their `recipe.json` blockout, converted part by part (same layout, colours and
   wheel spokes as the reference) with bevelled edges, chunkier tyres and the neon rule above.
-- At most 6,000 triangles per car (exception: special-case rides, section 9).
+- At most 15,000 triangles per car since the toy pass (owner 2026-10-27, section 10; was 6,000). Exception:
+  special-case rides, section 9.
 - Every part: `Anchored`, `CanCollide = false`, `CanTouch = false`, `CanQuery = false`, `Massless`,
   `CollisionFidelity = Box` (baked in the file; it cannot be set at runtime).
 - Original artwork: no brands, logos or extracted assets.
@@ -99,3 +100,35 @@ The existing `car_size`, `gacha`, `index`, `race`, `lap:*` and `vehicle_effects`
   `owner_ref_shadow_wyvern_a.png` / `_b.png` (owner 2026-10-27, replacing amber): black shadow body with glowing cyan
   crevices and chest, cyan wing membranes with tattered flame edges, a raised S-curved neck, glowing face lines, smoke
   tendrils, blue fire effects. Inspiration only: original design, no existing character copied.
+
+## 10. Toy racer pass (owner, 2026-10-27)
+- **Look:** a stylised toy racer, as in popular Roblox racing simulators: chunky, rounded body panels, big chunky
+  wheels, short overhangs and a taller, bubblier cabin. Each car keeps its colours, part layout and signature parts
+  (sport kit of section 2, Singularity's black hole). Flat colours, no textures (section 2).
+- **Budget:** at most 15,000 triangles per car (each MeshPart under Roblox's 20,000). Bounds of section 2 unchanged.
+- **Scope:** all 111 cars with a reference. The Ember Wyvern (section 9) and the built-in `starter` are not changed.
+- **Build (`tools/build_redesign_cars.py`, `STYLE = 'toy'`):** paint panels get rounder multi-segment bevels; tyres get
+  more sides and rounded shoulders; each wheel (tyre, hub, spokes, arch flares) is scaled about its axle by
+  `TOY['wheel']` with its contact patch kept on the ground and its outer face inside the bounds; every other part is
+  scaled by `TOY['length']` / `TOY['width']` / `TOY['height']` about the base centre and lifted with the axles. All
+  `TOY` numbers are placeholders tuned on the pilot.
+- **Delivery:** a pilot of 3 cars (Rusty Hatchback, Street Racer, Singularity) shown to the owner as a side-by-side
+  sheet (old model, new model, reference); the other 108 cars are rebuilt only after the owner approves it.
+- Acceptance: section 7 unchanged (the `car_redesign` scenario).
+
+## 11. Singularity orb (owner, 2026-10-27)
+- **Shape:** the black hole of section 2 is kept (black core sphere, tilted neon-gold accretion ring, pale neon halo)
+  but smaller (core radius `0.26`, ring `0.46`, placeholders) and floating above the engine deck: no spindle.
+- **Parts:** three separate MeshParts with material-group names: `Metal2` (black core), `Light3` (gold ring, Neon),
+  `Light4` (pale halo, Neon). Each carries the attribute `Orb = true`; all three are centred on the orb centre. The core
+  holds a `PointLight` named `OrbGlow` (gold, `Brightness` 3, `Range` 10, `Shadows` false; placeholders).
+- **Glow:** ring and halo are Neon at full brightness; the halo is a thicker glowing ring crossing the accretion ring.
+- **Motion (`Shared/OrbMotion`, pure maths):** `OrbMotion.Offset(t, reduced)` returns the CFrame added to each orb
+  part's rest CFrame (about its own centre): a spin about the vertical axis at `SPIN_SPEED` (1.5 rad/s) and a bob of
+  `BOB_HEIGHT` (0.15 studs) at `BOB_RATE` (2 rad/s). Reduced motion: no bob, spin at a third. Placeholders.
+- **Playback:** `Shared/CarAppearance.Apply` joins each `Orb` part to the chassis with a `Weld` named `SkinWeld`
+  (attribute `AnimatedOrb = true`, `C0` = its rest offset) instead of a `WeldConstraint`; the server never changes it.
+  `Client/OrbAnimator` sets `C0 = rest * Offset(t)` each frame on that client only, and moves the anchored orb parts of
+  static display copies (workshop showcase) the same way; the turning spawn-area pedestals apply the same offset in
+  `Client/BestRollView`. Only orbs within `ORB_DISTANCE` (200 studs) of the camera move.
+- Bounds (section 2) hold at every offset. Physics, speed, payouts and the stability rules are unchanged.

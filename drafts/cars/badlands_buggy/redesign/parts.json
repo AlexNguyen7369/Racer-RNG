@@ -21,7 +21,7 @@
     "Accent4",
     "Light5"
   ],
-  "tris": 5308,
+  "tris": 8572,
   "wheels": [
     "Wheel_FL",
     "Wheel_FR",
@@ -29,15 +29,16 @@
     "Wheel_RR"
   ],
   "min": [
-    -1.68,
-    -2.55,
-    0.008
+    -1.704,
+    -2.397,
+    0.005
   ],
   "max": [
-    1.68,
-    2.797,
-    2.88
+    1.704,
+    2.63,
+    3.284
   ],
+  "orb": [],
   "materials": {
     "Trim2": {
       "material": "SmoothPlastic",
