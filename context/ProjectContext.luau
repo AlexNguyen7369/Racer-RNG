@@ -11,9 +11,11 @@ CAR REDESIGN V3 (TOY RACER) + SINGULARITY ORB - 2026-10-27 (Claude, branch featu
 - Rules: CAR_REDESIGN_SPEC sections 10-11; build STYLE/TOY in tools/build_redesign_cars.py; orb parts Metal2/Light3/
   Light4 (attribute Orb, PointLight OrbGlow), Shared/OrbMotion, Client/OrbAnimator, CarAppearance orb Weld
   (AnimatedOrb), BestRollView orb offset. 111 cars re-uploaded, meshes.json + rbxmx rewritten.
-- Tests: singularity_orb red before the code. Full suite interrupted at npc by a live playtest in the same Studio
-  (all PASS up to there). Unverified: car_redesign, singularity_orb, pass_cars, car_expansion, showcase,
-  vehicle_effects; look in Studio.
+- Tests: singularity_orb red before the code. Full suite 2026-10-27: END pass=50 fail=3; car_redesign,
+  singularity_orb, car_size, pass_cars, car_expansion, showcase, vehicle_effects, gacha, index, race all PASS; the 3
+  failures (spawn_area, workshop: Hill Block_5L2.GiantOak2 overlaps spawn floor / Plot_2; environment
+  city_blocks_gap) come from the uncommitted giant-scenery / City Blocks work. Orb moves on the pass pedestal
+  (Light3 CFrame read on the client). Unverified: owner look; no Studio screenshot of the orb.
 
 WYVERN LOW-SPEED FLAP FIX - 2026-10-27 (Claude): flap phase integrated (WyvernMotion.CycleSeconds, state.Cycle in
   WyvernAnimator) so speed jitter below 45 studs/s no longer jumps the wings; FLAP_DOWN 34 deg, BANK_MAX 8 deg

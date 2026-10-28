@@ -1493,6 +1493,66 @@
       "foundBy": "physics-tester",
       "foundAt": "2026-10-27T17:44:09-07:00",
       "loggedBy": "Alex Nguyen"
+    },
+    {
+      "id": "6e39efe6",
+      "name": "Race Speed gain lost at high rebirth multi",
+      "kind": "fault",
+      "status": "open",
+      "file": "src/server/RaceService.luau",
+      "line": 463,
+      "endLine": 471,
+      "snippet": {
+        "from": 459,
+        "lines": [
+          "\t\t\trun.FlipRecoveries += 1",
+          "\t\tend",
+          "\tend",
+          "",
+          "\tlocal function commitStat()",
+          "\t\tif pending > 0 then",
+          "\t\t\t-- AddSpeed rejects anything above MAX_ADD; carry the rest so a big multi is never lost",
+          "\t\t\tlocal added = math.min(pending, PlayerData.MAX_ADD)",
+          "\t\t\tpending -= added",
+          "\t\t\tlocal newStat = PlayerData.AddSpeed(player, added)",
+          "\t\t\tif newStat then",
+          "\t\t\t\trun.Gained += added",
+          "\t\t\tend",
+          "\t\tend",
+          "\t\tstat = PlayerData.SpeedStat(player) -- the source of truth (also picks up a load finishing)",
+          "\t\trun.TargetSpeed = RaceConfig.SpeedFor(stat, GachaService.ShownSpeedMulti(player))",
+          "\t\tdriver.TargetSpeed = run.TargetSpeed"
+        ]
+      },
+      "summary": "commitStat sent all pending gain to PlayerData.AddSpeed, which rejects amounts above MAX_ADD (1e6). With the old x10-per-rebirth curve (x2e6 at rebirth 15) every 0.25 s commit was rejected, so Speed stopped growing while racing. Fixed: commit at most MAX_ADD and carry the rest; curve changed to additive (owner 2026-10-27 rev. 2).",
+      "error": "",
+      "foundBy": "claude",
+      "foundAt": "2026-10-27T18:16:15-07:00",
+      "loggedBy": "Alex Nguyen"
+    },
+    {
+      "id": "b99e2c0b",
+      "name": "Hill giant oak placed on spawn floor and workshop plot",
+      "kind": "failure",
+      "status": "open",
+      "file": "src/shared/BiomeDressing.luau",
+      "line": 1,
+      "endLine": 1,
+      "snippet": {
+        "from": 1,
+        "lines": [
+          "--!nonstrict",
+          "-- Deterministic, non-colliding drive-by scenery for every track (docs/BIOME_DRESSING_SPEC.md).",
+          "-- Build(model, layout, spec, origin) dresses one track from Shared/BiomeThemes[spec.Biome].",
+          "-- Prune(trackModels, extra) runs after the whole chain is built and removes props too close to any road.",
+          ""
+        ]
+      },
+      "summary": "Uncommitted City Blocks / giant scenery work: Track.Hill.Environment.Block_5L2.GiantOak2 overlaps the spawn floor (gap -10) and Workshops.Plot_2 (gap -6); Prune does not clear Block_ props from the spawn area or plots. Fails spawn_area_no_track_overlap, spawn_bounds_no_track_overlap, workshop_live/rects_no_track_overlap.",
+      "error": "",
+      "foundBy": "physics-tester",
+      "foundAt": "2026-10-27T18:49:16-07:00",
+      "loggedBy": "Alex Nguyen"
     }
   ]
 }
