@@ -2588,6 +2588,28 @@ function Help.waitCardPhase(card, wanted, timeout)
 	return false
 end
 
+-- Like waitCardPhase, and the card's animated body (UiSpec.Showcase.Body) is also exactly at rest (Size 1x1 scale):
+-- Phase turns Hold when the LAND_POP settle tween STARTS, so content measured then can still be popped out.
+function Help.waitCardRest(card, wanted, timeout)
+	local gui = card and Help.guiOf(card)
+	local body = gui and Help.findPath(gui.Name .. "/" .. UiSpec.Showcase.Body)
+	local function rest()
+		return wanted[card:GetAttribute("Phase")]
+			and (not (body and body:IsA("GuiObject")) or body.Size == UDim2.fromScale(1, 1))
+	end
+	local deadline = os.clock() + timeout
+	while card and os.clock() < deadline do
+		if rest() then
+			RunService.Heartbeat:Wait()
+			if rest() then
+				return true
+			end
+		end
+		RunService.Heartbeat:Wait()
+	end
+	return false
+end
+
 ---------------------------------------------------------------------------------------------------------------
 -- Element sets per panel state
 
@@ -4203,17 +4225,22 @@ function S.ui_speed_dial(res)
 	end
 	-- Real speed = path distance (sum of per-frame seat steps, so a curve does not read short as a chord would) / time
 	-- over SampleSeconds, skipping teleport steps (> TeleportStep: a restart / loop back to the start); DialValue and
-	-- DialSpeed averaged over the same frames
+	-- DialSpeed averaged over the same frames. A skipped step drops its frame time too: a slow frame at high speed
+	-- (step > TeleportStep) would otherwise count its time with no distance and read the car slow.
 	local last, t0 = seat.Position, os.clock()
-	local path = 0
+	local lastT = t0
+	local path, driven = 0, 0
 	local sum, textSum, n, textBad = 0, 0, 0, nil
 	repeat
 		Help.renderFrame()
+		local now = os.clock()
 		local step = (seat.Position - last).Magnitude
 		last = seat.Position
 		if step <= cfg.TeleportStep then
 			path += step
+			driven += now - lastT
 		end
+		lastT = now
 		local v = needle:GetAttribute(H.DialValueAttr)
 		local shown = tonumber(text.Text)
 		sum += type(v) == "number" and v or 0
@@ -4224,7 +4251,7 @@ function S.ui_speed_dial(res)
 		end
 		n += 1
 	until os.clock() - t0 >= cfg.SampleSeconds
-	local real = path / (os.clock() - t0)
+	local real = driven > 0 and path / driven or 0
 	local dialAvg, textAvg = sum / n, textSum / n
 	local tol = math.max(cfg.Tolerance, cfg.RelTolerance * real)
 	check(
@@ -7856,7 +7883,7 @@ function UiScenarios.RunClick(id)
 			-- Opens on the latest roll (or a newer one that arrived during the settle: it updates live), checked
 			-- once the enlarged card has landed (Hold) or rests (Idle)
 			local _, _, card = Help.showcaseParts()
-			local settled = Help.waitCardPhase(card, SETTLED, UiSpec.Waits.CardSettle)
+			local settled = Help.waitCardRest(card, SETTLED, UiSpec.Waits.CardSettle)
 			check(res, "showcase_card_settled", settled, true, settled)
 			checkList(res, cond, Help.showcaseCardProblems(events.rolls[#events.rolls]))
 		elseif cond == "showcase_blur_on" then
