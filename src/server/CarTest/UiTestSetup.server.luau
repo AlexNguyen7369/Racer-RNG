@@ -457,6 +457,21 @@ function setups.offline_welcome(player)
 	player:SetAttribute("OfflineSpeed", 1234)
 end
 
+-- OFFLINE_DOUBLE_SPEC section 2: the server opens the Double window with OfflineDoubleOpen = true, OfflineDoubled = nil.
+-- Only the attributes are set (ShopService.SetOfflineReward is not called), so no reward is remembered and no receipt
+-- can grant Speed; 'restore' puts both attributes back.
+function setups.offline_double_open(player)
+	setups.offline_welcome(player)
+	local attributes = progressionSnapshots[player].attributes
+	for _, name in { "OfflineDoubleOpen", "OfflineDoubled" } do
+		if attributes[name] == nil then
+			attributes[name] = { value = player:GetAttribute(name) }
+		end
+	end
+	player:SetAttribute("OfflineDoubled", nil)
+	player:SetAttribute("OfflineDoubleOpen", true)
+end
+
 function setups.offline_zero(player)
 	progressionSnapshot(player)
 	player:SetAttribute("OfflineSpeed", 0)

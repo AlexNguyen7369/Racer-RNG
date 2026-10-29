@@ -1521,6 +1521,7 @@ UiSpec.Clicks = {
 	},
 	-- Redeem sends the typed text to the real RedeemCode (a bad code: the server answers "Invalid code" and saves
 	-- nothing) and Status shows the server's reply. SetText types the code and blanks Status before the click.
+	-- shortcut: "grants nothing" is proven by the server's bad-code reply (BadCodeReplies), not by diffing boost counts.
 	{
 		Id = "shop_redeem_invalid_code",
 		Gui = "ShopUi",
@@ -1534,9 +1535,12 @@ UiSpec.Clicks = {
 			}
 			return p
 		end)(),
+		-- progression_spy proxies RedeemCode (logs the call; a "UITEST-" code goes on to the real ShopService.Redeem)
+		NeedSetup = { "spy", "progression_spy" },
 		Expect = {
 			Panels = { ["ShopUi/Backdrop"] = true },
-			Remote = false,
+			-- exactly one RedeemCode call carrying the typed text, and no other remote (SHOP_PURCHASES_SPEC 3)
+			Remote = { Name = "RedeemCode", Args = { UiSpec.Shop.TestCode } },
 			After = { "shop_redeem_status_from_server" },
 		},
 	},
