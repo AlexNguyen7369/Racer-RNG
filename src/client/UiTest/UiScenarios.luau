@@ -476,6 +476,29 @@ local function setPanels(open)
 	end
 end
 
+-- Geometry is measured at rest: a script can not move the real mouse, so a HoverScale left at 1.035 / 0.97 by an
+-- earlier click (bug d782d207: Race/Face 172x46 in a 166x44 parent) is set back to RestScale for the measurement.
+-- Only the transient hover scale is touched; any real overflow at rest still fails. Returns a restore function.
+local function hoverAtRest()
+	local cfg = UiSpec.Motion
+	task.wait(0.2) -- let an in-flight 0.14 s hover / press tween (RacerMotion) finish before overriding it
+	local saved = {}
+	for _, d in playerGui:GetDescendants() do
+		if d:IsA("UIScale") and d.Name == cfg.Scale and math.abs(d.Scale - cfg.RestScale) > 0.001 then
+			saved[d] = d.Scale
+			d.Scale = cfg.RestScale
+		end
+	end
+	frames(1)
+	return function()
+		for scale, value in saved do
+			if scale.Parent then
+				scale.Scale = value
+			end
+		end
+	end
+end
+
 function Help.preparePanels(prep)
 	local wanted = {}
 	for _, path in allPanels() do
@@ -3770,6 +3793,7 @@ function S.ui_hitboxes(res)
 
 	for _, state in STATES do
 		local restore = setPanels(state.Open)
+		local restoreHover = hoverAtRest()
 		local vp = viewport()
 		local spill, padded, hiddenHit, covered, invisible, clippedHit, looks = {}, {}, {}, {}, {}, {}, {}
 		for _, b in Help.allButtons() do
@@ -3889,6 +3913,7 @@ function S.ui_hitboxes(res)
 			end
 		end
 		checkList(res, "no_transparent_click_sink_" .. state.Name, sinks)
+		restoreHover()
 		restore()
 	end
 end
