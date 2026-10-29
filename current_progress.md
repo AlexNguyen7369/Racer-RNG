@@ -72,8 +72,9 @@
 69. 2026-10-28 — Alex Nguyen — Landed World 1 balance (payout curve, rebirth rev 4, XP 122/37.2, cruise cap 800, odds rev) and the giant scenery fix on feature/alex/world1-ship; harness 53/0.
 70. 2026-10-27 — Isaac Li — Added the approved ten-icon transparent HUD set, uploaded asset mapping, scale-only hover feedback, saved Settings artwork and project documentation with focused Studio checks.
 71. 2026-10-28 — Alex Nguyen — Ran the full harness (54/1) and UI suite (34/3) on world1-ship, fixed and merged the stale economy above-cap test (71f4163), and logged the UI bugs.
+72. 2026-10-28 — Alex Nguyen — Merged the UI fix round (Welcome font, opaque Upgrades panel, UI test fixes incl. hover-at-rest) into world1-ship (e2a5f70); live UI suite 33/4 with 5 bugs fixed and 8 new ones logged.
 
 ## What's next
-**Fix the UITEST reds on feature/alex/world1-ship (HudChrome phone Items/Upgrade placement, on-foot Race button face, Welcome title font, Upgrades tile transparency, phone overlaps, quest Claim state; test bugs via ui-test-writer), then re-run the full UI suite.**
+**Fix the remaining UITEST reds on feature/alex/world1-ship in worktree tasks: Upgrades panel transparency compare and Exit hover (53e24a2e, 3c0dcacf), RollToast padding and reduced-motion viewport (7d99207f, 0261e33b), Rebirth band offset (adf68695), Speed float rounding (fd2412fe), harness cleanup and quest fixture (081c684a, 4796b256); then re-run the full UI suite.**
 
-**Why this is next:** [UITEST] END fail=0 at desktop and phone is the World 1 deliverable w1e, and the test-debt UI items (td1-td7) need that green baseline.
+**Why this is next:** [UITEST] END fail=0 is World 1 deliverable w1e; the speed probe (ORCH-3) and test-debt td1-td7 wait on that green baseline. Phone HudPair and Speed float layout wait on owner decisions.
