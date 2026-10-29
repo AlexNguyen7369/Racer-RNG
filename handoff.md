@@ -30,6 +30,20 @@ in git history (`git log -p -- handoff.md`, last full version at 2d99d78) and in
 
 ## Open work
 
+ORCH-5. **Orchestrator 2026-10-28 ~19:15: UI fix round, 3 task branches off feature/alex/world1-ship 7d7cc70 (worktrees ../RobloxGames-orch/<task>).**
+   - ui-style: COMMITTED d5d7c70 (WelcomeStyle Bangers line removed -> FredokaOne; UpgradeTreeView Panel transparency 0.38 -> 0.05). Bugs ccc13c4f, 03bad751.
+     Owner look check: Upgrades tree now covers the world almost fully in dark blue.
+   - ui-test-fixes (ui-test-writer): COMMITTED c3dabfa (shop_redeem_invalid_code expects one real RedeemCode call; new setup offline_double_open
+     + restore; Help.waitCardRest for showcase card; speed-dial sampler drops time of skipped teleport frames). Bugs 38e4a78b, 3b10d310, 837519cd.
+     Risk: speed dial may still fail (real cause could be rail sideways velocity in AssemblyLinearVelocity).
+   - ui-hud-phone (general-purpose): WAS RUNNING at handoff, uncommitted in its worktree (HudChrome phone Items/Upgrade 9de32835, Race Face
+     d782d207, phone overlaps 9617a457). If its report was lost: inspect `git -C ../RobloxGames-orch/ui-hud-phone diff`, lint, commit or redo.
+     Race Face fix may need a StarterGui.rbxm re-bake in Studio.
+   NEXT: (1) finish/commit ui-hud-phone; (2) rules-auditor on the 3 branch diffs (rules HUD_LAYOUT_SPEC text + phone layout, SHOP_PURCHASES_SPEC 3,
+   OFFLINE_DOUBLE_SPEC 2); (3) merge all 3 into a scratch check: merge-tree each into world1-ship, merge --no-ff one by one; (4) full UITEST
+   in Studio fb39beec (one run, after merging into the main tree since Rojo serves it); (5) green -> push, remove worktrees/branches, bugs fixed,
+   ProjectContext + todo + progress-tracker. Reds -> back to the owner of the file.
+
 ORCH-4. **Orchestrator 2026-10-28 evening (world1-ship 82929ed): [CARTEST] END pass=54 fail=1, [UITEST] END pass=34 fail=3.**
    CARTEST red = stale test economy stat_for_above_cap_is_huge (stf(1000) vs cap 1250, bug d5f9bdf9): test-writer fix 3430d85 on
    orch/world1-ship/economy-cap-test (worktree ../RobloxGames-orch/economy-cap-test), rules-auditor PASS; economy re-run [CARTEST] END pass=1 fail=0 on
