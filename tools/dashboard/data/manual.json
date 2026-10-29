@@ -632,6 +632,35 @@
     "File > Save to File As... > /Users/alexnguyen7369/Documents/RobloxGames/IdleVehicleSimulator.rbxl (overwrite).",
     "Re-save it whenever MCP inserts new Studio-only content (MeshParts, models)."
    ]
+  },
+  {
+   "id": "hud-pair-phone-rule",
+   "title": "Decide: HUD Items/Upgrade pair on phone landscape and tablet",
+   "category": "decision",
+   "priority": "high",
+   "when": "2026-10-28",
+   "status": "open",
+   "why": "docs/HUD_LAYOUT_SPEC.md section 6 stacks the pair above the bars at viewport height <= 400 and shrinks it on phone and tablet; the UI test (UiSpec.HudPair) wants it beside the bars at 844x390 and never shrunk at tablet 1024x768. Code follows the doc. One must change.",
+   "blocks": "ui_layout green (w1e)",
+   "steps": [
+    "Choose A: keep the doc (<= 400 stacks, tablet shrinks); the test is updated.",
+    "Or B: lower the stack threshold (e.g. 380) and/or never shrink on tablet; doc, HudChrome, UiResponsive and UiSpec change together.",
+    "Tell the orchestrator A or B (dated doc entry)."
+   ]
+  },
+  {
+   "id": "speed-float-phone",
+   "title": "Decide: where the +Speed float goes on phone",
+   "category": "decision",
+   "priority": "medium",
+   "when": "2026-10-28",
+   "status": "open",
+   "why": "The doc says the float rises above the Speed number; on phone only ~27 px are free above SpeedValue (the roll toast sits 4 px above), the float is 30 px tall and rises 46 px, so it overlaps the toast.",
+   "blocks": "ui_layout phone green",
+   "steps": [
+    "Choose: smaller rise / label on phone, or a different spot on phone (e.g. beside Speed).",
+    "Tell the orchestrator; it writes the dated doc rule, then the code."
+   ]
   }
  ]
 }

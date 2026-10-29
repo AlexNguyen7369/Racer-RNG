@@ -36,10 +36,15 @@ ORCH-5. **Orchestrator 2026-10-28 ~19:15: UI fix round, 3 task branches off feat
    - ui-test-fixes (ui-test-writer): COMMITTED c3dabfa (shop_redeem_invalid_code expects one real RedeemCode call; new setup offline_double_open
      + restore; Help.waitCardRest for showcase card; speed-dial sampler drops time of skipped teleport frames). Bugs 38e4a78b, 3b10d310, 837519cd.
      Risk: speed dial may still fail (real cause could be rail sideways velocity in AssemblyLinearVelocity).
-   - ui-hud-phone (general-purpose): WAS RUNNING at handoff, uncommitted in its worktree (HudChrome phone Items/Upgrade 9de32835, Race Face
-     d782d207, phone overlaps 9617a457). If its report was lost: inspect `git -C ../RobloxGames-orch/ui-hud-phone diff`, lint, commit or redo.
-     Race Face fix may need a StarterGui.rbxm re-bake in Studio.
-   NEXT: (1) finish/commit ui-hud-phone; (2) rules-auditor on the 3 branch diffs (rules HUD_LAYOUT_SPEC text + phone layout, SHOP_PURCHASES_SPEC 3,
+   - ui-hud-phone: NO CODE CHANGE (worktree removed). All 3 trace to tests/docs:
+     9de32835 = test vs doc conflict: HUD_LAYOUT_SPEC 6 stacks the pair at height <= 400 (phone_landscape 390 stacks; HudChrome:144 and
+     UiResponsive:1914 agree) but UiSpec.HudPair.Beside (UiSpec:745) lists phone_landscape; tablet_4x3 shrink 0.54 follows the doc's
+     "phone and tablet scale down" but UiSpec.HudPair.Desktop (:746) says never shrunk. OWNER decides (manual hud-pair-phone-rule).
+     d782d207 = test fault: Face 172x46 is the 1.035 HoverScale (mouse left on Race); ui-test-writer must un-hover before measuring.
+     9617a457: MotionFloat cannot fit above Speed on phone (UiMotion:197/209, RacerUiController:808) -> OWNER (manual speed-float-phone);
+     Settings Title/ProfileTab RacerUiController:266 + RacerSettings.ui.json:136; DailyBoosts/Status BoostDailyUi:226; Backpack CarsTab
+     BackpackUi:167 (CLAUDE.md: Backpack has no Cars tab). Also HudChrome:328 comment says pair hides under panels but code never does.
+   NEXT: (1) ui-test-writer: un-hover fix (d782d207); (2) rules-auditor on the 3 branch diffs (rules HUD_LAYOUT_SPEC text + phone layout, SHOP_PURCHASES_SPEC 3,
    OFFLINE_DOUBLE_SPEC 2); (3) merge all 3 into a scratch check: merge-tree each into world1-ship, merge --no-ff one by one; (4) full UITEST
    in Studio fb39beec (one run, after merging into the main tree since Rojo serves it); (5) green -> push, remove worktrees/branches, bugs fixed,
    ProjectContext + todo + progress-tracker. Reds -> back to the owner of the file.
