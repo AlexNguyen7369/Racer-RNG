@@ -75,7 +75,6 @@ function Welcome.Apply(panel, closePanel)
 	local title = panel.Title
 	title.Text = "OFFLINE REWARD"
 	label(title, UDim2.fromOffset(70, 10), UDim2.new(1, -140, 0, 54))
-	title.Font = Enum.Font.Bangers
 	title.ZIndex = 3
 	panel.Earnings.ZIndex = 3
 	panel.Away.ZIndex = 3
