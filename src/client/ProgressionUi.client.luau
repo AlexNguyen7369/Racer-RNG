@@ -560,7 +560,7 @@ local function refreshWelcome()
 		Switch.Close("Welcome")
 		lastCredit = nil
 	end
-	earnings.Text = string.format("+%s Speed earned while away", Format.SpeedText(credit))
+	earnings.Text = string.format("+%s SPEED", Format.SpeedText(credit))
 	away.Text = string.format(
 		"Away %dh %dm %ds • 25%% gain • 8h maximum",
 		math.floor(seconds / 3600),
@@ -619,3 +619,8 @@ RunService.Heartbeat:Connect(function(dt)
 end)
 refresh()
 refreshWelcome()
+
+-- Owner-approved offline reward presentation; reward calculation is unchanged.
+require(script.Parent:WaitForChild("WelcomeStyle")).Apply(welcome, function()
+	Switch.Close("Welcome")
+end)

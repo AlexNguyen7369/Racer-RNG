@@ -3,7 +3,18 @@
 PROJECT CONTEXT - Idle Vehicle Simulator (read me first)
 Shown in Studio at: ServerScriptService > ProjectContext   (source file: context/ProjectContext.luau)
 Do NOT edit this in Studio: edit the file on disk, Rojo syncs it. Claude updates it at the end of every loop.
-Last updated: 2026-10-27 (Claude: car redesign v3 toy racers, Singularity orb)
+Last updated: 2026-10-27 (Codex: approved HUD icons and scale-only hover)
+
+APPROVED HUD ICONS - 2026-10-27 (Isaac Li / Codex)
+- HudIcons uses ten standalone transparent PNGs, no atlas crop. Shop red/tan house,
+  Items brown backpack, Market detailed red shopping bag with blank tag, no coin/logo.
+- Sources and IDs: ui/icons/simple-20261027/. RacerHud Build/Bind and saved Settings
+  image agree; car-icon atlas and unrelated authored GUI instances are unchanged.
+- RacerMotion hover only scales to 1.035; white RacerHoverHighlight removed.
+  Existing UiMotion accessibility, click compression and press sound preserved.
+- Shared Studio save verified. All ten images loaded in PlayerGui, geometry unchanged,
+  real Items click opened Backpack and hover showed 1.035 without a white box.
+- Compile/build/UI-generation checks are focused evidence, not a full compatibility run.
 
 CAR REDESIGN V3 (TOY RACER) + SINGULARITY ORB - 2026-10-27 (Claude, branch feature/alex/car-redesign-v3-toy-racer)
 - Owner: every car a stylised toy racer, 15,000-triangle cap, pilot (Rusty Hatchback / Street Racer / Singularity)
@@ -1323,3 +1334,8 @@ return {
 	Updated = "2026-10-07",
 	Read = "Open this script and read the comment block above.",
 }
+
+--[=[
+
+Owner-approved UI delivery, 2026-10-28: white rounded racing-check Welcome reward panel, larger OFFLINE REWARD heading, smaller subtitle, centered speed icon and thick outlines; Claim dismisses using the existing flow. DOUBLE IT / 19 ROBUX is a visual placeholder until the owner creates the product. Offline amounts/rates/caps and server grants unchanged. Shop uses the same white checks. Detailed gamepass cutouts and separately drifting fire/space backgrounds, pooled embers/nebula/stars, Money-style card shine and scale-only 3.5% mouse hover (0.16s); no white hover border. Singularity art reduced about 12%. Gamepass section follows every rollable Index car and contributes no discoveries or stat points. Wyvern 799 Robux / x2000 Speed, Singularity 399 / x500; gamepass IDs remain 0. No Equip/Gift on these two cards; equip remains available elsewhere. Source art, Roblox IDs and prompts: ui/gamepass-cards/20261028. Focused desktop Studio checks and Luau compilation passed; full compatibility, phone and FPS checks not run. Shared Studio saved with version notes; no live publish. Other sessions have newer HUD/offline purchase work in Studio; this branch deliberately isolates this session's presentation changes.
+]=]

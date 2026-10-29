@@ -35,6 +35,17 @@ Auto race / workshop ──Speed/sec──▶ SPEED ──▶ Race the NPC ladde
 
 ## Features implemented
 
+Offline reward and gamepass UI (2026-10-28): rounded white racing checks, detailed
+animated Shop/Index cards, dragon embers, space layers and scale-only hover.
+See [delivery and validation](docs/OFFLINE_GAMEPASS_UI_DELIVERY.md).
+
+
+Approved HUD icons (2026-10-27): ten simple transparent cartoon icons, including
+the red/tan Shop house, brown Items backpack and detailed red Market bag without
+a coin. Hover feedback is scale-only (no white box). Source PNGs and Roblox IDs:
+[icon art](ui/icons/simple-20261027/README.md). Focused Studio checks passed;
+full compatibility was not rerun for this art-only update.
+
 Accessibility and devices (2026-10-26, `docs/HUD_LAYOUT_SPEC.md` section 7): UI motion follows Roblox's Reduced
 Motion setting or the in-game REDUCED EFFECTS toggle (tweens land at once, the roll reel lands without spinning),
 buttons stay inside the device safe area on notched phones, and panels support gamepads (first button selected,

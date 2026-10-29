@@ -16,6 +16,7 @@ local PanelSwitch = require(script.Parent:WaitForChild("PanelSwitch"))
 local Ui = script.Parent:WaitForChild("RollToast"):WaitForChild("Ui")
 local Icons = require(Ui.HudIcons)
 local PotionIcons = require(Ui.PotionIcons)
+local ShopPresentation = require(script.Parent:WaitForChild("ShopPresentation"))
 
 local OUTLINE = Color3.fromRGB(24, 22, 34)
 local PANEL = Color3.fromRGB(236, 236, 242)
@@ -226,26 +227,7 @@ end
 
 -- 1. Featured: the gamepass cars, each in a ViewportFrame.
 local function carPreview(parent, spec)
-	local viewport = make("ViewportFrame", "Preview", parent, {
-		Position = UDim2.fromScale(0.04, 0.24),
-		Size = UDim2.fromScale(0.92, 0.48),
-		BackgroundTransparency = 1,
-		Ambient = Color3.fromRGB(170, 170, 190),
-		LightColor = Color3.new(1, 1, 1),
-	})
-	local models = ReplicatedStorage:FindFirstChild("CarModels")
-	local source = models and spec.Model and models:WaitForChild(spec.Model, 5)
-	if not source then
-		caption("Unknown", viewport, { Size = UDim2.fromScale(1, 1), Text = "?", TextSize = 60 })
-		return
-	end
-	local model = source:Clone()
-	model.Parent = viewport
-	local box, size = model:GetBoundingBox()
-	local camera = make("Camera", "Camera", viewport, {})
-	local distance = math.max(size.X, size.Y, size.Z) * 0.6
-	camera.CFrame = CFrame.lookAt(box.Position + Vector3.new(distance, distance * 0.4, distance), box.Position)
-	viewport.CurrentCamera = camera
+	ShopPresentation.Preview(parent, spec, backdrop)
 end
 local featured = section("Featured", 1, nil, nil)
 featured.Parent = list
@@ -271,37 +253,29 @@ for order, car in catalog.Passes() do
 	caption("Stats", box, {
 		Position = UDim2.fromScale(0.04, 0.15),
 		Size = UDim2.fromScale(0.92, 0.09),
-		Text = string.format("%s  •  x%s Speed", car.Rarity, commas(car.SpeedMulti)),
+		Text = string.format("×%s SPEED", commas(car.SpeedMulti)),
 		TextColor3 = lighter(color, 0.6),
 		TextSize = 20,
 	})
 	task.spawn(carPreview, box, car)
 	local buy = buyButton(box, "pass", car.GamepassId or 0, car.RobuxPrice or 0, {
-		AnchorPoint = Vector2.new(0.5, 1),
-		Position = UDim2.new(0.5, 0, 1, -10),
-		Size = UDim2.fromScale(0.56, 0.2),
+		AnchorPoint = Vector2.new(1, 1),
+		Position = UDim2.new(1, -12, 1, -12),
+		Size = UDim2.fromOffset(122, 48),
 	})
-	-- Owned (bought, or an admin): the button equips the car through the same validated EquipCar remote.
-	local function owned()
-		if player:GetAttribute("Pass_" .. car.Id) == true then
-			local equipped = player:GetAttribute("EquippedCar") == car.Id
-			buy:SetAttribute("Owned", true)
-			buy.Price.Text = equipped and "Equipped" or "Equip"
-			buy.Robux.Visible = false
-			if buy:FindFirstChild("Soon") then
-				buy.Soon.Visible = false
-			end
-			buy.Active = not equipped
-		end
-	end
-	owned()
-	player:GetAttributeChangedSignal("Pass_" .. car.Id):Connect(owned)
-	player:GetAttributeChangedSignal("EquippedCar"):Connect(owned)
-	buy.Activated:Connect(function()
-		if buy:GetAttribute("Owned") and player:GetAttribute("EquippedCar") ~= car.Id then
-			ReplicatedStorage.Remotes.EquipCar:FireServer(car.Id)
-		end
-	end)
+	-- Featured cards advertise the pass price. Equipping remains in Backpack/pedestals.
+ if buy:FindFirstChild("Soon") then buy.Soon:Destroy() end
+ buy.Robux.Position=UDim2.fromScale(.08,.5)
+ buy.Price.Position=UDim2.fromScale(.32,.12)
+ buy.Price.Size=UDim2.fromScale(.62,.76)
+ local function owned()
+  local hasPass=player:GetAttribute("Pass_"..car.Id)==true
+  buy:SetAttribute("Owned",hasPass)
+  buy.Active=not hasPass and (car.GamepassId or 0)>0
+  buy.AutoButtonColor=buy.Active
+ end
+ owned()
+ player:GetAttributeChangedSignal("Pass_"..car.Id):Connect(owned)
 end
 
 -- 2. Gamepasses grid.
@@ -644,9 +618,6 @@ local function giftButton(box, product, reason)
 		end
 	end)
 end
-for _, car in catalog.Passes() do
-	giftButton(featuredRow[car.Id], nil, "Account-bound • no gifting")
-end
 for _, pass in config.Gamepasses do
 	giftButton(grid[pass.Id], nil, "Account-bound • no gifting")
 end
@@ -680,3 +651,5 @@ panel:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
 	grid.Layout.CellSize = UDim2.new(1 / columns, -11, 0, 196)
 	packRow.Layout.CellSize = UDim2.new(1 / columns, -11, 0, 196)
 end)
+-- Shop-only visual layer; purchases, ownership and gifting remain in this script.
+ShopPresentation.Apply(panel, list, featuredRow, root)

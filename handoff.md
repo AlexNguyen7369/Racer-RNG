@@ -3,7 +3,20 @@
 Only the current state and open work. Older entries (2026-10-02 .. 2026-10-26) were trimmed on 2026-10-27; they are
 in git history (`git log -p -- handoff.md`, last full version at 2d99d78) and in `context/ProjectContext.luau`.
 
+## UI delivery — 2026-10-28
+
+
+Owner-approved UI delivery, 2026-10-28: white rounded racing-check Welcome reward panel, larger OFFLINE REWARD heading, smaller subtitle, centered speed icon and thick outlines; Claim dismisses using the existing flow. DOUBLE IT / 19 ROBUX is a visual placeholder until the owner creates the product. Offline amounts/rates/caps and server grants unchanged. Shop uses the same white checks. Detailed gamepass cutouts and separately drifting fire/space backgrounds, pooled embers/nebula/stars, Money-style card shine and scale-only 3.5% mouse hover (0.16s); no white hover border. Singularity art reduced about 12%. Gamepass section follows every rollable Index car and contributes no discoveries or stat points. Wyvern 799 Robux / x2000 Speed, Singularity 399 / x500; gamepass IDs remain 0. No Equip/Gift on these two cards; equip remains available elsewhere. Source art, Roblox IDs and prompts: ui/gamepass-cards/20261028. Focused desktop Studio checks and Luau compilation passed; full compatibility, phone and FPS checks not run. Shared Studio saved with version notes; no live publish. Other sessions have newer HUD/offline purchase work in Studio; this branch deliberately isolates this session's presentation changes.
+
 ## State — 2026-10-27
+
+- Codex delivery: `feature/isaac/simple-hud-icons-20261027` from main `c9dadc5`.
+  Ten approved transparent HUD PNGs + IDs, scale-only hover, generated Settings
+  icon and narrow StarterGui asset update. Saved and focused-live-checked in Studio.
+  No server/gameplay changes, no main merge, no live publish. Full compatibility
+  not rerun. Review phone readability before merging; retain all open work below.
+  Luau compilation, Rojo build, deterministic UI generation and image-only
+  StarterGui preservation checks passed; source PNGs + asset IDs are included.
 
 - Current branch: `feature/alex/ember-wyvern-flight` (from origin/main 820cd25 + c4f4fee); see Open work 0.
 
