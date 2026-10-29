@@ -138,7 +138,8 @@ function SpeedDial.Attach(frame)
 		local fraction = math.clamp(shown / SpeedDial.Scale(stat), 0, 1)
 		needle.Rotation = START_DEG + SWEEP_DEG * fraction
 		needle:SetAttribute("DialValue", speed)
-		readout.Text = tostring(math.floor(shown + 0.5))
+		-- On foot / without a car the number reads 0 at once (HUD spec section 9); only the needle glides back.
+		readout.Text = speed > 0 and tostring(math.floor(shown + 0.5)) or "0"
 		track.Color3 = speed > 0 and Color3.fromRGB(58, 70, 104) or Color3.fromRGB(44, 50, 70)
 		if math.abs(fraction - drawn) >= REDRAW_STEP then
 			drawn = fraction

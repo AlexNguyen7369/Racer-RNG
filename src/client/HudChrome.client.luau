@@ -141,7 +141,6 @@ local ICON_MID = TILE / 2 / (TILE + LABEL)
 local itemsSlot = holder("ItemsSlot", 1, { AnchorPoint = Vector2.new(1, ICON_MID) })
 local upgradeSlot = holder("UpgradeSlot", 1, { AnchorPoint = Vector2.new(0, ICON_MID) })
 local BOTTOM_SCALE = 0.75 -- the bottom pair is smaller than the edge tiles (owner, 2026-10-15)
-local STACK_MAX_HEIGHT = 400 -- phone_small: the pair stacks above the bars (owner, 2026-10-28)
 local SLOTS = {
 	{ "Index", grid },
 	{ "Stats", grid },
@@ -287,8 +286,8 @@ local function refresh()
 	grid.Position = phone and UDim2.new(0, 8, 0.5, -20) or UDim2.new(0, 14, 0.5, -24)
 	shopColumn.Position = phone and UDim2.new(1, -8, 0.5, -20) or UDim2.new(1, -14, 0.5, -24)
 	-- Bottom pair: right beside the LEVEL / TURBO LUCK bars, each icon centred on the gap between the bars. That
-	-- is below the Speed readout, so the wider Speed group never touches them. An open panel fills the band above
-	-- the bars, so the pair hides while any panel is open (the panel's X and Escape close it).
+	-- is below the Speed readout (bottom right on phones, section 9), so the Speed group never touches them. Like
+	-- every persistent HUD entry the pair stays drawn while a panel is open (section 6).
 	local hud = gui:FindFirstChild("RacerHud")
 	local level = hud and hud:FindFirstChild("Level")
 	local turbo = hud and hud:FindFirstChild("Turbo")
@@ -313,24 +312,18 @@ local function refresh()
 		for _, name in { "Money", "Speed" } do
 			table.insert(blockers, rect(name))
 		end
-		if camera and camera.ViewportSize.Y <= STACK_MAX_HEIGHT then
-			-- Owner 2026-10-28 (section 6): on the smallest phones the pair sits ABOVE the bars (bottom edge over the
-			-- LEVEL bar and the Money read-out), just outside the Speed read-out on each side.
-			local speed = rect("Speed")
-			local money = rect("Money")
-			local y = math.min(level.AbsolutePosition.Y + inset, money and money[2] or math.huge) - 6
-			itemsSlot.AnchorPoint = Vector2.new(1, 1)
-			upgradeSlot.AnchorPoint = Vector2.new(0, 1)
-			itemsSlot.Position = UDim2.fromOffset(math.min(left, speed and speed[1] or left) - 6, y)
-			upgradeSlot.Position = UDim2.fromOffset(math.max(right, speed and speed[3] or right) + 6, y)
-		else
-			itemsSlot.AnchorPoint = Vector2.new(1, ICON_MID)
-			upgradeSlot.AnchorPoint = Vector2.new(0, ICON_MID)
-			itemsSlot.Position = UDim2.fromOffset(left - 10, gap)
-			upgradeSlot.Position = UDim2.fromOffset(right + 10, gap)
+		-- The weather icon sits bottom right, 140 px in on phones (WEATHER_EVENTS_SPEC "Weather icon").
+		local progression = gui:FindFirstChild("RacerProgression")
+		local weather = progression and progression:FindFirstChild("WeatherIcon")
+		if weather and weather.Visible then
+			local p = weather.AbsolutePosition + Vector2.new(0, inset)
+			table.insert(blockers, { p.X, p.Y, p.X + weather.AbsoluteSize.X, p.Y + weather.AbsoluteSize.Y })
 		end
+		-- Owner 2026-10-29 (section 6): the pair never stacks; it stays beside the bars at every viewport.
+		itemsSlot.Position = UDim2.fromOffset(left - 10, gap)
+		upgradeSlot.Position = UDim2.fromOffset(right + 10, gap)
 		-- Owner 2026-10-28 (section 6): on narrow screens the pair shrinks (about its anchor) until it clears the
-		-- Money and Speed read-outs; where they are already clear (desktop) the scale is unchanged.
+		-- Money and Speed read-outs and the weather icon; where they are already clear (desktop) the scale is unchanged.
 		local function clear(k)
 			local w, h = CELL.X * k, CELL.Y * k
 			for _, slot in { itemsSlot, upgradeSlot } do
