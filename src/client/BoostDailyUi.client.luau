@@ -253,6 +253,7 @@ end
 local view = nil -- "Daily" or "Quests": which content the shared modal shows
 local questCategory = "Daily"
 local questRows = {}
+local selectedQuestId = nil -- kept across live re-renders of the quest list
 
 local function layoutView()
 	local camera = workspace.CurrentCamera
@@ -487,6 +488,7 @@ local function decode(name)
 end
 
 local function selectQuest(quest, current, weekly)
+	selectedQuestId = quest.Id
 	for id, refs in questRows do
 		refs.Edge.Color = id == quest.Id and Color3.new(1, 1, 1) or TILE_BLUE
 	end
@@ -579,7 +581,7 @@ local function showQuests()
 		claim.AutoButtonColor = claim.Active
 		claim.BackgroundColor3 = claim.Active and GREEN or TAB
 		questRows[quest.Id] = { Button = row, Edge = rowEdge }
-		if not selectedQuest then
+		if not selectedQuest or quest.Id == selectedQuestId then
 			selectedQuest, selectedCurrent = quest, current
 		end
 		row.Activated:Connect(function()
@@ -612,6 +614,15 @@ weeklyQuestTab.Activated:Connect(function()
 	questCategory = "Weekly"
 	showQuests()
 end)
+-- Progress and claims come from the server as attributes: re-render the open list so Claim is Active only while
+-- the quest is complete and unclaimed.
+for _, name in { "QuestDailyProgress", "QuestWeeklyProgress", "QuestDailyClaimed", "QuestWeeklyClaimed" } do
+	player:GetAttributeChangedSignal(name):Connect(function()
+		if view == "Quests" and backdrop.Visible then
+			showQuests()
+		end
+	end)
+end
 
 -- The top-right Daily and Quests pills (HudChrome) share this modal; a second click on the same pill closes it.
 local function action(name, show)

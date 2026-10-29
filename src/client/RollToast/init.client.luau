@@ -747,7 +747,23 @@ local function resetBody(b, roll)
 			child:Destroy()
 		end
 	end
-	b.Viewport.Visible = false
+	if b.Full then
+		b.Viewport.Visible = false
+	else
+		-- The compact roll is only its art: the Viewport stays shown (emptied until the result lands), so the
+		-- clickable Toast never has an empty strip above the reel (UiSpec.MaxHitboxPadding).
+		if b.Model then
+			b.Model:Destroy()
+			b.Model = nil
+		end
+		for _, child in b.Viewport:GetChildren() do
+			if child:IsA("Model") then
+				child:Destroy()
+			end
+		end
+		b.Placeholder.Visible = false
+		b.Viewport.Visible = true
+	end
 	b.Smoke.Visible = false
 	b.Streaks.Visible = true
 	b.Odds.Text = "?"
@@ -1044,6 +1060,16 @@ local function play(roll)
 		task.wait(seconds)
 		return alive()
 	end
+	-- The reveal is timed from PopIn (POP + SPIN + LAND, HUD_LAYOUT_SPEC 7): waiting on absolute deadlines keeps
+	-- each wait's frame overshoot from adding up.
+	local popAt
+	local function untilAt(offset)
+		local left = popAt + offset - os.clock()
+		if left > 0 then
+			task.wait(left)
+		end
+		return alive()
+	end
 
 	local reelIds = A.Reel(rng, spec.Id)
 	for _, b in bodies do
@@ -1056,6 +1082,7 @@ local function play(roll)
 
 	-- Pop in: the card grows from nothing and fades in
 	setPhase("PopIn")
+	popAt = os.clock()
 	for _, b in bodies do
 		b.Body.Size = UDim2.fromScale(0, 0)
 		local goal = { Size = UDim2.fromScale(1, 1) }
@@ -1065,7 +1092,7 @@ local function play(roll)
 		end
 		tween(b.Body, A.POP, goal, Enum.EasingStyle.Back)
 	end
-	if not after(A.POP) then
+	if not untilAt(A.POP) then
 		return
 	end
 
@@ -1092,7 +1119,7 @@ local function play(roll)
 			loop:Play()
 		end
 	end
-	local started = os.clock()
+	local started = popAt + A.POP
 	local distance = (#reelIds - 1) * 0.86 - 0.18
 	while alive() do
 		local alpha = reduceEffects() and 1 or math.clamp((os.clock() - started) / A.SPIN, 0, 1)
@@ -1126,7 +1153,7 @@ local function play(roll)
 		local tile = tiles[b][#reelIds]
 		tween(tile, A.LAND, { Position = UDim2.fromScale(0.5, 0.5), Rotation = 0 }, Enum.EasingStyle.Back)
 	end
-	if not after(A.LAND) then
+	if not untilAt(A.POP + A.SPIN + A.LAND) then
 		return
 	end
 	-- Reveal only after the winning sprite reaches the centre. Previously fillResult
@@ -1138,8 +1165,12 @@ local function play(roll)
 		local settleTime = b.Full and math.min(A.Hold(spec.Rarity), 0.22) or 0.03
 		tween(b.Body, settleTime, { Size = UDim2.fromScale(1, 1) }, Enum.EasingStyle.Back)
 		if not b.Full then
-			task.wait(0.04)
-			b.Body.Size = UDim2.fromScale(1, 1)
+			-- Settle without yielding, so Hold (the reveal) is not pushed back
+			task.delay(0.04, function()
+				if alive() then
+					b.Body.Size = UDim2.fromScale(1, 1)
+				end
+			end)
 		end
 		landEffects(b, roll, mySerial)
 	end
