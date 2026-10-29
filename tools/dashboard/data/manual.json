@@ -639,14 +639,16 @@
    "category": "decision",
    "priority": "high",
    "when": "2026-10-28",
-   "status": "open",
+   "status": "done",
    "why": "docs/HUD_LAYOUT_SPEC.md section 6 stacks the pair above the bars at viewport height <= 400 and shrinks it on phone and tablet; the UI test (UiSpec.HudPair) wants it beside the bars at 844x390 and never shrunk at tablet 1024x768. Code follows the doc. One must change.",
    "blocks": "ui_layout green (w1e)",
    "steps": [
     "Choose A: keep the doc (<= 400 stacks, tablet shrinks); the test is updated.",
     "Or B: lower the stack threshold (e.g. 380) and/or never shrink on tablet; doc, HudChrome, UiResponsive and UiSpec change together.",
     "Tell the orchestrator A or B (dated doc entry)."
-   ]
+   ],
+   "done": "2026-10-29",
+   "note": "Owner 2026-10-29: never stack (UiSpec.HudPair.Beside right); HUD_LAYOUT_SPEC 6 updated. Tablet shrink part still open: see hud-pair-tablet-shrink."
   },
   {
    "id": "speed-float-phone",
@@ -654,12 +656,29 @@
    "category": "decision",
    "priority": "medium",
    "when": "2026-10-28",
-   "status": "open",
+   "status": "done",
    "why": "The doc says the float rises above the Speed number; on phone only ~27 px are free above SpeedValue (the roll toast sits 4 px above), the float is 30 px tall and rises 46 px, so it overlaps the toast.",
    "blocks": "ui_layout phone green",
    "steps": [
     "Choose: smaller rise / label on phone, or a different spot on phone (e.g. beside Speed).",
     "Tell the orchestrator; it writes the dated doc rule, then the code."
+   ],
+   "done": "2026-10-29",
+   "note": "Owner 2026-10-29: on phone the Speed readout sits bottom right; HUD_LAYOUT_SPEC 9 updated."
+  },
+  {
+   "id": "hud-pair-tablet-shrink",
+   "title": "Decide: may the Items/Upgrade pair shrink on tablet 1024x768?",
+   "category": "decision",
+   "priority": "medium",
+   "when": "2026-10-29",
+   "status": "open",
+   "why": "HUD_LAYOUT_SPEC 6 says the pair scales down on phone and tablet until it clears Money/Speed; UiSpec.HudPair.Desktop says tablet_4x3 is never shrunk (code shrinks to 0.54). The 2026-10-29 decision covered stacking only.",
+   "blocks": "ui_layout tablet_4x3 green",
+   "steps": [
+    "Choose A: keep the doc (tablet shrinks); ui-test-writer updates UiSpec.HudPair.Desktop.",
+    "Or B: tablet never shrinks; doc + HudChrome change.",
+    "Tell the orchestrator A or B."
    ]
   }
  ]

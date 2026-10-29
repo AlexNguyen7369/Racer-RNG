@@ -123,8 +123,9 @@ adds the shared slight enlargement without a white hover box; its Claim button r
 - Owner 2026-10-28: the Roblox chat window starts collapsed (TextChatService `ChatWindowConfiguration`), so it never
   covers the left icon tiles; players open it with the chat button. On phone and tablet viewports the Items and Upgrade
   buttons beside the LEVEL / TURBO bars scale down until they clear the Money and Speed readouts (desktop unchanged).
-- Owner 2026-10-28: at viewport height <= 400 (phone_small, e.g. 667x375) the Items and Upgrade buttons stack ABOVE the
-  LEVEL / TURBO bars instead of beside them, so the Items anchor never sits inside the Speed readout; other sizes unchanged.
+- Owner 2026-10-29 (replaces the 2026-10-28 stacking rule): the Items and Upgrade buttons NEVER stack; they stay
+  beside the LEVEL / TURBO bars at every viewport, phone landscape and phone_small included. On phones the Speed
+  readout moves away (section 9), so the pair has room beside the bars.
 
 ## 7. Motion, safe area and gamepad (owner 2026-10-26)
 
@@ -166,6 +167,10 @@ adds the shared slight enlargement without a white hover box; its Claim button r
   ticks, needle and hub) replaces the plain icon slot on the left; the speed icon is the dial's hub. The Speed
   stat (`SpeedValue`, e.g. `10.2m SPEED`, yellow-to-orange gradient) stays beside it on the right; the dial's
   centre is too small for the stat on phones, so the dial shows the car's speed (`45`, small, under the hub).
+- Owner 2026-10-29: on phones (viewport height <= 500) the whole Speed readout (dial, `SpeedValue` and its rising
+  `+Speed` float, section 10) sits at the BOTTOM RIGHT instead of bottom centre, and the float rises above it there.
+  It must not overlap the weather icon, the potion buttons or any other HUD element (section 6). Desktop and tablet
+  keep it bottom centre.
 - The needle and the arc fill show the car's REAL speed in studs/s (the local player's car chassis velocity)
   while auto racing; on foot or without a car the needle rests at 0 and the dial dims. The full scale is
   `max(RaceConfig.SpeedFor(stat) * 1.25, RaceConfig.BASE_SPEED * 2)` (placeholder). The dial is presentation
