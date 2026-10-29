@@ -14,6 +14,13 @@ BALANCE PASS + CRUISE CAP + WORLDS PLAN - 2026-10-27/28 (Claude, uncommitted; ow
 - Worlds: docs/WORLDS_SPEC.md (World 2 = separate place, rebirths 11-20, mega biomes); tools/balance_sim.py.
 - Live 2026-10-28: full harness 49/4 (only data + 3 known scenery bugs); after fixes data/money/economy/leaderboard/admin/
   bank/race all green. Open: Hill GiantOak2 overlap (spawn_area, workshop), city_blocks_gap 0.431 (0.7).
+ORCH-5 UI FIX ROUND - 2026-10-28 (Claude orchestrator, world1-ship e2a5f70, pushed):
+- Landed: Welcome title FredokaOne, Upgrades panel opaque 0.05, UI test fixes (redeem real call, offline_double_open setup,
+  showcase card settle, speed-dial sampling, hitbox un-hover). rules-auditor PASS.
+- Live UITEST (Studio fb39beec): [UITEST] END pass=33 fail=4 (ui_layout, ui_hitboxes, ui_motion, ui_reduced_motion); fixtures 41/44;
+  clicks 121 run, red 65 (CheckpointUi left open) + 112 (quest Claim active). Fixed bugs ccc13c4f 38e4a78b 3b10d310 837519cd d782d207.
+- Open: owner items hud-pair-phone-rule (9de32835), speed-float-phone (9617a457); new bugs 53e24a2e (0.05 float compare),
+  3c0dcacf, 7d99207f, adf68695, 0261e33b, fd2412fe, 4796b256, 081c684a.
 PAYOUT AND PRICE CURVES - 2026-10-27 (Claude, uncommitted; owner: payouts x10 / x7.5 per track, costs faster than payouts):
 - Rules: design doc "payout and price curves", UPGRADE_TREE_SPEC 2, WORKSHOP_SPEC 5, CLAUDE.md track rule 6.
 - Code: new Shared/PayoutCurve (Ratio, Cash, NiceRound, Cost = base x Ratio(step)^1.5); TrackBuilder.CashFor, UpgradeTree.Price,

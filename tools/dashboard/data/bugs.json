@@ -2389,7 +2389,7 @@
       "id": "ccc13c4f",
       "name": "Welcome title uses Bangers, not Fredoka",
       "kind": "fault",
-      "status": "open",
+      "status": "fixed",
       "file": "src/client/WelcomeStyle.luau",
       "line": 78,
       "endLine": 78,
@@ -2411,13 +2411,16 @@
       "error": "theme_fonts_fredoka FAIL",
       "foundBy": "ui-tester",
       "foundAt": "2026-10-28T19:02:02-07:00",
-      "loggedBy": "Alex Nguyen"
+      "loggedBy": "Alex Nguyen",
+      "fixedAt": "2026-10-28T20:05:44-07:00",
+      "fixedBy": "Alex Nguyen",
+      "fixNote": "UITEST 2026-10-28 on world1-ship e2a5f70 (ui-tester): check passes"
     },
     {
       "id": "d782d207",
       "name": "Race button face larger than parent on foot",
       "kind": "fault",
-      "status": "open",
+      "status": "fixed",
       "file": "src/client/RollToast/Ui/RacerHud.luau",
       "line": 36,
       "endLine": 36,
@@ -2439,7 +2442,10 @@
       "error": "",
       "foundBy": "ui-tester",
       "foundAt": "2026-10-28T19:02:02-07:00",
-      "loggedBy": "Alex Nguyen"
+      "loggedBy": "Alex Nguyen",
+      "fixedAt": "2026-10-28T20:05:44-07:00",
+      "fixedBy": "Alex Nguyen",
+      "fixNote": "UITEST 2026-10-28 on world1-ship e2a5f70 (ui-tester): check passes"
     },
     {
       "id": "9617a457",
@@ -2501,7 +2507,7 @@
       "id": "38e4a78b",
       "name": "UiSpec shop_redeem_invalid_code expects no remote but RedeemCode is real",
       "kind": "fault",
-      "status": "open",
+      "status": "fixed",
       "file": "src/client/UiTest/UiSpec.luau",
       "line": 1537,
       "endLine": 1537,
@@ -2523,13 +2529,16 @@
       "error": "",
       "foundBy": "ui-tester",
       "foundAt": "2026-10-28T19:02:02-07:00",
-      "loggedBy": "Alex Nguyen"
+      "loggedBy": "Alex Nguyen",
+      "fixedAt": "2026-10-28T20:05:44-07:00",
+      "fixedBy": "Alex Nguyen",
+      "fixNote": "UITEST 2026-10-28 on world1-ship e2a5f70 (ui-tester): check passes"
     },
     {
       "id": "3b10d310",
       "name": "UiTestSetup missing offline_double_open",
       "kind": "fault",
-      "status": "open",
+      "status": "fixed",
       "file": "src/server/CarTest/UiTestSetup.server.luau",
       "line": 881,
       "endLine": 881,
@@ -2551,7 +2560,10 @@
       "error": "",
       "foundBy": "ui-tester",
       "foundAt": "2026-10-28T19:02:03-07:00",
-      "loggedBy": "Alex Nguyen"
+      "loggedBy": "Alex Nguyen",
+      "fixedAt": "2026-10-28T20:05:44-07:00",
+      "fixedBy": "Alex Nguyen",
+      "fixNote": "UITEST 2026-10-28 on world1-ship e2a5f70 (ui-tester): check passes"
     },
     {
       "id": "03bad751",
@@ -2581,7 +2593,7 @@
       "id": "837519cd",
       "name": "Showcase card viewport measured mid pop-in",
       "kind": "failure",
-      "status": "open",
+      "status": "fixed",
       "file": "src/client/RollToast/Ui/RollShowcase.luau",
       "line": 1,
       "endLine": 1,
@@ -2599,6 +2611,213 @@
       "error": "",
       "foundBy": "ui-tester",
       "foundAt": "2026-10-28T19:02:11-07:00",
+      "loggedBy": "Alex Nguyen",
+      "fixedAt": "2026-10-28T20:05:44-07:00",
+      "fixedBy": "Alex Nguyen",
+      "fixNote": "UITEST 2026-10-28 on world1-ship e2a5f70 (ui-tester): check passes"
+    },
+    {
+      "id": "53e24a2e",
+      "name": "Upgrades panel 0.05 fails <=0.05 cap (float)",
+      "kind": "failure",
+      "status": "open",
+      "file": "src/client/RollToast/Ui/UpgradeTreeView.luau",
+      "line": 73,
+      "endLine": 73,
+      "snippet": {
+        "from": 69,
+        "lines": [
+          "\tscreen.DisplayOrder = 8",
+          "\tlocal panel = make(\"Frame\", \"Panel\", {",
+          "\t\tSize = UDim2.fromScale(1, 1),",
+          "\t\tBackgroundColor3 = Color3.fromRGB(7, 15, 24),",
+          "\t\tBackgroundTransparency = 0.05, -- opaque surface: HUD read-outs must not show through (UiSpec.PanelCoversReadouts)",
+          "\t\tBorderSizePixel = 0,",
+          "\t\tVisible = false,",
+          "\t\tZIndex = 0,",
+          "\t\tActive = true,"
+        ]
+      },
+      "summary": "text_clear_of_buttons_upgrades_open_* fails at every viewport: 'BackgroundTransparency 0.05 > 0.05' (float32 0.0500000007 vs MaxSurfaceTransparency 0.05). Upgrades tree still counted see-through over Speed.",
+      "error": "",
+      "foundBy": "ui-tester",
+      "foundAt": "2026-10-28T20:05:44-07:00",
+      "loggedBy": "Alex Nguyen"
+    },
+    {
+      "id": "3c0dcacf",
+      "name": "Upgrades Exit HoverScale 1.035 at rest",
+      "kind": "failure",
+      "status": "open",
+      "file": "src/client/RollToast/Ui/UpgradeTreeView.luau",
+      "line": 1,
+      "endLine": 1,
+      "snippet": {
+        "from": 1,
+        "lines": [
+          "--!nonstrict",
+          "-- Presentation only: authoritative prices, locks and purchases stay in ProgressionUi/UpgradeTree.",
+          "local View = {}",
+          "local Components = require(script.Parent.RacerComponents)",
+          "local UserInputService = game:GetService(\"UserInputService\")"
+        ]
+      },
+      "summary": "ui_motion buttons_and_hover_rows_have_shared_motion: RacerUpgrades/ZoomTools/Exit/Face HoverScale at rest 1.035; hover not reset on close, or test does not un-hover.",
+      "error": "",
+      "foundBy": "ui-tester",
+      "foundAt": "2026-10-28T20:05:44-07:00",
+      "loggedBy": "Alex Nguyen"
+    },
+    {
+      "id": "7d99207f",
+      "name": "RollToast hitbox padding at rest",
+      "kind": "failure",
+      "status": "open",
+      "file": "src/client/RollToast/init.client.luau",
+      "line": 1,
+      "endLine": 1,
+      "snippet": {
+        "from": 1,
+        "lines": [
+          "--!nonstrict",
+          "-- The roll animation (docs/ROLL_ANIMATION_CONTRACT.md, design doc \"Roll animation\"). Every auto-roll result",
+          "-- (Remotes.RollResult, decided by the server's GachaService) plays as: pop in -> spin (cars drive through a reel,",
+          "-- slowing like a slot reel; fillers are real rolls, never fake near-misses) -> land (the result brakes into the",
+          "-- centre, the card pops, smoke) -> hold (longer for rarer cars, with rarity effects) -> exit (the card shrinks and"
+        ]
+      },
+      "summary": "ui_hitboxes hitbox_padding_rest: RollToast/Toast (549,124 150x110) vs content (549,146 150x88): 22 px empty clickable strip.",
+      "error": "",
+      "foundBy": "ui-tester",
+      "foundAt": "2026-10-28T20:05:44-07:00",
+      "loggedBy": "Alex Nguyen"
+    },
+    {
+      "id": "adf68695",
+      "name": "Rebirth panel band 4 px low, Close 2 px off model",
+      "kind": "failure",
+      "status": "open",
+      "file": "src/client/PanelBand.luau",
+      "line": 1,
+      "endLine": 1,
+      "snippet": {
+        "from": 1,
+        "lines": [
+          "--!nonstrict",
+          "-- The band every hand-built panel opens in (docs/HUD_LAYOUT_SPEC.md section 6): below the Race button, above the",
+          "-- TURBO LUCK bar, and between the left icon grid and the right Shop column, so a panel never covers a HUD entry.",
+          "local Players = game:GetService(\"Players\")",
+          "local GuiService = game:GetService(\"GuiService\")"
+        ]
+      },
+      "summary": "rebirth_panel_band_centred_y_current 328 (limit 323.8); layout_model_matches_engine_rebirth_open 2 (limit 1): Rebirth Close/Face (830,151) vs model (830,149).",
+      "error": "",
+      "foundBy": "ui-tester",
+      "foundAt": "2026-10-28T20:05:44-07:00",
+      "loggedBy": "Alex Nguyen"
+    },
+    {
+      "id": "0261e33b",
+      "name": "Reduced-motion roll: no viewport on result",
+      "kind": "failure",
+      "status": "open",
+      "file": "src/client/RollToast/init.client.luau",
+      "line": 1,
+      "endLine": 1,
+      "snippet": {
+        "from": 1,
+        "lines": [
+          "--!nonstrict",
+          "-- The roll animation (docs/ROLL_ANIMATION_CONTRACT.md, design doc \"Roll animation\"). Every auto-roll result",
+          "-- (Remotes.RollResult, decided by the server's GachaService) plays as: pop in -> spin (cars drive through a reel,",
+          "-- slowing like a slot reel; fillers are real rolls, never fake near-misses) -> land (the result brakes into the",
+          "-- centre, the card pops, smoke) -> hold (longer for rarer cars, with rarity effects) -> exit (the card shrinks and"
+        ]
+      },
+      "summary": "ui_reduced_motion reduced_roll_lands_on_result: no visible Viewport ViewportFrame on landed card; earlier run reduced_reveal_at_normal_time 1.203 s (want 1.10 +-0.10).",
+      "error": "",
+      "foundBy": "ui-tester",
+      "foundAt": "2026-10-28T20:05:44-07:00",
+      "loggedBy": "Alex Nguyen"
+    },
+    {
+      "id": "fd2412fe",
+      "name": "Speed float off by one; dial 1 on foot",
+      "kind": "failure",
+      "status": "open",
+      "file": "src/client/RollToast/RacerUiController.luau",
+      "line": 808,
+      "endLine": 808,
+      "snippet": {
+        "from": 804,
+        "lines": [
+          "end",
+          "",
+          "-- On short screens the centred Speed group would reach up into the compact roll (Race bottom + COMPACT_GAP +",
+          "-- its height): move it down into the gap above the TURBO bar, never closer than SPEED_TURBO_GAP to the bar.",
+          "local SPEED_TOAST_GAP, SPEED_TURBO_GAP = 4, 2",
+          "local speedShift, speedSetOffset = 0, nil",
+          "local function clearSpeedOfToast(group)",
+          "\tlocal position = group.Position",
+          "\tif speedSetOffset == nil or position.Y.Offset ~= speedSetOffset then"
+        ]
+      },
+      "summary": "on_foot fixture: speed_float_text '+12,344' want '+12,345'; speed_dial_text_zero_on_foot '1' want '0' (main run showed 0, maybe timing).",
+      "error": "",
+      "foundBy": "ui-tester",
+      "foundAt": "2026-10-28T20:05:44-07:00",
+      "loggedBy": "Alex Nguyen"
+    },
+    {
+      "id": "4796b256",
+      "name": "quest_incomplete leaves Claim active",
+      "kind": "failure",
+      "status": "open",
+      "file": "src/server/CarTest/UiTestSetup.server.luau",
+      "line": 1,
+      "endLine": 1,
+      "snippet": {
+        "from": 1,
+        "lines": [
+          "--!nonstrict",
+          "-- UI test setups, run INSIDE the real server (same module cache as Main), so the live GachaService / CarService /",
+          "-- RaceService state is the one being changed. execute_luau snippets get separate module copies and can't do this.",
+          "--",
+          "-- Studio only. Trigger: ReplicatedStorage attribute UiTestSetup = \"<id>:<nonce>\". The setup <id> runs for every"
+        ]
+      },
+      "summary": "click 112 quest_claim_disabled_fires_nothing: daily_races Claim Active=true after quest_incomplete setup (twice). Same as 12342e7c.",
+      "error": "",
+      "foundBy": "ui-tester",
+      "foundAt": "2026-10-28T20:05:44-07:00",
+      "loggedBy": "Alex Nguyen"
+    },
+    {
+      "id": "081c684a",
+      "name": "UI harness leaves CheckpointUi and Offline modal open",
+      "kind": "fault",
+      "status": "open",
+      "file": "src/server/CarTest/UiTestSetup.server.luau",
+      "line": 149,
+      "endLine": 149,
+      "snippet": {
+        "from": 145,
+        "lines": [
+          "\t\tupgrades = live(\"UpgradeService\").Snapshot(player),",
+          "\t}",
+          "end",
+          "",
+          "function setups.restore(player)",
+          "\tlocal snap = snapshots[player]",
+          "\tif not snap then",
+          "\t\terror(",
+          "\t\t\t\"no snapshot for \" .. player.Name .. \" (restore consumes it: run 'snapshot' again before the next fixture)\""
+        ]
+      },
+      "summary": "CheckpointUi/Panel stays open after clicks 122-129 (breaks click 65 showcase_backdrop_closes); OFFLINE REWARD modal open after restore; clicks 1-8 need spy.",
+      "error": "",
+      "foundBy": "ui-tester",
+      "foundAt": "2026-10-28T20:05:44-07:00",
       "loggedBy": "Alex Nguyen"
     }
   ]

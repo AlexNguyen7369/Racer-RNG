@@ -44,10 +44,14 @@ ORCH-5. **Orchestrator 2026-10-28 ~19:15: UI fix round, 3 task branches off feat
      9617a457: MotionFloat cannot fit above Speed on phone (UiMotion:197/209, RacerUiController:808) -> OWNER (manual speed-float-phone);
      Settings Title/ProfileTab RacerUiController:266 + RacerSettings.ui.json:136; DailyBoosts/Status BoostDailyUi:226; Backpack CarsTab
      BackpackUi:167 (CLAUDE.md: Backpack has no Cars tab). Also HudChrome:328 comment says pair hides under panels but code never does.
-   NEXT: (1) ui-test-writer: un-hover fix (d782d207); (2) rules-auditor on the 3 branch diffs (rules HUD_LAYOUT_SPEC text + phone layout, SHOP_PURCHASES_SPEC 3,
-   OFFLINE_DOUBLE_SPEC 2); (3) merge all 3 into a scratch check: merge-tree each into world1-ship, merge --no-ff one by one; (4) full UITEST
-   in Studio fb39beec (one run, after merging into the main tree since Rojo serves it); (5) green -> push, remove worktrees/branches, bugs fixed,
-   ProjectContext + todo + progress-tracker. Reds -> back to the owner of the file.
+   DONE 2026-10-28 ~20:30: un-hover fix e52bab7, rules-auditor PASS (both branches), merged 6ae5e90 + e2a5f70 into world1-ship, pushed;
+   worktrees/branches removed. Live [UITEST] END pass=33 fail=4 (Studio fb39beec). Bugs fixed: ccc13c4f 38e4a78b 3b10d310 837519cd d782d207.
+   Still red: 03bad751 -> new 53e24a2e (UpgradeTreeView 0.05 vs cap 0.05, float32; fix: panel 0.04 or test epsilon via ui-test-writer);
+   3c0dcacf Upgrades Exit HoverScale 1.035 at rest; 7d99207f RollToast hitbox padding 22 px; adf68695 Rebirth band 4 px low / Close 2 px;
+   0261e33b reduced-motion roll no viewport; fd2412fe speed float +12,344 vs +12,345 (+ dial '1' on foot); 4796b256 / 12342e7c quest Claim
+   active; 081c684a harness leaves CheckpointUi + Offline modal open (test, ui-test-writer). Owner: hud-pair-phone-rule, speed-float-phone.
+   NEXT: one worktree task per group: (a) UpgradeTreeView 53e24a2e + 3c0dcacf; (b) RollToast 7d99207f + 0261e33b; (c) PanelBand adf68695;
+   (d) RacerUiController fd2412fe; (e) ui-test-writer 081c684a + quest fixture 4796b256; then full UITEST; then ORCH-3 speed probe.
 
 ORCH-4. **Orchestrator 2026-10-28 evening (world1-ship 82929ed): [CARTEST] END pass=54 fail=1, [UITEST] END pass=34 fail=3.**
    CARTEST red = stale test economy stat_for_above_cap_is_huge (stf(1000) vs cap 1250, bug d5f9bdf9): test-writer fix 3430d85 on
