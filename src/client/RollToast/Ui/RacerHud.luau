@@ -1,6 +1,6 @@
 --!nonstrict
 -- GENERATED from RacerHud.ui.json. DO NOT EDIT: change the spec and run ui/tooling/gen_atlas.py.
--- spec-hash: 8087703805de
+-- spec-hash: e45f06c655d8
 -- Build(playerGui) creates the ScreenGui and returns refs: refs[<node id>] for every node (buttons: the Face
 -- TextButton, connect .Activated to it), refs.Gui for the ScreenGui.
 
@@ -19,7 +19,7 @@ end
 
 local Ui = {}
 
-Ui.SpecHash = "8087703805de"
+Ui.SpecHash = "e45f06c655d8"
 
 function Ui.Build(playerGui)
 	local refs = {}
@@ -30,7 +30,7 @@ function Ui.Build(playerGui)
 		{ Name = "RacerHud", ResetOnSpawn = false, IgnoreGuiInset = true, ZIndexBehavior = Enum.ZIndexBehavior.Sibling },
 		playerGui
 	)
-	gui:SetAttribute("SpecHash", "8087703805de")
+	gui:SetAttribute("SpecHash", "e45f06c655d8")
 	refs.Gui = gui
 	local v1 = new("Frame", {
 		Name = "Race",
@@ -712,40 +712,64 @@ function Ui.Build(playerGui)
 			Visible = true,
 		},
 	})
-	local v17 = new("ImageLabel", {
-		Name = "SpeedIcon",
+	local v17 = new("Frame", {
+		Name = "SpeedDial",
 		AnchorPoint = Vector2.new(0, 0),
 		Position = UDim2.fromOffset(0, 0),
-		Size = UDim2.fromOffset(88, 88),
+		Size = UDim2.fromOffset(108, 108),
+		Visible = true,
+		BackgroundTransparency = 1,
+	}, v16)
+	refs["SpeedDial"] = v17
+	table.insert(layouts, {
+		v17,
+		{
+			AnchorPoint = Vector2.new(0, 0),
+			Position = UDim2.fromOffset(0, 0),
+			Size = UDim2.fromOffset(108, 108),
+			Visible = true,
+		},
+		{
+			AnchorPoint = Vector2.new(0, 0),
+			Position = UDim2.fromOffset(0, 0),
+			Size = UDim2.fromOffset(90, 90),
+			Visible = true,
+		},
+	})
+	local v18 = new("ImageLabel", {
+		Name = "SpeedIcon",
+		AnchorPoint = Vector2.new(0, 0),
+		Position = UDim2.fromOffset(34, 30),
+		Size = UDim2.fromOffset(40, 40),
 		Visible = true,
 		BackgroundTransparency = 1,
 		Image = "rbxassetid://121915283083474",
 		ScaleType = Enum.ScaleType.Fit,
 		ZIndex = 3,
 	}, v16)
-	v17.ImageRectOffset = Vector2.new(256, 0)
-	v17.ImageRectSize = Vector2.new(256, 256)
-	refs["SpeedIcon"] = v17
+	v18.ImageRectOffset = Vector2.new(256, 0)
+	v18.ImageRectSize = Vector2.new(256, 256)
+	refs["SpeedIcon"] = v18
 	table.insert(layouts, {
-		v17,
+		v18,
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.fromOffset(0, 0),
-			Size = UDim2.fromOffset(88, 88),
+			Position = UDim2.fromOffset(34, 30),
+			Size = UDim2.fromOffset(40, 40),
 			Visible = true,
 		},
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.fromOffset(0, 0),
-			Size = UDim2.fromOffset(64, 64),
+			Position = UDim2.fromOffset(28, 25),
+			Size = UDim2.fromOffset(34, 34),
 			Visible = true,
 		},
 	})
-	local v18 = new("TextLabel", {
+	local v19 = new("TextLabel", {
 		Name = "SpeedValue",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.fromOffset(100, 33),
-		Size = UDim2.fromOffset(206, 42),
+		Position = UDim2.fromOffset(116, 33),
+		Size = UDim2.fromOffset(190, 42),
 		Visible = true,
 		BackgroundTransparency = 1,
 		Text = "59 SPEED",
@@ -759,27 +783,27 @@ function Ui.Build(playerGui)
 	new(
 		"UIStroke",
 		{ Thickness = 3, Color = Color3.fromRGB(18, 22, 43), ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual },
-		v18
+		v19
 	)
-	refs["SpeedValue"] = v18
+	refs["SpeedValue"] = v19
 	table.insert(layouts, {
-		v18,
+		v19,
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.fromOffset(100, 33),
-			Size = UDim2.fromOffset(206, 42),
+			Position = UDim2.fromOffset(116, 33),
+			Size = UDim2.fromOffset(190, 42),
 			TextSize = 34,
 			Visible = true,
 		},
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.fromOffset(76, 23),
-			Size = UDim2.fromOffset(174, 34),
+			Position = UDim2.fromOffset(96, 23),
+			Size = UDim2.fromOffset(154, 34),
 			TextSize = 28,
 			Visible = true,
 		},
 	})
-	local v19 = new("Frame", {
+	local v20 = new("Frame", {
 		Name = "Money",
 		AnchorPoint = Vector2.new(0, 1),
 		Position = UDim2.new(0, 22, 1, -22),
@@ -787,10 +811,10 @@ function Ui.Build(playerGui)
 		Visible = true,
 		BackgroundTransparency = 1,
 	}, gui)
-	refs["Money"] = v19
-	table.insert(scales, { new("UIScale", {}, v19), 1, 1 })
+	refs["Money"] = v20
+	table.insert(scales, { new("UIScale", {}, v20), 1, 1 })
 	table.insert(layouts, {
-		v19,
+		v20,
 		{
 			AnchorPoint = Vector2.new(0, 1),
 			Position = UDim2.new(0, 22, 1, -22),
@@ -804,7 +828,31 @@ function Ui.Build(playerGui)
 			Visible = true,
 		},
 	})
-	local v20 = new("ImageLabel", {
+	local v21 = new("Frame", {
+		Name = "MoneyPlate",
+		AnchorPoint = Vector2.new(0, 0),
+		Position = UDim2.fromOffset(94, 22),
+		Size = UDim2.fromOffset(188, 92),
+		Visible = true,
+		BackgroundTransparency = 1,
+	}, v20)
+	refs["MoneyPlate"] = v21
+	table.insert(layouts, {
+		v21,
+		{
+			AnchorPoint = Vector2.new(0, 0),
+			Position = UDim2.fromOffset(94, 22),
+			Size = UDim2.fromOffset(188, 92),
+			Visible = true,
+		},
+		{
+			AnchorPoint = Vector2.new(0, 0),
+			Position = UDim2.fromOffset(62, 12),
+			Size = UDim2.fromOffset(138, 72),
+			Visible = true,
+		},
+	})
+	local v22 = new("ImageLabel", {
 		Name = "MoneyIcon",
 		AnchorPoint = Vector2.new(0, 0),
 		Position = UDim2.fromOffset(0, 0),
@@ -814,12 +862,12 @@ function Ui.Build(playerGui)
 		Image = "rbxassetid://121915283083474",
 		ScaleType = Enum.ScaleType.Fit,
 		ZIndex = 3,
-	}, v19)
-	v20.ImageRectOffset = Vector2.new(0, 0)
-	v20.ImageRectSize = Vector2.new(256, 256)
-	refs["MoneyIcon"] = v20
+	}, v20)
+	v22.ImageRectOffset = Vector2.new(0, 0)
+	v22.ImageRectSize = Vector2.new(256, 256)
+	refs["MoneyIcon"] = v22
 	table.insert(layouts, {
-		v20,
+		v22,
 		{
 			AnchorPoint = Vector2.new(0, 0),
 			Position = UDim2.fromOffset(0, 0),
@@ -833,7 +881,7 @@ function Ui.Build(playerGui)
 			Visible = true,
 		},
 	})
-	local v21 = new("TextLabel", {
+	local v23 = new("TextLabel", {
 		Name = "MoneyValue",
 		AnchorPoint = Vector2.new(0, 0),
 		Position = UDim2.fromOffset(102, 31),
@@ -847,15 +895,15 @@ function Ui.Build(playerGui)
 		TextWrapped = false,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		ZIndex = 3,
-	}, v19)
+	}, v20)
 	new(
 		"UIStroke",
 		{ Thickness = 3, Color = Color3.fromRGB(18, 22, 43), ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual },
-		v21
+		v23
 	)
-	refs["MoneyValue"] = v21
+	refs["MoneyValue"] = v23
 	table.insert(layouts, {
-		v21,
+		v23,
 		{
 			AnchorPoint = Vector2.new(0, 0),
 			Position = UDim2.fromOffset(102, 31),
@@ -871,7 +919,7 @@ function Ui.Build(playerGui)
 			Visible = true,
 		},
 	})
-	local v22 = new("TextLabel", {
+	local v24 = new("TextLabel", {
 		Name = "Unbanked",
 		AnchorPoint = Vector2.new(0, 0),
 		Position = UDim2.fromOffset(102, 80),
@@ -885,15 +933,15 @@ function Ui.Build(playerGui)
 		TextWrapped = false,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		ZIndex = 3,
-	}, v19)
+	}, v20)
 	new(
 		"UIStroke",
 		{ Thickness = 3, Color = Color3.fromRGB(18, 22, 43), ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual },
-		v22
+		v24
 	)
-	refs["Unbanked"] = v22
+	refs["Unbanked"] = v24
 	table.insert(layouts, {
-		v22,
+		v24,
 		{
 			AnchorPoint = Vector2.new(0, 0),
 			Position = UDim2.fromOffset(102, 80),
@@ -909,7 +957,7 @@ function Ui.Build(playerGui)
 			Visible = true,
 		},
 	})
-	local v23 = new("Frame", {
+	local v25 = new("Frame", {
 		Name = "Level",
 		AnchorPoint = Vector2.new(0.5, 1),
 		Position = UDim2.new(0.5, 0, 1, -60),
@@ -917,7 +965,7 @@ function Ui.Build(playerGui)
 		Visible = true,
 		BackgroundTransparency = 1,
 	}, gui)
-	local v23s = new("Frame", {
+	local v25s = new("Frame", {
 		Name = "Shadow",
 		Position = UDim2.fromOffset(0, 4),
 		Size = UDim2.fromScale(1, 1),
@@ -925,45 +973,45 @@ function Ui.Build(playerGui)
 		BackgroundTransparency = 0.4,
 		BorderSizePixel = 0,
 		ZIndex = 1,
-	}, v23)
-	corner(v23s, 10)
+	}, v25)
+	corner(v25s, 10)
 	new("UIStroke", {
 		Thickness = 3,
 		Color = Color3.fromRGB(18, 26, 65),
 		Transparency = 0.4,
 		ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-	}, v23s)
-	local v23f = new("Frame", {
+	}, v25s)
+	local v25f = new("Frame", {
 		Name = "Face",
 		Size = UDim2.fromScale(1, 1),
 		BackgroundColor3 = Color3.new(1, 1, 1),
 		BorderSizePixel = 0,
 		ZIndex = 2,
-	}, v23)
-	corner(v23f, 10)
+	}, v25)
+	corner(v25f, 10)
 	new(
 		"UIGradient",
 		{ Rotation = 90, Color = ColorSequence.new(Color3.fromRGB(59, 68, 93), Color3.fromRGB(28, 38, 62)) },
-		v23f
+		v25f
 	)
 	new(
 		"UIStroke",
 		{ Thickness = 3, Color = Color3.fromRGB(18, 22, 43), ApplyStrokeMode = Enum.ApplyStrokeMode.Border },
-		v23f
+		v25f
 	)
-	local v23l = new("Frame", {
+	local v25l = new("Frame", {
 		Name = "Lift",
 		Position = UDim2.fromOffset(4, 2),
 		Size = UDim2.new(1, -8, 0, 6),
 		BackgroundColor3 = Color3.new(1, 1, 1),
 		BackgroundTransparency = 0.7,
 		BorderSizePixel = 0,
-	}, v23f)
-	corner(v23l, 3)
-	refs["Level"] = v23f
-	table.insert(scales, { new("UIScale", {}, v23), 1, 1 })
+	}, v25f)
+	corner(v25l, 3)
+	refs["Level"] = v25f
+	table.insert(scales, { new("UIScale", {}, v25), 1, 1 })
 	table.insert(layouts, {
-		v23,
+		v25,
 		{
 			AnchorPoint = Vector2.new(0.5, 1),
 			Position = UDim2.new(0.5, 0, 1, -60),
@@ -977,7 +1025,7 @@ function Ui.Build(playerGui)
 			Visible = true,
 		},
 	})
-	local v24 = new("Frame", {
+	local v26 = new("Frame", {
 		Name = "LevelFill",
 		AnchorPoint = Vector2.new(0, 0),
 		Position = UDim2.fromOffset(0, 0),
@@ -985,9 +1033,9 @@ function Ui.Build(playerGui)
 		Visible = true,
 		BackgroundColor3 = Color3.fromRGB(30, 216, 255),
 		BorderSizePixel = 0,
-	}, v23f)
-	refs["LevelFill"] = v24
-	local v25 = new("TextLabel", {
+	}, v25f)
+	refs["LevelFill"] = v26
+	local v27 = new("TextLabel", {
 		Name = "LevelLabel",
 		AnchorPoint = Vector2.new(0, 0),
 		Position = UDim2.fromOffset(0, 0),
@@ -1001,15 +1049,15 @@ function Ui.Build(playerGui)
 		TextWrapped = false,
 		TextXAlignment = Enum.TextXAlignment.Center,
 		ZIndex = 3,
-	}, v23f)
+	}, v25f)
 	new(
 		"UIStroke",
 		{ Thickness = 3, Color = Color3.fromRGB(18, 22, 43), ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual },
-		v25
+		v27
 	)
-	refs["LevelLabel"] = v25
+	refs["LevelLabel"] = v27
 	table.insert(layouts, {
-		v25,
+		v27,
 		{
 			AnchorPoint = Vector2.new(0, 0),
 			Position = UDim2.fromOffset(0, 0),
@@ -1025,7 +1073,7 @@ function Ui.Build(playerGui)
 			Visible = true,
 		},
 	})
-	local v26 = new("Frame", {
+	local v28 = new("Frame", {
 		Name = "Turbo",
 		AnchorPoint = Vector2.new(0.5, 1),
 		Position = UDim2.new(0.5, 0, 1, -22),
@@ -1033,7 +1081,7 @@ function Ui.Build(playerGui)
 		Visible = true,
 		BackgroundTransparency = 1,
 	}, gui)
-	local v26s = new("Frame", {
+	local v28s = new("Frame", {
 		Name = "Shadow",
 		Position = UDim2.fromOffset(0, 4),
 		Size = UDim2.fromScale(1, 1),
@@ -1041,45 +1089,45 @@ function Ui.Build(playerGui)
 		BackgroundTransparency = 0.4,
 		BorderSizePixel = 0,
 		ZIndex = 1,
-	}, v26)
-	corner(v26s, 10)
+	}, v28)
+	corner(v28s, 10)
 	new("UIStroke", {
 		Thickness = 3,
 		Color = Color3.fromRGB(18, 26, 65),
 		Transparency = 0.4,
 		ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-	}, v26s)
-	local v26f = new("Frame", {
+	}, v28s)
+	local v28f = new("Frame", {
 		Name = "Face",
 		Size = UDim2.fromScale(1, 1),
 		BackgroundColor3 = Color3.new(1, 1, 1),
 		BorderSizePixel = 0,
 		ZIndex = 2,
-	}, v26)
-	corner(v26f, 10)
+	}, v28)
+	corner(v28f, 10)
 	new(
 		"UIGradient",
 		{ Rotation = 90, Color = ColorSequence.new(Color3.fromRGB(59, 68, 93), Color3.fromRGB(28, 38, 62)) },
-		v26f
+		v28f
 	)
 	new(
 		"UIStroke",
 		{ Thickness = 3, Color = Color3.fromRGB(18, 22, 43), ApplyStrokeMode = Enum.ApplyStrokeMode.Border },
-		v26f
+		v28f
 	)
-	local v26l = new("Frame", {
+	local v28l = new("Frame", {
 		Name = "Lift",
 		Position = UDim2.fromOffset(4, 2),
 		Size = UDim2.new(1, -8, 0, 6),
 		BackgroundColor3 = Color3.new(1, 1, 1),
 		BackgroundTransparency = 0.7,
 		BorderSizePixel = 0,
-	}, v26f)
-	corner(v26l, 3)
-	refs["Turbo"] = v26f
-	table.insert(scales, { new("UIScale", {}, v26), 1, 1 })
+	}, v28f)
+	corner(v28l, 3)
+	refs["Turbo"] = v28f
+	table.insert(scales, { new("UIScale", {}, v28), 1, 1 })
 	table.insert(layouts, {
-		v26,
+		v28,
 		{
 			AnchorPoint = Vector2.new(0.5, 1),
 			Position = UDim2.new(0.5, 0, 1, -22),
@@ -1093,7 +1141,7 @@ function Ui.Build(playerGui)
 			Visible = true,
 		},
 	})
-	local v27 = new("Frame", {
+	local v29 = new("Frame", {
 		Name = "TurboFill",
 		AnchorPoint = Vector2.new(0, 0),
 		Position = UDim2.fromOffset(0, 0),
@@ -1101,9 +1149,9 @@ function Ui.Build(playerGui)
 		Visible = true,
 		BackgroundColor3 = Color3.fromRGB(255, 176, 46),
 		BorderSizePixel = 0,
-	}, v26f)
-	refs["TurboFill"] = v27
-	local v28 = new("TextLabel", {
+	}, v28f)
+	refs["TurboFill"] = v29
+	local v30 = new("TextLabel", {
 		Name = "TurboLabel",
 		AnchorPoint = Vector2.new(0, 0),
 		Position = UDim2.fromOffset(0, 0),
@@ -1117,15 +1165,15 @@ function Ui.Build(playerGui)
 		TextWrapped = false,
 		TextXAlignment = Enum.TextXAlignment.Center,
 		ZIndex = 3,
-	}, v26f)
+	}, v28f)
 	new(
 		"UIStroke",
 		{ Thickness = 3, Color = Color3.fromRGB(18, 22, 43), ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual },
-		v28
+		v30
 	)
-	refs["TurboLabel"] = v28
+	refs["TurboLabel"] = v30
 	table.insert(layouts, {
-		v28,
+		v30,
 		{
 			AnchorPoint = Vector2.new(0, 0),
 			Position = UDim2.fromOffset(0, 0),
@@ -1141,7 +1189,7 @@ function Ui.Build(playerGui)
 			Visible = true,
 		},
 	})
-	local v29 = new("Frame", {
+	local v31 = new("Frame", {
 		Name = "RollControls",
 		AnchorPoint = Vector2.new(1, 1),
 		Position = UDim2.new(1, -22, 1, -22),
@@ -1149,10 +1197,10 @@ function Ui.Build(playerGui)
 		Visible = false,
 		BackgroundTransparency = 1,
 	}, gui)
-	refs["RollControls"] = v29
-	table.insert(scales, { new("UIScale", {}, v29), 1, 1 })
+	refs["RollControls"] = v31
+	table.insert(scales, { new("UIScale", {}, v31), 1, 1 })
 	table.insert(layouts, {
-		v29,
+		v31,
 		{
 			AnchorPoint = Vector2.new(1, 1),
 			Position = UDim2.new(1, -22, 1, -22),
@@ -1166,15 +1214,15 @@ function Ui.Build(playerGui)
 			Visible = false,
 		},
 	})
-	local v30 = new("Frame", {
+	local v32 = new("Frame", {
 		Name = "RollView",
 		AnchorPoint = Vector2.new(0, 0),
 		Position = UDim2.fromOffset(0, 0),
 		Size = UDim2.fromOffset(104, 54),
 		Visible = true,
 		BackgroundTransparency = 1,
-	}, v29)
-	local v30s = new("Frame", {
+	}, v31)
+	local v32s = new("Frame", {
 		Name = "Shadow",
 		Position = UDim2.fromOffset(0, 4),
 		Size = UDim2.fromScale(1, 1),
@@ -1182,118 +1230,11 @@ function Ui.Build(playerGui)
 		BackgroundTransparency = 0.4,
 		BorderSizePixel = 0,
 		ZIndex = 1,
-	}, v30)
-	corner(v30s, 10)
-	new("UIStroke", {
-		Thickness = 3,
-		Color = Color3.fromRGB(88, 68, 57),
-		Transparency = 0.4,
-		ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-	}, v30s)
-	local v30f = new("TextButton", {
-		Name = "Face",
-		Size = UDim2.fromScale(1, 1),
-		BackgroundColor3 = Color3.new(1, 1, 1),
-		BorderSizePixel = 0,
-		ZIndex = 2,
-		Text = "",
-		AutoButtonColor = false,
-	}, v30)
-	corner(v30f, 10)
-	new(
-		"UIGradient",
-		{ Rotation = 90, Color = ColorSequence.new(Color3.fromRGB(255, 185, 71), Color3.fromRGB(224, 155, 40)) },
-		v30f
-	)
-	new(
-		"UIStroke",
-		{ Thickness = 3, Color = Color3.fromRGB(18, 22, 43), ApplyStrokeMode = Enum.ApplyStrokeMode.Border },
-		v30f
-	)
-	local v30l = new("Frame", {
-		Name = "Lift",
-		Position = UDim2.fromOffset(4, 2),
-		Size = UDim2.new(1, -8, 0, 6),
-		BackgroundColor3 = Color3.new(1, 1, 1),
-		BackgroundTransparency = 0.7,
-		BorderSizePixel = 0,
-	}, v30f)
-	corner(v30l, 3)
-	refs["RollView"] = v30f
-	table.insert(layouts, {
-		v30,
-		{
-			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.fromOffset(0, 0),
-			Size = UDim2.fromOffset(104, 54),
-			Visible = true,
-		},
-		{
-			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.fromOffset(0, 0),
-			Size = UDim2.fromOffset(90, 48),
-			Visible = true,
-		},
-	})
-	local v31 = new("TextLabel", {
-		Name = "RollViewLabel",
-		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.fromOffset(0, 0),
-		Size = UDim2.fromScale(1, 1),
-		Visible = true,
-		BackgroundTransparency = 1,
-		Text = "ROLLS",
-		TextSize = 25,
-		Font = Enum.Font.FredokaOne,
-		TextColor3 = Color3.fromRGB(255, 255, 255),
-		TextWrapped = false,
-		TextXAlignment = Enum.TextXAlignment.Center,
-		ZIndex = 3,
-	}, v30f)
-	new(
-		"UIStroke",
-		{ Thickness = 3, Color = Color3.fromRGB(18, 22, 43), ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual },
-		v31
-	)
-	refs["RollViewLabel"] = v31
-	table.insert(layouts, {
-		v31,
-		{
-			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.fromOffset(0, 0),
-			Size = UDim2.fromScale(1, 1),
-			TextSize = 25,
-			Visible = true,
-		},
-		{
-			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.fromOffset(0, 0),
-			Size = UDim2.fromScale(1, 1),
-			TextSize = 22,
-			Visible = true,
-		},
-	})
-	local v32 = new("Frame", {
-		Name = "AutoRoll",
-		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.fromOffset(124, 0),
-		Size = UDim2.fromOffset(96, 54),
-		Visible = true,
-		BackgroundTransparency = 1,
-	}, v29)
-	local v32s = new("Frame", {
-		Name = "Shadow",
-		Position = UDim2.fromOffset(0, 4),
-		Size = UDim2.fromScale(1, 1),
-		BackgroundColor3 = Color3.fromRGB(27, 82, 74),
-		BackgroundTransparency = 0.4,
-		BorderSizePixel = 0,
-		ZIndex = 1,
 	}, v32)
 	corner(v32s, 10)
 	new("UIStroke", {
 		Thickness = 3,
-		Color = Color3.fromRGB(27, 82, 74),
+		Color = Color3.fromRGB(88, 68, 57),
 		Transparency = 0.4,
 		ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
 	}, v32s)
@@ -1309,7 +1250,7 @@ function Ui.Build(playerGui)
 	corner(v32f, 10)
 	new(
 		"UIGradient",
-		{ Rotation = 90, Color = ColorSequence.new(Color3.fromRGB(84, 224, 118), Color3.fromRGB(54, 194, 87)) },
+		{ Rotation = 90, Color = ColorSequence.new(Color3.fromRGB(255, 185, 71), Color3.fromRGB(224, 155, 40)) },
 		v32f
 	)
 	new(
@@ -1326,31 +1267,31 @@ function Ui.Build(playerGui)
 		BorderSizePixel = 0,
 	}, v32f)
 	corner(v32l, 3)
-	refs["AutoRoll"] = v32f
+	refs["RollView"] = v32f
 	table.insert(layouts, {
 		v32,
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.fromOffset(124, 0),
-			Size = UDim2.fromOffset(96, 54),
+			Position = UDim2.fromOffset(0, 0),
+			Size = UDim2.fromOffset(104, 54),
 			Visible = true,
 		},
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.fromOffset(108, 0),
-			Size = UDim2.fromOffset(86, 48),
+			Position = UDim2.fromOffset(0, 0),
+			Size = UDim2.fromOffset(90, 48),
 			Visible = true,
 		},
 	})
 	local v33 = new("TextLabel", {
-		Name = "AutoRollLabel",
+		Name = "RollViewLabel",
 		AnchorPoint = Vector2.new(0, 0),
 		Position = UDim2.fromOffset(0, 0),
 		Size = UDim2.fromScale(1, 1),
 		Visible = true,
 		BackgroundTransparency = 1,
-		Text = "AUTO",
-		TextSize = 23,
+		Text = "ROLLS",
+		TextSize = 25,
 		Font = Enum.Font.FredokaOne,
 		TextColor3 = Color3.fromRGB(255, 255, 255),
 		TextWrapped = false,
@@ -1362,37 +1303,37 @@ function Ui.Build(playerGui)
 		{ Thickness = 3, Color = Color3.fromRGB(18, 22, 43), ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual },
 		v33
 	)
-	refs["AutoRollLabel"] = v33
+	refs["RollViewLabel"] = v33
 	table.insert(layouts, {
 		v33,
 		{
 			AnchorPoint = Vector2.new(0, 0),
 			Position = UDim2.fromOffset(0, 0),
 			Size = UDim2.fromScale(1, 1),
-			TextSize = 23,
+			TextSize = 25,
 			Visible = true,
 		},
 		{
 			AnchorPoint = Vector2.new(0, 0),
 			Position = UDim2.fromOffset(0, 0),
 			Size = UDim2.fromScale(1, 1),
-			TextSize = 20,
+			TextSize = 22,
 			Visible = true,
 		},
 	})
 	local v34 = new("Frame", {
-		Name = "Settings",
-		AnchorPoint = Vector2.new(1, 0),
-		Position = UDim2.new(1, -12, 0, 12),
-		Size = UDim2.fromOffset(48, 48),
+		Name = "AutoRoll",
+		AnchorPoint = Vector2.new(0, 0),
+		Position = UDim2.fromOffset(124, 0),
+		Size = UDim2.fromOffset(96, 54),
 		Visible = true,
 		BackgroundTransparency = 1,
-	}, gui)
+	}, v31)
 	local v34s = new("Frame", {
 		Name = "Shadow",
 		Position = UDim2.fromOffset(0, 4),
 		Size = UDim2.fromScale(1, 1),
-		BackgroundColor3 = Color3.fromRGB(18, 26, 65),
+		BackgroundColor3 = Color3.fromRGB(27, 82, 74),
 		BackgroundTransparency = 0.4,
 		BorderSizePixel = 0,
 		ZIndex = 1,
@@ -1400,7 +1341,7 @@ function Ui.Build(playerGui)
 	corner(v34s, 10)
 	new("UIStroke", {
 		Thickness = 3,
-		Color = Color3.fromRGB(18, 26, 65),
+		Color = Color3.fromRGB(27, 82, 74),
 		Transparency = 0.4,
 		ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
 	}, v34s)
@@ -1416,7 +1357,7 @@ function Ui.Build(playerGui)
 	corner(v34f, 10)
 	new(
 		"UIGradient",
-		{ Rotation = 90, Color = ColorSequence.new(Color3.fromRGB(59, 68, 93), Color3.fromRGB(28, 38, 62)) },
+		{ Rotation = 90, Color = ColorSequence.new(Color3.fromRGB(84, 224, 118), Color3.fromRGB(54, 194, 87)) },
 		v34f
 	)
 	new(
@@ -1433,20 +1374,127 @@ function Ui.Build(playerGui)
 		BorderSizePixel = 0,
 	}, v34f)
 	corner(v34l, 3)
-	refs["Settings"] = v34f
-	table.insert(scales, { new("UIScale", {}, v34), 1, 1 })
-	local v35 = new("ImageLabel", {
+	refs["AutoRoll"] = v34f
+	table.insert(layouts, {
+		v34,
+		{
+			AnchorPoint = Vector2.new(0, 0),
+			Position = UDim2.fromOffset(124, 0),
+			Size = UDim2.fromOffset(96, 54),
+			Visible = true,
+		},
+		{
+			AnchorPoint = Vector2.new(0, 0),
+			Position = UDim2.fromOffset(108, 0),
+			Size = UDim2.fromOffset(86, 48),
+			Visible = true,
+		},
+	})
+	local v35 = new("TextLabel", {
+		Name = "AutoRollLabel",
+		AnchorPoint = Vector2.new(0, 0),
+		Position = UDim2.fromOffset(0, 0),
+		Size = UDim2.fromScale(1, 1),
+		Visible = true,
+		BackgroundTransparency = 1,
+		Text = "AUTO",
+		TextSize = 23,
+		Font = Enum.Font.FredokaOne,
+		TextColor3 = Color3.fromRGB(255, 255, 255),
+		TextWrapped = false,
+		TextXAlignment = Enum.TextXAlignment.Center,
+		ZIndex = 3,
+	}, v34f)
+	new(
+		"UIStroke",
+		{ Thickness = 3, Color = Color3.fromRGB(18, 22, 43), ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual },
+		v35
+	)
+	refs["AutoRollLabel"] = v35
+	table.insert(layouts, {
+		v35,
+		{
+			AnchorPoint = Vector2.new(0, 0),
+			Position = UDim2.fromOffset(0, 0),
+			Size = UDim2.fromScale(1, 1),
+			TextSize = 23,
+			Visible = true,
+		},
+		{
+			AnchorPoint = Vector2.new(0, 0),
+			Position = UDim2.fromOffset(0, 0),
+			Size = UDim2.fromScale(1, 1),
+			TextSize = 20,
+			Visible = true,
+		},
+	})
+	local v36 = new("Frame", {
+		Name = "Settings",
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -12, 0, 12),
+		Size = UDim2.fromOffset(48, 48),
+		Visible = true,
+		BackgroundTransparency = 1,
+	}, gui)
+	local v36s = new("Frame", {
+		Name = "Shadow",
+		Position = UDim2.fromOffset(0, 4),
+		Size = UDim2.fromScale(1, 1),
+		BackgroundColor3 = Color3.fromRGB(18, 26, 65),
+		BackgroundTransparency = 0.4,
+		BorderSizePixel = 0,
+		ZIndex = 1,
+	}, v36)
+	corner(v36s, 10)
+	new("UIStroke", {
+		Thickness = 3,
+		Color = Color3.fromRGB(18, 26, 65),
+		Transparency = 0.4,
+		ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+	}, v36s)
+	local v36f = new("TextButton", {
+		Name = "Face",
+		Size = UDim2.fromScale(1, 1),
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		BorderSizePixel = 0,
+		ZIndex = 2,
+		Text = "",
+		AutoButtonColor = false,
+	}, v36)
+	corner(v36f, 10)
+	new(
+		"UIGradient",
+		{ Rotation = 90, Color = ColorSequence.new(Color3.fromRGB(59, 68, 93), Color3.fromRGB(28, 38, 62)) },
+		v36f
+	)
+	new(
+		"UIStroke",
+		{ Thickness = 3, Color = Color3.fromRGB(18, 22, 43), ApplyStrokeMode = Enum.ApplyStrokeMode.Border },
+		v36f
+	)
+	local v36l = new("Frame", {
+		Name = "Lift",
+		Position = UDim2.fromOffset(4, 2),
+		Size = UDim2.new(1, -8, 0, 6),
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		BackgroundTransparency = 0.7,
+		BorderSizePixel = 0,
+	}, v36f)
+	corner(v36l, 3)
+	refs["Settings"] = v36f
+	table.insert(scales, { new("UIScale", {}, v36), 1, 1 })
+	local v37 = new("ImageLabel", {
 		Name = "SettingsIcon",
 		AnchorPoint = Vector2.new(0, 0),
 		Position = UDim2.fromOffset(4, 4),
 		Size = UDim2.fromOffset(40, 40),
 		Visible = true,
 		BackgroundTransparency = 1,
-		Image = "rbxassetid://81490848854515",
+		Image = "rbxassetid://131875159358960",
 		ScaleType = Enum.ScaleType.Fit,
 		ZIndex = 3,
-	}, v34f)
-	refs["SettingsIcon"] = v35
+	}, v36f)
+	refs["SettingsIcon"] = v37
 	local function fit()
 		local camera = workspace.CurrentCamera
 		if not camera then
@@ -1508,7 +1556,7 @@ function Ui.Bind(playerGui)
 		{ Name = "RacerHud", ResetOnSpawn = false, IgnoreGuiInset = true, ZIndexBehavior = Enum.ZIndexBehavior.Sibling },
 		playerGui
 	)
-	gui:SetAttribute("SpecHash", "8087703805de")
+	gui:SetAttribute("SpecHash", "e45f06c655d8")
 	refs.Gui = gui
 	local v1 = new("Frame", {
 		Name = "Race",
@@ -2190,40 +2238,64 @@ function Ui.Bind(playerGui)
 			Visible = true,
 		},
 	})
-	local v17 = new("ImageLabel", {
-		Name = "SpeedIcon",
+	local v17 = new("Frame", {
+		Name = "SpeedDial",
 		AnchorPoint = Vector2.new(0, 0),
 		Position = UDim2.fromOffset(0, 0),
-		Size = UDim2.fromOffset(88, 88),
+		Size = UDim2.fromOffset(108, 108),
+		Visible = true,
+		BackgroundTransparency = 1,
+	}, v16)
+	refs["SpeedDial"] = v17
+	table.insert(layouts, {
+		v17,
+		{
+			AnchorPoint = Vector2.new(0, 0),
+			Position = UDim2.fromOffset(0, 0),
+			Size = UDim2.fromOffset(108, 108),
+			Visible = true,
+		},
+		{
+			AnchorPoint = Vector2.new(0, 0),
+			Position = UDim2.fromOffset(0, 0),
+			Size = UDim2.fromOffset(90, 90),
+			Visible = true,
+		},
+	})
+	local v18 = new("ImageLabel", {
+		Name = "SpeedIcon",
+		AnchorPoint = Vector2.new(0, 0),
+		Position = UDim2.fromOffset(34, 30),
+		Size = UDim2.fromOffset(40, 40),
 		Visible = true,
 		BackgroundTransparency = 1,
 		Image = "rbxassetid://121915283083474",
 		ScaleType = Enum.ScaleType.Fit,
 		ZIndex = 3,
 	}, v16)
-	v17.ImageRectOffset = Vector2.new(256, 0)
-	v17.ImageRectSize = Vector2.new(256, 256)
-	refs["SpeedIcon"] = v17
+	v18.ImageRectOffset = Vector2.new(256, 0)
+	v18.ImageRectSize = Vector2.new(256, 256)
+	refs["SpeedIcon"] = v18
 	table.insert(layouts, {
-		v17,
+		v18,
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.fromOffset(0, 0),
-			Size = UDim2.fromOffset(88, 88),
+			Position = UDim2.fromOffset(34, 30),
+			Size = UDim2.fromOffset(40, 40),
 			Visible = true,
 		},
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.fromOffset(0, 0),
-			Size = UDim2.fromOffset(64, 64),
+			Position = UDim2.fromOffset(28, 25),
+			Size = UDim2.fromOffset(34, 34),
 			Visible = true,
 		},
 	})
-	local v18 = new("TextLabel", {
+	local v19 = new("TextLabel", {
 		Name = "SpeedValue",
 		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.fromOffset(100, 33),
-		Size = UDim2.fromOffset(206, 42),
+		Position = UDim2.fromOffset(116, 33),
+		Size = UDim2.fromOffset(190, 42),
 		Visible = true,
 		BackgroundTransparency = 1,
 		Text = "59 SPEED",
@@ -2237,27 +2309,27 @@ function Ui.Bind(playerGui)
 	new(
 		"UIStroke",
 		{ Thickness = 3, Color = Color3.fromRGB(18, 22, 43), ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual },
-		v18
+		v19
 	)
-	refs["SpeedValue"] = v18
+	refs["SpeedValue"] = v19
 	table.insert(layouts, {
-		v18,
+		v19,
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.fromOffset(100, 33),
-			Size = UDim2.fromOffset(206, 42),
+			Position = UDim2.fromOffset(116, 33),
+			Size = UDim2.fromOffset(190, 42),
 			TextSize = 34,
 			Visible = true,
 		},
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.fromOffset(76, 23),
-			Size = UDim2.fromOffset(174, 34),
+			Position = UDim2.fromOffset(96, 23),
+			Size = UDim2.fromOffset(154, 34),
 			TextSize = 28,
 			Visible = true,
 		},
 	})
-	local v19 = new("Frame", {
+	local v20 = new("Frame", {
 		Name = "Money",
 		AnchorPoint = Vector2.new(0, 1),
 		Position = UDim2.new(0, 22, 1, -22),
@@ -2265,10 +2337,10 @@ function Ui.Bind(playerGui)
 		Visible = true,
 		BackgroundTransparency = 1,
 	}, gui)
-	refs["Money"] = v19
-	table.insert(scales, { new("UIScale", {}, v19), 1, 1 })
+	refs["Money"] = v20
+	table.insert(scales, { new("UIScale", {}, v20), 1, 1 })
 	table.insert(layouts, {
-		v19,
+		v20,
 		{
 			AnchorPoint = Vector2.new(0, 1),
 			Position = UDim2.new(0, 22, 1, -22),
@@ -2282,7 +2354,31 @@ function Ui.Bind(playerGui)
 			Visible = true,
 		},
 	})
-	local v20 = new("ImageLabel", {
+	local v21 = new("Frame", {
+		Name = "MoneyPlate",
+		AnchorPoint = Vector2.new(0, 0),
+		Position = UDim2.fromOffset(94, 22),
+		Size = UDim2.fromOffset(188, 92),
+		Visible = true,
+		BackgroundTransparency = 1,
+	}, v20)
+	refs["MoneyPlate"] = v21
+	table.insert(layouts, {
+		v21,
+		{
+			AnchorPoint = Vector2.new(0, 0),
+			Position = UDim2.fromOffset(94, 22),
+			Size = UDim2.fromOffset(188, 92),
+			Visible = true,
+		},
+		{
+			AnchorPoint = Vector2.new(0, 0),
+			Position = UDim2.fromOffset(62, 12),
+			Size = UDim2.fromOffset(138, 72),
+			Visible = true,
+		},
+	})
+	local v22 = new("ImageLabel", {
 		Name = "MoneyIcon",
 		AnchorPoint = Vector2.new(0, 0),
 		Position = UDim2.fromOffset(0, 0),
@@ -2292,12 +2388,12 @@ function Ui.Bind(playerGui)
 		Image = "rbxassetid://121915283083474",
 		ScaleType = Enum.ScaleType.Fit,
 		ZIndex = 3,
-	}, v19)
-	v20.ImageRectOffset = Vector2.new(0, 0)
-	v20.ImageRectSize = Vector2.new(256, 256)
-	refs["MoneyIcon"] = v20
+	}, v20)
+	v22.ImageRectOffset = Vector2.new(0, 0)
+	v22.ImageRectSize = Vector2.new(256, 256)
+	refs["MoneyIcon"] = v22
 	table.insert(layouts, {
-		v20,
+		v22,
 		{
 			AnchorPoint = Vector2.new(0, 0),
 			Position = UDim2.fromOffset(0, 0),
@@ -2311,7 +2407,7 @@ function Ui.Bind(playerGui)
 			Visible = true,
 		},
 	})
-	local v21 = new("TextLabel", {
+	local v23 = new("TextLabel", {
 		Name = "MoneyValue",
 		AnchorPoint = Vector2.new(0, 0),
 		Position = UDim2.fromOffset(102, 31),
@@ -2325,15 +2421,15 @@ function Ui.Bind(playerGui)
 		TextWrapped = false,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		ZIndex = 3,
-	}, v19)
+	}, v20)
 	new(
 		"UIStroke",
 		{ Thickness = 3, Color = Color3.fromRGB(18, 22, 43), ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual },
-		v21
+		v23
 	)
-	refs["MoneyValue"] = v21
+	refs["MoneyValue"] = v23
 	table.insert(layouts, {
-		v21,
+		v23,
 		{
 			AnchorPoint = Vector2.new(0, 0),
 			Position = UDim2.fromOffset(102, 31),
@@ -2349,7 +2445,7 @@ function Ui.Bind(playerGui)
 			Visible = true,
 		},
 	})
-	local v22 = new("TextLabel", {
+	local v24 = new("TextLabel", {
 		Name = "Unbanked",
 		AnchorPoint = Vector2.new(0, 0),
 		Position = UDim2.fromOffset(102, 80),
@@ -2363,15 +2459,15 @@ function Ui.Bind(playerGui)
 		TextWrapped = false,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		ZIndex = 3,
-	}, v19)
+	}, v20)
 	new(
 		"UIStroke",
 		{ Thickness = 3, Color = Color3.fromRGB(18, 22, 43), ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual },
-		v22
+		v24
 	)
-	refs["Unbanked"] = v22
+	refs["Unbanked"] = v24
 	table.insert(layouts, {
-		v22,
+		v24,
 		{
 			AnchorPoint = Vector2.new(0, 0),
 			Position = UDim2.fromOffset(102, 80),
@@ -2387,7 +2483,7 @@ function Ui.Bind(playerGui)
 			Visible = true,
 		},
 	})
-	local v23 = new("Frame", {
+	local v25 = new("Frame", {
 		Name = "Level",
 		AnchorPoint = Vector2.new(0.5, 1),
 		Position = UDim2.new(0.5, 0, 1, -60),
@@ -2395,7 +2491,7 @@ function Ui.Bind(playerGui)
 		Visible = true,
 		BackgroundTransparency = 1,
 	}, gui)
-	local v23s = new("Frame", {
+	local v25s = new("Frame", {
 		Name = "Shadow",
 		Position = UDim2.fromOffset(0, 4),
 		Size = UDim2.fromScale(1, 1),
@@ -2403,45 +2499,45 @@ function Ui.Bind(playerGui)
 		BackgroundTransparency = 0.4,
 		BorderSizePixel = 0,
 		ZIndex = 1,
-	}, v23)
-	corner(v23s, 10)
+	}, v25)
+	corner(v25s, 10)
 	new("UIStroke", {
 		Thickness = 3,
 		Color = Color3.fromRGB(18, 26, 65),
 		Transparency = 0.4,
 		ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-	}, v23s)
-	local v23f = new("Frame", {
+	}, v25s)
+	local v25f = new("Frame", {
 		Name = "Face",
 		Size = UDim2.fromScale(1, 1),
 		BackgroundColor3 = Color3.new(1, 1, 1),
 		BorderSizePixel = 0,
 		ZIndex = 2,
-	}, v23)
-	corner(v23f, 10)
+	}, v25)
+	corner(v25f, 10)
 	new(
 		"UIGradient",
 		{ Rotation = 90, Color = ColorSequence.new(Color3.fromRGB(59, 68, 93), Color3.fromRGB(28, 38, 62)) },
-		v23f
+		v25f
 	)
 	new(
 		"UIStroke",
 		{ Thickness = 3, Color = Color3.fromRGB(18, 22, 43), ApplyStrokeMode = Enum.ApplyStrokeMode.Border },
-		v23f
+		v25f
 	)
-	local v23l = new("Frame", {
+	local v25l = new("Frame", {
 		Name = "Lift",
 		Position = UDim2.fromOffset(4, 2),
 		Size = UDim2.new(1, -8, 0, 6),
 		BackgroundColor3 = Color3.new(1, 1, 1),
 		BackgroundTransparency = 0.7,
 		BorderSizePixel = 0,
-	}, v23f)
-	corner(v23l, 3)
-	refs["Level"] = v23f
-	table.insert(scales, { new("UIScale", {}, v23), 1, 1 })
+	}, v25f)
+	corner(v25l, 3)
+	refs["Level"] = v25f
+	table.insert(scales, { new("UIScale", {}, v25), 1, 1 })
 	table.insert(layouts, {
-		v23,
+		v25,
 		{
 			AnchorPoint = Vector2.new(0.5, 1),
 			Position = UDim2.new(0.5, 0, 1, -60),
@@ -2455,7 +2551,7 @@ function Ui.Bind(playerGui)
 			Visible = true,
 		},
 	})
-	local v24 = new("Frame", {
+	local v26 = new("Frame", {
 		Name = "LevelFill",
 		AnchorPoint = Vector2.new(0, 0),
 		Position = UDim2.fromOffset(0, 0),
@@ -2463,9 +2559,9 @@ function Ui.Bind(playerGui)
 		Visible = true,
 		BackgroundColor3 = Color3.fromRGB(30, 216, 255),
 		BorderSizePixel = 0,
-	}, v23f)
-	refs["LevelFill"] = v24
-	local v25 = new("TextLabel", {
+	}, v25f)
+	refs["LevelFill"] = v26
+	local v27 = new("TextLabel", {
 		Name = "LevelLabel",
 		AnchorPoint = Vector2.new(0, 0),
 		Position = UDim2.fromOffset(0, 0),
@@ -2479,15 +2575,15 @@ function Ui.Bind(playerGui)
 		TextWrapped = false,
 		TextXAlignment = Enum.TextXAlignment.Center,
 		ZIndex = 3,
-	}, v23f)
+	}, v25f)
 	new(
 		"UIStroke",
 		{ Thickness = 3, Color = Color3.fromRGB(18, 22, 43), ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual },
-		v25
+		v27
 	)
-	refs["LevelLabel"] = v25
+	refs["LevelLabel"] = v27
 	table.insert(layouts, {
-		v25,
+		v27,
 		{
 			AnchorPoint = Vector2.new(0, 0),
 			Position = UDim2.fromOffset(0, 0),
@@ -2503,7 +2599,7 @@ function Ui.Bind(playerGui)
 			Visible = true,
 		},
 	})
-	local v26 = new("Frame", {
+	local v28 = new("Frame", {
 		Name = "Turbo",
 		AnchorPoint = Vector2.new(0.5, 1),
 		Position = UDim2.new(0.5, 0, 1, -22),
@@ -2511,7 +2607,7 @@ function Ui.Bind(playerGui)
 		Visible = true,
 		BackgroundTransparency = 1,
 	}, gui)
-	local v26s = new("Frame", {
+	local v28s = new("Frame", {
 		Name = "Shadow",
 		Position = UDim2.fromOffset(0, 4),
 		Size = UDim2.fromScale(1, 1),
@@ -2519,45 +2615,45 @@ function Ui.Bind(playerGui)
 		BackgroundTransparency = 0.4,
 		BorderSizePixel = 0,
 		ZIndex = 1,
-	}, v26)
-	corner(v26s, 10)
+	}, v28)
+	corner(v28s, 10)
 	new("UIStroke", {
 		Thickness = 3,
 		Color = Color3.fromRGB(18, 26, 65),
 		Transparency = 0.4,
 		ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-	}, v26s)
-	local v26f = new("Frame", {
+	}, v28s)
+	local v28f = new("Frame", {
 		Name = "Face",
 		Size = UDim2.fromScale(1, 1),
 		BackgroundColor3 = Color3.new(1, 1, 1),
 		BorderSizePixel = 0,
 		ZIndex = 2,
-	}, v26)
-	corner(v26f, 10)
+	}, v28)
+	corner(v28f, 10)
 	new(
 		"UIGradient",
 		{ Rotation = 90, Color = ColorSequence.new(Color3.fromRGB(59, 68, 93), Color3.fromRGB(28, 38, 62)) },
-		v26f
+		v28f
 	)
 	new(
 		"UIStroke",
 		{ Thickness = 3, Color = Color3.fromRGB(18, 22, 43), ApplyStrokeMode = Enum.ApplyStrokeMode.Border },
-		v26f
+		v28f
 	)
-	local v26l = new("Frame", {
+	local v28l = new("Frame", {
 		Name = "Lift",
 		Position = UDim2.fromOffset(4, 2),
 		Size = UDim2.new(1, -8, 0, 6),
 		BackgroundColor3 = Color3.new(1, 1, 1),
 		BackgroundTransparency = 0.7,
 		BorderSizePixel = 0,
-	}, v26f)
-	corner(v26l, 3)
-	refs["Turbo"] = v26f
-	table.insert(scales, { new("UIScale", {}, v26), 1, 1 })
+	}, v28f)
+	corner(v28l, 3)
+	refs["Turbo"] = v28f
+	table.insert(scales, { new("UIScale", {}, v28), 1, 1 })
 	table.insert(layouts, {
-		v26,
+		v28,
 		{
 			AnchorPoint = Vector2.new(0.5, 1),
 			Position = UDim2.new(0.5, 0, 1, -22),
@@ -2571,7 +2667,7 @@ function Ui.Bind(playerGui)
 			Visible = true,
 		},
 	})
-	local v27 = new("Frame", {
+	local v29 = new("Frame", {
 		Name = "TurboFill",
 		AnchorPoint = Vector2.new(0, 0),
 		Position = UDim2.fromOffset(0, 0),
@@ -2579,9 +2675,9 @@ function Ui.Bind(playerGui)
 		Visible = true,
 		BackgroundColor3 = Color3.fromRGB(255, 176, 46),
 		BorderSizePixel = 0,
-	}, v26f)
-	refs["TurboFill"] = v27
-	local v28 = new("TextLabel", {
+	}, v28f)
+	refs["TurboFill"] = v29
+	local v30 = new("TextLabel", {
 		Name = "TurboLabel",
 		AnchorPoint = Vector2.new(0, 0),
 		Position = UDim2.fromOffset(0, 0),
@@ -2595,15 +2691,15 @@ function Ui.Bind(playerGui)
 		TextWrapped = false,
 		TextXAlignment = Enum.TextXAlignment.Center,
 		ZIndex = 3,
-	}, v26f)
+	}, v28f)
 	new(
 		"UIStroke",
 		{ Thickness = 3, Color = Color3.fromRGB(18, 22, 43), ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual },
-		v28
+		v30
 	)
-	refs["TurboLabel"] = v28
+	refs["TurboLabel"] = v30
 	table.insert(layouts, {
-		v28,
+		v30,
 		{
 			AnchorPoint = Vector2.new(0, 0),
 			Position = UDim2.fromOffset(0, 0),
@@ -2619,7 +2715,7 @@ function Ui.Bind(playerGui)
 			Visible = true,
 		},
 	})
-	local v29 = new("Frame", {
+	local v31 = new("Frame", {
 		Name = "RollControls",
 		AnchorPoint = Vector2.new(1, 1),
 		Position = UDim2.new(1, -22, 1, -22),
@@ -2627,10 +2723,10 @@ function Ui.Bind(playerGui)
 		Visible = false,
 		BackgroundTransparency = 1,
 	}, gui)
-	refs["RollControls"] = v29
-	table.insert(scales, { new("UIScale", {}, v29), 1, 1 })
+	refs["RollControls"] = v31
+	table.insert(scales, { new("UIScale", {}, v31), 1, 1 })
 	table.insert(layouts, {
-		v29,
+		v31,
 		{
 			AnchorPoint = Vector2.new(1, 1),
 			Position = UDim2.new(1, -22, 1, -22),
@@ -2644,15 +2740,15 @@ function Ui.Bind(playerGui)
 			Visible = false,
 		},
 	})
-	local v30 = new("Frame", {
+	local v32 = new("Frame", {
 		Name = "RollView",
 		AnchorPoint = Vector2.new(0, 0),
 		Position = UDim2.fromOffset(0, 0),
 		Size = UDim2.fromOffset(104, 54),
 		Visible = true,
 		BackgroundTransparency = 1,
-	}, v29)
-	local v30s = new("Frame", {
+	}, v31)
+	local v32s = new("Frame", {
 		Name = "Shadow",
 		Position = UDim2.fromOffset(0, 4),
 		Size = UDim2.fromScale(1, 1),
@@ -2660,118 +2756,11 @@ function Ui.Bind(playerGui)
 		BackgroundTransparency = 0.4,
 		BorderSizePixel = 0,
 		ZIndex = 1,
-	}, v30)
-	corner(v30s, 10)
-	new("UIStroke", {
-		Thickness = 3,
-		Color = Color3.fromRGB(88, 68, 57),
-		Transparency = 0.4,
-		ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-	}, v30s)
-	local v30f = new("TextButton", {
-		Name = "Face",
-		Size = UDim2.fromScale(1, 1),
-		BackgroundColor3 = Color3.new(1, 1, 1),
-		BorderSizePixel = 0,
-		ZIndex = 2,
-		Text = "",
-		AutoButtonColor = false,
-	}, v30)
-	corner(v30f, 10)
-	new(
-		"UIGradient",
-		{ Rotation = 90, Color = ColorSequence.new(Color3.fromRGB(255, 185, 71), Color3.fromRGB(224, 155, 40)) },
-		v30f
-	)
-	new(
-		"UIStroke",
-		{ Thickness = 3, Color = Color3.fromRGB(18, 22, 43), ApplyStrokeMode = Enum.ApplyStrokeMode.Border },
-		v30f
-	)
-	local v30l = new("Frame", {
-		Name = "Lift",
-		Position = UDim2.fromOffset(4, 2),
-		Size = UDim2.new(1, -8, 0, 6),
-		BackgroundColor3 = Color3.new(1, 1, 1),
-		BackgroundTransparency = 0.7,
-		BorderSizePixel = 0,
-	}, v30f)
-	corner(v30l, 3)
-	refs["RollView"] = v30f
-	table.insert(layouts, {
-		v30,
-		{
-			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.fromOffset(0, 0),
-			Size = UDim2.fromOffset(104, 54),
-			Visible = true,
-		},
-		{
-			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.fromOffset(0, 0),
-			Size = UDim2.fromOffset(90, 48),
-			Visible = true,
-		},
-	})
-	local v31 = new("TextLabel", {
-		Name = "RollViewLabel",
-		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.fromOffset(0, 0),
-		Size = UDim2.fromScale(1, 1),
-		Visible = true,
-		BackgroundTransparency = 1,
-		Text = "ROLLS",
-		TextSize = 25,
-		Font = Enum.Font.FredokaOne,
-		TextColor3 = Color3.fromRGB(255, 255, 255),
-		TextWrapped = false,
-		TextXAlignment = Enum.TextXAlignment.Center,
-		ZIndex = 3,
-	}, v30f)
-	new(
-		"UIStroke",
-		{ Thickness = 3, Color = Color3.fromRGB(18, 22, 43), ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual },
-		v31
-	)
-	refs["RollViewLabel"] = v31
-	table.insert(layouts, {
-		v31,
-		{
-			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.fromOffset(0, 0),
-			Size = UDim2.fromScale(1, 1),
-			TextSize = 25,
-			Visible = true,
-		},
-		{
-			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.fromOffset(0, 0),
-			Size = UDim2.fromScale(1, 1),
-			TextSize = 22,
-			Visible = true,
-		},
-	})
-	local v32 = new("Frame", {
-		Name = "AutoRoll",
-		AnchorPoint = Vector2.new(0, 0),
-		Position = UDim2.fromOffset(124, 0),
-		Size = UDim2.fromOffset(96, 54),
-		Visible = true,
-		BackgroundTransparency = 1,
-	}, v29)
-	local v32s = new("Frame", {
-		Name = "Shadow",
-		Position = UDim2.fromOffset(0, 4),
-		Size = UDim2.fromScale(1, 1),
-		BackgroundColor3 = Color3.fromRGB(27, 82, 74),
-		BackgroundTransparency = 0.4,
-		BorderSizePixel = 0,
-		ZIndex = 1,
 	}, v32)
 	corner(v32s, 10)
 	new("UIStroke", {
 		Thickness = 3,
-		Color = Color3.fromRGB(27, 82, 74),
+		Color = Color3.fromRGB(88, 68, 57),
 		Transparency = 0.4,
 		ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
 	}, v32s)
@@ -2787,7 +2776,7 @@ function Ui.Bind(playerGui)
 	corner(v32f, 10)
 	new(
 		"UIGradient",
-		{ Rotation = 90, Color = ColorSequence.new(Color3.fromRGB(84, 224, 118), Color3.fromRGB(54, 194, 87)) },
+		{ Rotation = 90, Color = ColorSequence.new(Color3.fromRGB(255, 185, 71), Color3.fromRGB(224, 155, 40)) },
 		v32f
 	)
 	new(
@@ -2804,31 +2793,31 @@ function Ui.Bind(playerGui)
 		BorderSizePixel = 0,
 	}, v32f)
 	corner(v32l, 3)
-	refs["AutoRoll"] = v32f
+	refs["RollView"] = v32f
 	table.insert(layouts, {
 		v32,
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.fromOffset(124, 0),
-			Size = UDim2.fromOffset(96, 54),
+			Position = UDim2.fromOffset(0, 0),
+			Size = UDim2.fromOffset(104, 54),
 			Visible = true,
 		},
 		{
 			AnchorPoint = Vector2.new(0, 0),
-			Position = UDim2.fromOffset(108, 0),
-			Size = UDim2.fromOffset(86, 48),
+			Position = UDim2.fromOffset(0, 0),
+			Size = UDim2.fromOffset(90, 48),
 			Visible = true,
 		},
 	})
 	local v33 = new("TextLabel", {
-		Name = "AutoRollLabel",
+		Name = "RollViewLabel",
 		AnchorPoint = Vector2.new(0, 0),
 		Position = UDim2.fromOffset(0, 0),
 		Size = UDim2.fromScale(1, 1),
 		Visible = true,
 		BackgroundTransparency = 1,
-		Text = "AUTO",
-		TextSize = 23,
+		Text = "ROLLS",
+		TextSize = 25,
 		Font = Enum.Font.FredokaOne,
 		TextColor3 = Color3.fromRGB(255, 255, 255),
 		TextWrapped = false,
@@ -2840,37 +2829,37 @@ function Ui.Bind(playerGui)
 		{ Thickness = 3, Color = Color3.fromRGB(18, 22, 43), ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual },
 		v33
 	)
-	refs["AutoRollLabel"] = v33
+	refs["RollViewLabel"] = v33
 	table.insert(layouts, {
 		v33,
 		{
 			AnchorPoint = Vector2.new(0, 0),
 			Position = UDim2.fromOffset(0, 0),
 			Size = UDim2.fromScale(1, 1),
-			TextSize = 23,
+			TextSize = 25,
 			Visible = true,
 		},
 		{
 			AnchorPoint = Vector2.new(0, 0),
 			Position = UDim2.fromOffset(0, 0),
 			Size = UDim2.fromScale(1, 1),
-			TextSize = 20,
+			TextSize = 22,
 			Visible = true,
 		},
 	})
 	local v34 = new("Frame", {
-		Name = "Settings",
-		AnchorPoint = Vector2.new(1, 0),
-		Position = UDim2.new(1, -12, 0, 12),
-		Size = UDim2.fromOffset(48, 48),
+		Name = "AutoRoll",
+		AnchorPoint = Vector2.new(0, 0),
+		Position = UDim2.fromOffset(124, 0),
+		Size = UDim2.fromOffset(96, 54),
 		Visible = true,
 		BackgroundTransparency = 1,
-	}, gui)
+	}, v31)
 	local v34s = new("Frame", {
 		Name = "Shadow",
 		Position = UDim2.fromOffset(0, 4),
 		Size = UDim2.fromScale(1, 1),
-		BackgroundColor3 = Color3.fromRGB(18, 26, 65),
+		BackgroundColor3 = Color3.fromRGB(27, 82, 74),
 		BackgroundTransparency = 0.4,
 		BorderSizePixel = 0,
 		ZIndex = 1,
@@ -2878,7 +2867,7 @@ function Ui.Bind(playerGui)
 	corner(v34s, 10)
 	new("UIStroke", {
 		Thickness = 3,
-		Color = Color3.fromRGB(18, 26, 65),
+		Color = Color3.fromRGB(27, 82, 74),
 		Transparency = 0.4,
 		ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
 	}, v34s)
@@ -2894,7 +2883,7 @@ function Ui.Bind(playerGui)
 	corner(v34f, 10)
 	new(
 		"UIGradient",
-		{ Rotation = 90, Color = ColorSequence.new(Color3.fromRGB(59, 68, 93), Color3.fromRGB(28, 38, 62)) },
+		{ Rotation = 90, Color = ColorSequence.new(Color3.fromRGB(84, 224, 118), Color3.fromRGB(54, 194, 87)) },
 		v34f
 	)
 	new(
@@ -2911,20 +2900,127 @@ function Ui.Bind(playerGui)
 		BorderSizePixel = 0,
 	}, v34f)
 	corner(v34l, 3)
-	refs["Settings"] = v34f
-	table.insert(scales, { new("UIScale", {}, v34), 1, 1 })
-	local v35 = new("ImageLabel", {
+	refs["AutoRoll"] = v34f
+	table.insert(layouts, {
+		v34,
+		{
+			AnchorPoint = Vector2.new(0, 0),
+			Position = UDim2.fromOffset(124, 0),
+			Size = UDim2.fromOffset(96, 54),
+			Visible = true,
+		},
+		{
+			AnchorPoint = Vector2.new(0, 0),
+			Position = UDim2.fromOffset(108, 0),
+			Size = UDim2.fromOffset(86, 48),
+			Visible = true,
+		},
+	})
+	local v35 = new("TextLabel", {
+		Name = "AutoRollLabel",
+		AnchorPoint = Vector2.new(0, 0),
+		Position = UDim2.fromOffset(0, 0),
+		Size = UDim2.fromScale(1, 1),
+		Visible = true,
+		BackgroundTransparency = 1,
+		Text = "AUTO",
+		TextSize = 23,
+		Font = Enum.Font.FredokaOne,
+		TextColor3 = Color3.fromRGB(255, 255, 255),
+		TextWrapped = false,
+		TextXAlignment = Enum.TextXAlignment.Center,
+		ZIndex = 3,
+	}, v34f)
+	new(
+		"UIStroke",
+		{ Thickness = 3, Color = Color3.fromRGB(18, 22, 43), ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual },
+		v35
+	)
+	refs["AutoRollLabel"] = v35
+	table.insert(layouts, {
+		v35,
+		{
+			AnchorPoint = Vector2.new(0, 0),
+			Position = UDim2.fromOffset(0, 0),
+			Size = UDim2.fromScale(1, 1),
+			TextSize = 23,
+			Visible = true,
+		},
+		{
+			AnchorPoint = Vector2.new(0, 0),
+			Position = UDim2.fromOffset(0, 0),
+			Size = UDim2.fromScale(1, 1),
+			TextSize = 20,
+			Visible = true,
+		},
+	})
+	local v36 = new("Frame", {
+		Name = "Settings",
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -12, 0, 12),
+		Size = UDim2.fromOffset(48, 48),
+		Visible = true,
+		BackgroundTransparency = 1,
+	}, gui)
+	local v36s = new("Frame", {
+		Name = "Shadow",
+		Position = UDim2.fromOffset(0, 4),
+		Size = UDim2.fromScale(1, 1),
+		BackgroundColor3 = Color3.fromRGB(18, 26, 65),
+		BackgroundTransparency = 0.4,
+		BorderSizePixel = 0,
+		ZIndex = 1,
+	}, v36)
+	corner(v36s, 10)
+	new("UIStroke", {
+		Thickness = 3,
+		Color = Color3.fromRGB(18, 26, 65),
+		Transparency = 0.4,
+		ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+	}, v36s)
+	local v36f = new("TextButton", {
+		Name = "Face",
+		Size = UDim2.fromScale(1, 1),
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		BorderSizePixel = 0,
+		ZIndex = 2,
+		Text = "",
+		AutoButtonColor = false,
+	}, v36)
+	corner(v36f, 10)
+	new(
+		"UIGradient",
+		{ Rotation = 90, Color = ColorSequence.new(Color3.fromRGB(59, 68, 93), Color3.fromRGB(28, 38, 62)) },
+		v36f
+	)
+	new(
+		"UIStroke",
+		{ Thickness = 3, Color = Color3.fromRGB(18, 22, 43), ApplyStrokeMode = Enum.ApplyStrokeMode.Border },
+		v36f
+	)
+	local v36l = new("Frame", {
+		Name = "Lift",
+		Position = UDim2.fromOffset(4, 2),
+		Size = UDim2.new(1, -8, 0, 6),
+		BackgroundColor3 = Color3.new(1, 1, 1),
+		BackgroundTransparency = 0.7,
+		BorderSizePixel = 0,
+	}, v36f)
+	corner(v36l, 3)
+	refs["Settings"] = v36f
+	table.insert(scales, { new("UIScale", {}, v36), 1, 1 })
+	local v37 = new("ImageLabel", {
 		Name = "SettingsIcon",
 		AnchorPoint = Vector2.new(0, 0),
 		Position = UDim2.fromOffset(4, 4),
 		Size = UDim2.fromOffset(40, 40),
 		Visible = true,
 		BackgroundTransparency = 1,
-		Image = "rbxassetid://81490848854515",
+		Image = "rbxassetid://131875159358960",
 		ScaleType = Enum.ScaleType.Fit,
 		ZIndex = 3,
-	}, v34f)
-	refs["SettingsIcon"] = v35
+	}, v36f)
+	refs["SettingsIcon"] = v37
 	local function fit()
 		local camera = workspace.CurrentCamera
 		if not camera then

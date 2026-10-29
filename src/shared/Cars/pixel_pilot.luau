@@ -4,7 +4,7 @@ return {
 	Id = "pixel_pilot",
 	Name = "Pixel Pilot",
 	Rarity = "Legendary",
-	Chance = 3700,
+	Chance = 1.4e8,
 	SpeedMulti = 70,
 	Order = 1074,
 	Model = "pixel_pilot",

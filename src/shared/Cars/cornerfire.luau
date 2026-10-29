@@ -4,7 +4,7 @@ return {
 	Id = "cornerfire",
 	Name = "Cornerfire",
 	Rarity = "Epic",
-	Chance = 720,
+	Chance = 640000,
 	SpeedMulti = 12.5,
 	Order = 1056,
 	Model = "cornerfire",

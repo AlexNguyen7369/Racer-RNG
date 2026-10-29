@@ -4,7 +4,7 @@ return {
 	Id = "hover_car",
 	Name = "Hover Car",
 	Rarity = "Mythic",
-	Chance = 10000, -- 1 in N
+	Chance = 5e9, -- 1 in N
 	SpeedMulti = 150,
 	Order = 6,
 	Model = "hover_car", -- ReplicatedStorage.CarModels.hover_car (assets/studio/CarModels.rbxm, Draft05 import)

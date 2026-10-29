@@ -4,7 +4,7 @@ return {
 	Id = "downforce_dragon",
 	Name = "Downforce Dragon",
 	Rarity = "Epic",
-	Chance = 630,
+	Chance = 380000,
 	SpeedMulti = 11,
 	Order = 1053,
 	Model = "downforce_dragon",

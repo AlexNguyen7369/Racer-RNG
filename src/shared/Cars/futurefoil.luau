@@ -4,7 +4,7 @@ return {
 	Id = "futurefoil",
 	Name = "Futurefoil",
 	Rarity = "Legendary",
-	Chance = 5200,
+	Chance = 7.8e8,
 	SpeedMulti = 100,
 	Order = 1080,
 	Model = "futurefoil",

@@ -4,7 +4,7 @@ return {
 	Id = "castle_cruiser",
 	Name = "Castle Cruiser",
 	Rarity = "Secret",
-	Chance = 450000,
+	Chance = 4.7e16,
 	SpeedMulti = 1600,
 	Order = 1094,
 	Model = "castle_cruiser",

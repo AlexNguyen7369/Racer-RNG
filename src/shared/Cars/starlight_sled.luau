@@ -4,7 +4,7 @@ return {
 	Id = "starlight_sled",
 	Name = "Starlight Sled",
 	Rarity = "Legendary",
-	Chance = 2450,
+	Chance = 3.4e7,
 	SpeedMulti = 45,
 	Order = 1069,
 	Model = "starlight_sled",

@@ -589,6 +589,25 @@ function Tests.leaderboard()
 		flag("leaderboard_scores_money_earned_floored", S.MoneyEarned == 9000, tonumber(S.MoneyEarned) or -1, 9000)
 		flag("leaderboard_scores_rolls", S.Rolls == 40, tonumber(S.Rolls) or -1, 40)
 		flag("leaderboard_scores_rarest_car", S.RarestCar == rarest, tonumber(S.RarestCar) or -1, rarest)
+		-- owner 2026-10-27: MoneyEarned may reach 1e30 but leaderboards store int64, so scores clamp to 9e18
+		do
+			local hp, hid = player(20, true) -- index unused by any other check (1-7 are taken)
+			hp:SetAttribute("MoneyEarned", 1e20)
+			local hs = service.Scores(hp)
+			local hm = type(hs) == "table" and hs.MoneyEarned
+			flag("leaderboard_scores_money_earned_clamped_9e18", hm == 9e18, tonumber(hm) or -1, 9e18)
+			local okW, wroteH = pcall(service.Write, hp)
+			local got = stores.Value("LB_MoneyEarned_v1", hid)
+			flag(
+				"leaderboard_write_money_earned_1e20_is_9e18",
+				okW and wroteH == true and got == 9e18,
+				tonumber(got) or -1,
+				9e18
+			)
+			for _, b in BOARDS do -- keep the 9e18 row out of the later board / row checks
+				(stores.Data[b.Store] or {})[tostring(hid)] = nil
+			end
+		end
 		local bare = player(2, true)
 		local bareScores = service.Scores(bare)
 		local bareRarest = type(bareScores) == "table" and bareScores.RarestCar
@@ -937,7 +956,9 @@ function Tests.leaderboard()
 			)
 
 			-- A top score that is no catalog car's Chance: odds and player shown, no car
-			local stranger, strange = ID_BASE + 40, best.Chance + 7
+			-- Must be strictly above the rarest Chance: with the 2026-10-27 odds that is 5e18, where a double's step is
+			-- 1024, so a fixed + 7 rounded back to a tie with row 1 (fixture bug, not a service bug).
+			local stranger, strange = ID_BASE + 40, best.Chance + math.max(7, best.Chance * 1e-9)
 			local more = table.clone(seeded)
 			more[stranger] = strange
 			reseed(more)

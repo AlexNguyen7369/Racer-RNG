@@ -290,32 +290,48 @@ local generated = {
 				Visible = true,
 			},
 		},
-		["RacerHud/Speed/SpeedIcon"] = {
+		-- Speedometer layout (owner brief 2026-10-27, docs/HUD_LAYOUT_SPEC.md section 9): dial on the left, the icon is
+		-- its hub (ZIndex above the dial), the Speed stat on the right; the group keeps its authored place and size.
+		["RacerHud/Speed/SpeedDial"] = {
 			Desktop = {
 				AnchorPoint = Vector2.new(0, 0),
 				Position = UDim2.fromOffset(0, 0),
-				Size = UDim2.fromOffset(88, 88),
+				Size = UDim2.fromOffset(108, 108),
 				Visible = true,
 			},
 			Phone = {
 				AnchorPoint = Vector2.new(0, 0),
 				Position = UDim2.fromOffset(0, 0),
-				Size = UDim2.fromOffset(64, 64),
+				Size = UDim2.fromOffset(90, 90),
+				Visible = true,
+			},
+		},
+		["RacerHud/Speed/SpeedIcon"] = {
+			Desktop = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(34, 30),
+				Size = UDim2.fromOffset(40, 40),
+				Visible = true,
+			},
+			Phone = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(28, 25),
+				Size = UDim2.fromOffset(34, 34),
 				Visible = true,
 			},
 		},
 		["RacerHud/Speed/SpeedValue"] = {
 			Desktop = {
 				AnchorPoint = Vector2.new(0, 0),
-				Position = UDim2.fromOffset(100, 33),
-				Size = UDim2.fromOffset(206, 42),
+				Position = UDim2.fromOffset(116, 33),
+				Size = UDim2.fromOffset(190, 42),
 				TextSize = 34,
 				Visible = true,
 			},
 			Phone = {
 				AnchorPoint = Vector2.new(0, 0),
-				Position = UDim2.fromOffset(76, 23),
-				Size = UDim2.fromOffset(174, 34),
+				Position = UDim2.fromOffset(96, 23),
+				Size = UDim2.fromOffset(154, 34),
 				TextSize = 28,
 				Visible = true,
 			},
@@ -345,6 +361,21 @@ local generated = {
 				AnchorPoint = Vector2.new(0, 0),
 				Position = UDim2.fromOffset(0, 0),
 				Size = UDim2.fromOffset(56, 56),
+				Visible = true,
+			},
+		},
+		-- Money plate behind MoneyValue and Unbanked (owner brief 2026-10-27, HUD spec section 9)
+		["RacerHud/Money/MoneyPlate"] = {
+			Desktop = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(94, 22),
+				Size = UDim2.fromOffset(188, 92),
+				Visible = true,
+			},
+			Phone = {
+				AnchorPoint = Vector2.new(0, 0),
+				Position = UDim2.fromOffset(62, 12),
+				Size = UDim2.fromOffset(138, 72),
 				Visible = true,
 			},
 		},
@@ -1689,7 +1720,8 @@ Model.Scales = generated.Scales
 Model.Nodes = generated.Nodes
 
 -- Runtime changes the scripts make on top of the generated layout:
--- RacerUiController moves the Speed group horizontally every frame to centre its visible icon + text (X is live on the
+-- RacerUiController moves the Speed group horizontally every frame to centre its visible dial + text (SpeedDial's left
+-- edge to SpeedValue's text end, HUD spec section 9) (X is live on the
 -- live viewport; Model.SpeedGroup applies the same rule at a simulated one).
 Model.DynamicX = { ["RacerHud/Speed"] = true }
 
@@ -1700,12 +1732,12 @@ function Model.K(viewport)
 end
 
 -- RacerUiController (owner decision 2026-10-08, R3 clearSpeedOfToast + the centring above), every Heartbeat:
---  X: Position = UDim2(0.5, (group width - visible width) / 2, ...), so the visible icon + left-aligned number are
---     centred on the screen (AnchorPoint 0.5: the icon's left edge is screen centre - visible width / 2).
+--  X: Position = UDim2(0.5, (group width - visible width) / 2, ...), so the visible dial + left-aligned number are
+--     centred on the screen (AnchorPoint 0.5: the dial's left edge is screen centre - visible width / 2).
 --  Y: after centring the group moves DOWN by max(0, min(need, room)), need = Toast bottom + SPEED_TOAST_GAP - group
 --     top, room = Turbo top - SPEED_TURBO_GAP - group bottom. The Toast keeps its rect while hidden.
 Model.SpeedRule = { ToastGap = 4, TurboGap = 2 }
--- `group` is the generated rect (ScaledHudRect), `visibleWidth` the icon + number width at that viewport, `toast` and
+-- `group` is the generated rect (ScaledHudRect), `visibleWidth` the dial + number width at that viewport, `toast` and
 -- `turbo` the screen rects the rule reads. Returns the group's screen rect.
 function Model.SpeedGroup(viewport, group, visibleWidth, toast, turbo)
 	local r = { x = viewport.X / 2 - visibleWidth / 2, y = group.y, w = group.w, h = group.h }
@@ -1717,13 +1749,13 @@ function Model.SpeedGroup(viewport, group, visibleWidth, toast, turbo)
 	return r
 end
 
--- RacerUiController.fitPanels (owner decision 2026-10-08, R2), every Heartbeat, for each Racer panel's outer Frame:
---   band top = Race Face bottom + Gap, band bottom = RacerHud/Turbo top - Gap (screen pixels, inset included),
---   side = column right + Gap, where column right = the max right edge of RacerHud/Navigation and every GuiObject
---   descendant of it whose own Visible is true (the STATS PointsBadge sticks out; Model.ColumnRight),
---   width = viewport X - 2 * side, height = bottom - top;
+-- RacerUiController.fitPanels, every Heartbeat, for each Racer panel's outer Frame. Since the PanelBand merge it reads
+-- Client/PanelBand.Rect (docs/HUD_LAYOUT_SPEC.md sections 1 and 6: below the Race button, above the TURBO LUCK bar
+-- and the Money read-out, between the left grid and the Shop column), the same band as the Shop / Market:
+--   band = { left, top, right, bottom } (UiShopMarket.Band, screen pixels, inset included),
+--   width = right - left, height = bottom - top;
 --   its UIScale = max(MinScale, min(k, width / Size.X.Offset, height / Size.Y.Offset)) (Size = generated variant size);
---   AnchorPoint (0.5, 0.5), Position UDim2(0.5, 0, 0, top + height / 2).
+--   AnchorPoint (0.5, 0.5), Position UDim2.fromOffset((left + right) / 2, top + height / 2).
 Model.RacerPanels = {
 	Paths = { "RacerIndex/Panel", "RacerStats/Panel", "RacerSettings/Panel", "RacerRebirth/Panel" },
 	Gap = 8,
@@ -1743,24 +1775,21 @@ function Model.ColumnRight(navigation, parts)
 	return right
 end
 
--- deps = { Race = rect, Turbo = rect, Navigation = rect, NavigationParts = { rect, ... } }; size = the panel's
--- generated variant Size (UDim2). Returns { AnchorPoint, Position, Size, Scale, Band = { top, bottom, side } }.
-function Model.RacerPanelFit(viewport, deps, size)
-	local gap = Model.RacerPanels.Gap
-	local top = deps.Race.y + deps.Race.h + gap
-	local bottom = deps.Turbo.y - gap
-	local side = Model.ColumnRight(deps.Navigation, deps.NavigationParts) + gap
-	local width, height = viewport.X - 2 * side, bottom - top
+-- band = { left, top, right, bottom } (UiShopMarket.Band); size = the panel's generated variant Size (UDim2).
+-- Returns { AnchorPoint, Position, Size, Scale, Band = { top, bottom, side } }.
+function Model.RacerPanelFit(viewport, band, size)
+	local left, top, right, bottom = band[1], band[2], band[3], band[4]
+	local width, height = right - left, bottom - top
 	local scale = Model.K(viewport)
 	if size.X.Offset > 0 and size.Y.Offset > 0 then
 		scale = math.max(Model.RacerPanels.MinScale, math.min(scale, width / size.X.Offset, height / size.Y.Offset))
 	end
 	return {
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = UDim2.new(0.5, 0, 0, top + height / 2),
+		Position = UDim2.fromOffset((left + right) / 2, top + height / 2),
 		Size = size,
 		Scale = scale,
-		Band = { top = top, bottom = bottom, side = side },
+		Band = { top = top, bottom = bottom, side = left },
 	}
 end
 -- Client/RollToast copies PreviewCar's Position / Size into these enlarged-card parts (fitRollArt, on every viewport
@@ -1858,6 +1887,9 @@ end
 --   fromOffset(left - SlotGap, gap), UpgradeSlot's = fromOffset(right + SlotGap, gap), where left / right are the
 --   outer edges of RacerHud/Level and RacerHud/Turbo together and gap = (Level bottom + Turbo top) / 2, in screen
 --   pixels (HudChrome ignores the inset). The pair is Visible only when Level and Turbo exist.
+--   Owner 2026-10-28 (section 6): at viewport height <= StackMaxHeight the pair stacks ABOVE the bars instead:
+--   AnchorPoint (1, 1) / (0, 1), bottom y = min(Level top, Money top) - StackGap, ItemsSlot x = min(left, Speed
+--   left) - StackGap, UpgradeSlot x = max(right, Speed right) + StackGap (Money / Speed only when visible).
 Model.HudChrome = {
 	Phone = 0.68,
 	BottomScale = 0.75,
@@ -1872,6 +1904,17 @@ Model.HudChrome = {
 	Level = "RacerHud/Level",
 	Turbo = "RacerHud/Turbo",
 	Bar = "HudChrome/TopRight",
+	-- Owner 2026-10-28 (docs/HUD_LAYOUT_SPEC.md section 6): the bottom pair shrinks about its anchor until its cell
+	-- (Cell x k, anchored at (1 | 0, IconMid)) clears every visible Blocker; steps of Step x base, floor Floor x base.
+	Cell = Vector2.new(84, 94), -- HudChrome CELL = (TILE + 12, TILE + LABEL), TILE 72, LABEL 22
+	IconMid = 36 / 94, -- ICON_MID = TILE / 2 / (TILE + LABEL)
+	Step = 0.02,
+	Floor = 0.3,
+	Blockers = { "RacerHud/Money", "RacerHud/Speed" },
+	StackMaxHeight = 400, -- HudChrome STACK_MAX_HEIGHT (phone_small, owner 2026-10-28)
+	StackGap = 6,
+	Money = "RacerHud/Money",
+	Speed = "RacerHud/Speed",
 }
 -- HudChrome's UIScale "Scale" factor of the node at `path` at a viewport, or nil when it is not a HudChrome holder.
 function Model.HudChromeScale(path, viewport)
@@ -1885,17 +1928,73 @@ function Model.HudChromeScale(path, viewport)
 	end
 	return nil
 end
--- The bottom pair's Position (screen offsets) from the Level and Turbo screen rects, or nil for other paths.
-function Model.HudChromeSlot(path, level, turbo)
-	local side = Model.HudChrome.Slots[path]
-	if not side then
-		return nil
+-- The bottom pair's unshrunk placement: { [slot path] = { Position = Vector2 (screen offsets), Anchor = Vector2 } }
+-- from the Level / Turbo screen rects and `shown` = { [path] = rect } of the visible Blockers (Money, Speed).
+function Model.HudChromePair(viewport, level, turbo, shown)
+	local cfg = Model.HudChrome
+	local left = math.min(level.x, turbo.x)
+	local right = math.max(level.x + level.w, turbo.x + turbo.w)
+	local out = {}
+	if viewport.Y <= cfg.StackMaxHeight then
+		local speed, money = shown[cfg.Speed], shown[cfg.Money]
+		local y = math.min(level.y, money and money.y or math.huge) - cfg.StackGap
+		for path, side in cfg.Slots do
+			if side == "left" then
+				out[path] = {
+					Position = Vector2.new(math.min(left, speed and speed.x or left) - cfg.StackGap, y),
+					Anchor = Vector2.new(1, 1),
+				}
+			else
+				out[path] = {
+					Position = Vector2.new(math.max(right, speed and speed.x + speed.w or right) + cfg.StackGap, y),
+					Anchor = Vector2.new(0, 1),
+				}
+			end
+		end
+		return out
 	end
 	local gap = (level.y + level.h + turbo.y) / 2
-	if side == "left" then
-		return UDim2.fromOffset(math.min(level.x, turbo.x) - Model.HudChrome.SlotGap, gap)
+	for path, side in cfg.Slots do
+		if side == "left" then
+			out[path] = { Position = Vector2.new(left - cfg.SlotGap, gap), Anchor = Vector2.new(1, cfg.IconMid) }
+		else
+			out[path] = { Position = Vector2.new(right + cfg.SlotGap, gap), Anchor = Vector2.new(0, cfg.IconMid) }
+		end
 	end
-	return UDim2.fromOffset(math.max(level.x + level.w, turbo.x + turbo.w) + Model.HudChrome.SlotGap, gap)
+	return out
+end
+-- The bottom pair's shrunk UIScale (HudChrome refresh, owner 2026-10-28): the base pair scale lowered in Step
+-- steps until both cells (about their anchors) clear every visible blocker rect, never below Floor x base.
+function Model.HudChromePairScale(viewport, level, turbo, shown)
+	local cfg = Model.HudChrome
+	local base = (viewport.Y <= Model.PHONE_MAX_HEIGHT and cfg.Phone or 1) * cfg.BottomScale
+	local pair = Model.HudChromePair(viewport, level, turbo, shown)
+	local function clear(k)
+		local w, h = cfg.Cell.X * k, cfg.Cell.Y * k
+		for _, slot in pair do
+			local x = slot.Position.X - slot.Anchor.X * w
+			local y = slot.Position.Y - slot.Anchor.Y * h
+			for _, b in shown do
+				if x < b.x + b.w and x + w > b.x and y < b.y + b.h and y + h > b.y then
+					return false
+				end
+			end
+		end
+		return true
+	end
+	local k = base
+	while k > base * cfg.Floor and not clear(k) do
+		k -= base * cfg.Step
+	end
+	return k
+end
+-- The bottom pair's Position (UDim2 screen offsets) and AnchorPoint, or nil for other paths.
+function Model.HudChromeSlot(path, viewport, level, turbo, shown)
+	if not Model.HudChrome.Slots[path] then
+		return nil
+	end
+	local slot = Model.HudChromePair(viewport, level, turbo, shown)[path]
+	return UDim2.fromOffset(slot.Position.X, slot.Position.Y), slot.Anchor
 end
 -- AutomaticSize nodes whose content does not depend on the viewport (fixed TextSize captions in HudChrome's pills):
 -- the solver measures their size live (AbsoluteSize divided by the live UIScale factors, i.e. design pixels) and

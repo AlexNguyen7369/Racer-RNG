@@ -12,8 +12,8 @@ local MoneyService = {}
 
 MoneyService.COOLDOWN = 5 -- seconds before the same player can collect from the same pad again
 
-local MAX_AWARD = 1e9
-local MAX_EARNED = 1e12 -- same cap as PlayerData MAX_MONEY
+local MAX_MONEY = 1e30 -- same cap as PlayerData MAX_MONEY (owner 2026-10-27)
+local MAX_AWARD = MAX_MONEY -- was 1e9, which silently refused Track 9-10 payouts
 
 local lastCollect = setmetatable({}, { __mode = "k" }) -- player -> { [pad] = time }
 
@@ -26,7 +26,7 @@ function MoneyService.Setup(player)
 	end
 	local money = stats:FindFirstChild("Money")
 	if not money then
-		money = Instance.new("IntValue")
+		money = Instance.new("NumberValue") -- an IntValue tops out at about 9.2e18
 		money.Name = "Money"
 		money.Value = 0
 		money.Parent = stats
@@ -39,14 +39,14 @@ function MoneyService.Award(player, amount)
 	if type(amount) ~= "number" or amount ~= amount or amount <= 0 or amount > MAX_AWARD then
 		return nil
 	end
-	amount = math.floor(amount) -- IntValue: whole dollars only
+	amount = math.floor(amount) -- whole dollars only
 	if amount < 1 then
 		return nil
 	end
 	local money = MoneyService.Setup(player)
-	money.Value += amount
+	money.Value = math.min(money.Value + amount, MAX_MONEY)
 	-- Lifetime Money earned (leaderboard, docs/SAVE_SPEC.md): every award counts, spending never lowers it.
-	player:SetAttribute("MoneyEarned", math.min((player:GetAttribute("MoneyEarned") or 0) + amount, MAX_EARNED))
+	player:SetAttribute("MoneyEarned", math.min((player:GetAttribute("MoneyEarned") or 0) + amount, MAX_MONEY))
 	return money.Value
 end
 

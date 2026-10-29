@@ -124,7 +124,7 @@ function RaceService.NewRun(car, raceRoute, player, options)
 	local stat = PlayerData.SpeedStat(player)
 	local physics = CarPhysics.new(car, CarConfig)
 	local driver = PathDriver.new(raceRoute.Path, CarConfig, {
-		TargetSpeed = RaceConfig.SpeedFor(stat, GachaService.ShownSpeedMulti(player)),
+		TargetSpeed = RaceConfig.SpeedFor(stat, GachaService.CruiseMultis(player)),
 		NoFinalSlow = options.Loop,
 	})
 	local run = {
@@ -356,7 +356,9 @@ function RaceService.NewRun(car, raceRoute, player, options)
 	local function constrainToPath(dt)
 		local index = math.clamp(driver.Index, 1, #wps - 1)
 		local first = math.max(1, index - 2)
-		local last = math.min(#wps - 1, index + 2)
+		-- driver.Index is from before this step's move: reach as far as the car travelled (1250 studs/s = 21 studs a
+		-- frame, more than 2 segments of 8-stud slope / 8.6-stud R82 waypoints), or it projects onto a point behind
+		local last = math.min(#wps - 1, index + 2 + math.ceil(math.max(run.TargetSpeed or 0, 0) * (dt or 0) / 4))
 		local bestK, bestT, bestDistance = nil, 0, math.huge
 		for k = first, last do
 			local a, b = wps[k], wps[k + 1]
@@ -462,15 +464,16 @@ function RaceService.NewRun(car, raceRoute, player, options)
 
 	local function commitStat()
 		if pending > 0 then
-			local added = pending
-			pending = 0
+			-- AddSpeed rejects anything above MAX_ADD; carry the rest so a big multi is never lost
+			local added = math.min(pending, PlayerData.MAX_ADD)
+			pending -= added
 			local newStat = PlayerData.AddSpeed(player, added)
 			if newStat then
 				run.Gained += added
 			end
 		end
 		stat = PlayerData.SpeedStat(player) -- the source of truth (also picks up a load finishing)
-		run.TargetSpeed = RaceConfig.SpeedFor(stat, GachaService.ShownSpeedMulti(player))
+		run.TargetSpeed = RaceConfig.SpeedFor(stat, GachaService.CruiseMultis(player))
 		driver.TargetSpeed = run.TargetSpeed
 	end
 
@@ -570,10 +573,9 @@ function RaceService.NewRun(car, raceRoute, player, options)
 
 		-- Passive gain is a flat rate x permanent Speed-gain upgrades and rebirths; neither the car,
 		-- cruise speed, Speed stat, nor temporary boosts changes it.
-		pending += RaceConfig.GainPerSecond(stat, chassis.AssemblyLinearVelocity.Magnitude) * GachaService.SpeedMulti(
-			player
-		) * dt
-		LevelService.Tick(player, dt)
+		local gainMulti = GachaService.SpeedMulti(player)
+		pending += RaceConfig.GainPerSecond(stat, chassis.AssemblyLinearVelocity.Magnitude) * gainMulti * dt
+		LevelService.Tick(player, dt, gainMulti)
 		sinceCommit += dt
 		if sinceCommit >= RaceService.COMMIT_INTERVAL then
 			sinceCommit = 0

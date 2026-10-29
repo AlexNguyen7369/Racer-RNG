@@ -60,6 +60,60 @@ function Tests.make(helpers)
 		if not apiOk then
 			return r
 		end
+		-- Design doc "Aura and trail ladders" (owner 2026-10-27): 5 trails (rainbow, solar, void, NEW frost, NEW prism)
+		-- and 3 auras are sold, and every sold one needs its own VFX profile (a market item must never equip blank).
+		local MarketConfig = H.module(Shared, "MarketConfig")
+		local items = MarketConfig and MarketConfig.Items or {}
+		local trailIds, auraIds = {}, {}
+		for _, item in items.Trail or {} do
+			trailIds[item.Id] = true
+		end
+		for _, item in items.Aura or {} do
+			auraIds[item.Id] = true
+		end
+		local ladderOk = #(items.Trail or {}) == 5 and #(items.Aura or {}) == 3
+		for _, id in { "rainbow_trail", "solar_trail", "void_trail", "frost_trail", "prism_trail" } do
+			ladderOk = ladderOk and trailIds[id] == true
+		end
+		for _, id in { "azure_aura", "ember_aura", "galaxy_aura" } do
+			ladderOk = ladderOk and auraIds[id] == true
+		end
+		flag("market_trail_aura_ladder", ladderOk, #(items.Trail or {}), 5)
+		-- Owner 2026-10-27 (design doc "payout and price curves"): trail i = PayoutCurve.Cost(500, i), aura i =
+		-- Cost(2500, i), in ladder order; SpeedMulti values unchanged (1.5, 2, 3, 4, 5 and 1.2, 2, 3).
+		local PayoutCurve = H.module(Shared, "PayoutCurve")
+		local LADDER = {
+			{ "Trail", "rainbow_trail", 500, 1.5, 500, 1 },
+			{ "Trail", "solar_trail", 16000, 2, 500, 2 },
+			{ "Trail", "void_trail", 320000, 3, 500, 3 },
+			{ "Trail", "frost_trail", 10000000, 4, 500, 4 },
+			{ "Trail", "prism_trail", 210000000, 5, 500, 5 },
+			{ "Aura", "azure_aura", 2500, 1.2, 2500, 1 },
+			{ "Aura", "ember_aura", 79000, 2, 2500, 2 },
+			{ "Aura", "galaxy_aura", 1600000, 3, 2500, 3 },
+		}
+		local priceBad = {}
+		for _, row in LADDER do
+			local item = MarketConfig and type(MarketConfig.Get) == "function" and MarketConfig.Get(row[1], row[2])
+			local okC, curve = false, nil
+			if PayoutCurve and type(PayoutCurve.Cost) == "function" then
+				okC, curve = pcall(PayoutCurve.Cost, row[5], row[6])
+			end
+			if not item or item.Price ~= row[3] or item.SpeedMulti ~= row[4] or not okC or curve ~= row[3] then
+				table.insert(priceBad, row[2])
+			end
+		end
+		metrics.market_price_bad = table.concat(priceBad, ",")
+		flag("market_prices_payout_curve", #priceBad == 0, #priceBad, 0)
+		local missing = {}
+		for _, kindItems in { items.Trail or {}, items.Aura or {} } do
+			for _, item in kindItems do
+				if VehicleEffects.Profiles[item.Id] == nil then
+					table.insert(missing, item.Id)
+				end
+			end
+		end
+		flag("market_items_have_vfx_profiles", #missing == 0, #missing, 0)
 
 		local player = Instance.new("Folder")
 		player.Name = "CarTestEffectsPlayer"

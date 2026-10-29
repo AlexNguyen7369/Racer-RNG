@@ -1,14 +1,15 @@
 --!nonstrict
--- Uploaded HUD icon art (sources: ui/icons/hud/*.svg, docs/HUD_LAYOUT_SPEC.md). Atlas entries carry their crop.
+-- Approved simple HUD art (2026-10-27), source PNGs: ui/icons/simple-20261027/.
+-- Standalone transparent images, no atlas rectangles.
 return {
-	Shop = { Image = "rbxassetid://89965387364982" },
-	Items = { Image = "rbxassetid://86583108208648" },
-	Index = { Image = "rbxassetid://109764448296325" },
-	Upgrade = { Image = "rbxassetid://79780962366329" },
-	Stats = { Image = "rbxassetid://103345429570850" },
-	Rebirth = { Image = "rbxassetid://121915283083474", Offset = Vector2.new(768, 512), Size = Vector2.new(256, 256) },
-	Daily = { Image = "rbxassetid://95254908263198" },
-	Quests = { Image = "rbxassetid://81421648423043" },
-	Market = { Image = "rbxassetid://111724474631574" },
-	Settings = { Image = "rbxassetid://81490848854515" },
+	Shop = { Image = "rbxassetid://122477634476364" },
+	Items = { Image = "rbxassetid://129493708099921" },
+	Index = { Image = "rbxassetid://128931878370627" },
+	Upgrade = { Image = "rbxassetid://91603574230764" },
+	Stats = { Image = "rbxassetid://122191050291444" },
+	Rebirth = { Image = "rbxassetid://126025259967772" },
+	Daily = { Image = "rbxassetid://130197364777330" },
+	Quests = { Image = "rbxassetid://73247739778799" },
+	Market = { Image = "rbxassetid://123121209984440" },
+	Settings = { Image = "rbxassetid://131875159358960" },
 }

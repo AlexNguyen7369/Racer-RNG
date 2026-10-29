@@ -1,5 +1,9 @@
 # NPC racer: design spec (contract for tests and implementation)
 
+> Worlds and cap (owner 2026-10-27, `docs/WORLDS_SPEC.md`): each world has its own NPC ladder, and every NPC drives
+> below `RaceConfig.MAX_CRUISE` (800). World 1: 16 x 1.51^(n-1), Track 10 = 653 studs/s; World 2: 160 x 1.18^(n-1), Track 10 = 711 (placeholder, final values from
+> tools/balance_sim.py).
+
 User brief (2026-10-01):
 - One NPC racer per track. For now it is the starter car (`CarFactory`) in a different colour per track: red on
   Track 1, a different colour on every other track. The model must be swappable per track later.
@@ -28,7 +32,7 @@ User brief (2026-10-01):
 ### `src/shared/NpcConfig.luau` (editable knobs)
 - `BASE_SPEED` (studs/s, Track 1, above `RaceConfig.BASE_SPEED` so a stat-0 starter car loses): 16 (owner
   2026-10-22, a small starter-track recommendation lift; current Track 1 recommendation ~7.7K)
-- `SPEED_GROWTH` (each track's NPC is this many times faster than the previous one): 1.75 (owner 2026-10-21,
+- `SPEED_GROWTH` (each track's NPC is this many times faster than the previous one): 1.51 (placeholder, 2026-10-27 speed probe, WORLDS_SPEC; was 1.75 owner 2026-10-21,
   later the same day: was 2.5, then 1.37; with RaceConfig.MAX_SPEED 88 and Track 1 at 16, early recommendations are slightly higher)
 - `LABEL_DISTANCE` (studs, BillboardGui `MaxDistance`): 200 (owner 2026-10-20: wider, was 60)
 - `LOSE_SCREEN_SECONDS`: 3
@@ -99,6 +103,21 @@ Also returns `StartIndices[i]` and `FinishIndices[i]` (route waypoint index of e
 - `src/client/NpcRacerView.client.luau`: on `Start` builds the NPC with `NpcRacer.BuildModel` into the client's
   own Workspace (removing the previous one) and moves it each frame with `PoseAt(GetServerTimeNow() - ServerStart)`.
   On `Result Lose` shows a ScreenGui `LoserScreen` for `LOSE_SCREEN_SECONDS`. On `Reset` removes the NPC.
+
+### Loser screen (owner 2026-10-27)
+- `LoserScreen` is a full race recap, shown for `LOSE_SCREEN_SECONDS` after `Result Lose`. Its first child is a
+  full-screen dark red shade; above it a centred card (theme of docs/HUD_LAYOUT_SPEC.md section 8):
+  - a red `YOU LOST` banner that slides in and shakes once;
+  - the NPC's label and car (`NpcConfig.Tracks[n]`, never a generic "The NPC" when the track has an NPC) and the
+    track title (`TRACK n · Name`);
+  - `YOUR TIME` and `NPC TIME` (`mm:ss.cc`, from the Result's `PlayerTime` / `NpcTime`) and the gap
+    (`+1.32s`), the rows appearing one after another;
+  - `PB mm:ss.cc` or `PB --` for that track;
+  - `Back to checkpoint s` (the run's start track; `Back to the start` for Track 1) above a countdown bar that
+    drains over `LOSE_SCREEN_SECONDS`.
+- It stays non-interactive (no buttons), full-screen (`IgnoreGuiInset`, exempt from safe insets), DisplayOrder 20,
+  and hides at once on the next `Start`, `Reset` (after its time) or `Stop` with no exit animation; it never
+  delays the authoritative reset. Motion follows docs/HUD_LAYOUT_SPEC.md section 10 (reduced motion respected).
 
 ### Multiplayer
 - The server Workspace never contains a model with `IsNpc` (so nothing replicates to other players).

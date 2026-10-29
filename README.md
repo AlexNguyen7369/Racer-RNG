@@ -35,6 +35,20 @@ Auto race / workshop ──Speed/sec──▶ SPEED ──▶ Race the NPC ladde
 
 ## Features implemented
 
+UI visual pass (2026-10-27, `docs/HUD_LAYOUT_SPEC.md` sections 8-10): one theme for every screen (`Shared/UiTheme`:
+Fredoka text with a dark outline, token corner radii, multipliers written `x1.5`); numbers shortened with lowercase
+suffixes from 1,000 (`10.2m`, `$3.4b`, `10qd`); Money and UNBANKED on a gradient plate that counts up and pops on gain
+with a rising `+$` float; a speedometer dial beside the Speed stat whose needle shows the car's real speed; a full race
+recap loser screen (times, gap, PB, countdown); a smoother progress map (Path2D route, heading arrow, NPC name, time
+gap); and motion graphics through `Client/UiMotion` (pop, slide, shine, pulse, shake, cascade) that respect reduced
+motion.
+
+Approved HUD icons (2026-10-27): ten simple transparent cartoon icons, including
+the red/tan Shop house, brown Items backpack and detailed red Market bag without
+a coin. Hover feedback is scale-only (no white box). Source PNGs and Roblox IDs:
+[icon art](ui/icons/simple-20261027/README.md). Focused Studio checks passed;
+full compatibility was not rerun for this art-only update.
+
 Accessibility and devices (2026-10-26, `docs/HUD_LAYOUT_SPEC.md` section 7): UI motion follows Roblox's Reduced
 Motion setting or the in-game REDUCED EFFECTS toggle (tweens land at once, the roll reel lands without spinning),
 buttons stay inside the device safe area on notched phones, and panels support gamepads (first button selected,
@@ -73,6 +87,10 @@ the UI test suite and the full compatibility gate have not been run yet.
 Rebirth panel (2026-10-15): the REBIRTH panel shows the reset WARNING, the next rebirth's REWARDS (+10% Luck,
 +10% Speed Gain, +1 Stat Point) and a player-level REQUIREMENTS bar; each rebirth now grants 1 stat point into the
 STATS pool (harness 41/41, ui_rebirth 38/38; full compatibility gate not run).
+
+Speed gain rebalance (2026-10-27, NOT yet run in Studio): rebirths set a total Speed Gain and Luck multi (x3, x4, x5,
+x6, x7, x8, x10, x12, x15, x20, then x10 per rebirth), and the equipped aura (1.2x / 2x / 3x) and trail (1.5x to 5x,
+two new trails: Frost and Prism) multiply all Speed gain. The aura still lifts cruise speed; the car never changes gain.
 
 Design-doc fixes (2026-10-12, NOT yet run in Studio): the design docs are hard rules. A rebirth now resets Money
 and Speed; Money comes only from race cash-outs and duplicate car sales (no offline or daily-login Money); saves
@@ -186,6 +204,7 @@ updates automatically whenever the board changes; do not edit this block by hand
 
 ### In progress (22)
 
+- **Balance sim: World 1 ~30 h, World 2 ~35 h**: tools/balance_sim.py fits NPC ladders, World 2 cruise table, XP_LINEAR and gain; owner approves the hour table. Sim written; fit: XP_LINEAR 122, XP_DECADE 37.2 (owner approved and applied 2026-10-28), W2 HALF_STAT 2.07e15 (awaiting owner OK).
 - **Harder NPCs, imported NPC car models, wider label**: Owner 2026-10-20: Track 1 NPC 30 studs/s (x2 per track), label 200 studs with NPC RIVAL title, tracks 1-10 skinned with imported catalog cars (NpcConfig.Tracks). Code + docs done; needs full CarTest (npc, bank, multiplayer, weather) and a live look in Studio.
 - **Live-check the NPC client view and LoserScreen**: ui-tester / multiplayer-tester have not checked them live.
 - **Automatic bus delivery for Codex**: Claude receives bus messages via a hook; Codex only when it follows AGENTS.md and runs agent_bus.py context. If the Codex CLI's hook support covers session start / prompt submit, wire `agent_bus.py hook --agent codex` there. Also: edits made via shell commands (sed, heredoc, python rewrites) are not attributed; consider attributing via git diff snapshots per tool call. 2026-10-11: wired in .codex/hooks.json (SessionStart, UserPromptSubmit) and shell-edit attribution added (agent_bus.py shell, Pre/PostToolUse in both agents). Codex does not run the project hook until the developer trusts it (Needs you: codex-trust-bus-hook), so delivery is not verified yet.
@@ -206,11 +225,11 @@ updates automatically whenever the board changes; do not edit this block by hand
 - **Safe-area policy for IgnoreGuiInset GUIs**: Owner rule 2026-10-26 (HUD_LAYOUT_SPEC 7). Implemented: Client/SafeInsets sets DeviceSafeInsets on every PlayerGui ScreenGui except PanelDim, LoserScreen, RollShowcase. Needs a notched-phone Device Simulator check.
 - **VFX showcase area (/tp vfxarea, /tp home)**: Owner 2026-10-26. Shared/VfxArea floor at (1600,0,0), Client/VfxShowcase local cars per trail/aura, CarService.Teleport + admin /tp vfxarea \| home. Verified live. Next: run admin + vehicle_effects in the full harness; test-writer may add admin checks for the two new /tp forms.
 - **Bigger scenery in mass + detailed City skyscrapers**: Owner 2026-10-27: design doc Track environments (scale and detail), BIOME_DRESSING_SPEC Rules Budget 1200 / Scale (Landmarks x1.75, Horizon x2 with 0.25 shrink steps, Scatter x1.5) / City skyscrapers. BiomeThemes skyscraper helper (podium, setbacks, window bands, fins, neon crown, rooftop tank/spire/antenna), Billboard moved to City scatter. environment 338/338, full harness 50/0. Left: owner look while racing, device frame check (Needs you).
-- **Ember Wyvern flight**: Owner 2026-10-27: no flying animation while auto racing; bigger (exception) on the pedestal and in races; dynamic wing flaps and body motion; physics test suite. Spec docs/WYVERN_FLIGHT_SPEC.md. Done: 33-bone rig (drafts/cars/ember-wyvern/wyvern_rig.py), rigged upload Model 110915918385893, Shared/WyvernMotion, Client/WyvernAnimator, SkinScale 1.6 (placeholder), wyvern_flight scenario red then 106/106 green alone; live: flaps and heaves while racing and on the pedestal. Then (owner): livelier body, long tail, SkinScale 2.5 (pedestal cap 1.6), blue fire breath (WYVERN_BREATH_SPEC). Owner: implement first; tests written (wyvern_flight, wyvern_breath, pass_cars, car_redesign updated) but not run since. Next: full suite, then selective commit and push to main.
-- **Car redesign v3 toy racer**: Owner 2026-10-27: all 111 cars as toy racers (15,000 tris), pilot approved; Singularity orb spins / bobs / glows. Built, uploaded, rbxmx + orb code done (CAR_REDESIGN_SPEC 10-11). Left: full suite with Studio free (car_redesign, singularity_orb, pass_cars, showcase), owner look in Studio, merge.
+- **UI visual pass**: HUD counters + speedometer, lowercase suffixes, loser recap, minimap Path2D, full restyle on UiTheme, motion graphics (owner 2026-10-27)
 
-### Up next (9)
+### Up next (10)
 
+- **World 1 / World 2 (separate place, unlock at rebirth 10)**: Owner 2026-10-27, docs/WORLDS_SPEC.md. WorldConfig, per-world TrackRegistry, PlayerData VERSION 13, WorldService portal + teleport, rebirths 11-20 only in World 2.
 - **Daily Quest System**: Add a daily quest system with rotating objectives and rewards; define the design/spec before implementation.
 - **Redeem Codes section**: Add a Redeem Codes section projected for the Shop area where the gamepasses are located.
 - **Friends-in-server boost**: +10% luck and Money per friend in the same server, up to +40%. Fits this game: Encourages inviting friends; one multiplier in GachaService and MoneyService. Inspired by: Common in 2025-2026 simulators
@@ -221,8 +240,9 @@ updates automatically whenever the board changes; do not edit this block by hand
 - **Checkpoint tests (harness + UiSpec)**: test-writer: checkpoint scenario (validation, start track, loss resets to checkpoint, loop). ui-test-writer: CheckpointUi in UiSpec (overlap, locked cards, phone landscape). docs/CHECKPOINT_SPEC.md.
 - **Shop/Market panels cover the compact roll toast**: ui_hitboxes button_topmost_at_centre_shop_open/market_open: RollToast/Toast under the panel. PanelBand top = below Race button; the compact roll also sits below Race. Owner: band below the compact roll, or panel over the dimmed toast?
 
-### Backlog (future work) (11)
+### Backlog (future work) (15)
 
+- **World 2: 10 new tracks via /build-track**: Owner theme 2026-10-27: long, very wide tracks through massive beautiful mega biomes. Proposal in docs/WORLDS_SPEC.md section 6 (width 120, 20-45k studs, 10k tiles in a 5x2 grid, Terrain + streaming, per-biome lighting). Awaiting owner approval, then W2-A rules, W2-B pilot Meadow Valleys, W2-C tracks 2-10, W2-D polish.
 - **static_settle cold-start flake**: Failed 4 of ~8 cold starts (0.58-0.78 vs 0.5). DampingRatio raised to 1.0, not yet re-verified.
 - **Slack bot setup for test results**: Revoke the exposed token, install the app with bot scopes, re-add the MCP, post results after each green run.
 - **Weighted weather chances (bigger benefit, lower chance)**: Design doc "Weather events", planned by the owner 2026-10-13. The pick is uniform (1 in 5) until the owner sets the weights.
@@ -234,19 +254,22 @@ updates automatically whenever the board changes; do not edit this block by hand
 - **Icon art for trails and auras in the Backpack**: Backpack shows a colour streak / orb swatch until real art exists.
 - **Build Server Luck (2x/4x/8x developer products)**: Design doc lists it; the Shop shows it as Coming soon (no Grants, receipt never granted).
 - **Gift buttons in the Shop**: References show gift buttons; not built.
+- **Pad billboard: short money text**: Pads now show e.g. $31640625000; track rule 6 says "$Cash". Owner decision needed to show HudFormat.MoneyText.
+- **Imrpove gacha roll animation to accuratley reflect a spin of all car models that are getting passed up. Users should be able to see the full rotation of cars spinning before landing on the car theyget**
+- **UI Animations for Upgrade tree. Smooth popups and actuation animations. Events and pops on clicks etc. smooth tree traversal**
 
-### Recently done (57)
+### Recently done (65)
 
+- ~~Cruise cap from speed probe (700-800 studs/s)~~ (2026-10-28)
+- ~~Speed gain rebalance: rebirth totals, aura + trail multis~~ (2026-10-28)
+- ~~Ember Wyvern flight~~ (2026-10-28)
+- ~~Car redesign v3 toy racer~~ (2026-10-28)
+- ~~Giant scenery in every biome: owner look while racing~~ (2026-10-28)
+- ~~Repo slim~~ (2026-10-28)
+- ~~Exponential payouts + price curve + Speed float~~ (2026-10-28)
+- ~~Orchestrator skill + orchestration flow page~~ (2026-10-28)
 - ~~Biome visual pass: scatter + ground patches, horizon fit, landmark particles, oriented-box Prune~~ (2026-10-27)
 - ~~Ember Wyvern skin: cyan shadow wyvern in Studio (draft 4 approved)~~ (2026-10-27)
-- ~~Ember Wyvern blue-fire effects~~ (2026-10-27)
-- ~~Market trail / aura VFX redesign (all six)~~ (2026-10-26)
-- ~~Rendering pass + car finish (lighting baseline, Asphalt/Concrete, LOD, glossy car finish)~~ (2026-10-26)
-- ~~Race progress map completion~~ (2026-10-21)
-- ~~Gate signs: biome + recommended Speed~~ (2026-10-21)
-- ~~Shown Speed = base x car multi; cruise from shown Speed~~ (2026-10-21)
-- ~~Rebalance NPC speeds vs cruise curve~~ (2026-10-21)
-- ~~Decide: Shop/Market/Daily backdrops cover the HUD tiles~~ (2026-10-20)
 
 <!-- TODO:END -->
 

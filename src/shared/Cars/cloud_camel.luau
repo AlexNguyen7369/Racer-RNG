@@ -4,7 +4,7 @@ return {
 	Id = "cloud_camel",
 	Name = "Cloud Camel",
 	Rarity = "Legendary",
-	Chance = 5450,
+	Chance = 1e9,
 	SpeedMulti = 105,
 	Order = 1081,
 	Model = "cloud_camel",

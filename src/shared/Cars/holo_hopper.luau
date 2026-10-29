@@ -4,7 +4,7 @@ return {
 	Id = "holo_hopper",
 	Name = "Holo Hopper",
 	Rarity = "Legendary",
-	Chance = 2200,
+	Chance = 2.6e7,
 	SpeedMulti = 40,
 	Order = 1068,
 	Model = "holo_hopper",

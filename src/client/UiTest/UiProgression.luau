@@ -12,6 +12,8 @@ local Format = require(Shared.HudFormat)
 local WeatherConfig = require(Shared.WeatherConfig)
 local CarCatalog = require(Shared.CarCatalog)
 local GachaConfig = require(Shared.GachaConfig)
+local MonetizationConfig = require(Shared.MonetizationConfig)
+local MarketplaceService = game:GetService("MarketplaceService")
 local Spec = require(script.Parent.UiSpec)
 local Responsive = require(script.Parent.UiResponsive)
 local Progression = {}
@@ -167,7 +169,7 @@ function Progression.Build(h)
 		end
 		restore()
 		-- Owner 2026-10-13: the spawn-area upgrade pad is removed; the tree opens only from the HUD Upgrade button
-		-- (clicks open_upgrades / toggle_upgrades_closed). Only the workshop plots keep an UpgradePad.
+		-- (clicks open_upgrades / close_upgrades / exit_upgrades). Only the workshop plots keep an UpgradePad.
 		local plots = workspace:FindFirstChild("Workshops")
 		local worldPads = 0
 		for _, pad in CollectionService:GetTagged("UpgradePad") do
@@ -242,13 +244,11 @@ function Progression.Build(h)
 			local rect, vp = h.provider(vpSpec)
 			for _, name in { "Upgrades", "Workshop", "Welcome" } do
 				local panel = h.find("Racer" .. name .. "/Panel")
-				local race, roll, turbo = h.find(Spec.Hud.Race), h.find("RollToast/Toast"), h.find(Spec.Hud.Turbo)
+				local race, turbo = h.find(Spec.Hud.Race), h.find(Spec.Hud.Turbo)
 				local lower = string.lower(name) .. "_" .. vpSpec.Name
 				if Spec.FullScreenPanels["Racer" .. name .. "/Panel"] then
 					-- Owner 2026-10-26 (HUD_LAYOUT_SPEC sections 1 and 6): a full-screen overlay, exempt from the band
-					for _, rule in
-						{ "panel_below_roll_", "panel_below_race_", "panel_compact_no_overlap_", "panel_above_turbo_" }
-					do
+					for _, rule in { "panel_in_band_top_", "panel_below_race_", "panel_above_turbo_" } do
 						h.check(res, rule .. lower, "exempt", "exempt (full-screen overlay)", true)
 					end
 				end
@@ -261,16 +261,18 @@ function Progression.Build(h)
 						"positive viewport-contained area",
 						p.w > 0 and p.h > 0 and p.x >= 0 and p.x + p.w <= vp.X and p.y + p.h <= vp.Y
 					)
-				elseif panel and race and roll and turbo then
-					local p, a, r, t = rect(panel), rect(race), rect(roll), rect(turbo)
-					local minimum = math.max(a.y + a.h, r.y + r.h) + Spec.PanelTopMargin
-					local beside = p.x >= r.x + r.w - Spec.Tolerance or p.x + p.w <= r.x + Spec.Tolerance
+				elseif panel and race and turbo then
+					local p, a, t = rect(panel), rect(race), rect(turbo)
+					-- Owner 2026-10-28 (HUD_LAYOUT_SPEC section 6): the compact roll HIDES while a panel is open, so
+					-- the panel no longer has to clear it (ui_toast checks the hiding). The panel opens in the
+					-- PanelBand: top at least Band.Gap below the Race button (Client/PanelBand.Rect).
+					local bandTop = a.y + a.h + Spec.Band.Gap
 					h.check(
 						res,
-						"panel_below_roll_" .. string.lower(name) .. "_" .. vpSpec.Name,
+						"panel_in_band_top_" .. string.lower(name) .. "_" .. vpSpec.Name,
 						p.y,
-						minimum,
-						beside or p.y >= minimum - Spec.Tolerance
+						">= " .. bandTop,
+						p.y >= bandTop - Spec.Tolerance
 					)
 					h.check(
 						res,
@@ -278,13 +280,6 @@ function Progression.Build(h)
 						p.y,
 						a.y + a.h + Spec.PanelTopMargin,
 						p.y >= a.y + a.h + Spec.PanelTopMargin - Spec.Tolerance
-					)
-					h.check(
-						res,
-						"panel_compact_no_overlap_" .. string.lower(name) .. "_" .. vpSpec.Name,
-						h.intersects(p, r),
-						false,
-						not h.intersects(p, r)
 					)
 					h.check(
 						res,
@@ -500,9 +495,11 @@ function Progression.Build(h)
 		h.check(res, "showcase_at_most_slots", #ids, "<= " .. SC.Slots, #ids <= SC.Slots)
 		local multiLabel = root:FindFirstChild("Multi")
 		if present(res, "showcase_multi_label_present", multiLabel, "TextLabel") then
-			local want = SC.MultiFormat:format(type(multi) == "number" and multi or 1)
+			local want = Format.Multi(type(multi) == "number" and multi or 1)
 			local text = h.text(multiLabel)
-			h.check(res, "showcase_multi_text", text, want, string.find(text, want, 1, true) ~= nil)
+			local at = string.find(text, want, 1, true)
+			local after = at and string.sub(text, at + #want, at + #want) or ""
+			h.check(res, "showcase_multi_text", text, want, at ~= nil and not string.match(after, "[%d%.]"))
 		end
 		present(res, "showcase_best3_present", root:FindFirstChild("Best3"), "TextButton")
 		for i = 1, SC.Slots do
@@ -822,6 +819,144 @@ function Progression.Build(h)
 			panel ~= nil and h.visible(panel)
 		)
 	end
+	-- Offline reward double (UiSpec.OfflineDouble; docs/OFFLINE_DOUBLE_SPEC.md section 5). The player attributes are
+	-- set on the client only (they do not replicate), standing in for the server's replicated changes, and restored.
+	local OD = Spec.OfflineDouble
+	local productPrompts = 0
+	pcall(function()
+		MarketplaceService.PromptProductPurchaseFinished:Connect(function()
+			productPrompts += 1
+		end)
+	end)
+	local function doubleShown(want)
+		local button = h.find(OD.Button)
+		local deadline = os.clock() + Spec.Waits.ClickSettle
+		while button and h.visible(button) ~= want and os.clock() < deadline do
+			h.frames(1)
+		end
+		h.frames(2)
+		return button
+	end
+	local function priceChecks(res, suffix)
+		local product = MonetizationConfig.OfflineDouble
+		local configured = product ~= nil and product.ProductId > 0
+		local button, price = h.find(OD.Button), h.find(OD.Price)
+		h.check(
+			res,
+			"offline_double_price_label_present" .. suffix,
+			price and price.ClassName or "missing",
+			"TextLabel",
+			price ~= nil and price:IsA("TextLabel")
+		)
+		local want = configured and string.format(OD.PriceFormat, product.RobuxPrice) or OD.ComingSoon
+		expect(res, "offline_double_price_text" .. suffix, price and price:IsA("TextLabel") and price.Text, want)
+		expect(res, "offline_double_active_iff_product" .. suffix, button and button.Active, configured)
+		expect(
+			res,
+			"offline_double_purchase_configured_attr" .. suffix,
+			button and button:GetAttribute("PurchaseConfigured"),
+			configured
+		)
+		return configured
+	end
+	function scenarios.ui_offline_double(res)
+		local p = h.player
+		local saved = {}
+		for _, name in { "OfflineDoubleOpen", "OfflineDoubled" } do
+			saved[name] = p:GetAttribute(name)
+		end
+		local speed = p:GetAttribute("OfflineSpeed")
+		h.check(
+			res,
+			"offline_double_fixture_present",
+			speed,
+			"offline_welcome setup: positive OfflineSpeed",
+			type(speed) == "number" and speed > 0
+		)
+		speed = type(speed) == "number" and speed or 0
+		local restore = h.setPanels({ OD.Panel })
+		local button = h.find(OD.Button)
+		h.check(
+			res,
+			"offline_double_button_present",
+			button and button.ClassName or "missing",
+			"GuiButton",
+			button ~= nil and button:IsA("GuiButton")
+		)
+
+		-- Closed window: hidden and not clickable at its own centre
+		p:SetAttribute("OfflineDoubleOpen", false)
+		doubleShown(false)
+		expect(res, "offline_double_hidden_when_closed", button and h.visible(button), false)
+		if button then
+			local top = h.top(h.centre(h.rect(button)))
+			expect(
+				res,
+				"offline_double_not_clickable_when_closed",
+				top ~= nil and (top == button or top:IsDescendantOf(button)),
+				false
+			)
+		end
+		p:SetAttribute("OfflineDoubleOpen", nil)
+		doubleShown(false)
+		expect(res, "offline_double_hidden_when_attr_missing", button and h.visible(button), false)
+
+		-- Open window: visible, price per ProductId, inside the panel, clear of Claim / Away / Earnings
+		p:SetAttribute("OfflineDoubleOpen", true)
+		doubleShown(true)
+		expect(res, "offline_double_visible_when_open", button and h.visible(button), true)
+		priceChecks(res, "")
+		local panel = h.find(OD.Panel)
+		if button and panel and h.visible(button) then
+			local b = h.rect(button)
+			h.check(res, "offline_double_inside_panel", b, "inside RacerWelcome/Panel", h.contains(h.rect(panel), b))
+			for _, path in OD.NoOverlap do
+				local other = h.find(path)
+				local name = "offline_double_no_overlap_" .. string.lower(string.match(path, "[^/]+$"))
+				if other and h.visible(other) then
+					local o = h.rect(other)
+					h.check(res, name, { b, o }, "no intersection", not h.intersects(b, o))
+				else
+					h.check(res, name, other and "hidden" or "missing", "visible element", false)
+				end
+			end
+			local top = h.top(h.centre(b))
+			h.check(
+				res,
+				"offline_double_topmost_at_centre",
+				top and top:GetFullName() or "nothing",
+				OD.Button,
+				top ~= nil and (top == button or top:IsDescendantOf(button))
+			)
+		end
+
+		-- Granted double: Earnings shows OfflineSpeed + OfflineDoubled; ungranted it shows OfflineSpeed alone
+		local earnings = h.find(OD.Earnings)
+		p:SetAttribute("OfflineDoubled", nil)
+		h.frames(2)
+		expect(
+			res,
+			"offline_double_earnings_before_grant",
+			earnings and earnings.Text,
+			string.format(OD.EarningsFormat, Format.SpeedText(speed))
+		)
+		p:SetAttribute("OfflineDoubleOpen", false)
+		p:SetAttribute("OfflineDoubled", speed)
+		h.frames(2)
+		expect(
+			res,
+			"offline_double_earnings_after_grant",
+			earnings and earnings.Text,
+			string.format(OD.EarningsFormat, Format.SpeedText(speed * 2))
+		)
+		doubleShown(false)
+		expect(res, "offline_double_hidden_after_grant", button and h.visible(button), false)
+
+		p:SetAttribute("OfflineDoubleOpen", saved.OfflineDoubleOpen)
+		p:SetAttribute("OfflineDoubled", saved.OfflineDoubled)
+		h.frames(2)
+		restore()
+	end
 	-- Weather icon (UiSpec.Weather; docs/WEATHER_EVENTS_SPEC.md "Weather icon"). The weather the UI must show now:
 	-- the replicated id, its WeatherConfig entry (the Clear entry when no weather is active) and whether one runs.
 	local W = Spec.Weather
@@ -936,8 +1071,8 @@ function Progression.Build(h)
 				h.check(
 					res,
 					"weather_icon_size_" .. tag,
-					{ r.w, r.h },
-					{ W.IconSize.X, W.IconSize.Y },
+					("%gx%g"):format(r.w, r.h),
+					("%gx%g"):format(W.IconSize.X, W.IconSize.Y),
 					math.abs(r.w - W.IconSize.X) <= Spec.Tolerance and math.abs(r.h - W.IconSize.Y) <= Spec.Tolerance
 				)
 				local right, bottom = vp.X - (r.x + r.w), vp.Y - (r.y + r.h)
@@ -946,27 +1081,30 @@ function Progression.Build(h)
 					h.check(
 						res,
 						"weather_icon_bottom_right_" .. tag,
-						{ right, bottom },
+						("right %g, bottom %g"):format(right, bottom),
 						("phone: right edge %d px, bottom edge 0..%d px from the screen's"):format(
 							W.PhoneRight,
 							W.CornerMargin
 						),
 						math.abs(right - W.PhoneRight) <= Spec.Tolerance and bottomOk
 					)
+					-- WEATHER_EVENTS_SPEC's "8 px left of the Market button" assumed the bottom-right Bag / Daily / Market
+					-- stack, which HUD_LAYOUT_SPEC (owner 2026-10-15) replaced with the top-right pills: the 140 px rule
+					-- above stays; against Market only the no-overlap rule remains.
 					local market = h.find(W.MarketButton)
 					local m = market and rect(market)
 					h.check(
 						res,
-						"weather_icon_left_of_market_" .. tag,
-						m and { r.x + r.w, m.x } or "MarketButton missing",
-						"icon right edge <= Market button left edge",
-						m ~= nil and r.x + r.w <= m.x + Spec.Tolerance and not h.intersects(r, m)
+						"weather_icon_clear_of_market_" .. tag,
+						m and h.rstr(m) or "MarketButton missing",
+						"no overlap with icon " .. h.rstr(r),
+						m ~= nil and not h.intersects(r, m)
 					)
 				else
 					h.check(
 						res,
 						"weather_icon_bottom_right_" .. tag,
-						{ right, bottom },
+						("right %g, bottom %g"):format(right, bottom),
 						"right and bottom edge 0.." .. W.CornerMargin .. " px from the screen's",
 						right >= -Spec.Tolerance and right <= W.CornerMargin and bottomOk
 					)
@@ -1018,6 +1156,18 @@ function Progression.Build(h)
 		return card
 	end
 	Progression.After = {
+		-- offline_double_click (UiSpec.Clicks): ProductId 0 = nothing changed and no product prompt; ProductId > 0 =
+		-- still open and active (the prompt itself is Roblox's, confirmed on screen by ui-tester)
+		offline_double_click_result = function(res)
+			local before = productPrompts
+			task.wait(Spec.Waits.ClickSettle)
+			local configured = priceChecks(res, "_after_click")
+			local button = h.find(OD.Button)
+			expect(res, "offline_double_still_visible_after_click", button and h.visible(button), true)
+			if not configured then
+				expect(res, "offline_double_coming_soon_no_prompt", productPrompts - before, 0)
+			end
+		end,
 		weather_card_shown = function(res)
 			local card = cardVisible(res, "weather_card_shown_after_click", true)
 			weatherCardContent(res)

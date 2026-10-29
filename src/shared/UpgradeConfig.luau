@@ -7,9 +7,8 @@ local UpgradeConfig = {}
 
 UpgradeConfig.START_ID = "start" -- owned by everyone, never saved
 
--- price = NiceRound(BASE_PRICE * PRICE_GROWTH ^ (PriceDepth - 1) * Weight), NiceRound = 2 significant figures, halves up
+-- price = PayoutCurve.Cost(BASE_PRICE * Weight, PriceDepth): grows faster than track payouts (owner 2026-10-27)
 UpgradeConfig.BASE_PRICE = 150
-UpgradeConfig.PRICE_GROWTH = 50 -- owner 2026-10-21: trillion-scale late-game pricing
 
 -- Tiers at or above GATE_FROM_TIER need BestTrack >= min(tier - 1, number of tracks in the game).
 UpgradeConfig.GATE_FROM_TIER = 3

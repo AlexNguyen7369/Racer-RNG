@@ -4,7 +4,7 @@ return {
 	Id = "lantern_cab",
 	Name = "Lantern Cab",
 	Rarity = "Uncommon",
-	Chance = 32,
+	Chance = 53,
 	SpeedMulti = 1.8,
 	Order = 1010,
 	Model = "lantern_cab",

@@ -4,7 +4,7 @@ return {
 	Id = "zero_g_zipper",
 	Name = "Zero G Zipper",
 	Rarity = "Legendary",
-	Chance = 3950,
+	Chance = 1.8e8,
 	SpeedMulti = 75,
 	Order = 1075,
 	Model = "zero_g_zipper",

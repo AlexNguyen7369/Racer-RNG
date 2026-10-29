@@ -6,7 +6,7 @@
 -- Player, then ReplicatedStorage UiTestSetupDone = the same string. On error UiTestSetupError =
 -- "<id>:<nonce>:<message>" is set first, and Done is still set.
 --
--- Ids: snapshot, restore, spy, index_states, stat_points, no_stat_points, auto_racing, lose_event, turbo_next,
+-- Ids: snapshot, restore, spy, index_states, daily_unclaimed, daily_claimed, checkpoint_locked, checkpoint_open, quest_incomplete, quest_complete, stat_points, no_stat_points, auto_racing, on_foot, lose_event, turbo_next,
 -- emphasized_next, auto_roll_on, rebirth_eligible, rebirth_not_eligible, duel_* (every id: UiSpec.ServerSetup), roll_odds_*, weather_* (rain, night, gold, aurora, clear, clear_event, rain_roll).
 -- (Ported from the ServerSetup snippets in Client/UiTest/UiSpec.luau.)
 
@@ -31,6 +31,7 @@ local spied = {} -- [RemoteEvent] = connection (never connect twice)
 local functionSpies = {} -- original RemoteFunction -> { name, proxy }; original callback is untouched.
 local progressionSnapshots = {}
 local weatherSnapshot = nil
+local questSnapshots = {} -- [Player] = QuestService.Snapshot before a quest_* fixture
 
 local function stat(player, name)
 	if name == "Speed" then
@@ -171,6 +172,10 @@ function setups.restore(player)
 		-- The baseline taken before any fixture (TurboCount after turbo_next included)
 		live("UpgradeService").Apply(player, snap.upgrades)
 	end
+	if questSnapshots[player] then
+		live("QuestService").Apply(player, questSnapshots[player])
+		questSnapshots[player] = nil
+	end
 	if weatherSnapshot then
 		for name, entry in weatherSnapshot do
 			ReplicatedStorage:SetAttribute(name, entry.value)
@@ -211,6 +216,26 @@ function setups.auto_racing(player)
 	local CarService = live("CarService")
 	if CarService.IsAutoRacing(player) ~= true then
 		CarService.SetAutoRace(player, true)
+	end
+end
+
+-- UiSpec.ServerSetup on_foot (ui_speed_dial at rest): auto race stopped through the real Stop path, avatar on foot
+-- with no car. Done is only set once that holds; 'restore' puts AutoRacing back (snap.autoRacing).
+local ON_FOOT_TIMEOUT = 5 -- seconds
+function setups.on_foot(player)
+	assert(snapshots[player], "snapshot required before on_foot ('restore' consumes it: take a fresh 'snapshot')")
+	local CarService = live("CarService")
+	CarService.SetAutoRace(player, false)
+	local start = os.clock()
+	while
+		CarService.IsAutoRacing(player)
+		or player:GetAttribute("AutoRacing") == true
+		or CarService.GetCar(player) ~= nil
+	do
+		if player.Parent ~= Players or os.clock() - start > ON_FOOT_TIMEOUT then
+			error("on_foot: player still racing or still has a car after " .. ON_FOOT_TIMEOUT .. " s")
+		end
+		RunService.Heartbeat:Wait()
 	end
 end
 
@@ -347,10 +372,104 @@ function setups.progression_no_money(player)
 	live("UpgradeService").Refresh(player)
 end
 
+-- Daily reward fixtures (UiSpec.ServerSetup daily_*): unsaved DailyLast; 'restore' puts DailyLast / DailyStreak back.
+local function dailyFixture(player, last)
+	progressionSnapshot(player)
+	local attributes = progressionSnapshots[player].attributes
+	for _, name in { "DailyLast", "DailyStreak" } do
+		if attributes[name] == nil then
+			attributes[name] = { value = player:GetAttribute(name) }
+		end
+	end
+	player:SetAttribute("DailyLast", last)
+end
+
+function setups.daily_unclaimed(player)
+	dailyFixture(player, -1)
+end
+
+function setups.daily_claimed(player)
+	dailyFixture(player, math.floor(os.time() / 86400)) -- DailyLoginService dayNumber
+end
+
+-- Checkpoint fixtures (UiSpec checkpoint_*, docs/CHECKPOINT_SPEC.md): racing and rolls paused (a finish would raise
+-- BestTrack), unsaved Checkpoint = 1 and BestTrack. 'restore' puts Checkpoint, BestTrack (the upgrade snapshot),
+-- AutoRacing and AutoRoll back.
+local function checkpointFixture(player, best)
+	progressionSnapshot(player)
+	local attributes = progressionSnapshots[player].attributes
+	if attributes.Checkpoint == nil then
+		attributes.Checkpoint = { value = player:GetAttribute("Checkpoint") }
+	end
+	setups.on_foot(player)
+	setAutoRoll(player, false)
+	player:SetAttribute("Checkpoint", 1)
+	player:SetAttribute("BestTrack", best)
+end
+
+function setups.checkpoint_locked(player)
+	checkpointFixture(player, 0)
+end
+
+function setups.checkpoint_open(player)
+	checkpointFixture(player, 2)
+end
+
+-- Quest fixtures (UiSpec quest_claim_*, docs/QUESTS_SPEC.md): today's daily_races quest unclaimed with progress 0
+-- (incomplete: Claim disabled) or at its Target (complete: Claim enabled). Unsaved; 'restore' applies the
+-- QuestService snapshot taken before the first quest fixture.
+local function questFixture(player, complete)
+	assert(
+		snapshots[player],
+		"snapshot required before quest fixtures ('restore' consumes it: take a fresh 'snapshot')"
+	)
+	local QuestService = live("QuestService")
+	local saved = QuestService.Snapshot(player)
+	if not questSnapshots[player] then
+		questSnapshots[player] = saved
+	end
+	local target
+	for _, quest in require(Shared.QuestConfig).Daily do
+		if quest.Id == "daily_races" then
+			target = quest.Target
+		end
+	end
+	assert(target, "QuestConfig.Daily has no daily_races")
+	local fixture = table.clone(saved)
+	fixture.QuestDaily = table.clone(saved.QuestDaily)
+	fixture.QuestDailyClaimed = table.clone(saved.QuestDailyClaimed)
+	fixture.QuestDaily.daily_races = complete and target or 0
+	fixture.QuestDailyClaimed.daily_races = nil
+	QuestService.Apply(player, fixture)
+end
+
+function setups.quest_incomplete(player)
+	questFixture(player, false)
+end
+
+function setups.quest_complete(player)
+	questFixture(player, true)
+end
+
 function setups.offline_welcome(player)
 	progressionSnapshot(player)
 	player:SetAttribute("OfflineSeconds", 3661)
 	player:SetAttribute("OfflineSpeed", 1234)
+end
+
+-- OFFLINE_DOUBLE_SPEC section 2: the server opens the Double window with OfflineDoubleOpen = true, OfflineDoubled = nil.
+-- Only the attributes are set (ShopService.SetOfflineReward is not called), so no reward is remembered and no receipt
+-- can grant Speed; 'restore' puts both attributes back.
+function setups.offline_double_open(player)
+	setups.offline_welcome(player)
+	local attributes = progressionSnapshots[player].attributes
+	for _, name in { "OfflineDoubleOpen", "OfflineDoubled" } do
+		if attributes[name] == nil then
+			attributes[name] = { value = player:GetAttribute(name) }
+		end
+	end
+	player:SetAttribute("OfflineDoubled", nil)
+	player:SetAttribute("OfflineDoubleOpen", true)
 end
 
 function setups.offline_zero(player)
@@ -653,6 +772,8 @@ local function progressionSpy()
 			"DailyClaim",
 			"QuestClaim",
 			"RedeemCode",
+			"SetCheckpoint",
+			"PrepareGift",
 		}
 	do
 		local target = remotes:FindFirstChild(name)
@@ -673,6 +794,12 @@ local function progressionSpy()
 				local log = HttpService:JSONDecode(folder:GetAttribute(name) or "[]")
 				table.insert(log, { user = player.UserId, args = { ... } })
 				folder:SetAttribute(name, HttpService:JSONEncode(log))
+				-- shop_redeem_invalid_code must see the server's real reply: a UiSpec.Shop.TestCode-style code (prefix
+				-- "UITEST-", never a real code) goes to the real ShopService.Redeem, which answers and saves nothing.
+				local text = ...
+				if name == "RedeemCode" and type(text) == "string" and string.sub(text, 1, 7) == "UITEST-" then
+					return live("ShopService").Redeem(player, text)
+				end
 				return false, "money"
 			end
 			proxy.Parent = remotes

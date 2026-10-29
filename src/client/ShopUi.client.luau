@@ -16,8 +16,11 @@ local PanelSwitch = require(script.Parent:WaitForChild("PanelSwitch"))
 local Ui = script.Parent:WaitForChild("RollToast"):WaitForChild("Ui")
 local Icons = require(Ui.HudIcons)
 local PotionIcons = require(Ui.PotionIcons)
+local UiTheme = require(shared:WaitForChild("UiTheme"))
+local HudFormat = require(shared:WaitForChild("HudFormat"))
+local UiMotion = require(script.Parent:WaitForChild("UiMotion"))
 
-local OUTLINE = Color3.fromRGB(24, 22, 34)
+local OUTLINE = UiTheme.Outline
 local PANEL = Color3.fromRGB(236, 236, 242)
 local ROBUX_ICON = "rbxasset://textures/ui/common/robux.png"
 
@@ -57,6 +60,7 @@ end
 local function lighter(color, t)
 	return color:Lerp(Color3.new(1, 1, 1), t)
 end
+-- Robux prices stay exact ("1,299"); HudFormat suffixes are for Money and Speed.
 local function commas(n)
 	local s = tostring(math.floor(n))
 	repeat
@@ -86,7 +90,7 @@ local function section(name, order, title, subtitle)
 			Size = UDim2.new(1, 0, 0, 18),
 			BackgroundTransparency = 1,
 			Text = subtitle,
-			Font = Enum.Font.GothamBold,
+			Font = UiTheme.Font,
 			TextSize = 14,
 			TextColor3 = Color3.fromRGB(120, 120, 135),
 		})
@@ -271,7 +275,7 @@ for order, car in catalog.Passes() do
 	caption("Stats", box, {
 		Position = UDim2.fromScale(0.04, 0.15),
 		Size = UDim2.fromScale(0.92, 0.09),
-		Text = string.format("%s  •  x%s Speed", car.Rarity, commas(car.SpeedMulti)),
+		Text = string.format("%s  •  %s Speed", car.Rarity, HudFormat.Multi(car.SpeedMulti)),
 		TextColor3 = lighter(color, 0.6),
 		TextSize = 20,
 	})
@@ -330,7 +334,6 @@ for order, item in config.Gamepasses do
 		Position = UDim2.fromScale(0.05, 0.21),
 		Size = UDim2.fromScale(0.9, 0.11),
 		Text = item.Description,
-		Font = Enum.Font.GothamBold,
 		TextSize = 15,
 	})
 	local icon = Icons[item.Icon] or Icons.Shop
@@ -393,7 +396,6 @@ for order, product in config.Products do
 			Position = UDim2.fromScale(0.05, 0.2),
 			Size = UDim2.fromScale(0.9, 0.1),
 			Text = product.Description,
-			Font = Enum.Font.GothamBold,
 			TextSize = 14,
 		})
 		make("ImageLabel", "Icon", box, {
@@ -469,7 +471,7 @@ for _, product in config.Products do
 				AnchorPoint = Vector2.new(0.5, 1),
 				Position = UDim2.fromScale(0.5, 1),
 				Size = UDim2.fromScale(0.9, 0.34),
-				Text = "x" .. (perCategory[category] or 0),
+				Text = "x" .. HudFormat.Short(perCategory[category] or 0),
 				TextSize = 22,
 			})
 		end
@@ -477,7 +479,7 @@ for _, product in config.Products do
 			AnchorPoint = Vector2.new(1, 0),
 			Position = UDim2.new(1, -16, 0.3, 0),
 			Size = UDim2.fromScale(0.3, 0.14),
-			Text = string.format("x%d Potions!", total),
+			Text = "x" .. HudFormat.Short(total) .. " Potions!",
 			TextSize = 22,
 		})
 		buyButton(banner, "product", product.ProductId, product.RobuxPrice, {
@@ -549,7 +551,7 @@ input.PlaceholderText = "Enter code here.."
 input.PlaceholderColor3 = Color3.fromRGB(40, 46, 60)
 input.Text = ""
 input.ClearTextOnFocus = false
-input.Font = Enum.Font.GothamBlack
+input.Font = UiTheme.Font
 input.TextScaled = true
 input.TextColor3 = Color3.new(1, 1, 1)
 corner(input, 10)
@@ -572,15 +574,18 @@ local status = make("TextLabel", "Status", codeBox, {
 	Size = UDim2.fromScale(0.92, 0.13),
 	BackgroundTransparency = 1,
 	Text = "",
-	Font = Enum.Font.GothamBold,
+	Font = UiTheme.Font,
 	TextScaled = true,
 	TextColor3 = Color3.fromRGB(30, 60, 140),
 })
+local statusHome = status.Position
 redeem.Activated:Connect(function()
 	redeem.Active = false
 	local ok, message = remotes:WaitForChild("RedeemCode"):InvokeServer(input.Text)
 	status.Text = tostring(message or (ok and "Code redeemed!" or "Try again"))
 	status.TextColor3 = ok and Color3.fromRGB(30, 140, 60) or Color3.fromRGB(200, 40, 60)
+	status.Position = statusHome
+	UiMotion.SlideIn(status, Vector2.new(0, 12)) -- the answer slides in from the bottom edge (section 10)
 	if ok then
 		input.Text = ""
 	end
@@ -593,7 +598,7 @@ make("TextLabel", "Thanks", list, {
 	Size = UDim2.new(1, 0, 0, 30),
 	BackgroundTransparency = 1,
 	Text = "♥  Thanks for your support!  ♥",
-	Font = Enum.Font.GothamBlack,
+	Font = UiTheme.Font,
 	TextSize = 18,
 	TextColor3 = OUTLINE,
 })
@@ -624,6 +629,8 @@ local function giftButton(box, product, reason)
 		AutoButtonColor = enabled == true,
 	})
 	corner(gift, 8)
+	stroke(gift, 3)
+	gradient(gift, Color3.new(1, 1, 1), Color3.fromRGB(185, 185, 185)) -- depth on the purple, like the Buy button
 	if not enabled then
 		local note = make("TextLabel", "GiftReason", box, {
 			AnchorPoint = Vector2.new(0, 1),
@@ -631,7 +638,7 @@ local function giftButton(box, product, reason)
 			Size = bundle and UDim2.new(0.6, -12, 0, 18) or UDim2.new(1, -8, 0, 18),
 			Text = reason or "Gift unavailable • coming soon",
 			BackgroundTransparency = 1,
-			Font = Enum.Font.GothamBold,
+			Font = UiTheme.Font,
 			TextSize = 10,
 			TextColor3 = OUTLINE,
 			TextScaled = true,
@@ -680,3 +687,25 @@ panel:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
 	grid.Layout.CellSize = UDim2.new(1 / columns, -11, 0, 196)
 	packRow.Layout.CellSize = UDim2.new(1 / columns, -11, 0, 196)
 end)
+
+-- Section 10: on open, the first cards light up one after another (background and edge fade in). Grid and list
+-- layouts own the card positions, so a slide would not show.
+local cards = {}
+for _, row in { featuredRow, grid, packRow } do
+	local children = row:GetChildren()
+	table.sort(children, function(a, b)
+		return (a:IsA("GuiObject") and a.LayoutOrder or 0) < (b:IsA("GuiObject") and b.LayoutOrder or 0)
+	end)
+	for _, box in children do
+		if box:IsA("Frame") and box:FindFirstChild("Stroke") and #cards < 12 then
+			table.insert(cards, box)
+		end
+	end
+end
+backdrop:GetPropertyChangedSignal("Visible"):Connect(function()
+	if not backdrop.Visible then
+		return
+	end
+	UiMotion.Cascade(cards, "Stroke")
+end)
+UiTheme.Apply(root)

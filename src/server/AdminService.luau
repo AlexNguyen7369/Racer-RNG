@@ -17,7 +17,9 @@ local VfxArea = require(Shared.VfxArea)
 local AdminConfig = require(script.Parent.AdminConfig)
 local CarService = require(script.Parent.CarService)
 local GachaService = require(script.Parent.GachaService)
+local LevelService = require(script.Parent.LevelService)
 local MoneyService = require(script.Parent.MoneyService)
+local RebirthConfig = require(Shared.RebirthConfig)
 local PlayerData = require(script.Parent.PlayerData)
 local UpgradeService = require(script.Parent.UpgradeService)
 local WeatherService = require(script.Parent.WeatherService)
@@ -26,7 +28,7 @@ local AdminService = {}
 
 AdminService.AllowStudio = AdminConfig.ALLOW_IN_STUDIO == true
 
-local MAX_MONEY = 1e15
+local MAX_MONEY = 1e30 -- same cap as PlayerData MAX_MONEY
 local SUFFIX = { k = 1e3, m = 1e6, b = 1e9, t = 1e12 }
 
 local groupRank = setmetatable({}, { __mode = "k" }) -- player -> rank in the owning group (cached)
@@ -270,6 +272,37 @@ AdminService.Commands = {
 			return true, "Money = " .. money.Value
 		end,
 	},
+	givexp = {
+		Usage = "/givexp <amount> [player]",
+		Help = "add positive XP (levels up as usual)",
+		Min = 1,
+		Max = 1,
+		Check = function(args)
+			local n = positiveAmount(args)
+			return n and n <= MAX_MONEY and n or nil
+		end,
+		Apply = function(p, n)
+			LevelService.AddXP(p, n)
+			return true, string.format("Level %d, XP %d", p:GetAttribute("Level") or 1, p:GetAttribute("XP") or 0)
+		end,
+	},
+	setrebirth = {
+		Usage = "/setrebirth <level> [player]",
+		Help = "set the rebirth level (Money, Speed and Level are not reset)",
+		Min = 1,
+		Max = 1,
+		Check = function(args)
+			local n = amount(args)
+			return n and n >= 0 and n <= 1e6 and math.floor(n) or nil
+		end,
+		Apply = function(p, n)
+			p:SetAttribute("RebirthLevel", RebirthConfig.CleanLevel(n))
+			GachaService.RefreshPoints(p)
+			GachaService.RefreshMultipliers(p)
+			require(script.Parent.WorkshopService).RefreshRate(p)
+			return true, string.format("Rebirth %d (x%s Speed Gain)", n, tostring(RebirthConfig.SpeedGainMulti(n)))
+		end,
+	},
 	luck = {
 		Usage = "/luck <multiplier> [player]",
 		Help = "set a session-only direct Luck multiplier",
@@ -463,6 +496,8 @@ local ORDER = {
 	"addspeed",
 	"givespeed",
 	"resetspeed",
+	"givexp",
+	"setrebirth",
 	"luck",
 	"giveluck",
 	"resetluck",

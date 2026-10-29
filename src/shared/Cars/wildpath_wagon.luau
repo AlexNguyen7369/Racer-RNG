@@ -4,7 +4,7 @@ return {
 	Id = "wildpath_wagon",
 	Name = "Wildpath Wagon",
 	Rarity = "Rare",
-	Chance = 186,
+	Chance = 9400,
 	SpeedMulti = 4.95,
 	Order = 1036,
 	Model = "wildpath_wagon",

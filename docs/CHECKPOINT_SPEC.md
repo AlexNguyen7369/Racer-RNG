@@ -1,5 +1,8 @@
 # Checkpoints: pick the starting track (contract for tests and implementation)
 
+> Worlds (owner 2026-10-27, `docs/WORLDS_SPEC.md`): checkpoints and BestTrack are per world; each place lists only
+> its own world's tracks.
+
 Owner brief (2026-10-16, reference `images` in the request: a hub NPC with an E prompt, like "Shadow Trials"):
 a "Checkpoint" NPC beside the RACE START pavilion. Players choose which track (checkpoint) their run starts on.
 A track must be beaten before it can be picked; locked cards are dimmed with a lock over them.
@@ -43,3 +46,21 @@ last track goes back to the checkpoint.
 - One card per track in `Number` order: track number, track name, payout (`TrackBuilder.CashFor`). The current
   checkpoint shows "SELECTED"; an open card shows "SELECT". A locked card is dimmed (40% transparency) with a lock
   icon over it and "Beat Track n" text; clicking it does nothing.
+
+## 4. Cards and detail pane (owner 2026-10-27, replaces the card content of section 3)
+
+- The panel has the card grid on the left and a detail pane on the right (on narrow panels the grid uses 2
+  columns instead of 3). Same `PanelFrame` look, theme of docs/HUD_LAYOUT_SPEC.md section 8.
+- Each card (`Track_n`, a button) shows a small live 3D preview of its biome (`Preview`, a ViewportFrame: the biome's
+  ground, a strip of road, its gate colours and 2-3 of its own props from `Shared/BiomeThemes`), `TRACK n` and the
+  biome name (`Biome`, e.g. "PIRATE COAST"). Locked cards keep the dim and lock of section 3 but can still be clicked.
+- Clicking a card no longer picks it: it shows that track in the detail pane (`Detail`): a larger preview, `TRACK n
+  · NAME`, the biome, `REC. SPEED` (the recommended Speed: the stat whose cruise speed matches that track's NPC,
+  `RaceConfig.StatFor(NpcConfig.For(n).Speed)`, the same number as the track's gate sign), `YOUR SPEED`, a status
+  chip (`READY` when the player's Speed is at least the recommendation, else `NEED <x> MORE`), the payout and one
+  button `Start` with the text `START HERE` (open, not the checkpoint), `SELECTED` (the current checkpoint,
+  disabled) or `LOCKED` (disabled). `START HERE` calls `Remotes.SetCheckpoint(n)` exactly as a card click did.
+- On open, the detail pane shows the current checkpoint. Numbers use `HudFormat` (lowercase suffixes).
+- Motion (HUD_LAYOUT_SPEC section 10): the selected card's preview and the detail preview turn slowly; previews do
+  not turn while motion is reduced or the panel is hidden. The detail pane slides in when the shown track changes.
+- Presentation only: the server still decides the pick (section 1).

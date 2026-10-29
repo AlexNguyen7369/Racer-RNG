@@ -4,7 +4,7 @@ return {
 	Id = "velocity_viper",
 	Name = "Velocity Viper",
 	Rarity = "Rare",
-	Chance = 228,
+	Chance = 25000,
 	SpeedMulti = 5.85,
 	Order = 1042,
 	Model = "velocity_viper",

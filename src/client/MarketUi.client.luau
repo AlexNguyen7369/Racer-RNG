@@ -15,8 +15,11 @@ local Ui = script.Parent:WaitForChild("RollToast"):WaitForChild("Ui")
 local Icons = require(Ui.HudIcons)
 local PotionIcons = require(Ui.PotionIcons)
 local MarketArt = require(script.Parent:WaitForChild("MarketArt"))
+local UiTheme = require(shared:WaitForChild("UiTheme"))
+local UiMotion = require(script.Parent:WaitForChild("UiMotion"))
 
-local OUTLINE = Color3.fromRGB(17, 19, 31)
+local OUTLINE = UiTheme.Outline
+local PALETTE = UiTheme.Palette
 local BODY = Color3.fromRGB(32, 27, 36)
 local TILE_BLUE = Color3.fromRGB(47, 107, 255)
 local TILE_GREEN = Color3.fromRGB(60, 220, 90)
@@ -49,6 +52,9 @@ local function caption(name, parent, props)
 	local label = make("TextLabel", name, parent, props)
 	make("UIStroke", "Outline", label, { Color = OUTLINE, Thickness = 2.5, LineJoinMode = Enum.LineJoinMode.Round })
 	return label
+end
+local function cascade(tiles)
+	UiMotion.Cascade(tiles, "Stroke")
 end
 
 local root = make(
@@ -138,11 +144,12 @@ for order, entry in KINDS do
 	local b = make("TextButton", kind .. "Tab", rail, {
 		LayoutOrder = order,
 		Size = UDim2.fromOffset(96, 96),
-		BackgroundColor3 = Color3.fromRGB(44, 52, 60),
+		BackgroundColor3 = Color3.new(1, 1, 1),
 		Text = "",
 		AutoButtonColor = true,
 	})
 	corner(b, 12)
+	UiTheme.Gradient(b, Color3.fromRGB(58, 68, 80), Color3.fromRGB(34, 40, 48))
 	local edge = stroke(b, OUTLINE, 4)
 	swatch(b, Market.Items[kind][1], kind, UDim2.fromOffset(48, 38), UDim2.fromOffset(56, 56))
 	caption("Label", b, {
@@ -237,7 +244,7 @@ local description = make("TextLabel", "Description", detail, {
 	Size = UDim2.new(1, -24, 0, 42),
 	BackgroundTransparency = 1,
 	Text = "",
-	Font = Enum.Font.GothamBold,
+	Font = UiTheme.Font,
 	TextSize = 13,
 	TextWrapped = true,
 	TextColor3 = Color3.fromRGB(225, 225, 240),
@@ -254,6 +261,7 @@ local action = make("TextButton", "Action", detail, {
 })
 corner(action, 8)
 stroke(action, OUTLINE, 3)
+UiTheme.Gradient(action, Color3.new(1, 1, 1), Color3.fromRGB(185, 185, 185)) -- depth on whatever colour it shows
 local actionLabel = caption("Label", action, { Size = UDim2.fromScale(1, 1), Text = "BUY", TextSize = 22 })
 local status = caption("Status", panel, {
 	AnchorPoint = Vector2.new(0, 1),
@@ -265,6 +273,14 @@ local status = caption("Status", panel, {
 	TextXAlignment = Enum.TextXAlignment.Left,
 	ZIndex = 5,
 })
+local statusHome = status.Position
+-- A purchase / equip answer slides in from the bottom edge.
+local function notify(text, color)
+	status.Text = text
+	status.TextColor3 = color
+	status.Position = statusHome
+	UiMotion.SlideIn(status, Vector2.new(0, 14))
+end
 
 local function preview(item, kind)
 	viewport:ClearAllChildren()
@@ -330,9 +346,69 @@ local function preview(item, kind)
 	end
 end
 
+-- Phones (viewport height <= 500, owner 2026-10-28, docs/HUD_LAYOUT_SPEC.md section 6): the grid only; tapping an
+-- item swaps the grid for the detail view, whose Back button swaps back. Desktop shows both side by side.
+local back = make("TextButton", "Back", detail, {
+	BackgroundColor3 = Color3.fromRGB(68, 104, 180),
+	Text = "",
+	AutoButtonColor = true,
+	Visible = false,
+})
+corner(back, 8)
+stroke(back, OUTLINE, 3)
+caption("Label", back, { Size = UDim2.fromScale(1, 1), Text = "BACK", TextSize = 18 })
+local DESKTOP = {
+	[rail] = { Position = rail.Position, Size = rail.Size },
+	[grid] = { Position = grid.Position, Size = grid.Size },
+	[detail] = { AnchorPoint = detail.AnchorPoint, Position = detail.Position, Size = detail.Size },
+}
+for _, part in { rarity, nameLabel, viewport, priceRow, description, action } do
+	DESKTOP[part] = { AnchorPoint = part.AnchorPoint, Position = part.Position, Size = part.Size }
+end
+-- Phone detail: the preview on the left, the text rows and BACK / action on the right, in fractions of the pane so
+-- nothing overlaps however short the band is.
+local function column(y, h)
+	return { AnchorPoint = Vector2.zero, Position = UDim2.new(0.4, 6, y, 0), Size = UDim2.new(0.6, -12, h, 0) }
+end
+local PHONE = {
+	[rail] = { Position = UDim2.fromOffset(8, 56), Size = UDim2.new(0, 96, 1, -64) },
+	[grid] = { Position = UDim2.fromOffset(112, 56), Size = UDim2.new(1, -120, 1, -64) },
+	[detail] = { AnchorPoint = Vector2.zero, Position = UDim2.fromOffset(112, 56), Size = UDim2.new(1, -120, 1, -64) },
+	[viewport] = { AnchorPoint = Vector2.zero, Position = UDim2.fromOffset(6, 6), Size = UDim2.new(0.4, -6, 1, -12) },
+	[rarity] = column(0.03, 0.13),
+	[nameLabel] = column(0.17, 0.18),
+	[priceRow] = column(0.37, 0.15),
+	[description] = column(0.54, 0.2),
+	[action] = { AnchorPoint = Vector2.zero, Position = UDim2.fromScale(0.7, 0.77), Size = UDim2.new(0.3, -6, 0.2, 0) },
+	[back] = { AnchorPoint = Vector2.zero, Position = UDim2.new(0.4, 6, 0.77, 0), Size = UDim2.new(0.3, -12, 0.2, 0) },
+}
+local showingDetail = false
+local function applyLayout()
+	local camera = workspace.CurrentCamera
+	local phone = camera ~= nil and camera.ViewportSize.Y <= 500
+	for part, props in phone and PHONE or DESKTOP do
+		for key, value in props do
+			part[key] = value
+		end
+	end
+	description.TextScaled = phone
+	grid.Visible = not (phone and showingDetail)
+	detail.Visible = not phone or showingDetail
+	back.Visible = phone
+end
+back.Activated:Connect(function()
+	showingDetail = false
+	applyLayout()
+end)
+if workspace.CurrentCamera then
+	workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(applyLayout)
+end
+applyLayout()
+
 local selectedKind = "Trail"
 local selected = nil -- item id
 local busy = false
+local entering = false -- the next render is the panel opening: cascade its tiles
 local render
 
 local function owned(kind, id)
@@ -347,14 +423,14 @@ local function showDetail(item)
 	local equipped = kind ~= "Potion" and player:GetAttribute("Equipped" .. kind) == item.Id
 	local isOwned = owned(kind, item.Id)
 	rarity.Text = kind == "Potion" and (item.Category .. " Potion")
-		or kind == "Aura" and string.format("Aura  •  x%s speed", tostring(item.SpeedMulti))
-		or "Trail  •  cosmetic"
+		or kind == "Aura" and string.format("Aura  •  x%s Speed Gain + cruise", tostring(item.SpeedMulti))
+		or string.format("Trail  •  x%s Speed Gain", tostring(item.SpeedMulti))
 	nameLabel.Text = item.Name
 	priceText.Text = kind == "Potion"
 			and string.format(
-				"%s   •   Owned x%d",
+				"%s   •   Owned x%s",
 				Format.MoneyText(item.Price),
-				player:GetAttribute("Boost_" .. item.Id) or 0
+				Format.Short(player:GetAttribute("Boost_" .. item.Id) or 0)
 			)
 		or (isOwned and "Owned" or Format.MoneyText(item.Price))
 	description.Text = item.Description
@@ -378,8 +454,10 @@ action.Activated:Connect(function()
 		return remotes:WaitForChild(remote):InvokeServer(kind, item.Id)
 	end)
 	busy = false
-	status.Text = ok and tostring(message or (done and "Done" or "Try again")) or "Connection error"
-	status.TextColor3 = (ok and done) and TILE_GREEN or Color3.fromRGB(255, 100, 120)
+	notify(
+		ok and tostring(message or (done and "Done" or "Try again")) or "Connection error",
+		(ok and done) and TILE_GREEN or Color3.fromRGB(255, 100, 120)
+	)
 	render()
 end)
 
@@ -397,18 +475,21 @@ function render()
 		selected = items[1] and items[1].Id
 	end
 	local equippedId = player:GetAttribute("Equipped" .. selectedKind)
+	local shownTiles = {}
 	for order, item in items do
 		local b = make("TextButton", selectedKind .. "_" .. item.Id, grid, {
 			LayoutOrder = order,
-			BackgroundColor3 = Color3.fromRGB(14, 24, 52),
+			BackgroundColor3 = Color3.new(1, 1, 1),
 			Text = "",
 			AutoButtonColor = true,
 		})
+		table.insert(shownTiles, b)
 		corner(b, 12)
+		UiTheme.Gradient(b, PALETTE.Row, PALETTE.PanelDeep)
 		stroke(b, item.Id == selected and Color3.new(1, 1, 1) or item.Id == equippedId and TILE_GREEN or TILE_BLUE, 4)
 		swatch(b, item, selectedKind, UDim2.new(0.5, 0, 0.5, -8), UDim2.fromOffset(60, 60))
 		local badge = owned(selectedKind, item.Id)
-				and (selectedKind == "Potion" and ("x" .. (player:GetAttribute("Boost_" .. item.Id) or 0)) or "Owned")
+				and (selectedKind == "Potion" and ("x" .. Format.Short(player:GetAttribute("Boost_" .. item.Id) or 0)) or "Owned")
 			or Format.MoneyText(item.Price)
 		caption("Badge", b, {
 			Position = UDim2.fromOffset(6, 2),
@@ -431,6 +512,8 @@ function render()
 		})
 		b.Activated:Connect(function()
 			selected = item.Id
+			showingDetail = true
+			applyLayout()
 			render()
 		end)
 	end
@@ -438,11 +521,17 @@ function render()
 	if item then
 		showDetail(item)
 	end
+	if entering then
+		entering = false
+		cascade(shownTiles)
+	end
 end
 
 for kind, refs in tabs do
 	refs.Button.Activated:Connect(function()
 		selectedKind = kind
+		showingDetail = false
+		applyLayout()
 		selected = nil
 		status.Text = ""
 		render()
@@ -450,8 +539,7 @@ for kind, refs in tabs do
 end
 
 local function open()
-	PanelSwitch.Toggle("Market")
-	render()
+	PanelSwitch.Toggle("Market") -- showing it renders (Visible handler below)
 end
 local function closeMarket()
 	PanelSwitch.Close("Market")
@@ -485,7 +573,10 @@ local function fitTabs()
 	for _ in tabs do
 		count += 1
 	end
-	local scale = math.clamp((rail.AbsoluteSize.Y / ancestor - (count - 1) * 10) / (count * 96), 0.4, 1)
+	-- Owner 2026-10-28: on phones (viewport height <= 500) the tabs may shrink below 0.4 so all stay inside the rail.
+	local phone = workspace.CurrentCamera.ViewportSize.Y <= 500
+	local scale =
+		math.clamp((rail.AbsoluteSize.Y / ancestor - (count - 1) * 10) / (count * 96), phone and 0.1 or 0.4, 1)
 	for _, refs in tabs do
 		refs.Scale.Scale = scale
 	end
@@ -495,6 +586,10 @@ fitTabs()
 -- However the panel is shown, its grid is filled.
 backdrop:GetPropertyChangedSignal("Visible"):Connect(function()
 	if backdrop.Visible then
+		entering = true
+		showingDetail = false
+		applyLayout()
 		render()
 	end
 end)
+UiTheme.Apply(root)

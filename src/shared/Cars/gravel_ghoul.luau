@@ -4,7 +4,7 @@ return {
 	Id = "gravel_ghoul",
 	Name = "Gravel Ghoul",
 	Rarity = "Rare",
-	Chance = 95,
+	Chance = 1100,
 	SpeedMulti = 3,
 	Order = 1023,
 	Model = "gravel_ghoul",

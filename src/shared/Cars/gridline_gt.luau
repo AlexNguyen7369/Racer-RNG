@@ -4,7 +4,7 @@ return {
 	Id = "gridline_gt",
 	Name = "Gridline Gt",
 	Rarity = "Epic",
-	Chance = 510,
+	Chance = 190000,
 	SpeedMulti = 9,
 	Order = 1049,
 	Model = "gridline_gt",

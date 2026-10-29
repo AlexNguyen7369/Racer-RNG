@@ -4,7 +4,7 @@ return {
 	Id = "pitlane_phantom",
 	Name = "Pitlane Phantom",
 	Rarity = "Epic",
-	Chance = 390,
+	Chance = 83000,
 	SpeedMulti = 7,
 	Order = 1045,
 	Model = "pitlane_phantom",

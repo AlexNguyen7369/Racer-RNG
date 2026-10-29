@@ -9,8 +9,30 @@ local gui = player:WaitForChild("PlayerGui")
 local client = script.Parent
 local PanelSwitch = require(client:WaitForChild("PanelSwitch"))
 local Icons = require(client:WaitForChild("RollToast"):WaitForChild("Ui"):WaitForChild("HudIcons"))
+local UiTheme = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("UiTheme"))
+local UiMotion = require(client:WaitForChild("UiMotion"))
 
-local OUTLINE = Color3.fromRGB(17, 19, 31)
+-- Owner 2026-10-28 (docs/HUD_LAYOUT_SPEC.md section 6): the Roblox chat window starts collapsed so it never covers
+-- the left icon tiles; the chat button opens it. The chat CoreScript opens itself after it loads (an early SetCore
+-- is undone), so on join keep collapsing it until it has stayed collapsed for 3 s (at most 30 s).
+task.spawn(function()
+	local StarterGui = game:GetService("StarterGui")
+	local closedFor = 0
+	for _ = 1, 30 do
+		local ok, active = pcall(StarterGui.GetCore, StarterGui, "ChatActive")
+		if ok and active == false then
+			closedFor += 1
+			if closedFor >= 3 then
+				return
+			end
+		else
+			closedFor = 0
+			pcall(StarterGui.SetCore, StarterGui, "ChatActive", false)
+		end
+		task.wait(1)
+	end
+end)
+
 local RED = Color3.fromRGB(232, 60, 76)
 local TILE = 72
 local LABEL = 22
@@ -30,7 +52,7 @@ local function outlined(label, thickness)
 		"UIStroke",
 		"Outline",
 		label,
-		{ Color = OUTLINE, Thickness = thickness, LineJoinMode = Enum.LineJoinMode.Round }
+		{ Color = UiTheme.Outline, Thickness = thickness, LineJoinMode = Enum.LineJoinMode.Round }
 	)
 	return label
 end
@@ -119,6 +141,7 @@ local ICON_MID = TILE / 2 / (TILE + LABEL)
 local itemsSlot = holder("ItemsSlot", 1, { AnchorPoint = Vector2.new(1, ICON_MID) })
 local upgradeSlot = holder("UpgradeSlot", 1, { AnchorPoint = Vector2.new(0, ICON_MID) })
 local BOTTOM_SCALE = 0.75 -- the bottom pair is smaller than the edge tiles (owner, 2026-10-15)
+local STACK_MAX_HEIGHT = 400 -- phone_small: the pair stacks above the bars (owner, 2026-10-28)
 local SLOTS = {
 	{ "Index", grid },
 	{ "Stats", grid },
@@ -203,11 +226,12 @@ local function pill(name, order, caption)
 			Size = UDim2.fromScale(0, 1),
 			AutomaticSize = Enum.AutomaticSize.X,
 			BackgroundTransparency = 1,
-			Font = Enum.Font.BuilderSansMedium,
+			Font = UiTheme.Font,
 			TextSize = 19,
 			TextColor3 = Color3.new(1, 1, 1),
 			Text = caption,
 		})
+		outlined(text, 1.5)
 	end
 	b.Activated:Connect(function()
 		PanelSwitch.Action(name)
@@ -226,9 +250,14 @@ pill("Market", 3, "Market")
 pill("Settings", 4)
 
 -- Live state -----------------------------------------------------------------------------------------------------
+-- Section 10: a red badge pops when its count changes (never every refresh).
 local function setBadge(b, count)
+	local text = tostring(count)
+	if count > 0 and b.Text ~= text then
+		UiMotion.Pop(b)
+	end
 	b.Visible = count > 0
-	b.Text = tostring(count)
+	b.Text = text
 end
 
 local function refresh()
@@ -237,6 +266,9 @@ local function refresh()
 	-- Same UTC day key the daily reward panel and DailyLoginService use.
 	local now = os.time()
 	local claimed = (player:GetAttribute("DailyLast") or -1) == math.floor(now / 86400)
+	if not claimed and not dailyBadge.Visible then
+		UiMotion.Pop(dailyBadge)
+	end
 	dailyBadge.Visible = not claimed
 	if claimed then
 		local left = 86400 - now % 86400
@@ -250,6 +282,7 @@ local function refresh()
 		local bottomPair = scale.Parent == itemsSlot or scale.Parent == upgradeSlot
 		scale.Scale = (phone and 0.68 or 1) * (bottomPair and BOTTOM_SCALE or 1)
 	end
+	local pairScale = (phone and 0.68 or 1) * BOTTOM_SCALE
 	barScale.Scale = phone and 0.8 or 1
 	grid.Position = phone and UDim2.new(0, 8, 0.5, -20) or UDim2.new(0, 14, 0.5, -24)
 	shopColumn.Position = phone and UDim2.new(1, -8, 0.5, -20) or UDim2.new(1, -14, 0.5, -24)
@@ -268,8 +301,56 @@ local function refresh()
 		local right =
 			math.max(level.AbsolutePosition.X + level.AbsoluteSize.X, turbo.AbsolutePosition.X + turbo.AbsoluteSize.X)
 		local gap = (level.AbsolutePosition.Y + level.AbsoluteSize.Y + turbo.AbsolutePosition.Y) / 2 + inset
-		itemsSlot.Position = UDim2.fromOffset(left - 10, gap)
-		upgradeSlot.Position = UDim2.fromOffset(right + 10, gap)
+		local function rect(name)
+			local o = hud:FindFirstChild(name)
+			if o and o:IsA("GuiObject") and o.Visible then
+				local p = o.AbsolutePosition + Vector2.new(0, inset)
+				return { p.X, p.Y, p.X + o.AbsoluteSize.X, p.Y + o.AbsoluteSize.Y }
+			end
+			return nil
+		end
+		local blockers = {}
+		for _, name in { "Money", "Speed" } do
+			table.insert(blockers, rect(name))
+		end
+		if camera and camera.ViewportSize.Y <= STACK_MAX_HEIGHT then
+			-- Owner 2026-10-28 (section 6): on the smallest phones the pair sits ABOVE the bars (bottom edge over the
+			-- LEVEL bar and the Money read-out), just outside the Speed read-out on each side.
+			local speed = rect("Speed")
+			local money = rect("Money")
+			local y = math.min(level.AbsolutePosition.Y + inset, money and money[2] or math.huge) - 6
+			itemsSlot.AnchorPoint = Vector2.new(1, 1)
+			upgradeSlot.AnchorPoint = Vector2.new(0, 1)
+			itemsSlot.Position = UDim2.fromOffset(math.min(left, speed and speed[1] or left) - 6, y)
+			upgradeSlot.Position = UDim2.fromOffset(math.max(right, speed and speed[3] or right) + 6, y)
+		else
+			itemsSlot.AnchorPoint = Vector2.new(1, ICON_MID)
+			upgradeSlot.AnchorPoint = Vector2.new(0, ICON_MID)
+			itemsSlot.Position = UDim2.fromOffset(left - 10, gap)
+			upgradeSlot.Position = UDim2.fromOffset(right + 10, gap)
+		end
+		-- Owner 2026-10-28 (section 6): on narrow screens the pair shrinks (about its anchor) until it clears the
+		-- Money and Speed read-outs; where they are already clear (desktop) the scale is unchanged.
+		local function clear(k)
+			local w, h = CELL.X * k, CELL.Y * k
+			for _, slot in { itemsSlot, upgradeSlot } do
+				local x = slot.Position.X.Offset - slot.AnchorPoint.X * w
+				local y = slot.Position.Y.Offset - slot.AnchorPoint.Y * h
+				for _, b in blockers do
+					if x < b[3] and x + w > b[1] and y < b[4] and y + h > b[2] then
+						return false
+					end
+				end
+			end
+			return true
+		end
+		local k = pairScale
+		-- shortcut: floor at 30%; if the read-outs still cover the anchor point the pair stays at the floor.
+		while k > pairScale * 0.3 and not clear(k) do
+			k -= pairScale * 0.02
+		end
+		itemsSlot.Scale.Scale = k
+		upgradeSlot.Scale.Scale = k
 	end
 	-- The roll showcase takes the whole screen; every HUD entry hides with the rest of the HUD.
 	local showcase = gui:FindFirstChild("RollShowcase")
@@ -290,3 +371,4 @@ RunService.Heartbeat:Connect(function(dt)
 	end
 end)
 refresh()
+UiTheme.Apply(root)

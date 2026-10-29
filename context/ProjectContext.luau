@@ -3,7 +3,65 @@
 PROJECT CONTEXT - Idle Vehicle Simulator (read me first)
 Shown in Studio at: ServerScriptService > ProjectContext   (source file: context/ProjectContext.luau)
 Do NOT edit this in Studio: edit the file on disk, Rojo syncs it. Claude updates it at the end of every loop.
-Last updated: 2026-10-27 (Claude: car redesign v3 toy racers, Singularity orb)
+Last updated: 2026-10-28 (Claude: balance pass, cruise cap 800, money cap 1e30, Worlds plan)
+BALANCE PASS + CRUISE CAP + WORLDS PLAN - 2026-10-27/28 (Claude, uncommitted; owner decisions in the design doc):
+- Rebirth rev. 4 ("+1 Speed" genre table): TOTALS 1.5 .. 10 then x10 to 1e11, levels 15 .. 600, max 20 (Speed gain, XP, Luck).
+- XP/s = 1 x Speed gain multi; XPToNext = XP_LINEAR x level to XP_KNEE 225, then x10 per XP_DECADE levels (122 / 37.2,
+  balance sim fit, owner 2026-10-28). HudFormat: Speed full digits < 1m, GainText, Multi "x1k", Odds "1 in 2.5m".
+- Speed float every 0.25 s. Car odds rev. (Uncommon 10..200 .. Secret 1e16..5e18). Cruise: car multi scales final studs/s,
+  HALF_STAT 10K, MAX_CRUISE 800 (speed_probe green to 1000). NPC growth 1.51 (Track 10 = 653).
+- Money: cap 1e30 everywhere, Money is a NumberValue, MAX_AWARD = MAX_MONEY (was 1e9: Track 9-10 payouts were refused).
+- Worlds: docs/WORLDS_SPEC.md (World 2 = separate place, rebirths 11-20, mega biomes); tools/balance_sim.py.
+- Live 2026-10-28: full harness 49/4 (only data + 3 known scenery bugs); after fixes data/money/economy/leaderboard/admin/
+  bank/race all green. Open: Hill GiantOak2 overlap (spawn_area, workshop), city_blocks_gap 0.431 (0.7).
+ORCH-5 UI FIX ROUND - 2026-10-28 (Claude orchestrator, world1-ship e2a5f70, pushed):
+- Landed: Welcome title FredokaOne, Upgrades panel opaque 0.05, UI test fixes (redeem real call, offline_double_open setup,
+  showcase card settle, speed-dial sampling, hitbox un-hover). rules-auditor PASS.
+- Live UITEST (Studio fb39beec): [UITEST] END pass=33 fail=4 (ui_layout, ui_hitboxes, ui_motion, ui_reduced_motion); fixtures 41/44;
+  clicks 121 run, red 65 (CheckpointUi left open) + 112 (quest Claim active). Fixed bugs ccc13c4f 38e4a78b 3b10d310 837519cd d782d207.
+- Open: owner items hud-pair-phone-rule (9de32835), speed-float-phone (9617a457); new bugs 53e24a2e (0.05 float compare),
+  3c0dcacf, 7d99207f, adf68695, 0261e33b, fd2412fe, 4796b256, 081c684a.
+PAYOUT AND PRICE CURVES - 2026-10-27 (Claude, uncommitted; owner: payouts x10 / x7.5 per track, costs faster than payouts):
+- Rules: design doc "payout and price curves", UPGRADE_TREE_SPEC 2, WORKSHOP_SPEC 5, CLAUDE.md track rule 6.
+- Code: new Shared/PayoutCurve (Ratio, Cash, NiceRound, Cost = base x Ratio(step)^1.5); TrackBuilder.CashFor, UpgradeTree.Price,
+  WorkshopConfig level prices, MarketConfig trail/aura prices use it; CASH_PER_TRACK and PRICE_GROWTH removed; Money cap
+  1e15 (PlayerData MAX_MONEY, MoneyService MAX_EARNED). Track 10 pays $31.6b.
+- HUD: rising "+<Speed gain>" float above the Speed number, summed, at most once per second (HUD_LAYOUT_SPEC 10).
+- Trail/aura gain multi verified live: applied on the server (aura x trail in SpeedGainMulti); it only looked absent at 1.18b Speed.
+- RaceProgressMap: thins visible route to 99 points (Path2D limit 100; bug 2a5381da).
+- Live 2026-10-27: harness 39/4 (43 scenarios, track tests ran green in the run before): money/economy/bank/data/upgrades/
+  workshop prices/vehicle_effects/auto_toggle green; fails = spawn_area + workshop overlap (bug b99e2c0b), environment
+  city_blocks_gap (ab037b16); npc timing miss was flaky (rerun 120/120). UI suite 23/16: ui_speed_float 10/11 (text
+  +12.4k vs +12.3k: real gain landed in the test window); the other 15 UI failures (layout, hitboxes, theme fonts, shop/market
+  states, progression layout, weather) are the never-run UI visual pass, not attributed to this change.
+REBIRTH IN PLAYER LIST - 2026-10-27 (Claude, uncommitted): leaderstats.Rebirth (IntValue, after Money and Speed) mirrors the
+RebirthLevel attribute (RebirthService.Setup, re-called at the end of PlayerData.Setup). Rules: design doc "Rebirth system",
+REBIRTH_SPEC "Player list". data test updated by test-writer; not run live yet.
+SPEED GAIN REBALANCE - 2026-10-27 (Claude, uncommitted; owner: balance like the "+1 Speed" keyboard games):
+- Rules: design doc "Owner decision, 2026-10-27 (Speed gain rebalance", "Rebirth system", "Aura and trail ladders"; REBIRTH_SPEC.
+- RebirthConfig.REBIRTH_TOTALS {3,4,5,6,7,8,10,12,15,20} are TOTAL Speed Gain/Luck multis, then x10 (REPEAT_FACTOR) per rebirth
+  after 10 (replaces compounding x5, x7.5 ...). NextMultiplier = next total.
+- GachaService.SpeedGainMulti = points x rebirth x MarketConfig.GainMulti (equipped aura x trail; never the car). Race, workshop
+  and offline gain all use it. Aura still multiplies cruise. Trails 1.5/2/3/4/5x ($500..$100K), auras 1.2/2/3x ($2.5K..$250K),
+  new frost_trail + prism_trail (VehicleEffects, MarketArtConfig, VfxArea 9 lanes, floor 360).
+- Unverified: not run live; tests updated by test-writer / ui-test-writer.
+GIANT SCENERY IN EVERY BIOME - 2026-10-27 (Claude, uncommitted; owner: every biome gets large assets like the City):
+- Rules: design doc "Owner decision, 2026-10-27 (giant scenery in every biome)"; BIOME_DRESSING_SPEC Layers 9 "Every biome".
+- Code: data only. BiomeThemes `giant` / `giants` helpers; every non-City theme has `Blocks` (Spacing 70, Docks 50, Near 28,
+  Rows 2, RowDepth 90) of 40-120 stud props (Redwood, Butte, IceSpire, BasaltColumn, CrystalSpire, Galleon ...).
+- Live 2026-10-27: parts per track 215-926 (BUDGET 1200), blocks 17-78 per track; `environment` 343/344, the only fail is
+  city_blocks_gap (bug ab037b16, City Blocks work, unchanged). Full suite not run. Not seen while racing by eye except Forest.
+
+APPROVED HUD ICONS - 2026-10-27 (Isaac Li / Codex)
+- HudIcons uses ten standalone transparent PNGs, no atlas crop. Shop red/tan house,
+  Items brown backpack, Market detailed red shopping bag with blank tag, no coin/logo.
+- Sources and IDs: ui/icons/simple-20261027/. RacerHud Build/Bind and saved Settings
+  image agree; car-icon atlas and unrelated authored GUI instances are unchanged.
+- RacerMotion hover only scales to 1.035; white RacerHoverHighlight removed.
+  Existing UiMotion accessibility, click compression and press sound preserved.
+- Shared Studio save verified. All ten images loaded in PlayerGui, geometry unchanged,
+  real Items click opened Backpack and hover showed 1.035 without a white box.
+- Compile/build/UI-generation checks are focused evidence, not a full compatibility run.
 
 CAR REDESIGN V3 (TOY RACER) + SINGULARITY ORB - 2026-10-27 (Claude, branch feature/alex/car-redesign-v3-toy-racer)
 - Owner: every car a stylised toy racer, 15,000-triangle cap, pilot (Rusty Hatchback / Street Racer / Singularity)

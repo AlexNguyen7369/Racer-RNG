@@ -4,7 +4,7 @@ return {
 	Id = "pole_position",
 	Name = "Pole Position",
 	Rarity = "Epic",
-	Chance = 780,
+	Chance = 900000,
 	SpeedMulti = 13.5,
 	Order = 1058,
 	Model = "pole_position",

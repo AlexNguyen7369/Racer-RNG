@@ -340,7 +340,7 @@ function WorkshopService.Tick(player, dt, character)
 	end
 	setRate(player, true, rate)
 	local gain = rate * dt
-	LevelService.Tick(player, dt)
+	LevelService.Tick(player, dt, GachaService.SpeedMulti(player))
 	return PlayerData.AddSpeed(player, gain) and gain or 0
 end
 

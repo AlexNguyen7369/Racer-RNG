@@ -4,7 +4,7 @@ return {
 	Id = "rockslide_racer",
 	Name = "Rockslide Racer",
 	Rarity = "Rare",
-	Chance = 165,
+	Chance = 5800,
 	SpeedMulti = 4.5,
 	Order = 1033,
 	Model = "rockslide_racer",

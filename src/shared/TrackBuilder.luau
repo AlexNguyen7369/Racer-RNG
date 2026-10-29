@@ -21,11 +21,13 @@
 
 local CollectionService = game:GetService("CollectionService")
 local BiomeDressing = require(script.Parent.BiomeDressing)
+local UiTheme = require(script.Parent.UiTheme)
+local PayoutCurve = require(script.Parent.PayoutCurve)
+local HudFormat = require(script.Parent.HudFormat)
 
 local TrackBuilder = {}
 
 TrackBuilder.TRACK_LIFT = 1 -- studs the chain sits above the baseplate so road never blends into it
-TrackBuilder.CASH_PER_TRACK = 100 -- $ the winnings pad pays per track number (track 3 pays 3x)
 TrackBuilder.WIN_TEXT_DISTANCE = 60 -- studs: the $ text only shows when the player is this close
 TrackBuilder.LANE_OFFSET = 10 -- studs to the RIGHT of the road centre the car drives (a right-hand lane)
 TrackBuilder.CHECKPOINT_LENGTH = 60 -- studs of the last straight that make up the checkpoint area
@@ -88,9 +90,9 @@ local function flatPiece(center, heading, length)
 	}
 end
 
--- Money the winnings pad pays: the track number scales the quantity.
+-- Money the winnings pad pays: grows exponentially with the track number (Shared/PayoutCurve).
 function TrackBuilder.CashFor(number)
-	return (number or 1) * TrackBuilder.CASH_PER_TRACK
+	return PayoutCurve.Cash(number)
 end
 
 -- World CFrame of a layout's finish (facing along the last straight). The next track is built with
@@ -477,11 +479,11 @@ function TrackBuilder.Build(spec, origin)
 	label.Name = "Amount"
 	label.Size = UDim2.fromScale(1, 1)
 	label.BackgroundTransparency = 1
-	label.Text = "$" .. cash
+	label.Text = HudFormat.MoneyText(cash) -- short "$1.5m" (owner 2026-10-28)
 	label.TextScaled = true
-	label.Font = Enum.Font.GothamBlack
+	label.Font = UiTheme.Font
 	label.TextColor3 = colors.WinPad
-	label.TextStrokeTransparency = 0
+	UiTheme.Stroke(label, 2)
 	label.Parent = billboard
 
 	-- Grass under everything so falling off the road is survivable

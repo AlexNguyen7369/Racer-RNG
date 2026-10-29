@@ -62,7 +62,9 @@ local function whole(value)
 	if type(value) ~= "number" or value ~= value or value < 0 or value == math.huge then
 		return 0
 	end
-	return math.floor(value)
+	-- shortcut: OrderedDataStore holds int64, so scores past 9e18 (World 2 Money) tie at the top; switch the
+	-- MoneyEarned board to a log-scaled score if that matters.
+	return math.min(math.floor(value), 9e18)
 end
 
 -- The player's score on every board, as integers.

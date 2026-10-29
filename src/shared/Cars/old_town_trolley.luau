@@ -4,7 +4,7 @@ return {
 	Id = "old_town_trolley",
 	Name = "Old Town Trolley",
 	Rarity = "Uncommon",
-	Chance = 44,
+	Chance = 140,
 	SpeedMulti = 2.1,
 	Order = 1016,
 	Model = "old_town_trolley",

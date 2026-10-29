@@ -4,7 +4,7 @@ return {
 	Id = "starship_swan",
 	Name = "Starship Swan",
 	Rarity = "Secret",
-	Chance = 1050000,
+	Chance = 1.1e18,
 	SpeedMulti = 2400,
 	Order = 1098,
 	Model = "starship_swan",

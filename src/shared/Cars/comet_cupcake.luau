@@ -4,7 +4,7 @@ return {
 	Id = "comet_cupcake",
 	Name = "Comet Cupcake",
 	Rarity = "Mythic",
-	Chance = 46500,
+	Chance = 1.1e14,
 	SpeedMulti = 375,
 	Order = 1090,
 	Model = "comet_cupcake",

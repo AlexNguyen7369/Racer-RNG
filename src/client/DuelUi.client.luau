@@ -11,6 +11,10 @@ local playerGui = player:WaitForChild("PlayerGui")
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
 local duelRemote = remotes:WaitForChild("Duel")
 local PanelSwitch = require(script.Parent:WaitForChild("PanelSwitch"))
+local UiMotion = require(script.Parent:WaitForChild("UiMotion"))
+local UiTheme = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("UiTheme"))
+local Palette = UiTheme.Palette
+local DuelConfig = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("DuelConfig"))
 
 local function make(className, name, parent, properties)
 	local object = Instance.new(className)
@@ -41,14 +45,15 @@ local function panel(name, title)
 		-- scales taller than the compact phone variant, so 146 is the shared safe top.
 		Position = UDim2.new(0.5, 0, 0, 146),
 		Size = UDim2.fromScale(0.58, 0.43),
-		BackgroundColor3 = Color3.fromRGB(29, 32, 53),
 		BorderSizePixel = 0,
 		Visible = false,
 		Active = true,
 	})
-	make("UICorner", "Corner", frame, { CornerRadius = UDim.new(0, 16) })
-	make("UIStroke", "Stroke", frame, { Color = Color3.fromRGB(108, 132, 204), Thickness = 2, Transparency = 0.15 })
-	make("TextLabel", "Title", frame, {
+	-- Navy gradient card with a blue glow edge (Backpack look); opaque so it covers what is behind it.
+	UiTheme.Plate(frame, Color3.fromRGB(108, 132, 204))
+	frame.BackgroundTransparency = 0
+	UiTheme.Corner(frame, "L")
+	local heading = make("TextLabel", "Title", frame, {
 		Position = UDim2.fromOffset(18, 12),
 		Size = UDim2.new(1, -36, 0, 30),
 		Text = title,
@@ -58,6 +63,7 @@ local function panel(name, title)
 		BackgroundTransparency = 1,
 		TextXAlignment = Enum.TextXAlignment.Left,
 	})
+	UiTheme.Stroke(heading, 2)
 	return frame
 end
 
@@ -71,7 +77,8 @@ local function button(name, parent, text, properties)
 	properties.AutoButtonColor = true
 	properties.BorderSizePixel = 0
 	local object = make("TextButton", name, parent, properties)
-	make("UICorner", "Corner", object, { CornerRadius = UDim.new(0, 8) })
+	make("UICorner", "Corner", object, { CornerRadius = UDim.new(0, UiTheme.Radius.S) })
+	UiTheme.Stroke(object, 1.5)
 	return object
 end
 
@@ -86,6 +93,7 @@ local pickOpponent = make("TextLabel", "Opponent", pickPanel, {
 	BackgroundTransparency = 1,
 	TextXAlignment = Enum.TextXAlignment.Left,
 })
+UiTheme.Stroke(pickOpponent, 1.5)
 local pickClose = button("Close", pickPanel, "X", {
 	AnchorPoint = Vector2.new(1, 0),
 	Position = UDim2.new(1, -12, 0, 10),
@@ -117,6 +125,7 @@ local inviteText = make("TextLabel", "Text", invitePanel, {
 	TextXAlignment = Enum.TextXAlignment.Left,
 	TextYAlignment = Enum.TextYAlignment.Center,
 })
+UiTheme.Stroke(inviteText, 1.5)
 local inviteAccept = button("Accept", invitePanel, "ACCEPT", {
 	Position = UDim2.new(0, 18, 1, -58),
 	Size = UDim2.new(0.5, -22, 0, 40),
@@ -141,11 +150,15 @@ local countdown = make("TextLabel", "Countdown", root, {
 	Active = false,
 	Visible = false,
 })
+UiTheme.Stroke(countdown, 4)
+-- Right edge at 92% - 20 px: left of HudChrome's Shop column (desktop: 98 px from the edge, phone: 65 px) and right of
+-- the top-centre compact roll at every tested viewport, from 667 px phones to 1920 px desktops.
+local TOAST_HOME = UDim2.new(0.92, -20, 0.22, 48)
 local toast = make("TextLabel", "Toast", root, {
 	-- Reserve the right notification band below Auto Race: the compact roll owns the top
 	-- centre, while Speed owns the lower centre on narrow landscape phones.
 	AnchorPoint = Vector2.new(1, 0),
-	Position = UDim2.new(1, -16, 0.22, 48),
+	Position = TOAST_HOME,
 	Size = UDim2.fromOffset(200, 62),
 	Text = "",
 	Font = Enum.Font.GothamBlack,
@@ -157,7 +170,12 @@ local toast = make("TextLabel", "Toast", root, {
 	Active = false,
 	Visible = false,
 })
-make("UICorner", "Corner", toast, { CornerRadius = UDim.new(0, 12) })
+-- A mini banner (docs/HUD_LAYOUT_SPEC.md sections 8 and 10): green on a win, red on a loss, navy otherwise; the
+-- white-to-grey gradient shades the background colour from top to bottom.
+UiTheme.Corner(toast, "M")
+UiTheme.Stroke(toast, 2.5)
+UiTheme.Gradient(toast, Color3.new(1, 1, 1), Color3.fromRGB(185, 185, 185))
+local TOAST_COLOR = { ["YOU WIN!"] = Palette.MoneyDeep, ["YOU LOSE"] = Palette.DangerDeep }
 
 PanelSwitch.Register("DuelPick", pickPanel)
 PanelSwitch.Register("DuelInvite", invitePanel)
@@ -201,6 +219,7 @@ local function showPick(message)
 	showPanel("DuelPick")
 end
 
+local inviteToken = 0
 local function showInvite(message)
 	inviteText.Text = ("%s challenges you on Track %d"):format(
 		tostring(message.Opponent or "opponent"),
@@ -208,6 +227,15 @@ local function showInvite(message)
 	)
 	toast.Visible = false
 	showPanel("DuelInvite")
+	-- An unanswered invite is a decline after INVITE_TIMEOUT (docs/DUEL_SPEC.md): if the server's Cancelled never
+	-- arrives, the modal still closes instead of blocking the HUD.
+	inviteToken += 1
+	local token = inviteToken
+	task.delay(DuelConfig.INVITE_TIMEOUT + 1, function()
+		if token == inviteToken then
+			PanelSwitch.Close("DuelInvite")
+		end
+	end)
 end
 
 local function showCountdown(message)
@@ -254,7 +282,11 @@ local function showToast(text)
 	local token = messageToken
 	countdown.Visible = false
 	toast.Text = text
+	toast.BackgroundColor3 = TOAST_COLOR[text] or Palette.Panel
+	toast.Position = TOAST_HOME
 	toast.Visible = true
+	UiMotion.SlideIn(toast, Vector2.new(48, 0))
+	UiMotion.Pop(toast)
 	task.delay(3, function()
 		if token == messageToken then
 			toast.Visible = false
@@ -303,6 +335,8 @@ player.CharacterAdded:Connect(hideOwnPrompt)
 if player.Character then
 	hideOwnPrompt(player.Character)
 end
+
+UiTheme.Apply(root)
 
 duelRemote.OnClientEvent:Connect(function(message)
 	if type(message) ~= "table" then

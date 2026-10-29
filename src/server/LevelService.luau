@@ -1,16 +1,11 @@
 --!nonstrict
--- Server-owned Level/XP progression. XP is earned from current Speed over time.
+-- Server-owned Level/XP progression. XP is earned over time at the Speed gain multi (owner 2026-10-27).
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LevelConfig = require(ReplicatedStorage.Shared.LevelConfig)
 
 local LevelService = {}
-
-local function stats(player)
-	local folder = player:FindFirstChild("leaderstats")
-	return folder, player:FindFirstChild("BaseSpeed") -- XP follows the base Speed, not the shown leaderstats.Speed
-end
 
 function LevelService.Setup(player)
 	local folder = player:FindFirstChild("leaderstats")
@@ -43,7 +38,7 @@ function LevelService.Apply(player, saved)
 	local level = LevelConfig.CleanLevel(saved.Level)
 	local xp = LevelConfig.CleanXP(saved.XP)
 	LevelService.Setup(player)
-	local folder = stats(player)
+	local folder = player:FindFirstChild("leaderstats")
 	if not folder then
 		return
 	end
@@ -75,13 +70,12 @@ function LevelService.AddXP(player, amount)
 	return true
 end
 
-function LevelService.Tick(player, dt)
+-- gainMulti: the player's Speed gain multi (GachaService.SpeedMulti), so rebirth, aura and trail scale XP the same.
+function LevelService.Tick(player, dt, gainMulti)
 	if type(dt) ~= "number" or dt ~= dt or dt == math.huge or dt == -math.huge or dt <= 0 then
 		return false
 	end
-	local _, speed = stats(player)
-	local currentSpeed = speed and math.max(0, speed.Value) or 0
-	return LevelService.AddXP(player, LevelConfig.XP_PER_SECOND * math.sqrt(currentSpeed) * dt)
+	return LevelService.AddXP(player, LevelConfig.XP_PER_SECOND * (gainMulti or 1) * dt)
 end
 
 function LevelService.Start()

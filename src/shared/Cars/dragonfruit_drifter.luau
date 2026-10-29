@@ -4,7 +4,7 @@ return {
 	Id = "dragonfruit_drifter",
 	Name = "Dragonfruit Drifter",
 	Rarity = "Mythic",
-	Chance = 32500,
+	Chance = 1.3e12,
 	SpeedMulti = 275,
 	Order = 1086,
 	Model = "dragonfruit_drifter",

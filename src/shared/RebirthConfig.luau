@@ -6,17 +6,10 @@ local RebirthConfig = {}
 local LevelConfig = require(script.Parent.LevelConfig)
 
 RebirthConfig.DEFAULT_LEVEL = 0
--- Rebirth milestones continue forever. Keep this compatibility sentinel for older
--- UI/test callers, but it is not a gameplay cap.
-RebirthConfig.MAX_LEVEL = math.huge
--- Per-rebirth factors: the first few prestiges accelerate sharply, then settle at a
--- repeatable 7.5x factor so high-rebirth players rocket through early levels without
--- making the next rebirth an unbounded one-off jump.
-RebirthConfig.REBIRTH_MULTIPLIERS = { 5, 7.5, 7.5, 10, 10, 7.5 }
-RebirthConfig.REPEAT_MULTIPLIER = 7.5
-RebirthConfig.SPEED_GAIN_MULTIPLIER = RebirthConfig.REBIRTH_MULTIPLIERS[1]
-RebirthConfig.LUCK_MULTIPLIER = RebirthConfig.REBIRTH_MULTIPLIERS[1]
-RebirthConfig.MAX_EFFECTIVE_MULTIPLIER = 1e100 -- keep race gain and roll math finite at extreme rebirth counts
+-- Total Speed Gain / XP / Luck multi per rebirth level (owner 2026-10-27 rev. 4, docs/REBIRTH_SPEC.md):
+-- the "+1 Speed" genre table; rebirth 20 is the last one.
+RebirthConfig.TOTALS = { 1.5, 2, 2.5, 3, 3.5, 4, 5, 6, 7.5, 10, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9, 1e10, 1e11 }
+RebirthConfig.MAX_LEVEL = #RebirthConfig.TOTALS
 RebirthConfig.POINTS_PER_REBIRTH = 1 -- stat points per rebirth (placeholder, owner 2026-10-15; docs/REBIRTH_SPEC.md)
 
 function RebirthConfig.CleanLevel(level)
@@ -28,15 +21,10 @@ end
 
 function RebirthConfig.SpeedGainMulti(level)
 	level = RebirthConfig.CleanLevel(level)
-	local multi = 1
-	for rebirth = 1, math.min(level, 256) do
-		local factor = RebirthConfig.REBIRTH_MULTIPLIERS[rebirth] or RebirthConfig.REPEAT_MULTIPLIER
-		multi = math.min(multi * factor, RebirthConfig.MAX_EFFECTIVE_MULTIPLIER)
-		if multi >= RebirthConfig.MAX_EFFECTIVE_MULTIPLIER then
-			break
-		end
+	if level == 0 then
+		return 1
 	end
-	return multi
+	return RebirthConfig.TOTALS[math.min(level, RebirthConfig.MAX_LEVEL)]
 end
 
 function RebirthConfig.MoneyMulti(_level)
@@ -47,11 +35,9 @@ function RebirthConfig.LuckMulti(level)
 	return RebirthConfig.SpeedGainMulti(level)
 end
 
--- Factor shown for the next rebirth. The UI uses this instead of hard-coding a
--- single value so the staged progression stays visible and truthful.
+-- Total multi after the next rebirth, shown on the Rebirth panel so the UI never hard-codes it.
 function RebirthConfig.NextMultiplier(level)
-	level = RebirthConfig.CleanLevel(level)
-	return RebirthConfig.REBIRTH_MULTIPLIERS[level + 1] or RebirthConfig.REPEAT_MULTIPLIER
+	return RebirthConfig.SpeedGainMulti(RebirthConfig.CleanLevel(level) + 1)
 end
 
 -- Stat points earned from rebirths, added to the car-index points (never saved: derived from the rebirth count)
@@ -67,6 +53,9 @@ function RebirthConfig.Requirements(level)
 end
 
 function RebirthConfig.CanRebirth(level, playerLevel)
+	if RebirthConfig.CleanLevel(level) >= RebirthConfig.MAX_LEVEL then
+		return false
+	end
 	local required = RebirthConfig.Requirements(level)
 	return type(playerLevel) == "number" and playerLevel >= required.Level
 end

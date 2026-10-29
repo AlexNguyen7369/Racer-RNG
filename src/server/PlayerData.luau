@@ -32,8 +32,8 @@ local PlayerData = {}
 local STORE_NAME = "PlayerStats_v1"
 local VERSION = 12 -- 12: car Copies and the workshop Showcase (GachaService); 11: per-track NPC race personal bests
 -- 8: session lock, MoneyEarned, DuelWins; 9: Receipts, Codes (docs/SAVE_SPEC.md)
-local MAX_MONEY = 1e12
-local MAX_ADD = 1e6 -- most a single AddSpeed call may add
+local MAX_MONEY = 1e30 -- owner 2026-10-27: World 2 payouts reach about 1e20
+local MAX_ADD = 1e18 -- most a single AddSpeed call may add (rebirth x100b x aura x trail fits; owner 2026-10-27)
 local AUTOSAVE_SECONDS = 60
 local MAX_DUEL_WINS = 1e9
 
@@ -162,7 +162,9 @@ function PlayerData.Setup(player)
 	if player:GetAttribute("RebirthLevel") == nil then
 		player:SetAttribute("RebirthLevel", RebirthConfig.DEFAULT_LEVEL)
 	end
-	return speedValue(player)
+	local base = speedValue(player)
+	RebirthService.Setup(player) -- again, now that Speed exists, to add leaderstats.Rebirth after it
+	return base
 end
 
 -- Returns true if the stats were loaded (or newly created). Yields.
@@ -254,6 +256,7 @@ function PlayerData.Load(player, userId)
 	apply(updated)
 	player:SetAttribute("OfflineSpeed", gain)
 	player:SetAttribute("OfflineSeconds", seconds)
+	ShopService.SetOfflineReward(player, gain) -- docs/OFFLINE_DOUBLE_SPEC.md: the amount a double would add
 	player:SetAttribute("DataFailed", nil)
 	player:SetAttribute("DataLoaded", true)
 	-- The mailbox was persisted even if the recipient was offline. Claim through the same
@@ -406,6 +409,8 @@ function PlayerData.SpeedStat(player)
 	local speed = player:FindFirstChild("BaseSpeed")
 	return cleanStat(speed and speed.Value)
 end
+
+PlayerData.MAX_ADD = MAX_ADD
 
 -- Adds to the Speed stat. Only the server calls this. The amount must be a finite number in (0, MAX_ADD];
 -- returns the new stat, or nil (and changes nothing) for anything else.

@@ -151,7 +151,8 @@ Idle Vehicle Simulator — Game Design Requirements
        The effect of the number on base/cruise speed has DIMINISHING returns: each extra
        point of Speed adds less cruise speed than the one before. The effect never flattens
        out and never reaches zero; a higher Speed must always give a cruise speed the player
-       can tell apart. There is no hard cap on cruise speed.
+       can tell apart. There is no hard cap on cruise speed. (REPLACED 2026-10-27: cruise is capped at
+       RaceConfig.MAX_CRUISE, see "Owner decision, 2026-10-27 (cruise cap and worlds)" under Rebirth system.)
        Maths (same date; the constants are placeholders, the shapes are fixed):
        Race Speed gain per second = GAIN_PER_SECOND x the permanent Speed Gain multipliers.
        It is independent of Speed, equipped car, cruise multipliers, temporary boosts and actual speed.
@@ -163,10 +164,12 @@ Idle Vehicle Simulator — Game Design Requirements
        MAX_SPEED + (MAX_SPEED - BASE_SPEED) / 2 x log2(1 + (Speed - HALF_STAT) / HALF_STAT)
        (owner 2026-10-22: each doubling above HALF_STAT adds HALF the range, so 196 studs/s at 1M).
        "Speed" here is the effective Speed: the stat multiplied by the damped car/aura cruise multi, capped at
-       1.5x, before the curve (owner 2026-10-22: the multi scales the stat, not the cruise result). The active
-       placeholder HALF_STAT is 100,000, so the first 100K Speed is easier to feel (linear). The join at 100K is
+       1.5x, before the curve (owner 2026-10-22: the multi scales the stat, not the cruise result; REPLACED
+       2026-10-27: the multi now scales the cruise result and HALF_STAT is 10,000, see below). The active
+       placeholder HALF_STAT was 100,000 (REPLACED 2026-10-27: 10,000), so the first 100K Speed is easier to feel (linear). The join at 100K is
        a kink (owner 2026-10-22: kept, not smoothed); past it every later point adds less.
-       The tail never flattens and has no hard cap.
+       The tail never flattens and has no hard cap (REPLACED 2026-10-27: cruise is capped at
+       RaceConfig.MAX_CRUISE, see "Worlds").
        Owner decision, 2026-10-20: the Speed stat itself has no cap either (only infinity and
        non-numbers are rejected, since they can not be saved).
        Owner decision, 2026-10-20 (one steady speed): the auto-racing car drives at exactly its
@@ -197,7 +200,7 @@ Idle Vehicle Simulator — Game Design Requirements
        HUD, Stats panel, Roblox player list, and global Speed leaderboard therefore all show base
        Speed. The car's own multi is still shown on the car.
        Before the cruise formula, the raw cruise multi is damped to `1 + log10(raw cruise multi)`
-       and capped at effective 1.5x (minimum 0.1 for valid positive values). This keeps rare cars
+       and capped at effective 1.5x (minimum 0.1 for valid positive values) (REPLACED 2026-10-28, see below). This keeps rare cars
        faster without allowing a 350x/1000x car to create hundreds or thousands of studs/s. The same base Speed can therefore
        produce different cruise speeds with different cars, while the Speed gain rate remains identical.
        Saving, rebirth resets and Speed gain still use the base Speed. The gain rules above are
@@ -205,6 +208,17 @@ Idle Vehicle Simulator — Game Design Requirements
        Large Speed numbers are abbreviated with suffixes (K, M, B, T, Qd = quadrillion,
        Qt = quintillion, and onward) instead of growing endless digits. The exact point where
        the HUD switches from full digits to suffixes is a placeholder.
+       Owner decision, 2026-10-27 (replaces the capital suffixes above): every displayed Speed,
+       Money and Unbanked number (HUD, panels, gate signs, leaderboards) uses LOWERCASE suffixes
+       k, m, b, t, qd (quadrillion), qt (quintillion), sx, sp, oc, no, dc with 3 significant
+       digits ("1.5k", "10.2m", "$3.4b", "10qd", "10sp"). Money is shortened too ("$1.2m").
+       Shortening starts at 1,000 (placeholder); below that the full number is shown.
+       Owner decision, 2026-10-27 (later): Speed numbers keep full digits with thousands separators
+       ("123,456") up to 1,000,000 and shorten from there ("1.23m"), so every second's gain is visible
+       early. Money and Unbanked still shorten from 1,000. Both thresholds are placeholders.
+       Owner decision, 2026-10-28 (owner approved): the winnings pad's billboard shows its money in the
+       HUD's short format (Shared/HudFormat.MoneyText: "$100", "$1.5m", "$31.6b"), not full digits.
+       The pad's Cash value itself stays the full number.
        Historical decision, 2026-10-21 (superseded later the same day): Track 1 must not need ~10M Speed.
        Placeholders: MAX_SPEED 22 (was 18; +5 studs/s per Speed doubling), Track 1 NPC 15 studs/s
        (was 45), x1.37 per track (was x2.5). Recommended Speed: Track 1 ~2.6K, Track 5 ~1.4M,
@@ -217,6 +231,22 @@ Idle Vehicle Simulator — Game Design Requirements
        Cruise speed is buffed: placeholder MAX_SPEED 109 (+48.5 studs/s per doubling of shown
        Speed; same log shape, no cap). Each next track's NPC is 1.75x faster (placeholder Track 1
        = 16 studs/s). Recommended Speed: Track 1 ~7.7K, Track 5 ~301K, Track 10 ~2.15e23.
+       Owner decision, 2026-10-27 (speed feel, replaces where they differ the 2026-10-21 / 10-22 cruise
+       entries): (1) the damped car / shop cruise multi (1 + log10(raw), 0.1 .. 1.5 (REPLACED 2026-10-28, see below)) multiplies the final
+       cruise studs/s instead of the Speed fed into the curve, so cars differ from the first second (at 0
+       Speed the starter drives 10 studs/s and a car at the full damped x1.5, i.e. raw x3.16 or more, 15; a raw
+       x1.5 car gives 1 + log10(1.5) = x1.18, 11.8 studs/s). (2) HALF_STAT is 10,000 (placeholder, was
+       100K): about 17.8 studs/s at 1K Speed, 88 at 10K, then +39 studs/s per doubling. NPC recommended
+       Speeds (StatFor) drop 10x with it. The displayed Speed and its gain are unchanged.
+       Owner decision, 2026-10-28 (cruise multis: cars + auras/trails both; replaces the 1.5x car cap above):
+       with the 1.5x cap every car of raw x3.16 or more drove at the same cruise, so rarer cars felt identical.
+       (1) The damped car cruise multi keeps its shape, 1 + log10(raw car multi), min 0.1, but its cap
+       RaceConfig.MAX_CRUISE_CAR_MULTI is 4 (placeholder): a raw x1000 car gives x4. (2) The equipped aura and the
+       equipped trail each also add a damped cruise multi, 1 + 0.5 x log10(that item's multi from MarketConfig), min 1
+       (the 0.5 is a placeholder, RaceConfig.ITEM_CRUISE_DAMP), so equipping one makes the car faster at once.
+       (3) Total cruise multi = car x aura x trail, capped at RaceConfig.MAX_CRUISE_TOTAL_MULTI = 4 (placeholder);
+       it multiplies the cruise studs/s, which stay capped at RaceConfig.MAX_CRUISE (1250 since 2026-10-28). Gain rules are unchanged:
+       the aura and trail still multiply Speed gain, the car never does.
        Owner decision, 2026-10-22 (speed feel): make the first 100K Speed easier to gain and begin
        the stronger diminishing-return tail only after 100K. Placeholders MAX_SPEED 88 and HALF_STAT 100K.
        With raw multi 1 this gives about 18 studs/s at 10K, 49 at 50K, 88 at 100K, and 218 at 1M
@@ -228,6 +258,13 @@ Idle Vehicle Simulator — Game Design Requirements
 
   In races, Speed gain uses the flat permanent Speed Gain formula above. Workshop gain is separate and does not use
   the equipped car or a Speed-stat diminishing term.
+
+  Owner decision, 2026-10-27 (Speed gain rebalance, "+1 Speed" style): the equipped aura (A) and the equipped
+  trail (T, new term) now multiply ALL Speed gain, race and workshop, on top of the Speed Gain stat/upgrade and the
+  rebirth multi: gain = GAIN_PER_SECOND x Speed Gain stat x R x A x T (workshop: its own rate x the same A x T).
+  This replaces the 2026-10-21 rule that auras never affect Speed gain. The aura also keeps its cruise-speed
+  multi (since 2026-10-28 the trail has one too, both damped; see "cruise multis" under Racing). The equipped car still never affects Speed gain. Aura and trail multis and prices are placeholders
+  (see "What Money buys").
 
   Balance tip: with nine multipliers stacked, a small change to one moves everything. Model
   the numbers in a spreadsheet before building. Stat points are easier to tune if each point
@@ -256,8 +293,8 @@ Idle Vehicle Simulator — Game Design Requirements
        Speed is earned only while the player stands inside the workshop zone. Leaving the
        zone stops the gain.
        Gain per second uses the full formula above, including the workshop multi (W).
-       Money upgrades raise W in big jumps. Placeholder: each level doubles W and costs 5x
-       the last.
+       Money upgrades raise W in big jumps. Placeholder: each level doubles W; prices follow the price curve
+       (see Racing, owner 2026-10-27).
        The Gold, Diamond and Void gamepass tiers add a larger permanent W boost (see
        Monetization).
 
@@ -281,6 +318,18 @@ Idle Vehicle Simulator — Game Design Requirements
        A win pays the current/last track immediately. There is no banked pot or Continue-risk mechanic.
        A loss pays nothing for that track; earlier payouts remain.
        The payout grows with the difficulty of the track beaten.
+
+  Owner decision, 2026-10-27 (payout and price curves; constants are placeholders, the shapes are fixed):
+       Track payouts grow exponentially: Track 1 pays $100 and each next track pays x10, then x7.5,
+       alternating (Track 2 x10, Track 3 x7.5, Track 4 x10, ...). Track 10 pays about $31.6b. This replaces
+       the old linear payout (Track N = N x $100).
+       Prices grow faster than payouts so each upgrade needs more wins than the last: the price of step k
+       of a ladder = its base price x (payout of Track k / payout of Track 1) ^ 1.5, rounded to two
+       significant figures. It applies to workshop levels (step = level - 1, base $500), upgrade tree tiles
+       (step = price depth, base $150 x branch weight) and the aura and trail ladders (step = place in the
+       ladder, bases $2.5K aura and $500 trail).
+       The Money cap rises from $1 trillion to $1 quadrillion (1e15), still inside exact 64-bit integers
+       (REPLACED 2026-10-27: the cap is 1e30, see "Worlds").
        The player keeps earning Speed during races (see Core stat model).
 
   Track environments (owner, 2026-10-20; docs/BIOME_DRESSING_SPEC.md)
@@ -307,6 +356,13 @@ Idle Vehicle Simulator — Game Design Requirements
        and each track may hold more scenery parts. The City (Track 6) buildings are detailed
        skyscrapers (podium, setback tiers, window bands, corner fins, lit crown and rooftop
        equipment), not plain boxes. Scale factors and the part budget are placeholders.
+       Owner decision, 2026-10-27 (populated city): the City reads as a populated city. Continuous
+       rows of buildings line both sides of the road, two rows deep, with no wide empty gaps
+       between them; the City may use more scenery parts than other tracks (placeholder).
+       Owner decision, 2026-10-27 (giant scenery in every biome): taking the populated City as the
+       model, every biome has large assets near the road (giant trees, rock pillars, towers,
+       spires, ships ...) mixed with its small roadside props, so the player and car feel small
+       in a much bigger world. Giant sizes, spacing and counts are placeholders.
 
 
 
@@ -399,6 +455,12 @@ Idle Vehicle Simulator — Game Design Requirements
      \text{XP per second} = c \times \sqrt{\text{Speed}} \qquad \text{XP to next
      level} = 100 \times 1.15^{\,\text{level}}
 
+       Owner decision, 2026-10-27 (replaces the square root of Speed above): XP per second follows
+       the player's Speed gain multiplier, not the Speed stat: XP/s = XP_PER_SECOND (1, placeholder)
+       x Speed Gain multi (Speed Gain stat/upgrade x rebirth x equipped aura x equipped trail). So
+       anything that multiplies Speed gain multiplies XP gain by the same amount. XP still ticks
+       while auto racing and while standing in the workshop zone.
+
 
 
 
@@ -410,14 +472,30 @@ Idle Vehicle Simulator — Game Design Requirements
 
        Rebirth unlocks at level milestones: 10, 25, 50, 75, 100, then every 25 after (proposed).
        Rebirthing resets Money, Speed, Level and XP. Level returns to 1 and XP returns to 0.
-       Each rebirth compounds the automatic Speed Gain and Luck multipliers. The next-rebirth factors
-       are x5.00, x7.50, x7.50, x10.00, x10.00, then x7.50 repeating; level n contributes the product
-       of its factors (with a numeric-safety ceiling far beyond normal play). Rebirths do not multiply
-       race payout Money; Money upgrades and temporary Money effects remain separate.
+       Owner decision, 2026-10-27 (rev. 2, replaces the x3 .. x20 totals with x10 per rebirth after 10,
+       which grew too fast): the rebirth level sets one TOTAL Speed Gain and Luck multiplier that grows
+       by addition, never by multiplication. Rebirths 1-20 add +5x each (rebirth 1 x5, 2 x10, ... 20 x100);
+       the total is capped at x100 from rebirth 20 on (21, 22, 30 ... all stay x100). Level 0 stays x1.
+       Owner decision, 2026-10-27 (rev. 4, replaces rev. 2 and rev. 3; based on the "+1 Speed" genre's
+       public rebirth table): rebirth N needs level 15, 25, 40, 60, 75, 100, 125, 150, 175, 200, 225, 260,
+       300, 340, 380, 420, 465, 510, 560, 600 (N = 1 .. 20); rebirth 20 is the last. The TOTAL multi for Speed
+       gain, XP gain and roll Luck is 1.5, 2, 2.5, 3, 3.5, 4, 5, 6, 7.5, 10, then x10 per rebirth up to x100b.
+       XP to next level = 10 x level up to level 225, then 2,250 x 10^((level - 225) / 40) (placeholders), so
+       one rebirth takes at most about 7.5 h at base gain. XP per second = 1 x the Speed gain multi.
+       Owner decision, 2026-10-28 (replaces the 10 and 40 above; balance sim fit, tools/balance_sim.py, for
+       World 1 in about 30 h): XP to next level = 122 x level up to level 225, then 27,450 x
+       10^((level - 225) / 37.2) (placeholders).
+       Owner decision, 2026-10-27 (rev. 3, replaces the +5x step of rev. 2, which made gain too slow):
+       still by addition, but rebirths 1-40 add +25x each (rebirth 1 x25, 2 x50, ... 40 x1000); the total
+       is capped at x1000 from rebirth 40 on. Level 0 stays x1. The step and the cap are placeholders.
+       Rebirths do not multiply race payout Money; Money upgrades and temporary Money effects remain separate.
        Each rebirth also gives Rebirth Points to spend on four stats.
        Rebirth Points per rebirth: 1 (placeholder; owner 2026-10-15). They join the same free stat
        point pool as the car index (StatPoints) and are spent on the same four stats; they are derived
        from the rebirth count, never saved separately.
+
+       Owner decision, 2026-10-27: the Roblox player list shows the current rebirth level as a third
+       leaderstat, Rebirth, after Money and Speed. The server keeps it equal to RebirthLevel.
 
        Active milestone rule: if level resets on rebirth, each rebirth needs the next milestone; after level 100,
        milestones continue at 125, 150, 175 and so on without a cap.
@@ -469,7 +547,9 @@ Idle Vehicle Simulator — Game Design Requirements
 
      Car inventory                                  Kept (proposed): rare cars take too long to re-roll
 
-     Fuel, auras, spoilers                          Open
+     Auras, trails                                  Kept (owner 2026-10-27)
+
+     Fuel, spoilers                                 Open
 
      Workshop money upgrades                        Open
 
@@ -481,6 +561,38 @@ Idle Vehicle Simulator — Game Design Requirements
 
 
 
+
+  Worlds (owner decision, 2026-10-27; contract: docs/WORLDS_SPEC.md)
+  Owner decision, 2026-10-27 (cruise cap and worlds):
+       Cruise speed is capped at RaceConfig.MAX_CRUISE: just under the speed where the car starts to
+       fail the stability tests (flip, tilt or leaving the path), kept between 700 and 800 studs/s.
+       Set to 800 studs/s on 2026-10-27 (the speed probe was clean up to 1000). Owner decision, 2026-10-28: raised to
+       1250 studs/s (probe green on every track to 1250 after two physics fixes; replaces the 700 .. 800 range). Speed numbers keep
+       growing past the cap; cruise does not.
+       The game has two worlds. World 1 is today's game: rebirths 1-10 (x1.5 .. x10). Reaching
+       rebirth 10 unlocks World 2, a separate Roblox place in the same universe, reached through a
+       portal in the hub; players can travel back and forth. Rebirths 11-20 (x100 .. x100b) happen
+       only in World 2; World 1 refuses rebirths past 10.
+       Owner decision, 2026-10-28 (interim): until World 2 ships, the single place allows rebirths 1-20
+       and refuses only at 20; the World 1 cap at 10 starts with the World 2 release.
+       World 2 has its own 10 new tracks and biomes, its own NPC ladder, payouts that continue from
+       World 1's (World 2 Track n pays like Track 10 + n) and its own Speed -> cruise table: cruise
+       starts at 150 studs/s (owner 2026-10-27, so a 30k-stud track never takes half an hour) and needs far
+       bigger Speed numbers, under the same cap. Saved Money, MoneyEarned, single payouts and admin
+       amounts are all capped at 1e30 (was 1e15; payouts were capped at 1e9), and leaderstats.Money is a
+       NumberValue (an IntValue stops at about 9.2e18). Leaderboards store int64, so scores tie past 9e18.
+       Kept per world: Speed, BestTrack, Checkpoint, race best times, Level and XP.
+       Shared by both worlds: cars, index, Copies and Showcase, Money, rebirths and their multi,
+       upgrades, auras and trails.
+       World 2 content (owner, 2026-10-27, "even bigger"): long, very wide tracks through massive mega
+       biomes; road width 160, tracks 30k-60k studs, one 14k x 14k biome tile per track in a 5 x 2 snake,
+       Terrain plus streamed props. Biomes in order: Meadow Valleys, Blossom Terraces, Coral Lagoon, Titan
+       Redwoods, Crystal Caverns, Sky Archipelago, Aurora Glacier, Sunset Mesas, Glowshroom Marsh, Nebula
+       Rift. In World 2 only, each biome may blend its own Sky, Atmosphere and colour grade on the client
+       (an exception to "props never touch global Lighting"; World 1 keeps that rule). Sizes are placeholders.
+       Pacing targets for an average free player: about 30 hours to clear World 1 and reach
+       rebirth 10, then about 35 hours to clear World 2 and reach rebirth 20. Constants are fitted
+       by tools/balance_sim.py and approved by the owner (placeholders until then).
 
   Economy (Money)
   Money comes from one place, race cash-outs, and gets spent on permanent Speed
@@ -523,6 +635,8 @@ Idle Vehicle Simulator — Game Design Requirements
      Car aura                         Speed multi (A) plus a visual        One equipped at a time (proposed)
                                       effect
 
+     Trail                            Speed Gain multi (T) plus a visual   One equipped at a time
+
      Spoilers                         Speed multi (P) plus a visual part   One equipped at a time (proposed)
 
      Workshop                         Workshop multi (W)                   See workshop section
@@ -536,6 +650,23 @@ Idle Vehicle Simulator — Game Design Requirements
   (internal id ascended_aura, working name "Ascended Aura": the Dragon Ball names stay out of the game).
   It is shown only in the VFX showcase area for review and is not sold yet. Open question: its price,
   its Speed multi (A) and whether it joins the Market.
+
+
+  Aura and trail ladders (owner 2026-10-27, placeholder numbers; prices follow the price curve under Racing). Both multiply all Speed gain; the
+  aura also multiplies cruise speed (since 2026-10-28 the trail too, both damped: 1 + 0.5 x log10(multi), placeholder). Both are kept on rebirth.
+
+
+     Trail              Speed Gain multi        Cost              Aura             Speed multi    Cost
+
+     Rainbow            1.5x                    $500              Azure            1.2x           $2.5K
+
+     Solar              2x                      $16K              Ember            2x             $79K
+
+     Void               3x                      $320K             Galaxy           3x             $1.6M
+
+     Frost (new)        4x                      $10M
+
+     Prism (new)        5x                      $210M
 
 
   Sample fuel ladder (placeholder numbers)
@@ -614,6 +745,13 @@ Idle Vehicle Simulator — Game Design Requirements
   Every roll must return something, so the table needs a catch-all common. The brainstorm's
   1-in-10 Wooden Car leaves 90% of rolls undefined otherwise.
 
+  Owner decision, 2026-10-27 (odds rev., replaces every car's Chance; rebirth Luck now reaches x100b): each
+  rarity spans its own band, cars spaced evenly on a log scale in their old order, values rounded to 2
+  significant figures. Inspired by public RNG games (Sol's RNG: about x10 per tier, top auras 1 in 1-3b), pushed
+  further because our Luck stack is far larger. Bands: Uncommon 1 in 10 .. 200, Rare 500 .. 25k, Epic 50k .. 2.5m,
+  Legendary 10m .. 1b, Mythic 5b .. 1qd, Secret 10qd .. 5qt (the rarest-car leaderboard stores Chance as an int64, max about 9.2e18). Odds show with the HUD suffixes from 1,000
+  ("1 in 2.5m", "1 in 32qd"). Speed multis, ids and rarities are unchanged. Bands are placeholders.
+
   Owner expansion, 2026-10-20 (docs/CAR_EXPANSION_SPEC.md):
        Add 100 original base rollable cars: 18 Uncommon, 24 Rare, 22 Epic, 17 Legendary,
        11 Mythic, and 8 Secret (8 explicitly approved). Rusty Hatchback remains the only
@@ -646,9 +784,6 @@ Idle Vehicle Simulator — Game Design Requirements
        membranes with tattered flame edges and blue fire effects (owner, 2026-10-27, replacing
        the earlier black-and-amber look). Inspiration only: the design stays original, no
        existing character is copied.
-
-  Owner rendering pass, 2026-10-26 (docs/RENDERING_SPEC.md):
-       The world gets a richer lighting baseline (coloured ambient, colour grading, soft
        Owner, 2026-10-27 (Ember Wyvern flight, docs/WYVERN_FLIGHT_SPEC.md): the Ember Wyvern
        flies: while auto racing and on its pedestal the wings flap in bursts and glides and the
        body moves (neck, tail, heave, bank and head turn into curves), played on each client
@@ -659,6 +794,21 @@ Idle Vehicle Simulator — Game Design Requirements
        breathes blue fire in bursts during each glide between wingbeats, while racing and on
        its pedestal. Client-only particles in the cyan palette with the uploaded VFX textures;
        nothing changes physics, speed or payouts.
+       Owner, 2026-10-27 (car redesign v3, docs/CAR_REDESIGN_SPEC.md section 10): every car
+       skin moves to a stylised toy racer look: chunky, rounded bodies, big chunky wheels, short
+       overhangs and a taller, bubblier cabin, keeping each car's colours and signature parts.
+       The per-car budget rises from 6,000 to 15,000 triangles. Applies to all 111 cars with a
+       reference; the Ember Wyvern and the built-in starter keep their models. Flat colours stay
+       (no textures). A 3-car pilot (Rusty Hatchback, Street Racer, Singularity) is approved
+       by the owner before the other cars are rebuilt. Proportion numbers are placeholders.
+       Owner, 2026-10-27 (after approving the pilot): the rollout keeps big rear wings as they are.
+       Owner, 2026-10-27 (Singularity orb, docs/CAR_REDESIGN_SPEC.md section 11): Singularity's
+       black hole is smaller and floats above the engine deck (no stand). It spins and bobs up
+       and down, with a bright neon glow around its black core. The motion plays on each client
+       only; it never changes physics, speed or payouts.
+
+  Owner rendering pass, 2026-10-26 (docs/RENDERING_SPEC.md):
+       The world gets a richer lighting baseline (coloured ambient, colour grading, soft
        shadows, light haze), real surface materials on roads and walls instead of flat
        plastic, and level-of-detail rules so phones keep their frame rate. Weather events
        still own the sky and restore this baseline when they end. Purely visual: nothing
@@ -692,21 +842,6 @@ Idle Vehicle Simulator — Game Design Requirements
          Explain a luck purchase's effect in numbers before purchase.
          Keep the catalog rarity visible while boosts are active; boosts change the server's actual roll probability,
          not the advertised "1 in N" rarity.
-       Owner, 2026-10-27 (car redesign v3, docs/CAR_REDESIGN_SPEC.md section 10): every car
-       skin moves to a stylised toy racer look: chunky, rounded bodies, big chunky wheels, short
-       overhangs and a taller, bubblier cabin, keeping each car's colours and signature parts.
-       The per-car budget rises from 6,000 to 15,000 triangles. Applies to all 111 cars with a
-       reference; the Ember Wyvern and the built-in starter keep their models. Flat colours stay
-       (no textures). A 3-car pilot (Rusty Hatchback, Street Racer, Singularity) is approved
-       by the owner before the other cars are rebuilt. Proportion numbers are placeholders.
-       Owner, 2026-10-27 (after approving the pilot): the rollout keeps big rear wings as they are.
-       Owner, 2026-10-27 (Singularity orb, docs/CAR_REDESIGN_SPEC.md section 11): Singularity's
-       black hole is smaller and floats above the engine deck (no stand). It spins and bobs up
-       and down, with a bright neon glow around its black core. The motion plays on each client
-       only; it never changes physics, speed or payouts.
-
-  Owner rendering pass, 2026-10-26 (docs/RENDERING_SPEC.md):
-       The world gets a richer lighting baseline (coloured ambient, colour grading, soft
          Check ArePaidRandomItemsRestricted per player and block or hide paid luck for
          restricted players.
 
@@ -804,6 +939,14 @@ Idle Vehicle Simulator — Game Design Requirements
        Gift state was introduced as additive VERSION 10 data; it is part of the current VERSION 11 schema and older
        saves default to empty gift state.
 
+     Offline reward double (owner, 2026-10-28: "Build it now". Contract: docs/OFFLINE_DOUBLE_SPEC.md):
+       The offline reward (welcome-back) panel has a DOUBLE IT! button: a developer product
+       (19 Robux, proposed price) that adds the same offline Speed amount once more. Speed
+       only, never Money. The server decides the amount (the offline Speed it credited on
+       that join). One double per offline reward. The button shows only while the reward is
+       claimable (the panel is open and the window, placeholder 5 minutes from the join, has
+       not run out). It is not listed in the Shop.
+
   Implementation notes
 
        Rising prices need one item per tier. Each gamepass or product has one fixed price.
@@ -847,6 +990,15 @@ Idle Vehicle Simulator — Game Design Requirements
        car turns slowly on a round platform; its odds, its name and the player's name are shown
        above it.
 
+  Friends-in-server boost
+  Contract: docs/FRIENDS_BOOST_SPEC.md.
+
+       Owner decision, 2026-10-28 (World 1 feature nf3): every Roblox friend in the same server
+       gives +10% Luck and +10% Money, capped at +40% (4 friends). Multi = 1 + min(0.10 x friends, 0.40).
+       It multiplies the player's roll Luck and Money multi alongside the other multipliers; it
+       never changes Speed gain, cruise speed or car physics. The server counts friends and decides
+       the multi; the client only displays it. The 10% per friend and the 40% cap are placeholders.
+
   Weather events
   Contract: docs/WEATHER_EVENTS_SPEC.md.
 
@@ -864,6 +1016,13 @@ Idle Vehicle Simulator — Game Design Requirements
 
   HUD layout
   Contract: docs/HUD_LAYOUT_SPEC.md.
+
+       Owner decision, 2026-10-27 (HUD art and hover): use the approved simple
+       transparent cartoon icons; Shop is a red/tan house, Items a brown backpack,
+       Market a detailed red shopping bag without coin/logo. Hover feedback is
+       slight enlargement only, with no white outlined hover box. The icon set,
+       layouts/actions and existing accessibility behavior are documented in
+       HUD_LAYOUT_SPEC.md; no economy or gameplay values change.
 
   Race progress map
        During NPC auto-races, the HUD shows the current track's non-interactive
@@ -888,6 +1047,21 @@ Idle Vehicle Simulator — Game Design Requirements
        overlays may still bleed edge to edge; console is supported: opening a panel with a
        gamepad selects its first button, focus stays inside the panel, B closes it and closing
        restores the previous selection.
+
+       Owner decision, 2026-10-27 (UI visual pass; details in docs/HUD_LAYOUT_SPEC.md sections
+       8-10, docs/NPC_RACER_SPEC.md "Loser screen" and docs/RACE_PROGRESS_MAP_SPEC.md):
+       every screen shares one theme (Fredoka text with a dark outline, the theme's corner radii,
+       gradient plates, multipliers written "x1.5"). Money and UNBANKED sit on gradient plates and
+       count up smoothly with a pop on gain. The Speed stat sits in the centre of a speedometer
+       dial whose needle shows the car's real speed (studs/s) while auto racing and rests at 0 on
+       foot; the dial is presentation-only and the displayed number stays the base Speed stat.
+       The loser screen is a full race recap. The progress map gets a smooth route, a heading
+       arrow, the NPC's name and the time gap. The UI uses motion graphics (pops, slide-ins,
+       shines, pulses) that all respect reduced motion.
+       Owner decision, 2026-10-27 (checkpoint panel, docs/CHECKPOINT_SPEC.md section 4): each
+       checkpoint card shows a small 3D preview of its biome, the track number and biome name; clicking a
+       card shows its recommended Speed (as on the gate sign) against the player's Speed in a detail pane
+       with a START HERE button.
 
        Owner plan, 2026-10-20: Daily Rewards, Quests, Shop and Market share the Backpack
        frame vocabulary (header/icon/title, red X, rounded frame, backdrop, tabs, PanelBand).
@@ -918,8 +1092,8 @@ Idle Vehicle Simulator — Game Design Requirements
        grant fails, return NotProcessedYet so Roblox retries next join. Roblox doesn't store
        per-player product history, so save it yourself (Creator Hub).
        Big numbers. Luau numbers are 64-bit floats: exact up to about 9 quadrillion, max
-       about 1.8e308. Stacked multipliers will get there. Build number abbreviations (1.2K,
-       3.4M, 5.6Qa) from day one.
+       about 1.8e308. Stacked multipliers will get there. Build number abbreviations (1.2k,
+       3.4m, 5.6qd; owner 2026-10-27) from day one.
        Saving. Use DataStores with session locking so data can't duplicate across servers;
        libraries like ProfileStore handle this. Save on leave, on an interval and on server
        shutdown ( BindToClose ).

@@ -5,6 +5,14 @@ in git history (`git log -p -- handoff.md`, last full version at 2d99d78) and in
 
 ## State — 2026-10-27
 
+- Codex delivery: `feature/isaac/simple-hud-icons-20261027` from main `c9dadc5`.
+  Ten approved transparent HUD PNGs + IDs, scale-only hover, generated Settings
+  icon and narrow StarterGui asset update. Saved and focused-live-checked in Studio.
+  No server/gameplay changes, no main merge, no live publish. Full compatibility
+  not rerun. Review phone readability before merging; retain all open work below.
+  Luau compilation, Rojo build, deterministic UI generation and image-only
+  StarterGui preservation checks passed; source PNGs + asset IDs are included.
+
 - Current branch: `feature/alex/ember-wyvern-flight` (from origin/main 820cd25 + c4f4fee); see Open work 0.
 
 - Branch `feature/alex/race-progress-map-completion`, everything committed and pushed (2d99d78): biome visual pass
@@ -22,6 +30,138 @@ in git history (`git log -p -- handoff.md`, last full version at 2d99d78) and in
 
 ## Open work
 
+ORCH-5. **Orchestrator 2026-10-28 ~19:15: UI fix round, 3 task branches off feature/alex/world1-ship 7d7cc70 (worktrees ../RobloxGames-orch/<task>).**
+   - ui-style: COMMITTED d5d7c70 (WelcomeStyle Bangers line removed -> FredokaOne; UpgradeTreeView Panel transparency 0.38 -> 0.05). Bugs ccc13c4f, 03bad751.
+     Owner look check: Upgrades tree now covers the world almost fully in dark blue.
+   - ui-test-fixes (ui-test-writer): COMMITTED c3dabfa (shop_redeem_invalid_code expects one real RedeemCode call; new setup offline_double_open
+     + restore; Help.waitCardRest for showcase card; speed-dial sampler drops time of skipped teleport frames). Bugs 38e4a78b, 3b10d310, 837519cd.
+     Risk: speed dial may still fail (real cause could be rail sideways velocity in AssemblyLinearVelocity).
+   - ui-hud-phone: NO CODE CHANGE (worktree removed). All 3 trace to tests/docs:
+     9de32835 = test vs doc conflict: HUD_LAYOUT_SPEC 6 stacks the pair at height <= 400 (phone_landscape 390 stacks; HudChrome:144 and
+     UiResponsive:1914 agree) but UiSpec.HudPair.Beside (UiSpec:745) lists phone_landscape; tablet_4x3 shrink 0.54 follows the doc's
+     "phone and tablet scale down" but UiSpec.HudPair.Desktop (:746) says never shrunk. OWNER decides (manual hud-pair-phone-rule).
+     d782d207 = test fault: Face 172x46 is the 1.035 HoverScale (mouse left on Race); ui-test-writer must un-hover before measuring.
+     9617a457: MotionFloat cannot fit above Speed on phone (UiMotion:197/209, RacerUiController:808) -> OWNER (manual speed-float-phone);
+     Settings Title/ProfileTab RacerUiController:266 + RacerSettings.ui.json:136; DailyBoosts/Status BoostDailyUi:226; Backpack CarsTab
+     BackpackUi:167 (CLAUDE.md: Backpack has no Cars tab). Also HudChrome:328 comment says pair hides under panels but code never does.
+   DONE 2026-10-28 ~20:30: un-hover fix e52bab7, rules-auditor PASS (both branches), merged 6ae5e90 + e2a5f70 into world1-ship, pushed;
+   worktrees/branches removed. Live [UITEST] END pass=33 fail=4 (Studio fb39beec). Bugs fixed: ccc13c4f 38e4a78b 3b10d310 837519cd d782d207.
+   Still red: 03bad751 -> new 53e24a2e (UpgradeTreeView 0.05 vs cap 0.05, float32; fix: panel 0.04 or test epsilon via ui-test-writer);
+   3c0dcacf Upgrades Exit HoverScale 1.035 at rest; 7d99207f RollToast hitbox padding 22 px; adf68695 Rebirth band 4 px low / Close 2 px;
+   0261e33b reduced-motion roll no viewport; fd2412fe speed float +12,344 vs +12,345 (+ dial '1' on foot); 4796b256 / 12342e7c quest Claim
+   active; 081c684a harness leaves CheckpointUi + Offline modal open (test, ui-test-writer). Owner: hud-pair-phone-rule, speed-float-phone.
+   NEXT: one worktree task per group: (a) UpgradeTreeView 53e24a2e + 3c0dcacf; (b) RollToast 7d99207f + 0261e33b; (c) PanelBand adf68695;
+   (d) RacerUiController fd2412fe; (e) ui-test-writer 081c684a + quest fixture 4796b256; then full UITEST; then ORCH-3 speed probe.
+
+ORCH-4. **Orchestrator 2026-10-28 evening (world1-ship 82929ed): [CARTEST] END pass=54 fail=1, [UITEST] END pass=34 fail=3.**
+   CARTEST red = stale test economy stat_for_above_cap_is_huge (stf(1000) vs cap 1250, bug d5f9bdf9): test-writer fix 3430d85 on
+   orch/world1-ship/economy-cap-test (worktree ../RobloxGames-orch/economy-cap-test), rules-auditor PASS; economy re-run [CARTEST] END pass=1 fail=0 on
+   Studio fb39beec; LANDED as merge 71f4163 on feature/alex/world1-ship (pushed). Bug d5f9bdf9 fixed.
+   UITEST reds (bugs logged): ui_layout phone HudChrome Items/Upgrade mid-screen (9de32835, HudChrome.client.luau:141), Upgrades tiles
+   see-through (03bad751), phone overlaps (9617a457); ui_theme Welcome Bangers font (ccc13c4f, WelcomeStyle.luau:78); ui_speed_dial
+   236.9 vs 178.8+-26.8 while racing (maybe timing); on-foot Race Face 172x46 > parent 166x44 (d782d207, RacerHud.luau:36).
+   Clicks: quest Claim active when incomplete (12342e7c, UI suspected); TEST bugs for ui-test-writer: shop_redeem_invalid_code
+   Remote=false (38e4a78b), missing setup offline_double_open (3b10d310); showcase pop-in timing (837519cd).
+   Not run: manual Escape/gamepad/notch checks, PhoneOnly market clicks.
+   WARNING: Studio 30ded902 died mid-UITEST; fixtures (index_states, stat_points, rebirth_eligible, daily_claimed, quest...) were not
+   restored; if Studio DataStore writes are on they may be saved on the test account.
+   Parallel Studio blocked: IdleVehicleSimulator.rbxl stale (2026-10-11; manual item fresh-place-copy-2026-10-28); port 34873 used by AnimeRun.
+   NEXT: UI fix tasks in worktrees (HudChrome phone + Race Face; WelcomeStyle font; UpgradeTreeView tiles;
+   test bugs via ui-test-writer), then full UITEST again.
+
+ORCH-3. **Owner 2026-10-28: speed probe up to 2000; if every track is green through 2000 (highest_green_contiguous >= 2000),
+   set RaceConfig.MAX_CRUISE = 2000 (owner decision, no 10% margin) with a dated design-doc + WORLDS_SPEC entry; else ask the owner.**
+   Probe: CarTestOnly = "speed_probe", then CarTestRun = true (on feature/alex/world1-ship b737c85+). Queued after the UI runs.
+
+ORCH-2. **Orchestrator, 2026-10-28 late: Isaac merged (4227363), hover test scale-only (548f1e8), all pushed on feature/alex/world1-ship.**
+   Full UI suite (ui-tester): [UITEST] END pass=26 fail=13. Hover OK (1.000 -> 1.035, no outline). Bugs being logged in bugs.json.
+   UI-code bugs (implementer, then ui-tester): RollToast must hide under open panels (steals clicks); Index tile / PanelSwitch.Action("Index")
+   does nothing; Market/Shop do not close on outside click; Upgrades panel covers its toggle; Market phone tabs/Action ""; Shop overlap +
+   phone band; phone Welcome/Workshop above Race button; pedestal BillboardGui/ProximityPrompt nil; MoneyValue outside plate; fonts
+   LegacyArial not Fredoka; "Stats 37" label; Speed float +9 vs +0.5; weather icon phone order; Index ConsumablesTab; showcase Viewport
+   outside card; Duel invite left open.
+   TEST bugs (ui-test-writer only): ui_layout model mismatches the engine (no UIScale/AutomaticSize; Index off 879, Shop 1920); unknown
+   setup ids daily_unclaimed/daily_claimed/checkpoint_locked/checkpoint_open; PrepareGift not intercepted; money fixtures broken by
+   auto race payouts; gamepass cars Owned-vs-Equip fixture; ui_loser timing (hidden ~4 s after start); Backpack Cars order includes gamepass.
+   Manual (owner, Device Simulator / Controller Emulator): ui_safe_insets_notch, ui_gamepad_focus, Escape keys.
+   NEXT: one task per group in worktrees ../RobloxGames-orch/<task> on orch/world1-ship/<task> (UI code via ui-test-writer red ->
+   implementer -> ui-tester; tests via ui-test-writer), then full [UITEST] + [CARTEST] (XP check level_xp_curve_rev4 not yet run live).
+   Then td1-td7, w1a pad short text (owner approved), nf3 friends boost spec+build (owner approved +10%/friend cap 40%).
+
+ORCH-1. **Orchestrator tick 1, 2026-10-28: LANDED on `feature/alex/world1-ship` (pushed): 50efb4d scenery fix, 677ad7d World 1 balance,
+   2ac2f0f progress. Harness END pass=53 fail=0 (studio id now 4f40c05b-...; use CarTestOnly attribute, never gmatch the log).
+   NEXT: merge origin/feature/isaac/simple-hud-icons-20261027 (conflicts README, ProjectContext, current_progress,
+   ui/generated/RacerHud.*, StarterGui.rbxm: regenerate + re-bake), then full [UITEST] + harness, then test-debt td1-td7.**
+   History:
+   Branch switched in place from car-redesign (no file changes). Owners: world-two-speed-cap session (payout curve, rebirth rev 4,
+   XP 122/225/37.2, owner-approved 2026-10-28, applied by that session, check level_xp_curve_rev4 not run yet, car odds rev, MAX_CRUISE 800, money cap 1e30, max-rebirth UI); dashboard
+   files `tools/dashboard/{server.py,test_integration.py,static/flow.*}` belong to soft-car-finish-pilot: NEVER stage them.
+   Done: rules-auditor FAIL (9) triaged: owner decided interim rule "rebirths 1-20 in one place until World 2 ships" (design doc,
+   WORLDS_SPEC, REBIRTH_SPEC, 2026-10-28); stale doc lines fixed (CLAUDE.md cruise cap, HALF_STAT/no-cap/1e15 marked REPLACED,
+   NPC_RACER_SPEC 1.51, HUD_LAYOUT_SPEC x1k); test-writer tightened race resync window, huge_multi ULP tolerance, added
+   odds_rev_even_log_spacing. Scenery bugs ab037b16/b99e2c0b fixed (BiomeDressing Prune spawn columns + exact Blocks slots;
+   BiomeThemes City Landmarks.Offset 96, Blocks.Spacing 32), made in worktree ../RobloxGames-orch/w1d-scenery and applied to
+   the main tree. Harness before fixes: END pass=50 fail=3 (only the 3 scenery reds).
+   Harness rerun (scenery + tightened tests): END pass=51 fail=2; scenery green (city_blocks_gap 0.755, overlaps 0); new reds race
+   (max_speed_run_reports_path_deviation 1.929 (11) FAIL) and track:Space (completed 0, off_track 7.0 s); diagnosis agent running.
+   Studio froze after the run (agent's gmatch log search); owner unfreezes it by hand. NEVER parse [CARTEST] lines with lazy gmatch.
+   Race red = test sampled the finish frame (bug 3e2ab51f); test-writer fixed Scenarios.luau:1889 (`and not run.Finished`), not run yet.
+   Space red = likely hitch flake (bug 24161ed7; scenery parts are CanCollide/CanQuery false, lap code untouched).
+   2026-10-28 later: re-audit FAIL(2) fixed (CLAUDE.md NPC line 16 x1.51; owner OK'd spawn-area 'column' prune rule, written in
+   BIOME_DRESSING_SPEC Clearance). Owner: Isaac's 153072a (origin/feature/isaac/simple-hud-icons-20261027, simple HUD icons +
+   scale-only hover) is NOT in our branch; owner-approved order: commit our WIP, then merge Isaac, regenerate RacerHud from the
+   merged spec and re-bake StarterGui.rbxm (conflicts: README, ProjectContext, current_progress, ui/generated/RacerHud.*,
+   assets/studio/StarterGui.rbxm), then the UI suite. Studio reopened by owner (new studio_id 65d7c2bb-...).
+   IN FLIGHT at handoff: physics-tester running track:Space alone then the full harness (studio 65d7c2bb). Its result arrives in
+   session orchestrator-skill-setup; a new session re-runs it if lost. Owner 'approve everything' 2026-10-28: XP 122/37.2 (applied),
+   friends boost +10%/friend cap +40% (write design-doc entry + docs/FRIENDS_BOOST_SPEC.md, then build), pad billboard short text
+   (todo f3664748). Still awaiting owner: W2 HALF_STAT 2.07e15.
+   Next: (1) run track:Space alone, then full harness (expect fail=0), mark bugs
+   ab037b16, b99e2c0b, 3e2ab51f, 24161ed7 fixed with bugs.py; (2) ui-tester full [UITEST]; (3) rules-auditor re-run -> PASS;
+   (4) commit WIP (excluding dashboard files) + scenery in two commits on feature/alex/world1-ship, push, bugs.py fixed,
+   remove worktree w1d-scenery + branch orch/world1-ship/w1d-scenery, progress-tracker; (5) then goal test-debt td1..td7.
+   Owner items: manual.json friends-boost-rule-2026-10-28 (nf3). nf1 quests / nf2 codes already have specs + code: verify only.
+
+00000000. **Orchestrator + flow dashboard** (owner 2026-10-28; branch `feature/alex/orchestrator-and-flow-dashboard`, worktree
+   `../RobloxGames-orchflow`, pushed through 33d3018). Skill `~/.claude/skills/orchestrator/` (SKILL.md, scripts/context_watch.py
+   global hook, scripts/runner.py, scripts/install_launchd.sh); repo: `.claude/orchestrator.md`, agents `rules-auditor` and
+   `merge-reviewer`, `/orchestrate`, `docs/ORCHESTRATOR_GOALS.md` (5 goals owner-confirmed 2026-10-28, test-debt first),
+   dashboard `/static/flow.html` + `/api/flow`. Merges to main only via PR + fresh merge-reviewer. Next: owner runs
+   `bash ~/.claude/skills/orchestrator/scripts/install_launchd.sh ~/Documents/RobloxGames` (launchd install was blocked for
+   Claude), then the first tick does td1. Unverified: Studio MCP from headless `claude -p`; context_window 200000 is a guess.
+
+0000000. **Payout + price curves, Speed float** (owner 2026-10-27, uncommitted on this tree). Rules: design doc "payout and
+   price curves", UPGRADE_TREE_SPEC 2, WORKSHOP_SPEC 5, HUD_LAYOUT_SPEC 10. Code: `Shared/PayoutCurve` + its users,
+   Money cap 1e15, RacerUiController Speed float, RaceProgressMap Path2D fix. Harness 39/4 (only known scenery bugs +
+   npc timing check, rerun pending). Next: run [UITEST] (incl. ui_speed_float), commit on its own feature branch,
+   progress-tracker. Open: pad billboard still shows full digits (rule 6).
+
+000. **UI visual pass** (owner 2026-10-27; branch `feature/alex/ui-visual-pass`, git WORKTREE
+   `/Users/alexnguyen7369/Documents/RobloxGames-ui` so the car-redesign tree stays untouched). Rules: design doc
+   (lowercase suffixes from 1k incl. Money; "UI visual pass" entry), HUD_LAYOUT_SPEC 8-10, NPC_RACER_SPEC "Loser
+   screen", RACE_PROGRESS_MAP_SPEC "Look". Code: `Shared/UiTheme` (new), `Client/UiMotion` presets
+   (Pop/SlideIn/Shine/Pulse/Shake/Float/Cascade), `HudFormat` (lowercase, SUFFIX_FROM 1e3, MoneyText short, Multi),
+   RacerHud spec (`SpeedDial`, `MoneyPlate`; regenerated + baked), `RollToast/Ui/SpeedDial` (Path2D arc + needle,
+   real car speed), RacerUiController (count-up, pops, +$ float, bank pulse, Race breathing, turbo punch-in),
+   NpcRacerView loser recap, RaceProgressMap Path2D route, restyle of HudChrome/Backpack/Market/Shop/BoostDaily/
+   Progression/Checkpoint/Duel/GiftPicker/PanelSwitch open motion, billboards to Fredoka + UIStroke.
+   Tests written first (test-writer: HudFormat, TimeAt, on_foot fixture; ui-test-writer: ui_hud, ui_speed_dial,
+   ui_theme, ui_motion_reduced, loser recap, map). NOT RUN in Studio yet (Studio was busy with the car-redesign
+   suite). Next: serve the worktree with rojo (stop the other rojo only when robloxgames-e7 says Studio is free),
+   run [CARTEST] (hud/format, race_progress_map, environment, npc) and [UITEST], screenshot desktop + phone, fix,
+   then ProjectContext/todo, commit, progress-tracker.
+0000000a. **Cruise cap + World 1 / World 2** (owner 2026-10-27, plan `~/.claude/plans/nested-questing-thunder.md`).
+   Phase 0 done (docs): design doc "Worlds", new `docs/WORLDS_SPEC.md`, notes in REBIRTH/SAVE/CHECKPOINT/NPC_RACER specs.
+   Phase 1 DONE: speed_probe green to 1000 -> MAX_CRUISE 800, NPC growth 1.51; harness 49/4 then money fixes green.
+   Phase 4 sim written (tools/balance_sim.py --fit): XP_LINEAR 122 / XP_DECADE 37.2 await owner OK.
+   Next: set `RaceConfig.MAX_CRUISE` from the probe (700-800), then Phase 2 WorldConfig/TrackRegistry, Phase 3
+   save VERSION 13 + WorldService teleport, Phase 4 `tools/balance_sim.py` (W1 30 h, W2 35 h), Phase 5 ten W2 tracks
+   via /build-track, Phase 6 manual place setup. Commit on `feature/alex/worlds`.
+000000. **Rebirth rev. 3 + Speed full digits** (owner 2026-10-27, uncommitted). Owner: gain too low after rev. 2 and
+   "1.23k" looks frozen. Rules: design doc "Rebirth system" rev. 3 (+25 per rebirth, cap x1000 at 40) and "Large Speed
+   numbers" later entry (Speed full digits below 1m); REBIRTH_SPEC, HUD_LAYOUT_SPEC 8. Code: `RebirthConfig`
+   EARLY_STEP 25 / ADD_UNTIL 40, `HudFormat.SPEED_SUFFIX_FROM` 1e6 (SpeedText only), RacerUiController dial tier.
+   test-writer updating Phase2Tests / Scenarios hud / UiSpec. Next: run `rebirth`, `hud`, `leaderboard` + UI tests live.
 00000. **Rebirth curve rev. 2 + lost race gain** (2026-10-27, uncommitted). Owner: x10 per rebirth too high, and
    multi "not applied" while racing. Rules: design doc "Rebirth system" (rev. 2), REBIRTH_SPEC "Automatic bonus".
    Code: `RebirthConfig` (+EARLY_STEP 5 per rebirth, capped at x100 from ADD_UNTIL 20), `RaceService` commitStat caps

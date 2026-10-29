@@ -4,7 +4,7 @@ return {
 	Id = "flux_flyer",
 	Name = "Flux Flyer",
 	Rarity = "Legendary",
-	Chance = 2700,
+	Chance = 5.5e7,
 	SpeedMulti = 50,
 	Order = 1070,
 	Model = "flux_flyer",

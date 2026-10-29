@@ -39,24 +39,24 @@ Added percentages: every multi = 1 + (stat-point bonus) + (tree bonus). Example:
 (+25 %) give Luck x1.35.
 
 ## 2. Prices (scale with progression)
-Income today: winning Track N pays `N * 100` (`TrackBuilder.CashFor`) immediately in NPC mode. Early game a Track 1
-win (~30-40 s) is $100; a full 2-track sequence is $300. Prices therefore grow exponentially with how deep a tile is:
+Income: winning Track N pays `PayoutCurve.Cash(N)` ($100, then x10 / x7.5 alternating per track; owner 2026-10-27,
+design doc "payout and price curves"). Prices grow faster than payouts (owner 2026-10-27):
 
-`price(tile) = round_nice(150 * 50 ^ (depth - 1) * branchWeight)` (depth 1 = next to Start; owner 2026-10-21)
+`price(tile) = round_nice(150 * PayoutCurve.Ratio(depth) ^ 1.5 * branchWeight)` (`PayoutCurve.Cost`; depth 1 = next to
+Start; `Ratio(n)` = payout of Track n / payout of Track 1)
 
-| Depth | Base price | About how long at that point |
+| Depth | Base price | Track payout at that depth |
 |---|---|---|
-| 1 | $150 | 1-2 Track 1 wins (first minute or two) |
-| 2 | $7.5k | early progression checkpoint |
-| 3 | $380k | |
-| 4 | $19m | |
-| 5 | $940m | late multi-track progression |
-| 6 (Turbo III) | $47b | |
-| 7 (Turbo IV) | $2.3t | |
+| 1 | $150 | $100 |
+| 2 | $4.7k | $1k |
+| 3 | $97k | $7.5k |
+| 4 | $3.1m | $75k |
+| 5 | $63m | $563k |
+| 6 (Turbo III) | $2.0b | $5.6m |
+| 7 (Turbo IV) | $41b | $42m |
 
 `branchWeight`: Walkspeed 0.5 (cheap, quality of life), Money 1, Speed 1, Luck 1.2, Roll Speed 1.5, Turbo 2.
-Turbo tiers start at depth 2 so the first turbo upgrade is never the first purchase. Rounded to "nice" numbers
-($150, $7.5k, $380k, $19m, $940m, $47b, $2.3t...). All numbers live in one config so they can be re-tuned.
+Turbo tiers start at depth 2 so the first turbo upgrade is never the first purchase. Rounded to two significant figures. All numbers live in one config so they can be re-tuned.
 
 **Progression gate** (so it can not go too fast even with lucky money): tiers III+ also need the player's best track
 won so far (`BestTrack`, a new saved number): tier III needs Track 2, tier IV Track 3, tier V Track 4, ... The gate is

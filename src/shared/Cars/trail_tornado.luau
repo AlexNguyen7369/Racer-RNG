@@ -4,7 +4,7 @@ return {
 	Id = "trail_tornado",
 	Name = "Trail Tornado",
 	Rarity = "Rare",
-	Chance = 130,
+	Chance = 2600,
 	SpeedMulti = 3.75,
 	Order = 1028,
 	Model = "trail_tornado",

@@ -7,6 +7,8 @@ local Catalog = require(Shared.CarCatalog)
 local TrackRegistry = require(Shared.TrackRegistry)
 local TrackBuilder = require(Shared.TrackBuilder)
 local Format = require(Shared.HudFormat)
+local RaceConfig = require(Shared.RaceConfig)
+local NpcConfig = require(Shared.NpcConfig)
 local Market = require(Shared.MarketConfig)
 local Monetization = require(Shared.MonetizationConfig)
 local Daily = require(Shared.DailyLoginConfig)
@@ -44,7 +46,94 @@ function Contracts.Build(h)
 		return math.abs(a.AbsolutePosition.Y - b.AbsolutePosition.Y) <= Spec.Tolerance
 	end
 
+	-- Independent oracle from CHECKPOINT_SPEC (never the UI's own IsOpen / Effective helpers): Track 1 and every track
+	-- up to BestTrack are open; the current checkpoint is the saved one clamped into that range.
+	local function checkpointState()
+		local tracks = TrackRegistry.Chain()
+		local best = math.clamp(math.floor(h.player:GetAttribute("BestTrack") or 0), 1, #tracks)
+		local current = math.clamp(math.floor(h.player:GetAttribute("Checkpoint") or 1), 1, best)
+		return tracks, best, current
+	end
+	local function speedNow()
+		local stats = h.player:FindFirstChild("leaderstats")
+		local speed = stats and stats:FindFirstChild("Speed")
+		return speed and speed.Value or 0
+	end
+	-- "PirateCoast" -> "PIRATE COAST" (CHECKPOINT_SPEC section 4: the biome name, upper case)
+	local function biomeTitle(biome)
+		return string.upper((string.gsub(biome or "", "(%l)(%u)", "%1 %2")))
+	end
+	local function startText(n, best, current)
+		local C = Spec.Checkpoints
+		if n > best then
+			return C.StartLocked, false
+		elseif n == current then
+			return C.StartSelected, false
+		end
+		return C.StartOpen, true
+	end
+
+	-- The detail pane (CHECKPOINT_SPEC section 4) showing track n. `speedFrom` is the player's Speed when the pane
+	-- was drawn: YOUR SPEED and the status may show any Speed between then and now (the stat grows while racing).
+	local function detailChecks(res, prefix, n, speedFrom)
+		local C = Spec.Checkpoints
+		local tracks, best, current = checkpointState()
+		local spec = tracks[n]
+		local detail = required(res, C.Detail, "Frame")
+		if not (detail and spec) then
+			return
+		end
+		check(res, prefix .. "_shown", h.visible(detail), true)
+		required(res, C.Detail .. "/Preview", "ViewportFrame")
+		local function label(name)
+			local l = detail:FindFirstChild(name)
+			return l and l:IsA("TextLabel") and l.Text or "missing"
+		end
+		check(res, prefix .. "_title", label("Title"), ("TRACK %d · %s"):format(n, string.upper(spec.Name)))
+		check(res, prefix .. "_biome", label("Biome"), biomeTitle(spec.Biome))
+		local rec = RaceConfig.StatFor(NpcConfig.For(n).Speed)
+		check(res, prefix .. "_rec_speed", label("RecSpeed"), C.RecPrefix .. Format.SpeedText(rec))
+		check(res, prefix .. "_cash", label("Cash"), C.CashPrefix .. Format.MoneyText(TrackBuilder.CashFor(n)))
+		-- YOUR SPEED and the status chip, from one Speed value between speedFrom and now
+		local lo, hi = speedFrom or speedNow(), speedNow()
+		local your, status = label("YourSpeed"), label("Status")
+		local matched = false
+		for k = 0, 100 do
+			local s = lo + (hi - lo) * k / 100
+			local wantStatus = s >= rec and C.Ready or C.NeedFormat:format(Format.SpeedText(rec - s))
+			if your == C.YourPrefix .. Format.SpeedText(s) and status == wantStatus then
+				matched = true
+				break
+			end
+		end
+		local s = speedNow()
+		h.check(
+			res,
+			prefix .. "_your_speed_and_status",
+			("%q / %q"):format(your, status),
+			("%q / %q"):format(
+				C.YourPrefix .. Format.SpeedText(s),
+				s >= rec and C.Ready or C.NeedFormat:format(Format.SpeedText(rec - s))
+			),
+			matched
+		)
+		local start = detail:FindFirstChild("Start")
+		local wantText, wantActive = startText(n, best, current)
+		h.check(
+			res,
+			prefix .. "_start_button",
+			start and ("%s %q Active=%s"):format(start.ClassName, h.allText(start), tostring(start.Active)) or "missing",
+			("TextButton %q Active=%s"):format(wantText, tostring(wantActive)),
+			start ~= nil
+				and start:IsA("TextButton")
+				and h.allText(start) == wantText
+				and start.Active == wantActive
+				and (wantActive or start.AutoButtonColor == false)
+		)
+	end
+
 	function scenarios.ui_checkpoints(res)
+		local speedAtOpen = speedNow()
 		local restore = h.setPanels({ Spec.Checkpoints.Panel })
 		h.frames(2)
 		local panel = required(res, Spec.Checkpoints.Panel, "Frame")
@@ -59,12 +148,11 @@ function Contracts.Build(h)
 		check(res, "checkpoint_panel_theme", panel:GetAttribute("PanelTheme"), Spec.Checkpoints.PanelTheme)
 		required(res, Spec.Checkpoints.Panel .. "/Header/Title", "TextLabel")
 		required(res, Spec.Checkpoints.Panel .. "/Header/Icon", "GuiObject")
-		local tracks = TrackRegistry.Chain()
-		-- Independent oracle from CHECKPOINT_SPEC: do not call the same IsOpen/Effective helpers as the UI.
-		local best = math.clamp(math.floor(h.player:GetAttribute("BestTrack") or 0), 1, #tracks)
-		local current = math.clamp(math.floor(h.player:GetAttribute("Checkpoint") or 1), 1, best)
+		local tracks, best, current = checkpointState()
 		local expected, shown = {}, 0
 		local previous
+		-- CHECKPOINT_SPEC section 4 (owner 2026-10-27): each card shows a biome Preview, TRACK n and the biome; locked
+		-- cards keep the dim and lock of section 3 but stay clickable (a click only shows the track in Detail).
 		for _, track in tracks do
 			local n = track.Number
 			local prefix = "checkpoint_track_" .. n
@@ -84,29 +172,34 @@ function Contracts.Build(h)
 				)
 			end
 			previous = card
+			required(res, h.pathOf(card) .. "/Preview", "ViewportFrame")
 			check(res, prefix .. "_number", text(card:FindFirstChild("Number")), "TRACK " .. n)
-			check(res, prefix .. "_name", text(card:FindFirstChild("TrackName")), track.Name)
-			check(res, prefix .. "_cash", text(card:FindFirstChild("Cash")), Format.MoneyText(TrackBuilder.CashFor(n)))
-			local state = required(res, h.pathOf(card) .. "/State", "TextLabel")
+			check(res, prefix .. "_biome", text(card:FindFirstChild("Biome")), biomeTitle(track.Biome))
 			local lock = required(res, h.pathOf(card) .. "/Lock", "Frame")
-			local unlocked, selected = n <= best, n == current
-			if state then
-				check(res, prefix .. "_state", state.Text, selected and "SELECTED" or "SELECT")
-				check(res, prefix .. "_state_visible", state.Visible, unlocked)
-			end
+			local unlocked = n <= best
 			if lock then
 				check(res, prefix .. "_lock_visible", lock.Visible, not unlocked)
-				check(
+				-- (BackgroundTransparency is a float32: 0.4 reads back as 0.40000000596; equal within float precision only)
+				h.check(
 					res,
 					prefix .. "_lock_transparency",
 					lock.BackgroundTransparency,
-					Spec.Checkpoints.LockTransparency
+					Spec.Checkpoints.LockTransparency,
+					math.abs(lock.BackgroundTransparency - Spec.Checkpoints.LockTransparency) <= 1e-6
 				)
 				check(res, prefix .. "_lock_reason", text(lock:FindFirstChild("Need")), "Beat Track " .. n)
 				local icon = required(res, h.pathOf(lock) .. "/Icon", "TextLabel")
 				check(res, prefix .. "_lock_icon", icon ~= nil and icon.Text ~= "", true)
+				-- The lock must not take the click from its card (locked cards are clickable now)
+				local swallows = {}
+				for _, o in { lock, table.unpack(lock:GetDescendants()) } do
+					if o:IsA("GuiButton") or (o:IsA("GuiObject") and o.Active) then
+						table.insert(swallows, h.pathOf(o))
+					end
+				end
+				h.checkList(res, prefix .. "_lock_click_through", swallows)
 			end
-			check(res, prefix .. "_hover_enabled", card.AutoButtonColor, unlocked and not selected)
+			check(res, prefix .. "_clickable", card.Active, true)
 		end
 		local extras = {}
 		for _, child in cards:GetChildren() do
@@ -119,12 +212,16 @@ function Contracts.Build(h)
 		end
 		check(res, "checkpoint_exact_card_count", shown, #tracks)
 		h.checkList(res, "checkpoint_no_extra_cards", extras)
+		-- On open the detail pane shows the current checkpoint (section 4)
+		detailChecks(res, "checkpoint_detail_on_open", current, speedAtOpen)
 		h.geometry.Panel(res, "checkpoint", panel)
 		h.geometry.Topmost(res, "checkpoint", panel, cards)
 		local header = required(res, Spec.Checkpoints.Panel .. "/Header", "Frame")
 		local hint = required(res, Spec.Checkpoints.Panel .. "/Hint", "TextLabel")
+		local detail = h.find(Spec.Checkpoints.Detail)
 		if header and hint then
-			h.geometry.Group(res, "checkpoint_sections", panel, { header, hint, cards })
+			-- Grid and detail pane side by side (phones: pane under the header row): no section overlaps another
+			h.geometry.Group(res, "checkpoint_sections", panel, { header, hint, cards, detail })
 		end
 		local remote = ReplicatedStorage:FindFirstChild("Remotes")
 		remote = remote and remote:FindFirstChild("SetCheckpoint")
@@ -148,6 +245,16 @@ function Contracts.Build(h)
 	function after.checkpoint_not_optimistic(res, ctx)
 		check(res, "checkpoint_unchanged_after_refused_pick", h.player:GetAttribute("Checkpoint"), ctx.pre.Checkpoint)
 		scenarios.ui_checkpoints(res)
+	end
+
+	-- After a card click: the panel stays open, the detail pane shows THAT card's track (locked ones too), and the
+	-- Start button's text / Active follow the server attributes (CHECKPOINT_SPEC section 4).
+	function after.checkpoint_detail_shows_card(res, ctx)
+		local n = tonumber(string.match(ctx.path or "", "Track_(%d+)$"))
+		check(res, "checkpoint_card_click_target", n ~= nil, true)
+		if n then
+			detailChecks(res, "checkpoint_detail_after_card", n, ctx.pre and ctx.pre.Speed)
+		end
 	end
 
 	function scenarios.ui_catalog_manifest(res)
@@ -364,7 +471,8 @@ function Contracts.Build(h)
 				end
 			end
 		end
-		check(res, "cosmetic_six_authored_icons", count, 6)
+		-- 5 trails + 3 auras (owner 2026-10-27, "Aura and trail ladders"; icons in Shared/MarketArtConfig)
+		check(res, "cosmetic_eight_authored_icons", count, 8)
 	end
 
 	function scenarios.ui_daily_cards(res)
@@ -473,12 +581,19 @@ function Contracts.Build(h)
 	local function rank(rarity)
 		return table.find(B.RarityOrder, rarity) or math.huge
 	end
-	-- Owned catalog cars (LocalPlayer.GachaData), least rare first, then catalog Order: the spec's order.
+	-- Owned cars, least rare first, then catalog Order: the spec's order. Index cars are owned through
+	-- LocalPlayer.GachaData; gamepass cars through the attribute Pass_<carId> and sort by their catalog rarity
+	-- (docs/HUD_LAYOUT_SPEC.md section 3, docs/GAMEPASS_CARS_SPEC.md "the Backpack Cars tab lists owned gamepass cars").
 	local function ownedInOrder()
 		local data = h.player:FindFirstChild("GachaData")
 		local list = {}
 		for _, car in Catalog.All() do
 			if data and data:FindFirstChild(car.Id) then
+				table.insert(list, car)
+			end
+		end
+		for _, car in Catalog.Passes() do
+			if h.player:GetAttribute("Pass_" .. car.Id) == true then
 				table.insert(list, car)
 			end
 		end
@@ -530,7 +645,7 @@ function Contracts.Build(h)
 			if child:IsA("GuiObject") then
 				table.insert(tiles, child)
 				if not wanted[child.Name] then
-					table.insert(p.backpack_cars_owned_only, child.Name .. ": shown but not an owned catalog car")
+					table.insert(p.backpack_cars_owned_only, child.Name .. ": shown but not an owned car")
 				end
 			end
 		end
@@ -593,7 +708,7 @@ function Contracts.Build(h)
 				table.insert(p.backpack_cars_name, tile.Name .. ": " .. text(name) .. " want " .. car.Name)
 			end
 			local multi = tile:FindFirstChild("Multi")
-			local wantMulti = "x" .. tostring(car.SpeedMulti)
+			local wantMulti = Format.Multi(car.SpeedMulti) -- docs/HUD_LAYOUT_SPEC.md section 8
 			local got = multi and multi:IsA("TextLabel") and multi.Text or "missing"
 			if got ~= wantMulti then
 				table.insert(p.backpack_cars_multi, tile.Name .. ": " .. got .. " want " .. wantMulti)

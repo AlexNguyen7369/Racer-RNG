@@ -1,21 +1,40 @@
 --!nonstrict
 -- Attached after RacerHud.Bind so a stale StarterGui can never strand this view.
+-- Look: docs/RACE_PROGRESS_MAP_SPEC.md "Look (owner 2026-10-27)"; theme and motion: docs/HUD_LAYOUT_SPEC.md 8 and 10.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local TextService = game:GetService("TextService")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local NpcRacer = require(Shared.NpcRacer)
+local NpcConfig = require(Shared.NpcConfig)
 local CarConfig = require(Shared.CarConfig)
 local TrackBuilder = require(Shared.TrackBuilder)
 local TrackRegistry = require(Shared.TrackRegistry)
 local RouteMath = require(Shared.RaceProgressMap)
+local UiTheme = require(Shared.UiTheme)
+local UiMotion = require(script.Parent.UiMotion)
 
 local Controller = {}
 local tracks = {}
 local entries
 local headshot
 local UP = Vector3.new(0, CarConfig.RestHeight, 0)
+local FLAT = Vector3.new(1, 0, 1)
 local VIEW_SPAN = 260
+local VIEW_MARGIN = 0.15 -- route kept this far (view fraction) outside the canvas; the edge fade hides it
+local REBUILD_PX = 1.5
+local REBUILD_COS = math.cos(math.rad(1.5))
+local DRIVEN = Color3.fromRGB(164, 107, 255)
+local AHEAD = Color3.fromRGB(61, 224, 255)
+local FADE_IN = TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+local Palette = UiTheme.Palette
+
+-- "track01_NPC" -> "T1 NPC"; any other label is cut to 10 characters.
+local function shortName(label)
+	local name = string.upper(tostring(label)):gsub("^TRACK0*(%d+)_", "T%1 ")
+	return #name > 10 and name:sub(1, 9) .. "." or name
+end
 
 local function trackFor(number)
 	if tracks[number] then
@@ -45,6 +64,7 @@ local function trackFor(number)
 				PlayerRoute = lane(TrackBuilder.LANE_OFFSET),
 				NpcRoute = RouteMath.Build(npcPath),
 				NpcPath = npcPath,
+				NpcName = shortName(NpcConfig.For(number).Label),
 				Title = string.format("TRACK %d · %s", number, string.upper(spec and spec.Name or "RACE")),
 			}
 			return tracks[number]
@@ -59,8 +79,34 @@ local function make(class, name, parent, props)
 	for key, value in props do
 		object[key] = value
 	end
+	if object:IsA("GuiObject") then
+		object.Active, object.Selectable = false, false
+	end
 	object.Parent = parent
 	return object
+end
+
+-- Theme text: FredokaOne with the dark outline (HUD_LAYOUT_SPEC section 8).
+local function text(name, parent, props)
+	props.BackgroundTransparency = props.BackgroundTransparency or 1
+	props.Font = UiTheme.Font
+	props.TextColor3 = props.TextColor3 or Palette.White
+	local label = make("TextLabel", name, parent, props)
+	UiTheme.Stroke(label, 1.5)
+	return label
+end
+
+-- Transparent at both ends of the gradient axis, so clipped road fades out at the canvas edge.
+local function edgeFade(group, rotation)
+	make("UIGradient", "EdgeFade", group, {
+		Rotation = rotation,
+		Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 1),
+			NumberSequenceKeypoint.new(0.12, 0),
+			NumberSequenceKeypoint.new(0.88, 0),
+			NumberSequenceKeypoint.new(1, 1),
+		}),
+	})
 end
 
 function Controller.Attach(hud, player, remote)
@@ -71,7 +117,8 @@ function Controller.Attach(hud, player, remote)
 	-- visibility target also works with saved HUDs generated before this change.
 	local card = hud.RaceMap
 	local canvas = hud.RaceMapCanvas
-	local state, routeFrames, routeJoints, dots, finish, start = nil, {}, {}, {}, nil, nil
+	local status = hud.RaceMapStatus
+	local state, view = nil, nil
 	local connections = {}
 	local destroyed = false
 	local self = {}
@@ -80,9 +127,27 @@ function Controller.Attach(hud, player, remote)
 	-- Keep the metadata compact and edge-aligned like a kart-racing tactical HUD;
 	-- the route itself remains the visual focus and stays completely transparent.
 	hud.RaceMapTitle.TextXAlignment = Enum.TextXAlignment.Left
-	hud.RaceMapStatus.TextXAlignment = Enum.TextXAlignment.Right
+	status.TextXAlignment = Enum.TextXAlignment.Right
 	hud.RaceMapTime.TextXAlignment = Enum.TextXAlignment.Left
 	hud.RaceMapPB.TextXAlignment = Enum.TextXAlignment.Right
+	-- The pill is a sibling under the status text (Sibling ZIndex: a child would cover the text). No card fill.
+	local pill = card:FindFirstChild("StatusPill")
+		or make("Frame", "StatusPill", card, {
+			AnchorPoint = Vector2.new(1, 0.5),
+			BorderSizePixel = 0,
+			BackgroundColor3 = Palette.Muted,
+			ZIndex = math.max(status.ZIndex - 1, 1),
+		})
+	if not pill:FindFirstChildOfClass("UICorner") then
+		make("UICorner", "Pill", pill, { CornerRadius = UDim.new(1, 0) })
+	end
+	local fadeTargets = { { pill, "BackgroundTransparency", 0.15 } }
+	for _, label in { hud.RaceMapTitle, status, hud.RaceMapTime, hud.RaceMapPB } do
+		label.Font = UiTheme.Font
+		local stroke = label:FindFirstChildOfClass("UIStroke") or UiTheme.Stroke(label, 1.5)
+		table.insert(fadeTargets, { label, "TextTransparency", 0 })
+		table.insert(fadeTargets, { stroke, "Transparency", 0 })
+	end
 	for _, object in card:GetDescendants() do
 		if object:IsA("GuiObject") then
 			object.Active, object.Selectable = false, false
@@ -93,12 +158,13 @@ function Controller.Attach(hud, player, remote)
 		for _, object in canvas:GetChildren() do
 			object:Destroy()
 		end
-		routeFrames, routeJoints, dots, finish, start = {}, {}, {}, nil, nil
+		view = nil
 	end
 
 	local function marker(name, caption, color)
+		local size = name == "YouDot" and 22 or 18
 		local dot = make("ImageLabel", name, canvas, {
-			Size = UDim2.fromOffset(caption == "YOU" and 20 or 17, caption == "YOU" and 20 or 17),
+			Size = UDim2.fromOffset(size, size),
 			AnchorPoint = Vector2.new(0.5, 0.5),
 			BackgroundColor3 = color,
 			BorderSizePixel = 0,
@@ -107,35 +173,17 @@ function Controller.Attach(hud, player, remote)
 			ZIndex = 6,
 		})
 		make("UICorner", "Circle", dot, { CornerRadius = UDim.new(1, 0) })
-		make("UIStroke", "Halo", dot, { Color = Color3.new(1, 1, 1), Transparency = 0.1, Thickness = 3 })
+		make("UIStroke", "Halo", dot, { Color = Palette.White, Transparency = 0.1, Thickness = 3 })
 		make("UIStroke", "Ring", dot, { Color = color, Thickness = 2 })
-		make("TextLabel", "Label", dot, {
+		local label = text("Label", dot, {
 			AnchorPoint = Vector2.new(0.5, 0),
-			Position = UDim2.new(0.5, 0, 0, caption == "YOU" and -13 or 17),
-			Size = UDim2.fromOffset(42, 13),
-			BackgroundTransparency = 1,
+			Position = UDim2.new(0.5, 0, 0, size + 3),
+			Size = UDim2.fromOffset(64, 14),
 			Text = caption,
-			Font = Enum.Font.GothamBold,
-			TextSize = 10,
-			TextColor3 = Color3.new(1, 1, 1),
-			TextStrokeTransparency = 0,
+			TextSize = 11,
 			ZIndex = 7,
 		})
-		if caption == "NPC" then
-			make("TextLabel", "Arrow", dot, {
-				AnchorPoint = Vector2.new(0.5, 0.5),
-				Position = UDim2.fromScale(0.5, 0.5),
-				Size = UDim2.fromScale(1, 1),
-				BackgroundTransparency = 1,
-				Text = "◆",
-				Font = Enum.Font.GothamBold,
-				TextSize = 10,
-				TextColor3 = Color3.new(1, 1, 1),
-				TextStrokeTransparency = 0.2,
-				ZIndex = 7,
-			})
-		end
-		return dot
+		return dot, label
 	end
 
 	local function canvasSize()
@@ -147,45 +195,108 @@ function Controller.Attach(hud, player, remote)
 		return RouteMath.ViewPoint(position, center, heading, canvasSize(), VIEW_SPAN)
 	end
 
-	local function drawGeometry()
-		if not state then
+	local function placeAt(object, position)
+		local p = point(position, state.ViewPosition, state.Heading)
+		object.Position = UDim2.fromScale(p.X, p.Y)
+	end
+
+	-- Rebuilds the three Path2D lines for the current view: only the stretch whose segments touch the view (plus
+	-- margin), split exactly at the player's progress into driven (violet) and ahead (cyan).
+	local function rebuildRoute()
+		local route = state.Track.Route
+		local center, heading = state.ViewPosition, state.Heading
+		local views = table.create(#route.Points)
+		for i, routePoint in route.Points do
+			views[i] = point(routePoint, center, heading)
+		end
+		local lo, hi
+		for i = 1, #views - 1 do
+			local a, b = views[i], views[i + 1]
+			-- Bounding-box overlap is conservative: a long straight crossing the view is never dropped.
+			if
+				math.max(a.X, b.X) >= -VIEW_MARGIN
+				and math.min(a.X, b.X) <= 1 + VIEW_MARGIN
+				and math.max(a.Y, b.Y) >= -VIEW_MARGIN
+				and math.min(a.Y, b.Y) <= 1 + VIEW_MARGIN
+			then
+				lo = lo or i
+				hi = i + 1
+			end
+		end
+		local all, driven, ahead = {}, {}, {}
+		if lo then
+			local target = state.You * route.Total
+			-- Path2D holds at most 100 control points: thin the visible run (99 + the split point per line).
+			local step = math.ceil((hi - lo + 1) / 99)
+			for i = lo, hi, step do
+				local control = Path2DControlPoint.new(UDim2.fromScale(views[i].X, views[i].Y))
+				table.insert(all, control)
+				table.insert(route.Lengths[i] <= target and driven or ahead, control)
+			end
+			local split = point(RouteMath.Point(route, state.You), center, heading)
+			local splitPoint = Path2DControlPoint.new(UDim2.fromScale(split.X, split.Y))
+			table.insert(driven, splitPoint)
+			table.insert(ahead, 1, splitPoint)
+		end
+		view.Outline:SetControlPoints(all)
+		view.Driven:SetControlPoints(driven)
+		view.Ahead:SetControlPoints(ahead)
+		view.Center, view.Heading, view.Size = center, heading, canvasSize()
+	end
+
+	-- Lines only when the view moved or turned enough to matter; START / finish markers every call.
+	local function drawGeometry(force)
+		if not state or not view then
 			return
 		end
-		local center = state.ViewPosition
-		local heading = state.Heading
 		local size = canvasSize()
-		for i, segment in routeFrames do
-			local a = point(state.Track.Route.Points[i], center, heading)
-			local b = point(state.Track.Route.Points[i + 1], center, heading)
-			local delta = Vector2.new((b.X - a.X) * size.X, (b.Y - a.Y) * size.Y)
-			local position = UDim2.fromScale((a.X + b.X) / 2, (a.Y + b.Y) / 2)
-			local length = math.max(delta.Magnitude, 1)
-			for _, layer in { segment.Base, segment.Core } do
-				layer.Position = position
-				layer.Size = UDim2.fromOffset(length, layer:GetAttribute("TrackWidth"))
-				layer.Rotation = math.deg(math.atan2(delta.Y, delta.X))
-			end
-			-- A soft violet wake marks completed road while the cyan road ahead stays bright.
-			segment.Core.BackgroundColor3 = segment.Progress <= state.You and Color3.fromRGB(164, 107, 255)
-				or Color3.fromRGB(61, 224, 255)
+		if
+			force
+			or not view.Center
+			or (state.ViewPosition - view.Center).Magnitude * size.Y / VIEW_SPAN > REBUILD_PX
+			or view.Heading:Dot(state.Heading) < REBUILD_COS
+			or view.Size ~= size
+		then
+			rebuildRoute()
 		end
-		for i, joint in routeJoints do
-			local position = point(state.Track.Route.Points[i], center, heading)
-			joint.Base.Position = UDim2.fromScale(position.X, position.Y)
-			joint.Core.Position = UDim2.fromScale(position.X, position.Y)
-			local progress = state.Track.Route.Lengths[i] / math.max(state.Track.Route.Total, 1)
-			joint.Core.BackgroundColor3 = progress <= state.You and Color3.fromRGB(164, 107, 255)
-				or Color3.fromRGB(61, 224, 255)
-		end
-		local endPoint = point(RouteMath.Point(state.Track.Route, 1), center, heading)
-		finish.Position = UDim2.fromScale(endPoint.X, endPoint.Y)
-		local startPoint = point(RouteMath.Point(state.Track.Route, 0), center, heading)
-		start.Position = UDim2.fromScale(startPoint.X, startPoint.Y)
+		placeAt(view.Finish, RouteMath.Point(state.Track.Route, 1))
+		placeAt(view.Start, RouteMath.Point(state.Track.Route, 0))
 	end
 
 	local function visible()
 		local showcase = gui and gui:FindFirstChild("RollShowcase")
 		return state ~= nil and hud.Gui.Enabled and not (showcase and showcase.Enabled)
+	end
+
+	local function setStatus(value)
+		if status.Text == value then
+			return
+		end
+		status.Text = value
+		status.TextColor3 = Palette.White
+		pill.BackgroundColor3 = value:sub(1, 5) == "AHEAD" and Palette.Ahead
+			or (value:sub(1, 6) == "BEHIND" and Palette.Behind or Palette.Muted)
+		-- Measured in offset units (not TextBounds) so it is right before the first render and under any UIScale.
+		local width = TextService:GetTextSize(value, status.TextSize, status.Font, Vector2.new(1e4, 100)).X
+		local height = status.Size.Y.Offset
+		pill.Size = UDim2.fromOffset(width + 14, height + 2)
+		pill.Position = status.Position + UDim2.fromOffset(status.Size.X.Offset + 7, height / 2)
+	end
+
+	-- Fade in on track start (instant while motion is reduced); there is no exit fade.
+	local function fadeIn()
+		local reduced = UiMotion.Reduced()
+		for _, target in fadeTargets do
+			local object, property, goal = target[1], target[2], target[3]
+			if not reduced then
+				object[property] = 1
+			end
+			UiMotion.Create(object, FADE_IN, { [property] = goal }):Play()
+		end
+		if not reduced then
+			view.Fade.GroupTransparency = 1
+			UiMotion.Create(view.Fade, FADE_IN, { GroupTransparency = 0 }):Play()
+		end
 	end
 
 	function self.Handle(event)
@@ -194,6 +305,7 @@ function Controller.Attach(hud, player, remote)
 		end
 		if event.Type ~= "Start" then
 			if event.Type == "Result" or event.Type == "Reset" or event.Type == "Stop" then
+				-- Hidden and emptied at once: no exit animation may delay this hide (HUD_LAYOUT_SPEC section 10).
 				state = nil
 				card.Visible = false
 				clear()
@@ -205,6 +317,7 @@ function Controller.Attach(hud, player, remote)
 			return
 		end
 		clear()
+		local heading = (RouteMath.Point(track.PlayerRoute, 0.01) - RouteMath.Point(track.PlayerRoute, 0)) * FLAT
 		state = {
 			Track = track,
 			Profile = NpcRacer.Profile(track.NpcPath, event.Speed),
@@ -213,85 +326,93 @@ function Controller.Attach(hud, player, remote)
 			Npc = 0,
 			Elapsed = 0,
 			ViewPosition = RouteMath.Point(track.PlayerRoute, 0),
-			Heading = RouteMath.Point(track.PlayerRoute, 0.01) - RouteMath.Point(track.PlayerRoute, 0),
+			Heading = heading.Magnitude > 1e-6 and heading.Unit or Vector3.new(0, 0, -1),
 		}
-		for i = 1, #track.Route.Points - 1 do
-			local progress = (track.Route.Lengths[i] + track.Route.Lengths[i + 1])
-				/ (2 * math.max(track.Route.Total, 1))
-			local base = make("Frame", "RouteShadow", canvas, {
-				AnchorPoint = Vector2.new(0.5, 0.5),
-				BackgroundColor3 = Color3.fromRGB(12, 20, 48),
-				BackgroundTransparency = 0.18,
-				BorderSizePixel = 0,
-				ZIndex = 1,
-			})
-			base:SetAttribute("TrackWidth", 13)
-			make("UICorner", "Round", base, { CornerRadius = UDim.new(1, 0) })
-			local core = make("Frame", "RouteCore", canvas, {
-				AnchorPoint = Vector2.new(0.5, 0.5),
-				BackgroundColor3 = Color3.fromRGB(61, 224, 255),
-				BackgroundTransparency = 0.04,
-				BorderSizePixel = 0,
-				ZIndex = 2,
-			})
-			core:SetAttribute("TrackWidth", 6)
-			make("UICorner", "Round", core, { CornerRadius = UDim.new(1, 0) })
-			table.insert(routeFrames, { Base = base, Core = core, Progress = progress })
-		end
-		-- Each segment is a separate rotated Frame. Round waypoint joins hide the
-		-- tiny gaps at turns and make the route read as one continuous track.
-		for i in track.Route.Points do
-			local routePoint = track.Route.Points[i]
-			local base = make("Frame", "RouteJoinShadow", canvas, {
-				AnchorPoint = Vector2.new(0.5, 0.5),
-				BackgroundColor3 = Color3.fromRGB(12, 20, 48),
-				BackgroundTransparency = 0.18,
-				BorderSizePixel = 0,
-				Size = UDim2.fromOffset(13, 13),
-				ZIndex = 1,
-			})
-			make("UICorner", "Round", base, { CornerRadius = UDim.new(1, 0) })
-			local core = make("Frame", "RouteJoinCore", canvas, {
-				AnchorPoint = Vector2.new(0.5, 0.5),
-				BackgroundColor3 = Color3.fromRGB(61, 224, 255),
-				BackgroundTransparency = 0.04,
-				BorderSizePixel = 0,
-				Size = UDim2.fromOffset(6, 6),
-				ZIndex = 2,
-			})
-			make("UICorner", "Round", core, { CornerRadius = UDim.new(1, 0) })
-			table.insert(routeJoints, { Base = base, Core = core, Point = routePoint })
-		end
-		dots.You = marker("YouDot", "YOU", Color3.fromRGB(64, 255, 144))
-		dots.Npc = marker("NpcDot", "NPC", Color3.fromRGB(255, 102, 117))
-		start = make("TextLabel", "Start", canvas, {
-			AnchorPoint = Vector2.new(0.5, 0.5),
-			Size = UDim2.fromOffset(25, 16),
+		-- Two nested CanvasGroups: the outer fades the left/right edges, the inner top/bottom.
+		local fade = make("CanvasGroup", "RouteFade", canvas, {
+			Size = UDim2.fromScale(1, 1),
 			BackgroundTransparency = 1,
+			ZIndex = 1,
+		})
+		edgeFade(fade, 0)
+		local fadeY = make("CanvasGroup", "RouteFadeY", fade, {
+			Size = UDim2.fromScale(1, 1),
+			BackgroundTransparency = 1,
+		})
+		edgeFade(fadeY, 90)
+		local function line(name, color, thickness, z)
+			return make("Path2D", name, fadeY, { Color3 = color, Thickness = thickness, ZIndex = z })
+		end
+		view = {
+			Fade = fade,
+			Outline = line("RouteOutline", UiTheme.Outline, 12, 1),
+			Driven = line("RouteDriven", DRIVEN, 6, 2),
+			Ahead = line("RouteAhead", AHEAD, 6, 2),
+		}
+		local you = marker("YouDot", "YOU", Palette.Ahead)
+		-- The map is heading-up, so the chevron always points up.
+		text("Heading", you, {
+			AnchorPoint = Vector2.new(0.5, 1),
+			Position = UDim2.new(0.5, 0, 0, -2),
+			Size = UDim2.fromOffset(14, 12),
+			Text = "▲",
+			TextSize = 12,
+			ZIndex = 7,
+		})
+		local npcDot, npcLabel = marker("NpcDot", track.NpcName, Palette.Behind)
+		text("Arrow", npcDot, {
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.fromScale(0.5, 0.5),
+			Size = UDim2.fromScale(1, 1),
+			Text = "◆",
+			TextSize = 10,
+			ZIndex = 7,
+		})
+		view.You, view.Npc, view.NpcLabel = you, npcDot, npcLabel
+		view.Start = text("Start", canvas, {
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Size = UDim2.fromOffset(52, 20),
+			BackgroundTransparency = 0.1,
+			BackgroundColor3 = Palette.PanelDeep,
 			Text = "START",
-			Font = Enum.Font.GothamBold,
-			TextSize = 8,
-			TextColor3 = Color3.fromRGB(220, 255, 255),
-			TextStrokeTransparency = 0.2,
+			TextSize = 12,
 			ZIndex = 4,
 		})
-		finish = make("TextLabel", "Finish", canvas, {
+		make("UICorner", "Pill", view.Start, { CornerRadius = UDim.new(1, 0) })
+		-- Checkered flag tile: 3x3 alternating squares with a dark outline.
+		local finish = make("Frame", "Finish", canvas, {
 			AnchorPoint = Vector2.new(0.5, 0.5),
-			Size = UDim2.fromOffset(24, 18),
-			Text = "▦",
-			BackgroundTransparency = 1,
-			TextColor3 = Color3.fromRGB(255, 231, 105),
-			TextSize = 19,
-			Font = Enum.Font.GothamBold,
+			Size = UDim2.fromOffset(24, 24),
+			BackgroundColor3 = Palette.White,
+			BorderSizePixel = 0,
+			ClipsDescendants = true,
 			ZIndex = 4,
 		})
-		dots.You.Image = headshot or ""
+		UiTheme.Stroke(finish, 2, UiTheme.Outline, true)
+		for row = 0, 2 do
+			for column = 0, 2 do
+				if (row + column) % 2 == 0 then
+					make("Frame", "Square", finish, {
+						Position = UDim2.fromScale(column / 3, row / 3),
+						Size = UDim2.fromScale(1 / 3, 1 / 3),
+						BackgroundColor3 = UiTheme.Outline,
+						BorderSizePixel = 0,
+						ZIndex = 4,
+					})
+				end
+			end
+		end
+		view.Finish = finish
+		you.Image = headshot or ""
 		hud.RaceMapTitle.Text = track.Title
 		hud.RaceMapPB.Text = type(event.BestTime) == "number" and "PB " .. RouteMath.FormatTime(event.BestTime)
 			or "PB --"
-		hud.RaceMapTime.Text, hud.RaceMapStatus.Text = "TIME 00:00.00", "EVEN"
-		drawGeometry()
+		hud.RaceMapTime.Text = "TIME 00:00.00"
+		status.Text = ""
+		setStatus("EVEN")
+		drawGeometry(true)
 		card.Visible = visible()
+		fadeIn()
 	end
 
 	function self.Update(elapsed, position, heading)
@@ -310,25 +431,27 @@ function Controller.Attach(hud, player, remote)
 			)
 			state.Position = position
 			state.ViewPosition = position - UP
-			if typeof(heading) == "Vector3" and Vector3.new(heading.X, 0, heading.Z).Magnitude > 1e-6 then
-				state.Heading = Vector3.new(heading.X, 0, heading.Z).Unit
+			if typeof(heading) == "Vector3" and (heading * FLAT).Magnitude > 1e-6 then
+				state.Heading = (heading * FLAT).Unit
 			end
 		end
 		local npcPosition = NpcRacer.PoseAt(track.NpcPath, state.Profile, elapsed).Position - UP
 		state.Npc = RouteMath.Progress(track.NpcRoute, npcPosition, state.Npc, state.Profile.Speed * dt * 1.1 + 32)
 		state.Elapsed = elapsed
-		dots.You.Position = UDim2.fromScale(0.5, 0.5)
+		view.You.Position = UDim2.fromScale(0.5, 0.5)
 		local npcPoint = point(RouteMath.Point(track.Route, state.Npc), state.ViewPosition, state.Heading)
 		local clamped = RouteMath.ClampViewPoint(npcPoint, 0.07)
-		dots.Npc.Position = UDim2.new(clamped.X, 0, clamped.Y, 3)
-		local npcLabel = dots.Npc:FindFirstChild("Label")
-		if npcLabel then
-			npcLabel.Position = UDim2.new(0.5, 0, 0, clamped.Y > 0.8 and -13 or 17)
+		view.Npc.Position = UDim2.new(clamped.X, 0, clamped.Y, 3)
+		view.NpcLabel.Position = UDim2.new(0.5, 0, 0, clamped.Y > 0.8 and -15 or 21)
+		drawGeometry(false)
+		local word = RouteMath.Status(state.You, state.Npc)
+		if word == "EVEN" then
+			setStatus(word)
+		else
+			-- Gap at the player's progress: the NPC's timeline there against the player's clock (presentation only).
+			local npcTime = RouteMath.TimeAt(track.NpcRoute, state.Profile.Times, state.You)
+			setStatus(string.format("%s %.1fs", word, math.abs(elapsed - npcTime)))
 		end
-		drawGeometry()
-		hud.RaceMapStatus.Text = RouteMath.Status(state.You, state.Npc)
-		hud.RaceMapStatus.TextColor3 = state.You - state.Npc >= 0.01 and Color3.fromRGB(100, 255, 160)
-			or (state.Npc - state.You >= 0.01 and Color3.fromRGB(255, 142, 145) or Color3.new(1, 1, 1))
 		hud.RaceMapTime.Text = "TIME " .. RouteMath.FormatTime(elapsed)
 		card.Visible = visible()
 	end
@@ -354,7 +477,12 @@ function Controller.Attach(hud, player, remote)
 	end
 	card.Visible = false
 	table.insert(connections, remote.OnClientEvent:Connect(self.Handle))
-	table.insert(connections, canvas:GetPropertyChangedSignal("Size"):Connect(drawGeometry))
+	table.insert(
+		connections,
+		canvas:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+			drawGeometry(true)
+		end)
+	)
 	table.insert(
 		connections,
 		RunService.RenderStepped:Connect(function()
@@ -384,8 +512,8 @@ function Controller.Attach(hud, player, remote)
 				headshot = image
 			end
 		end
-		if not destroyed and dots.You then
-			dots.You.Image = headshot or ""
+		if not destroyed and view then
+			view.You.Image = headshot or ""
 		end
 	end)
 	return self

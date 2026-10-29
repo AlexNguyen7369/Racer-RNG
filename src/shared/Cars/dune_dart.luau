@@ -4,7 +4,7 @@ return {
 	Id = "dune_dart",
 	Name = "Dune Dart",
 	Rarity = "Rare",
-	Chance = 151,
+	Chance = 4200,
 	SpeedMulti = 4.2,
 	Order = 1031,
 	Model = "dune_dart",

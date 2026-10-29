@@ -4,7 +4,7 @@ return {
 	Id = "jester_jalopy",
 	Name = "Jester Jalopy",
 	Rarity = "Mythic",
-	Chance = 53500,
+	Chance = 1e15,
 	SpeedMulti = 425,
 	Order = 1092,
 	Model = "jester_jalopy",

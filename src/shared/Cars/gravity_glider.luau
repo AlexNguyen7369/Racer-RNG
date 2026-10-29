@@ -4,7 +4,7 @@ return {
 	Id = "gravity_glider",
 	Name = "Gravity Glider",
 	Rarity = "Legendary",
-	Chance = 1950,
+	Chance = 2.1e7,
 	SpeedMulti = 35,
 	Order = 1067,
 	Model = "gravity_glider",

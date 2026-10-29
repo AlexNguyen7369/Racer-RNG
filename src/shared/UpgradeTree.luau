@@ -6,6 +6,7 @@
 -- A tile: { Id, Branch, Tier, Name ("Luck III"), Depth, PriceDepth, Q, R, Parent }.
 
 local UpgradeConfig = require(script.Parent.UpgradeConfig)
+local PayoutCurve = require(script.Parent.PayoutCurve)
 
 local UpgradeTree = {}
 
@@ -74,22 +75,16 @@ function UpgradeTree.Get(tileId)
 end
 
 -- Two significant figures, halves rounded up (726 -> 730, 1597 -> 1600, 225 -> 230).
-function UpgradeTree.NiceRound(x)
-	if type(x) ~= "number" or x ~= x or x <= 0 or x == math.huge then
-		return 0
-	end
-	local unit = 10 ^ (math.floor(math.log10(x)) - 1)
-	return math.floor(x / unit + 0.5) * unit
-end
+UpgradeTree.NiceRound = PayoutCurve.NiceRound
 
--- Price in Money: NiceRound(BASE_PRICE * PRICE_GROWTH ^ (PriceDepth - 1) * Weight). nil for an unknown id.
+-- Price in Money: PayoutCurve.Cost(BASE_PRICE * Weight, PriceDepth). nil for an unknown id.
 function UpgradeTree.Price(tileId)
 	local tile = type(tileId) == "string" and byId[tileId]
 	if not tile then
 		return nil
 	end
 	local weight = branchById[tile.Branch].Weight
-	return UpgradeTree.NiceRound(UpgradeConfig.BASE_PRICE * UpgradeConfig.PRICE_GROWTH ^ (tile.PriceDepth - 1) * weight)
+	return PayoutCurve.Cost(UpgradeConfig.BASE_PRICE * weight, tile.PriceDepth)
 end
 
 -- The BestTrack a tile needs (0 = no gate): tier >= GATE_FROM_TIER needs min(tier - 1, trackCount).

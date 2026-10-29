@@ -4,7 +4,7 @@ return {
 	Id = "canyon_bison",
 	Name = "Canyon Bison",
 	Rarity = "Rare",
-	Chance = 81,
+	Chance = 820,
 	SpeedMulti = 2.7,
 	Order = 1021,
 	Model = "canyon_bison",

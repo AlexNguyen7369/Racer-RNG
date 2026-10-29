@@ -4,7 +4,7 @@ return {
 	Id = "apex_arrow",
 	Name = "Apex Arrow",
 	Rarity = "Rare",
-	Chance = 221,
+	Chance = 21000,
 	SpeedMulti = 5.7,
 	Order = 1041,
 	Model = "apex_arrow",

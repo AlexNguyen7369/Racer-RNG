@@ -1,16 +1,20 @@
 --!nonstrict
 -- VFX showcase area (docs/ADMIN_COMMANDS_SPEC.md, owner 2026-10-26): a flat testing floor far east of the track
 -- chain, reached only with `/tp vfxarea`. Client/VfxShowcase drives one local car per Market trail / aura here.
+local UiTheme = require(script.Parent.UiTheme)
+
 local VfxArea = {}
 
 VfxArea.CENTER = Vector3.new(1600, 0, 0) -- the world's parts end near x = 700
-VfxArea.FLOOR_SIZE = Vector3.new(280, 1, 140)
+VfxArea.FLOOR_SIZE = Vector3.new(360, 1, 140)
 VfxArea.SHOW_RADIUS = 400 -- the client builds the showcase while its avatar is this close to CENTER
 VfxArea.LANE_GAP = 38 -- studs between showcase loops, along x
 VfxArea.Items = { -- kind, Market item id; one lane each, left to right
 	{ "Trail", "rainbow_trail" },
 	{ "Trail", "solar_trail" },
 	{ "Trail", "void_trail" },
+	{ "Trail", "frost_trail" },
+	{ "Trail", "prism_trail" },
 	{ "Aura", "azure_aura" },
 	{ "Aura", "ember_aura" },
 	{ "Aura", "galaxy_aura" },
@@ -50,8 +54,9 @@ function VfxArea.Build()
 	sign.MaxDistance = VfxArea.SHOW_RADIUS
 	local text = Instance.new("TextLabel")
 	text.Size, text.BackgroundTransparency = UDim2.fromScale(1, 1), 1
-	text.Text, text.TextScaled, text.Font = "VFX SHOWCASE  ·  /tp home", true, Enum.Font.GothamBlack
-	text.TextColor3, text.TextStrokeTransparency = Color3.new(1, 1, 1), 0
+	text.Text, text.TextScaled, text.Font = "VFX SHOWCASE  ·  /tp home", true, UiTheme.Font
+	text.TextColor3 = Color3.new(1, 1, 1)
+	UiTheme.Stroke(text, 2)
 	text.Parent = sign
 	sign.Parent = floor
 	model.PrimaryPart = floor

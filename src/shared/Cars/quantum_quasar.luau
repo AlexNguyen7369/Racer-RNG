@@ -4,7 +4,7 @@ return {
 	Id = "quantum_quasar",
 	Name = "Quantum Quasar",
 	Rarity = "Epic",
-	Chance = 930,
+	Chance = 2.1e6,
 	SpeedMulti = 16,
 	Order = 1063,
 	Model = "quantum_quasar",

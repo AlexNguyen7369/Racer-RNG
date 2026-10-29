@@ -16,7 +16,7 @@ Numbers marked *placeholder* are tunable in `Shared/WorkshopConfig` and remain p
 - Every player gets their own workshop at their base; server size matches the number of plots.
 - Speed is earned **only while the player stands inside their workshop zone**; leaving the zone stops the gain.
 - Gain per second uses the full Speed formula including the workshop multi W.
-- Money upgrades raise W in big jumps (*placeholder*: each level doubles W and costs 5x the last). Gold / Diamond / Void
+- Money upgrades raise W in big jumps (*placeholder*: each level doubles W; prices follow the design doc's price curve). Gold / Diamond / Void
   gamepasses add a permanent W boost (monetization, later).
 - The zone check is done **on the server on a timer** from the character's position, never from client touch events.
 - The `Workshop` stat point (`Alloc_Workshop`, +0.2x per point, `GachaConfig.PER_POINT`) boosts workshop gain only.
@@ -96,7 +96,7 @@ Every `WorkshopConfig.TICK` (0.5 s) for each player with a plot:
 
 ## 5. Levels and purchases
 `WorkshopConfig.Levels`: level 1 = `{ Multi = 1, Price = 0 }` (starter), with ten configurable levels.
-Level 2 costs $500; each later price is 5x the previous price and W doubles at each level. These defaults are not
+Level L costs `PayoutCurve.Cost(500, L - 1)` = $500 x (payout ratio of Track L-1) ^ 1.5 ($500, $16k, $320k, $10m, ...; owner 2026-10-27, design doc "payout and price curves") and W doubles at each level. These defaults are not
 approved balancing. Saved as `WorkshopLevel` (PlayerData VERSION 11; VERSION 4 is historical, shared with the upgrade tree's fields).
 An owned workshop has an `UPGRADE` slab and E prompt. Its modal requests the next level only; the server validates
 loaded data, ownership, a living on-foot character within 12 studs, available level and Money, and rate-limits
@@ -156,7 +156,7 @@ Studio: Game Settings > Places > Server Size (Max Players) = **7** (Rojo can not
 
 ## Phase 2 implementation defaults (2026-10-07)
 
-Ten levels are configured, with level 2 costing $500 and subsequent prices growing ×5. Every level doubles W. These are configurable defaults pending owner feedback, rather than a record of approved balancing. The E prompt on an owned plot opens the upgrade modal; the server checks load state, ownership, life, racing state, distance and Money before buying the next level. No client price or requested level is accepted.
+Ten levels are configured, priced by `PayoutCurve.Cost(500, level - 1)`. Every level doubles W. These are configurable defaults pending owner feedback, rather than a record of approved balancing. The E prompt on an owned plot opens the upgrade modal; the server checks load state, ownership, life, racing state, distance and Money before buying the next level. No client price or requested level is accepted.
 
 The HUD shows the server's current workshop rate, and Workshop stat allocation is enabled. Offline earnings are
 `rate x OFFLINE_FRACTION (25%) x min(seconds, OFFLINE_CAP (eight hours))`, with no stat cap. Offline earnings are

@@ -4,7 +4,7 @@ return {
 	Id = "harbor_van",
 	Name = "Harbor Van",
 	Rarity = "Uncommon",
-	Chance = 18,
+	Chance = 16,
 	SpeedMulti = 1.45,
 	Order = 1003,
 	Model = "harbor_van",

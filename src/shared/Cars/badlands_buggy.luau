@@ -4,7 +4,7 @@ return {
 	Id = "badlands_buggy",
 	Name = "Badlands Buggy",
 	Rarity = "Rare",
-	Chance = 123,
+	Chance = 2200,
 	SpeedMulti = 3.6,
 	Order = 1027,
 	Model = "badlands_buggy",

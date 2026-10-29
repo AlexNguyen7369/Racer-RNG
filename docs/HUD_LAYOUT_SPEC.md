@@ -6,6 +6,15 @@ SHOP / DAILY / QUESTS / MARKET stack, and the Bag / Upgrades icons beside the bo
 
 ## 1. Icon tiles
 
+Owner, 2026-10-27 (art/hover revision; layout and actions unchanged):
+the shared ten-icon set uses simple rounded cartoon shapes, dark outlines and
+light shading. Shop is a red-roof/tan house; Items a brown backpack; Index a cyan
+car book; Upgrade a gold arrow; Stats green bars; Rebirth red/white arrows;
+Daily a gold/red gift; Quests a clipboard; Market a detailed red shopping bag
+with a blank tag and no coin/logo; Settings a silver gear with blue center.
+Hover adds only slight enlargement (1.035), never a white outlined button box.
+Authored selection borders, badges and gamepad focus remain unchanged.
+
 Owner, 2026-10-15 (same day, replaces the first 2 x 3 grid):
 
 - Left edge, vertically centred: `HudChrome/Grid`, one column of Index, Stats, Rebirth.
@@ -29,7 +38,7 @@ Owner, 2026-10-15 (same day, replaces the first 2 x 3 grid):
 These sit in the Roblox top-bar row at the top right, styled like Roblox's own top-bar buttons: dark translucent
 pills, white text, and a round button for Settings.
 
-- `Daily`: a calendar icon and the text "Daily". When today's reward was claimed, it shows the time left until
+- `Daily`: a gift icon (owner art revision 2026-10-27) and the text "Daily". When today's reward was claimed, it shows the time left until
   the next one. It opens the 7-day daily reward panel.
 - `Quests`: it opens the Daily / Weekly quest panel.
 - `Market`: it opens the Money market (trails, auras and potions bought with Money). Owner 2026-10-16: it uses the
@@ -49,7 +58,7 @@ Fredoka text with a dark outline.
 The quest panel follows the supplied quest reference using only existing quest data: Daily / Weekly category tabs,
 a scrollable selectable quest list, and a read-only detail pane showing the selected quest's name, progress and
 reward. On phone landscape the detail pane collapses and the list uses the available width. Hovering a quest row
-adds the shared white highlight and slight enlargement; its Claim button remains the only action that grants a reward.
+adds the shared slight enlargement without a white hover box; its Claim button remains the only action that grants a reward.
 
 ## 3. Backpack (Items)
 
@@ -96,8 +105,10 @@ adds the shared white highlight and slight enlargement; its Claim button remains
   and `MarketConfig.Icon`. Details: `PANEL_ART_GIFTING_SPEC.md`.
 
 - Whenever a `PanelSwitch` panel is open, every persistent HUD entry remains drawn: the HudChrome
-  tiles/pills, Auto Race, the compact roll when it would otherwise be shown, the weather button and active potion
-  buttons. Owner 2026-10-20 (replaces the per-HUD veil): a panel never dims the whole screen. Only the world
+  tiles/pills, Auto Race, the weather button and active potion buttons. Owner 2026-10-28 (replaces the 2026-10-20
+  wording for the roll): the compact roll HIDES while a panel is open (ROLL_ANIMATION_CONTRACT), so it never covers
+  a panel's top or takes its clicks. Owner 2026-10-28: on phones (viewport height <= 500) Market shows its grid only;
+  tapping an item swaps the grid for the detail view, which has a Back button. Owner 2026-10-20 (replaces the per-HUD veil): a panel never dims the whole screen. Only the world
   behind the UI is dimmed, by one non-interactive layer (`HudChrome` creates ScreenGui `PanelDim`, DisplayOrder 0,
   below every HUD ScreenGui); the HUD stays at full brightness. Panels' own full-screen `Backdrop` frames are
   transparent. The full-screen roll showcase and the full-screen upgrade tree (owner 2026-10-26) are exempt because
@@ -108,6 +119,12 @@ adds the shared white highlight and slight enlargement; its Claim button remains
 - No two reachable buttons, panels or labels overlap at any tested viewport, phone landscape included
   (`UiSpec` / `UiResponsive`).
 - On phones (viewport height <= 500) the grid tiles and pills shrink.
+
+- Owner 2026-10-28: the Roblox chat window starts collapsed (TextChatService `ChatWindowConfiguration`), so it never
+  covers the left icon tiles; players open it with the chat button. On phone and tablet viewports the Items and Upgrade
+  buttons beside the LEVEL / TURBO bars scale down until they clear the Money and Speed readouts (desktop unchanged).
+- Owner 2026-10-28: at viewport height <= 400 (phone_small, e.g. 667x375) the Items and Upgrade buttons stack ABOVE the
+  LEVEL / TURBO bars instead of beside them, so the Items anchor never sits inside the Speed readout; other sizes unchanged.
 
 ## 7. Motion, safe area and gamepad (owner 2026-10-26)
 
@@ -125,3 +142,53 @@ adds the shared white highlight and slight enlargement; its Claim button remains
   panel's top-left visible button is selected, `GuiService` selection is limited to that panel, and ButtonB
   closes it (bound only while a panel is open). Closing the panel removes the limit and restores the selection
   that was active before it opened (or clears it). Mouse, touch and keyboard behaviour is unchanged.
+
+## 8. Theme tokens (owner 2026-10-27)
+
+- One theme for every screen, baked or code-built: `Shared/UiTheme` holds the tokens and the spec `theme` block
+  (`ui/specs/*.ui.json`, `ui/tooling/uispec.py`) carries the same values.
+- Text: FredokaOne with a dark outline (`UiTheme.Outline`, rgb 18, 22, 43) on every player-facing label and button,
+  billboards included. No Gotham, GothamBlack or BuilderSans text remains.
+- Corner radii come from the tokens only: `S` 8, `M` 12, `L` 16 (pills and round buttons stay fully round).
+- Multipliers are written `x1.5` everywhere (`HudFormat.Multi`; up to 2 decimals, trailing zeros dropped; from x1,000 the lowercase suffixes, e.g. `x1k`,
+  REBIRTH_SPEC).
+- Numbers use `HudFormat` (lowercase suffixes from 1,000, design doc "Speed"); no screen formats them by hand.
+  Speed keeps full digits up to `HudFormat.SPEED_SUFFIX_FROM` (1,000,000, placeholder, owner 2026-10-27).
+- Colours: money green, speed yellow, unbanked amber, danger red, panel navy and the stat colours in
+  `UiTheme.Palette` (placeholders, tunable).
+
+## 9. Counters and speedometer (owner 2026-10-27)
+
+- **Money** (`RacerHud/Money`) keeps its place bottom left. `MoneyValue` and `Unbanked` sit on a rounded navy
+  gradient plate (`MoneyPlate`, non-interactive, behind the text) with a thin green glow stroke. `MoneyValue` has a
+  light-to-deep green text gradient, `Unbanked` a gold one and keeps its `UNBANKED ` prefix.
+- **Speed** (`RacerHud/Speed`) keeps its place bottom centre. A round speedometer (`SpeedDial`, 270-degree arc,
+  ticks, needle and hub) replaces the plain icon slot on the left; the speed icon is the dial's hub. The Speed
+  stat (`SpeedValue`, e.g. `10.2m SPEED`, yellow-to-orange gradient) stays beside it on the right; the dial's
+  centre is too small for the stat on phones, so the dial shows the car's speed (`45`, small, under the hub).
+- The needle and the arc fill show the car's REAL speed in studs/s (the local player's car chassis velocity)
+  while auto racing; on foot or without a car the needle rests at 0 and the dial dims. The full scale is
+  `max(RaceConfig.SpeedFor(stat) * 1.25, RaceConfig.BASE_SPEED * 2)` (placeholder). The dial is presentation
+  only: the displayed number stays the base Speed stat (design doc, owner 2026-10-21) and the server values are
+  unchanged.
+- The numbers count up smoothly (`HudFormat.Approach`); when a value grows the label pops (section 10). The shown
+  value never lags the server by more than one count-up step (about 0.5 s).
+- Money and Speed stay non-interactive read-outs (no button, nothing `Active`).
+
+## 10. Motion graphics (owner 2026-10-27)
+
+- Every UI animation goes through `Client/UiMotion` (section 7): `Create` for single tweens and the presets
+  `Pop` (scale up about 12% and back, about 0.18 s), `SlideIn` (offset plus fade, Back easing, about 0.25 s),
+  `Shine` (a light band swept across a plate once), `Pulse` (a soft looping glow; returns a stop function) and
+  `Shake`. While motion is reduced every preset lands on its end state at once and no loop runs.
+- Uses: panels scale from 92% and fade in when opened (`PanelSwitch`), and close at once; HUD buttons keep their
+  hover / press feedback (`RacerMotion`) and code-built panels' buttons get the same; Money, Unbanked and Speed
+  pop when they grow, and a cash payout shows a rising `+$1.2m` that fades; Speed gain shows the same rising
+  `+1.2k` in Speed yellow above the Speed number, the gain of each quarter second summed and shown every 0.25 s
+  (owner 2026-10-27, was once per second; `HudFormat.GainText`: one decimal below 10, e.g. `+0.5`); Unbanked pulses while above 0; the
+  Money plate shines every few seconds; the speed dial glows once when the stat reaches a new suffix tier
+  (k, m, b, ...); red badges pop when their count changes; the Race button breathes slowly while the player is on
+  foot; the TURBO bar fill shines and "TURBO xN!" punches in; notifications slide in from their edge.
+- Budget: tweens and gradient offsets only, no per-frame animation loop except the dial needle; a looping effect
+  stops while its screen is hidden. No exit animation may delay a hide that another rule times (loser screen,
+  `PanelSwitch`).

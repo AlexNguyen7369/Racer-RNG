@@ -2,23 +2,24 @@
 -- Money purchases described by the design document's "What Money buys" section.
 local MarketConfig = {}
 local BoostConfig = require(script.Parent.BoostConfig)
+local PayoutCurve = require(script.Parent.PayoutCurve)
 
 MarketConfig.Items = {
 	Aura = {
 		{
 			Id = "azure_aura",
 			Name = "Azure Aura",
-			Price = 1000,
-			SpeedMulti = 1.25,
+			Price = PayoutCurve.Cost(2500, 1),
+			SpeedMulti = 1.2,
 			Color = Color3.fromRGB(80, 190, 255),
 			Accent = Color3.fromRGB(180, 245, 255),
-			Description = "A cool, charged glow that lifts your cruise speed.",
+			Description = "A cool, charged glow that lifts your Speed gain and cruise speed.",
 		},
 		{
 			Id = "ember_aura",
 			Name = "Ember Aura",
-			Price = 1500,
-			SpeedMulti = 1.35,
+			Price = PayoutCurve.Cost(2500, 2),
+			SpeedMulti = 2,
 			Color = Color3.fromRGB(255, 92, 38),
 			Accent = Color3.fromRGB(255, 220, 75),
 			Description = "A hot orbit of sparks for high-energy racers.",
@@ -26,8 +27,8 @@ MarketConfig.Items = {
 		{
 			Id = "galaxy_aura",
 			Name = "Galaxy Aura",
-			Price = 2500,
-			SpeedMulti = 1.5,
+			Price = PayoutCurve.Cost(2500, 3),
+			SpeedMulti = 3,
 			Color = Color3.fromRGB(137, 80, 255),
 			Accent = Color3.fromRGB(255, 91, 220),
 			Description = "A swirling cosmic field with a rare speed boost.",
@@ -37,8 +38,8 @@ MarketConfig.Items = {
 		{
 			Id = "rainbow_trail",
 			Name = "Rainbow Trail",
-			Price = 500,
-			SpeedMulti = 1,
+			Price = PayoutCurve.Cost(500, 1),
+			SpeedMulti = 1.5,
 			Color = Color3.fromRGB(255, 120, 235),
 			Accent = Color3.fromRGB(90, 220, 255),
 			Description = "A shifting rainbow ribbon behind your ride.",
@@ -46,8 +47,8 @@ MarketConfig.Items = {
 		{
 			Id = "solar_trail",
 			Name = "Solar Trail",
-			Price = 900,
-			SpeedMulti = 1,
+			Price = PayoutCurve.Cost(500, 2),
+			SpeedMulti = 2,
 			Color = Color3.fromRGB(255, 188, 48),
 			Accent = Color3.fromRGB(255, 245, 145),
 			Description = "A bright comet tail made of golden plasma.",
@@ -55,11 +56,29 @@ MarketConfig.Items = {
 		{
 			Id = "void_trail",
 			Name = "Void Trail",
-			Price = 1800,
-			SpeedMulti = 1,
+			Price = PayoutCurve.Cost(500, 3),
+			SpeedMulti = 3,
 			Color = Color3.fromRGB(104, 52, 220),
 			Accent = Color3.fromRGB(34, 230, 210),
 			Description = "A dark neon wake that flickers at the edges.",
+		},
+		{
+			Id = "frost_trail",
+			Name = "Frost Trail",
+			Price = PayoutCurve.Cost(500, 4),
+			SpeedMulti = 4,
+			Color = Color3.fromRGB(80, 190, 255),
+			Accent = Color3.fromRGB(180, 245, 255),
+			Description = "An icy band that sheds frost shards.",
+		},
+		{
+			Id = "prism_trail",
+			Name = "Prism Trail",
+			Price = PayoutCurve.Cost(500, 5),
+			SpeedMulti = 5,
+			Color = Color3.fromRGB(186, 140, 255),
+			Accent = Color3.fromRGB(255, 255, 255),
+			Description = "A wide plasma band split into every colour.",
 		},
 	},
 	Potion = {},
@@ -98,10 +117,23 @@ function MarketConfig.Get(kind, id)
 	return item and item.Kind == kind and item or nil
 end
 
+-- The equipped aura's raw multi (gain, and damped cruise via RaceConfig.CruiseMulti).
 function MarketConfig.SpeedMulti(player)
 	local id = typeof(player) == "Instance" and player:GetAttribute("EquippedAura") or nil
 	local item = MarketConfig.Get("Aura", id)
 	return item and item.SpeedMulti or 1
+end
+
+-- The equipped trail's raw multi (gain, and damped cruise via RaceConfig.CruiseMulti; owner 2026-10-28).
+function MarketConfig.TrailMulti(player)
+	local id = typeof(player) == "Instance" and player:GetAttribute("EquippedTrail") or nil
+	local trail = MarketConfig.Get("Trail", id)
+	return trail and trail.SpeedMulti or 1
+end
+
+-- Speed-gain multi (owner 2026-10-27): equipped aura x equipped trail.
+function MarketConfig.GainMulti(player)
+	return MarketConfig.SpeedMulti(player) * MarketConfig.TrailMulti(player)
 end
 
 return MarketConfig

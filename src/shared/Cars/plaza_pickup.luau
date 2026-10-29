@@ -4,7 +4,7 @@ return {
 	Id = "plaza_pickup",
 	Name = "Plaza Pickup",
 	Rarity = "Uncommon",
-	Chance = 40,
+	Chance = 100,
 	SpeedMulti = 2,
 	Order = 1014,
 	Model = "plaza_pickup",

@@ -58,6 +58,7 @@ for _, entry in entries do
 	table.insert(trackModels, entry.Model)
 end
 BiomeDressing.Prune(trackModels, { spawnArea }) -- scenery keeps clear of every road and the spawn area
+require(Shared.TrackPreviews).Bake(trackModels) -- checkpoint card previews (docs/CHECKPOINT_SPEC.md section 4)
 VfxArea.Build().Parent = Workspace -- the admin-only VFX showcase floor (/tp vfxarea)
 
 -- The lighting baseline goes in before WeatherService snapshots it (docs/RENDERING_SPEC.md)
@@ -75,6 +76,7 @@ WorkshopService.Start(track1Start) -- 7 workshop plots in the spawn area, one pe
 MarketService.Start() -- the spawn-area aura and trail market (physical prompt + client button)
 RebirthService.Start()
 BoostService.Start()
+require(script.Parent.FriendBoostService).Start() -- friends-in-server Luck / Money boost (docs/FRIENDS_BOOST_SPEC.md)
 DailyLoginService.Start()
 LevelService.Start()
 PassCarService.Start() -- gamepass cars on the two small pedestals (docs/GAMEPASS_CARS_SPEC.md)

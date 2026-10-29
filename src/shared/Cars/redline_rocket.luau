@@ -4,7 +4,7 @@ return {
 	Id = "redline_rocket",
 	Name = "Redline Rocket",
 	Rarity = "Epic",
-	Chance = 810,
+	Chance = 1.1e6,
 	SpeedMulti = 14,
 	Order = 1059,
 	Model = "redline_rocket",

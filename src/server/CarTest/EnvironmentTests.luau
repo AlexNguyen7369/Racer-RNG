@@ -49,6 +49,12 @@ local CITY = 6
 local CITY_TOWER_PROPS = { Skyscraper = true, SkyscraperPink = true, Block = true, Skyline = true }
 local CITY_TOWER_MIN_PARTS = 25
 local CITY_TOWER_MIN_HEIGHT = 100 -- studs, model bounding box of the tallest City landmark
+-- Populated city (owner 2026-10-27, design doc Track environments; spec Layers 9 Blocks, Rules "Theme budget")
+local CITY_BUDGET = 2600 -- spec placeholder: City theme Budget
+local CITY_MIN_BLOCKS = 60
+local BLOCK_SHRINK = 0.5 -- studs each footprint is shrunk by before the overlap test
+local BLOCK_PROBE_STEP = 24 -- studs between coverage probes along straight road
+local BLOCK_MIN_COVERAGE = 0.7
 
 local function module(parent, name)
 	local source = parent:FindFirstChild(name)
@@ -126,6 +132,37 @@ local function aabbHalf(cf, half)
 		math.abs(r.Y) * half.X + math.abs(u.Y) * half.Y + math.abs(l.Y) * half.Z,
 		math.abs(r.Z) * half.X + math.abs(u.Z) * half.Y + math.abs(l.Z) * half.Z
 	)
+end
+
+-- XZ footprint of a part's oriented box, shrunk by `shrink` on every side
+local function footprint(part, shrink)
+	local function flat(v)
+		local f = Vector2.new(v.X, v.Z)
+		return f.Magnitude > 1e-6 and f.Unit or Vector2.new(1, 0)
+	end
+	return {
+		C = Vector2.new(part.Position.X, part.Position.Z),
+		A = { flat(part.CFrame.RightVector), flat(part.CFrame.LookVector) },
+		H = { math.max(0, part.Size.X / 2 - shrink), math.max(0, part.Size.Z / 2 - shrink) },
+	}
+end
+
+-- 2D separating axis test; touching = no overlap
+local function footprintsOverlap(a, b)
+	local d = b.C - a.C
+	for _, axis in { a.A[1], a.A[2], b.A[1], b.A[2] } do
+		local ra = math.abs(a.A[1]:Dot(axis)) * a.H[1] + math.abs(a.A[2]:Dot(axis)) * a.H[2]
+		local rb = math.abs(b.A[1]:Dot(axis)) * b.H[1] + math.abs(b.A[2]:Dot(axis)) * b.H[2]
+		if math.abs(d:Dot(axis)) >= ra + rb then
+			return false
+		end
+	end
+	return true
+end
+
+local function footprintHas(f, point)
+	local d = point - f.C
+	return math.abs(d:Dot(f.A[1])) <= f.H[1] and math.abs(d:Dot(f.A[2])) <= f.H[2]
 end
 
 -- Obstacles: every road, wall, checkpoint (incl. WinPad) part of every track, plus the spawn area
@@ -646,12 +683,18 @@ function Tests.environment()
 		local parts = baseParts(env)
 		counts[tostring(n)] = { built = prePrune[n] or 0, kept = #parts }
 		flag(("environment_nonempty_%d"):format(n), #parts > 0, #parts, 1)
-		flag(
-			("environment_budget_%d"):format(n),
-			#parts <= BUDGET and #parts <= (type(budget) == "number" and budget or BUDGET),
-			#parts,
-			BUDGET
-		)
+		-- Spec Rules "Theme budget" (owner 2026-10-27): a theme Budget replaces BUDGET for its track. Only the City's
+		-- value (2600) is in the doc, so every other track stays capped at BUDGET and the City at CITY_BUDGET.
+		local theme = Themes and BIOMES[n] and Themes[BIOMES[n]]
+		local cap = n == CITY and CITY_BUDGET or BUDGET
+		local limit = theme and type(theme.Budget) == "number" and theme.Budget
+			or (type(budget) == "number" and budget or BUDGET)
+		limit = math.min(limit, cap)
+		flag(("environment_budget_%d"):format(n), #parts <= limit, #parts, limit)
+		if n == CITY then
+			local got = theme and theme.Budget
+			flag("city_budget_value", got == CITY_BUDGET, type(got) == "number" and got or -1, CITY_BUDGET)
+		end
 
 		-- Gate (spec Layers 4): a Gate* part on the FIRST STRAIGHT, after Prune: its horizontal distance from Start along
 		-- the start direction is within 0..spec.Segments[1].Length
@@ -696,6 +739,9 @@ function Tests.environment()
 		local rec = RaceConfig.StatFor(npcSpeed)
 		local recText = rec == math.huge and HudFormat.Short(rec) or HudFormat.SpeedText(rec)
 		flag(("gate_sign_rec_speed_%d"):format(n), recLabel ~= nil and recLabel.Text == "REC. SPEED " .. recText)
+		-- owner 2026-10-27: the number uses the lowercase suffixes (k m b t qd ...), never "10K" / "1Qd"
+		local recNum = recLabel and string.sub(recLabel.Text, #"REC. SPEED " + 1) or "?"
+		flag(("gate_sign_rec_lowercase_%d"):format(n), recLabel ~= nil and not string.find(recNum, "%u"))
 		-- The recommended shown Speed really cruises at the NPC's speed (finite cases)
 		local cruise = rec < math.huge and RaceConfig.SpeedFor(rec) or npcSpeed
 		flag(
@@ -819,6 +865,95 @@ function Tests.environment()
 			first_patch_bad = patchFirst,
 			first_particle_bad = particlesFirst,
 		}
+
+		-- Populated city (owner 2026-10-27, spec Layers 9 Blocks), after Prune: Block_<slot><L|R><row> models line
+		-- both sides two rows deep, their footprints (oriented XZ box of each model's largest part, shrunk by
+		-- BLOCK_SHRINK) never overlap, and probes every BLOCK_PROBE_STEP studs along the straight road, offset
+		-- Width/2 + Near + RowDepth/2 to each side (middle of row 1), mostly fall inside a Block_ footprint.
+		if n == CITY then
+			local blocks, rows, sides = {}, {}, {}
+			for _, c in (env and env:GetChildren() or {}) do
+				local _, side, row = string.match(c.Name, "^Block_(%d+)([LR])(%d+)$")
+				local largest
+				for _, part in baseParts(c) do
+					if largest == nil or part.Size.X * part.Size.Z > largest.Size.X * largest.Size.Z then
+						largest = part
+					end
+				end
+				if side and c:IsA("Model") and largest then
+					table.insert(blocks, { Name = c.Name, Part = largest })
+					rows[tonumber(row)] = true
+					sides[side] = true
+				end
+			end
+			flag("city_blocks_count", #blocks >= CITY_MIN_BLOCKS, #blocks, CITY_MIN_BLOCKS)
+			flag("city_blocks_both_rows", rows[1] == true and rows[2] == true)
+			flag("city_blocks_both_sides", sides.L == true and sides.R == true)
+
+			local overlaps, overlapFirst = 0, nil
+			local shrunk, full = {}, {}
+			for i, b in blocks do
+				shrunk[i] = footprint(b.Part, BLOCK_SHRINK)
+				full[i] = footprint(b.Part, 0)
+			end
+			for i = 1, #blocks do
+				for j = i + 1, #blocks do
+					if footprintsOverlap(shrunk[i], shrunk[j]) then
+						overlaps += 1
+						overlapFirst = overlapFirst or (blocks[i].Name .. " x " .. blocks[j].Name)
+					end
+				end
+			end
+			flag("city_blocks_no_overlap", #blocks > 0 and overlaps == 0, overlaps, 0)
+
+			local cfg = theme and type(theme.Blocks) == "table" and theme.Blocks or nil
+			local probes, covered = 0, 0
+			if cfg and type(cfg.Near) == "number" and type(cfg.RowDepth) == "number" then
+				local offset = t.Layout.Width / 2 + cfg.Near + cfg.RowDepth / 2
+				local wps, curv = t.Layout.Waypoints, t.Layout.Curvature
+				local along, nextProbe = 0, 0
+				for i = 2, #wps do
+					if curv[i] == 0 then
+						local a, b = t.Origin * wps[i - 1], t.Origin * wps[i]
+						local d = Vector2.new(b.X - a.X, b.Z - a.Z)
+						local len = d.Magnitude
+						if len > 1e-6 then
+							local dir = d.Unit
+							local right = Vector2.new(-dir.Y, dir.X)
+							while nextProbe <= along + len do
+								local p = Vector2.new(a.X, a.Z) + dir * (nextProbe - along)
+								for _, s in { -1, 1 } do
+									local q = p + right * s * offset
+									probes += 1
+									for _, f in full do
+										if footprintHas(f, q) then
+											covered += 1
+											break
+										end
+									end
+								end
+								nextProbe += BLOCK_PROBE_STEP
+							end
+							along += len
+						end
+					end
+				end
+			end
+			local coverage = probes > 0 and covered / probes or 0
+			flag(
+				"city_blocks_gap",
+				probes > 0 and coverage >= BLOCK_MIN_COVERAGE,
+				math.round(coverage * 1000) / 1000,
+				BLOCK_MIN_COVERAGE
+			)
+			r.metrics.city_blocks = {
+				count = #blocks,
+				overlaps = overlaps,
+				first_overlap = overlapFirst,
+				probes = probes,
+				covered = covered,
+			}
+		end
 	end
 	r.metrics.parts = counts
 	r.metrics.first_overlap = worstHits

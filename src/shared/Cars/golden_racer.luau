@@ -3,7 +3,7 @@ return {
 	Id = "golden_racer",
 	Name = "Golden Racer",
 	Rarity = "Legendary",
-	Chance = 5000,
+	Chance = 6.2e8,
 	SpeedMulti = 10,
 	Order = 10,
 	Model = "golden_racer", -- own redesign model (docs/CAR_REDESIGN_SPEC.md section 5)

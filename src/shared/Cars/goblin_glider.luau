@@ -4,7 +4,7 @@ return {
 	Id = "goblin_glider",
 	Name = "Goblin Glider",
 	Rarity = "Mythic",
-	Chance = 36000,
+	Chance = 3.9e12,
 	SpeedMulti = 300,
 	Order = 1087,
 	Model = "goblin_glider",

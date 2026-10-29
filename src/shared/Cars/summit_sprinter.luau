@@ -4,7 +4,7 @@ return {
 	Id = "summit_sprinter",
 	Name = "Summit Sprinter",
 	Rarity = "Rare",
-	Chance = 144,
+	Chance = 3500,
 	SpeedMulti = 4.05,
 	Order = 1030,
 	Model = "summit_sprinter",

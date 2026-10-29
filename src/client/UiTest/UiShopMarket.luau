@@ -33,18 +33,17 @@ function ShopMarket.Band(vp, d)
 	return margin, d.Race.y + d.Race.h + gap, vp.X - margin, bottom - gap
 end
 
--- Client/PanelBand.Fit for the layout solver: centred in the band, at most maxWidth wide, never under Band.MinSize.
+-- Client/PanelBand.Fit for the layout solver: centred in the band, at most maxWidth wide, never larger than the band.
 function ShopMarket.BandFit(vp, d, maxWidth)
 	local left, top, right, bottom = ShopMarket.Band(vp, d)
-	local min = Spec.Band.MinSize
 	return {
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromOffset((left + right) / 2, (top + bottom) / 2),
-		Size = UDim2.fromOffset(math.max(min.X, math.min(maxWidth, right - left)), math.max(min.Y, bottom - top)),
+		Size = UDim2.fromOffset(math.max(0, math.min(maxWidth, right - left)), math.max(0, bottom - top)),
 	}
 end
 
--- h: check, checkList, find, visible, setPanels, player, pathOf, render, frames, provider, viewports, contains,
+-- h: check, checkList, find, visible, setPanels, player, pathOf, render, frames, provider, viewports, viewport, contains,
 -- intersects, rstr, realRect, topAt, allText (UiScenarios' helpers). Returns { Scenarios, After }.
 function ShopMarket.Build(h)
 	local SH, MK = Spec.Shop, Spec.Market
@@ -207,9 +206,13 @@ function ShopMarket.Build(h)
 	end
 
 	-- Children (by name) of a rect group apart and inside their parent, at every viewport
-	local function groupGeometry(res, name, parent, parts)
+	-- only(vp) (optional): judge just the viewports it accepts
+	local function groupGeometry(res, name, parent, parts, only)
 		for _, vpSpec in h.viewports do
-			local rectOf = h.provider(vpSpec)
+			local rectOf, vpSize = h.provider(vpSpec)
+			if only and not only(vpSize) then
+				continue
+			end
 			local suffix = "_" .. vpSpec.Name
 			local pr = rectOf(parent)
 			local outside, overlaps, rects = {}, {}, {}
@@ -304,13 +307,16 @@ function ShopMarket.Build(h)
 		return found[1], buys[1]
 	end
 
-	-- What a price button must show: the listed price (thousands separated) and "Coming soon" for id 0; an owned
-	-- gamepass car "Owned" instead.
+	-- What a price button must show: the listed price (thousands separated) and "Coming soon" for id 0.
+	-- ownedNow: the car id of an owned gamepass car (its button shows Equip / Equipped, SH.OwnedCar), else false
 	local function priceProblems(bad, label, buy, price, onSaleId, ownedNow)
 		local text = h.allText(buy)
 		if ownedNow then
-			if not has(text, SH.Owned) then
-				table.insert(bad, label .. ": shows " .. text .. ", want " .. SH.Owned)
+			local equipped = attr("EquippedCar") == ownedNow
+			local want = equipped and SH.OwnedCar.Equipped or SH.OwnedCar.Equip
+			-- "Equipped" contains "Equip": the not-equipped button must not read "Equipped"
+			if not has(text, want) or (not equipped and has(text, SH.OwnedCar.Equipped)) then
+				table.insert(bad, label .. ": shows " .. text .. ", want " .. want)
 			end
 			return
 		end
@@ -407,7 +413,7 @@ function ShopMarket.Build(h)
 			if not preview then
 				table.insert(cardBad, "Featured/" .. car.Id .. ': no ViewportFrame car preview (or "?")')
 			end
-			for _, piece in { car.Name, car.Rarity, "x" .. tostring(car.SpeedMulti) } do
+			for _, piece in { car.Name, car.Rarity, HudFormat.Multi(car.SpeedMulti) } do
 				if not has(text, piece) then
 					table.insert(cardBad, ("Featured/%s: text has no %q"):format(car.Id, piece))
 				end
@@ -418,7 +424,7 @@ function ShopMarket.Build(h)
 				buy,
 				car.RobuxPrice or 0,
 				car.GamepassId or 0,
-				attr("Pass_" .. car.Id) == true
+				attr("Pass_" .. car.Id) == true and car.Id
 			)
 		end)
 		sectionCards("Gamepasses", MonetizationConfig.Gamepasses, function(pass, c, buy)
@@ -574,9 +580,10 @@ function ShopMarket.Build(h)
 		local wantPrice = { HudFormat.MoneyText(item.Price) }
 		local ok = has(priceText, wantPrice[1])
 		if kind == "Potion" then
-			local count = tostring(attr("Boost_" .. item.Id) or 0)
+			-- Backpack counts are shortened like every number ("x1.2k", docs/HUD_LAYOUT_SPEC.md section 8)
+			local count = HudFormat.Short(attr("Boost_" .. item.Id) or 0)
 			table.insert(wantPrice, "x" .. count)
-			ok = ok and string.match(priceText, "[xX](%d+)%s*$") == count
+			ok = ok and string.match(priceText, "[xX]([%d%.]+%a*)%s*$") == count
 		elseif attr("Own" .. kind .. "_" .. item.Id) == true then
 			wantPrice = { "Owned" }
 			ok = has(priceText, "Owned")
@@ -591,12 +598,35 @@ function ShopMarket.Build(h)
 		if rarity == "" or rarity == "missing" or (item.Rarity and not has(rarity, item.Rarity)) then
 			table.insert(bad, ("Rarity shows %q, want %s"):format(rarity, item.Rarity or "a rarity"))
 		end
+		-- Trail / aura subtitle names its Speed Gain multi (owner 2026-10-27, docs/GAME_DESIGN_REQUIREMENTS.md "Aura and
+		-- trail ladders"): "Trail  •  x<SpeedMulti> Speed Gain", auras add "+ cruise". MarketConfig decides the number.
+		if kind == "Trail" or kind == "Aura" then
+			local wantMulti = "x" .. tostring(item.SpeedMulti)
+			if
+				type(item.SpeedMulti) ~= "number"
+				or not has(rarity, kind)
+				or not has(rarity, wantMulti .. " Speed Gain")
+				or (kind == "Aura") ~= (has(rarity, "cruise") == true)
+			then
+				table.insert(
+					bad,
+					("Subtitle shows %q, want %s %s Speed Gain%s"):format(
+						rarity,
+						kind,
+						wantMulti,
+						kind == "Aura" and " + cruise" or ""
+					)
+				)
+			end
+		end
 		local want = MK.ActionText.Buy
 		if kind ~= "Potion" and attr("Own" .. kind .. "_" .. item.Id) == true then
 			want = attr("Equipped" .. kind) == item.Id and MK.ActionText.Equipped or MK.ActionText.Equip
 		end
-		if textOf(part("Action")) ~= want then
-			table.insert(bad, ("Action shows %q, want %q"):format(textOf(part("Action")), want))
+		-- The text the Action button shows (its own Text, else its Label child's: Client/MarketUi actionLabel)
+		local shown = shownText(part("Action"))
+		if shown ~= want then
+			table.insert(bad, ("Action shows %q, want %q"):format(shown, want))
 		end
 		return bad
 	end
@@ -681,11 +711,32 @@ function ShopMarket.Build(h)
 			h.checkList(res, "market_detail_matches_item", detailProblems(kind, selected))
 		end
 
-		-- Geometry at every viewport
-		panelGeometry(res, "market", panel)
-		if header and tabs and grid and detail then
-			groupGeometry(res, "market_sections", panel, { header, tabs, grid, detail })
+		-- Geometry at every viewport. Phones (owner 2026-10-28, HUD_LAYOUT_SPEC section 6): the Grid view only (Detail
+		-- hidden until a tile is tapped: clicks market_phone_*); desktop: Grid and Detail side by side.
+		local function phone(vp)
+			return vp.Y <= MK.PhoneMaxHeight
 		end
+		local function desktop(vp)
+			return not phone(vp)
+		end
+		if header and tabs and grid and detail then
+			groupGeometry(res, "market_sections", panel, { header, tabs, grid, detail }, desktop)
+			groupGeometry(res, "market_phone_grid_view", panel, { header, tabs, grid }, phone)
+		end
+		if phone(h.viewport()) then
+			-- The live phone view as it opens: Grid shown, Detail hidden
+			h.check(
+				res,
+				"market_phone_opens_grid_only",
+				("grid shown=%s, detail shown=%s"):format(
+					tostring(grid ~= nil and h.visible(grid)),
+					tostring(detail ~= nil and h.visible(detail))
+				),
+				"grid shown=true, detail shown=false",
+				grid ~= nil and h.visible(grid) and not (detail ~= nil and h.visible(detail))
+			)
+		end
+		panelGeometry(res, "market", panel)
 		local close = h.find(MK.Close)
 		if close and header then
 			groupGeometry(res, "market_close_in_header", header, { close })
@@ -694,7 +745,8 @@ function ShopMarket.Build(h)
 			groupGeometry(res, "market_tab_buttons", tabs, tabList)
 		end
 		if #dParts == #MK.DetailParts then
-			groupGeometry(res, "market_detail_parts", detail, dParts)
+			-- (phones: judged live in the Detail view by after.market_phone_detail_view)
+			groupGeometry(res, "market_detail_parts", detail, dParts, desktop)
 		end
 		topmostChecks(res, "market", panel, grid)
 		restore()
@@ -721,6 +773,65 @@ function ShopMarket.Build(h)
 			end)
 			h.checkList(res, "market_grid_shows_" .. kindName, bad)
 		end
+	end
+
+	-- Phone Market views (owner 2026-10-28, HUD_LAYOUT_SPEC section 6), judged on the live phone-height view
+	local function phoneView(res, name, wantDetail)
+		local grid, detail, back = h.find(MK.Grid), h.find(MK.Detail), h.find(MK.Back)
+		local ok, state = waitFor(1, function()
+			local g = grid ~= nil and h.visible(grid)
+			local d = detail ~= nil and h.visible(detail)
+			return g == not wantDetail and d == wantDetail,
+				("grid shown=%s, detail shown=%s"):format(tostring(g), tostring(d))
+		end)
+		h.check(
+			res,
+			name,
+			state,
+			("grid shown=%s, detail shown=%s"):format(tostring(not wantDetail), tostring(wantDetail)),
+			ok == true
+		)
+		if not wantDetail then
+			return
+		end
+		local backText = shownText(back)
+		h.check(
+			res,
+			"market_phone_back_button",
+			back and (back.ClassName .. " " .. backText) or "missing",
+			"TextButton containing " .. MK.BackText,
+			back ~= nil and back:IsA("TextButton") and h.visible(back) and has(backText, MK.BackText)
+		)
+		-- The Detail view's parts (Back included) stay inside Detail and never overlap, on the live view
+		local outside, overlaps, rects = {}, {}, {}
+		local dr = detail and h.realRect(detail)
+		for _, p in MK.DetailParts do
+			local o = detail and detail:FindFirstChild(p.Name)
+			if o and o:IsA("GuiObject") then
+				table.insert(rects, { p.Name, h.realRect(o) })
+			end
+		end
+		if back and back:IsA("GuiObject") then
+			table.insert(rects, { "Back", h.realRect(back) })
+		end
+		for i, a in rects do
+			if dr and not h.contains(dr, a[2]) then
+				table.insert(outside, a[1] .. h.rstr(a[2]) .. " outside Detail" .. h.rstr(dr))
+			end
+			for j = i + 1, #rects do
+				if h.intersects(a[2], rects[j][2]) then
+					table.insert(overlaps, a[1] .. h.rstr(a[2]) .. " x " .. rects[j][1] .. h.rstr(rects[j][2]))
+				end
+			end
+		end
+		h.checkList(res, "market_phone_detail_parts_inside", outside)
+		h.checkList(res, "market_phone_detail_parts_no_overlap", overlaps)
+	end
+	after.market_phone_detail_view = function(res)
+		phoneView(res, "market_phone_detail_view", true)
+	end
+	after.market_phone_grid_view = function(res)
+		phoneView(res, "market_phone_grid_view", false)
 	end
 
 	after.market_detail_shows_tile = function(res, ctx)

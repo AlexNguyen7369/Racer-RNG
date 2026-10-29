@@ -1,592 +1,666 @@
 {
-  "items": [
-    {
-      "id": "project-configs",
-      "title": "Configs & setup for a new collaborator or LLM",
-      "category": "config",
-      "persistent": true,
-      "priority": "high",
-      "why": "This project needs local CLI tools, Roblox Studio, Rojo, MCP connections, and GitHub access before an agent can safely edit, test, or push the game.",
-      "blocks": "Reliable Rojo sync, live Studio compatibility tests, Blender work, and GitHub delivery",
-      "when": "Before the first implementation or compatibility run on a new machine.",
-      "steps": [
-        "Install Python 3, Git, Roblox Studio, and Homebrew (macOS). Install the project CLIs: `brew install rojo stylua selene lune gh uv`.",
-        "From the repository root, verify the tools: `rojo --version`, `stylua --version`, `selene --version`, `lune --version`, `gh --version`, and `python3 --version`.",
-        "Configure Codex MCP servers: `codex mcp add Roblox_Studio -- /Applications/RobloxStudio.app/Contents/MacOS/StudioMCP` and `codex mcp add blender -- uvx blender-mcp`; restart Codex and verify with `codex mcp list`. On another OS, use that StudioMCP executable path.",
-        "For Blender live editing, install the add-on with `uvx mcp-for-blender install-addon`, enable it in Blender, and start the BlenderMCP server from the N-panel. Headless exports do not need the live connection.",
-        "Start Rojo from the repository root with `rojo serve`; in Roblox Studio open Plugins > Rojo and connect to `localhost:34872`. Confirm the synced script matches the files on disk before testing.",
-        "Open the Roblox Studio place in Edit mode, enable the Roblox Studio MCP, and turn on Game Settings > Security > Enable Studio Access to API Services when real DataStore tests are needed. Set the place server size to 7 for the workshop.",
-        "Authenticate GitHub for branch and push workflows: `gh auth login --hostname github.com --git-protocol https --web`; verify with `gh auth status`.",
-        "Start the shared dashboard with `python3 tools/dashboard/server.py --no-fetch --no-auto-branch` and open `http://127.0.0.1:8765`. Use the dashboard Agents tab and manual tasks as the handoff record.",
-        "Run local checks before a live gate: `stylua --check src`, `selene src`, and `rojo build --output /tmp/racer-rng.rbxl`. Never run two Studio test sessions at once, never edit synced scripts inside Studio, and do not push without an ALL GREEN `/compat-check`."
-      ],
-      "status": "open",
-      "added": "2026-10-06T19:30:00-07:00",
-      "by": "Codex"
-    },
-    {
-      "id": "max-players-7",
-      "title": "Set the server size to 7 players",
-      "priority": "medium",
-      "why": "Each player gets one of the 7 workshop plots in the spawn area (docs/WORKSHOP_SPEC.md). With a larger server, an 8th player would get no plot. Rojo can't set the server size, so it's set by hand in the place settings.",
-      "blocks": "Publishing a server with workshops (Studio tests are unaffected)",
-      "when": "Before the next publish.",
-      "steps": [
-        "In Studio, open Home > Game Settings > Places.",
-        "Open the place's settings (the ... button > Edit) and set Server Size (Max Players) to 7.",
-        "Save, then tell Claude \"server size 7\"."
-      ],
-      "status": "open",
-      "added": "2026-10-06T12:00:00-07:00",
-      "by": "Claude"
-    },
-    {
-      "id": "rojo-connect",
-      "title": "Click Connect in Studio's Rojo plugin",
-      "priority": "high",
-      "why": "Claude can not open Studio or click Connect. On 2026-10-12 no Studio was connected to the MCP and `rojo serve` was not running, so the red tests and the design-doc fixes (rebirth, Money sources, session-locked saves, turbo) have never been run.",
-      "blocks": "TODO: conflict-rebirth-speed, conflict-money-sources, conflict-session-lock, turbo-10x; every later phase (weather sky, leaderboards, duels) and /compat-check",
-      "when": "Before the next Claude session continues this work.",
-      "steps": [
-        "Run `rojo serve` in the project root (branch design-doc-conflicts).",
-        "Open the Racer RNG place in Roblox Studio with the Roblox Studio MCP plugin active.",
-        "Click Connect in the Rojo plugin.",
-        "Tell Claude \"studio connected\"."
-      ],
-      "status": "open",
-      "added": "2026-10-05T20:00:00-07:00",
-      "by": "Claude",
-      "updated": "2026-10-12T00:50:26-07:00",
-      "updatedBy": "Codex",
-      "verified": "Current Edit DataModel lacks the new RebirthService, BoostService, and DailyLoginService; reconnect localhost:34872 before live testing."
-    },
-    {
-      "id": "recover-hud-items",
-      "title": "Reopen Studio WITHOUT saving to recover two deleted HUD items",
-      "priority": "high",
-      "why": "Claude deleted Client/Ui (Racer HUD) in Edit mode after exporting only part of it: Ui/RollShowcase and Ui/RacerMotion were not exported, and Studio's undo did not restore them. They still exist in the last saved version of the place.",
-      "blocks": "Saving the complete Racer HUD to git (branch studio/racer-hud-ui) and finishing the compat check",
-      "when": "Now, before any save.",
-      "steps": [
-        "Do NOT press Ctrl+S or publish.",
-        "Close Roblox Studio and choose Don't Save.",
-        "Reopen the place \"Racer RNG\" (Edit mode, do not press Play).",
-        "Tell Claude \"reopened\"; Claude exports every item under StarterPlayerScripts.Client/Ui and RacerUiController from Edit mode before changing anything."
-      ],
-      "status": "done",
-      "added": "2026-10-05T19:50:00-07:00",
-      "by": "Claude",
-      "doneBy": "Alex Nguyen",
-      "doneAt": "2026-10-05T20:00:00-07:00",
-      "verified": "Reopened without saving. The place never held the HUD scripts; Ui/RollShowcase and Ui/RacerMotion are not recoverable on this machine (noted in drafts/ui/racer-hud/DRAFT.md on branch studio/racer-hud-ui)."
-    },
-    {
-      "id": "hud-screenguis-rbxm",
-      "title": "Save the Racer HUD ScreenGuis to files",
-      "priority": "low",
-      "why": "The HUD's baked ScreenGuis (RacerHud, RacerIndex, RacerStats, RacerSettings, RollShowcase) exist only in the place. Claude moved them to ServerStorage.RacerHudStash for the compat check; they are not in git.",
-      "blocks": "Rebuilding the Racer HUD from the repo later",
-      "when": "Any time after the compat check.",
-      "steps": [
-        "In Explorer open ServerStorage > RacerHudStash.",
-        "Select the five ScreenGuis, right-click > Save to File, and save them as `~/Documents/RobloxGames/drafts/ui/racer-hud/RacerHudGuis.rbxm`.",
-        "Tell Claude; it adds the file to branch studio/racer-hud-ui.",
-        "To use the HUD in the place again, drag the five ScreenGuis back into StarterGui."
-      ],
-      "status": "open",
-      "added": "2026-10-05T20:00:00-07:00",
-      "by": "Claude"
-    },
-    {
-      "id": "save-place-spawn",
-      "title": "Save the place after the stray spawn was deleted",
-      "priority": "high",
-      "why": "Claude deleted the stray Workspace.SpawnLocation (-2, 0.5, -2) in Edit mode. Studio only keeps that change if you save; otherwise it comes back next time and the spawn_area test fails again.",
-      "blocks": "Keeping spawn_area green (exactly one spawn in the game)",
-      "when": "After the compat check finishes (play stopped), not during a test run.",
-      "steps": [
-        "Make sure play is stopped (Edit mode).",
-        "Check Explorer: Workspace has no `SpawnLocation` directly under it (Workspace.SpawnArea is built only during play).",
-        "Press Ctrl+S (File > Save to Roblox) to save the place.",
-        "Mark this done."
-      ],
-      "status": "done",
-      "added": "2026-10-05T06:30:00-07:00",
-      "by": "Claude",
-      "doneBy": "Alex Nguyen",
-      "doneAt": "2026-10-05T08:30:00-07:00",
-      "verified": "Claude, 2026-10-05: after a Studio restart the place has exactly one SpawnLocation (SpawnArea.Spawn) during play."
-    },
-    {
-      "id": "duplicate-baseplate",
-      "title": "Remove the extra Baseplate saved in the place",
-      "priority": "low",
-      "why": "world-tester found two identical Workspace.Baseplate parts (2048x16x2048 at 0,-8,0), both purple-ish (180,107,191) instead of the green Rojo defines in default.project.json. One is most likely an old Baseplate saved in the place file next to the Rojo one. Harmless for physics, but it z-fights and hides the intended green ground.",
-      "blocks": "Nothing (cosmetic, keeps the place matching the repo)",
-      "when": "With the place save after the compat check (Studio in Edit mode).",
-      "steps": [
-        "In Edit mode, select Workspace and look for two children named `Baseplate`.",
-        "Decide which ground colour you want: green (the repo's default.project.json) or purple. If purple is intended, tell Claude so it updates default.project.json instead.",
-        "Delete the one that is NOT managed by Rojo (Rojo recreates its own on sync; if unsure, delete one, wait a few seconds and check one Baseplate remains).",
-        "Save the place (Ctrl+S)."
-      ],
-      "status": "open",
-      "added": "2026-10-05T07:30:00-07:00",
-      "by": "Claude"
-    },
-    {
-      "id": "reopen-studio",
-      "title": "Reopen Studio so the compat check can finish",
-      "priority": "high",
-      "why": "The compat check stopped halfway: the harness ran (23/24 pass) but the UI, multiplayer and world testers were cut off by a usage limit, and Studio is no longer connected to Claude.",
-      "blocks": "An ALL GREEN /compat-check, which is what lets initial-import go to main",
-      "when": "Now.",
-      "steps": [
-        "Open Roblox Studio with the place \"Racer RNG\" (Edit mode, not playing).",
-        "Make sure the Roblox Studio MCP is enabled (Assistant settings) and the Rojo plugin is connected (`rojo serve` is already running in the project).",
-        "Optional but recommended: in the Explorer, delete `Workspace.SpawnLocation` (the default spawn at -2, 0.5, -2; NOT `Workspace.SpawnArea.Spawn`) and save the place (Ctrl+S). It is the only harness failure: the game must have exactly one spawn. If you skip this, Claude deletes it in Edit mode and asks you to save.",
-        "Tell Claude \"Studio is open\"."
-      ],
-      "status": "done",
-      "added": "2026-10-05T06:05:00-07:00",
-      "by": "Claude",
-      "doneBy": "Alex Nguyen",
-      "doneAt": "2026-10-05T06:30:00-07:00"
-    },
-    {
-      "id": "hatchback-import",
-      "title": "Import the Rusty Hatchback into Studio",
-      "priority": "high",
-      "why": "Studio can only import a 3D file through its own Import 3D window; no script or MCP tool can do it. Until this is done the Rusty Hatchback shows a \"?\" in rolls.",
-      "blocks": "Rusty Hatchback in the game (TODO: Import the Rusty Hatchback into Studio)",
-      "when": "Not while a test run is using Studio (wait for the compat check to finish; the Agents tab shows physics-tester / ui-tester as running).",
-      "steps": [
-        "In Roblox Studio (place \"Racer RNG\"), open File > Import 3D (or Avatar tab > Import 3D).",
-        "Pick `~/Documents/RobloxGames/blender/exports/rusty_hatchback/RustyHatchback.fbx`.",
-        "In the importer check the size reads about 6.6 studs long. If it is 100x too big or small, change the file units (Stud / Meter) until it does.",
-        "Keep it importing as ONE model, then click Import. Leave it wherever Studio puts it.",
-        "Tell Claude \"hatchback imported\". Claude renames and orients it, makes it non-colliding and massless, checks the mesh and texture ids uploaded, and moves it to ReplicatedStorage.CarModels."
-      ],
-      "status": "done",
-      "added": "2026-10-05T04:20:00-07:00",
-      "by": "Claude",
-      "doneBy": "Alex Nguyen",
-      "doneAt": "2026-10-06T02:40:00-07:00",
-      "verified": "Isaac's Draft05 import was used instead of the textured blender/exports FBX (owner chose this 2026-10-06); CarModels.rbxm mapped; rolls show the model"
-    },
-    {
-      "id": "hatchback-rbxm",
-      "title": "Save the hatchback model to the repo",
-      "priority": "high",
-      "why": "The place file is not in git, so other developers only get the model if it is saved as a file Rojo can sync.",
-      "blocks": "Collaborators seeing the Rusty Hatchback",
-      "when": "After Claude has finished setting up the imported model (it will say so).",
-      "steps": [
-        "In Studio's Explorer, open ReplicatedStorage > CarModels and right-click RustyHatchback.",
-        "Choose Save to File... and save it as `~/Documents/RobloxGames/assets/CarModels/RustyHatchback.rbxm` (create the CarModels folder if asked).",
-        "Tell Claude \"rbxm saved\". Claude maps ReplicatedStorage.CarModels to assets/CarModels in default.project.json and sets Model = \"RustyHatchback\" in Cars/rusty_hatchback.luau."
-      ],
-      "status": "done",
-      "added": "2026-10-05T04:20:00-07:00",
-      "by": "Claude",
-      "doneBy": "Alex Nguyen",
-      "doneAt": "2026-10-06T02:40:00-07:00",
-      "verified": "Isaac's Draft05 import was used instead of the textured blender/exports FBX (owner chose this 2026-10-06); CarModels.rbxm mapped; rolls show the model"
-    },
-    {
-      "id": "upgrade-decisions",
-      "title": "Confirm two upgrade tree decisions",
-      "priority": "medium",
-      "why": "Claude made two calls the spec did not spell out. Both are easy to change now and harder after the UI is built.",
-      "blocks": "Upgrade tree phase 3 (UI)",
-      "when": "Any time.",
-      "steps": [
-        "Read docs/UPGRADE_TREE_DESIGN.md, sections \"Tile ids and the tree\" and \"Prices\".",
-        "Decision 1: Turbo forks off Roll Speed I (so its first tier is never the first purchase) instead of having its own direction from Start.",
-        "Decision 2: prices round halves UP (Roll Speed I $230, Walkspeed II $170).",
-        "Tell Claude \"keep both\", or what to change. Changing a price means test-writer updates the test first."
-      ],
-      "status": "done",
-      "added": "2026-10-05T04:20:00-07:00",
-      "by": "Claude",
-      "doneBy": "Alex Nguyen",
-      "doneAt": "2026-10-06T13:10:00-07:00",
-      "verified": "Owner: keep both (Turbo forks off Roll Speed I; prices round halves up). No change needed."
-    },
-    {
-      "id": "studio-api-access",
-      "title": "Let Studio use DataStores (to test real saving)",
-      "priority": "medium",
-      "why": "Real DataStore saving has never been tested: Studio blocks it by default, so only a stubbed store is tested (the console shows StudioAccessToApisNotAllowed).",
-      "blocks": "TODO: Test real DataStore saving",
-      "when": "Any time Studio is not running a test.",
-      "steps": [
-        "In Studio: Home > Game Settings > Security.",
-        "Turn on \"Enable Studio Access to API Services\" and Save.",
-        "Tell Claude \"API access on\"; Claude then tests saving and loading for real."
-      ],
-      "status": "open",
-      "added": "2026-10-05T04:20:00-07:00",
-      "by": "Claude"
-    },
-    {
-      "id": "slack-token",
-      "title": "Revoke the exposed Slack token and reinstall the bot",
-      "priority": "medium",
-      "why": "A user (xoxp) Slack token was exposed earlier (ProjectContext TODO 3). Only you can revoke it and install the app.",
-      "blocks": "Posting test results to #racer-dev",
-      "when": "Soon (security).",
-      "steps": [
-        "At api.slack.com/apps, open the app, go to OAuth & Permissions and revoke the old xoxp token.",
-        "Add bot scopes: chat:write, channels:read, channels:history, groups:read, groups:history, users:read, reactions:write. Reinstall to the workspace and copy the new xoxb- token.",
-        "In a terminal: `claude mcp remove slack --scope user`, then re-add the Slack MCP with the xoxb- token and SLACK_TEAM_ID=T0C5AK11CNB.",
-        "In Slack: `/invite` the bot to #racer-dev."
-      ],
-      "status": "open",
-      "added": "2026-10-05T04:20:00-07:00",
-      "by": "Claude"
-    },
-    {
-      "id": "blender-mcp",
-      "title": "Reconnect the Blender MCP add-on (optional)",
-      "priority": "low",
-      "why": "The Blender add-on is out of date and not connected, so Claude cannot see or edit an open Blender scene. Exports still work headless, so this only matters for new modelling work.",
-      "blocks": "Live Blender work (new car drafts)",
-      "when": "Before the next car or prop draft.",
-      "steps": [
-        "In a terminal: `uvx mcp-for-blender install-addon`.",
-        "Restart Blender (or Preferences > Add-ons: disable and re-enable \"Interface: Blender MCP\").",
-        "In the 3D view press N, open the BlenderMCP tab and click Start MCP Server / Connect."
-      ],
-      "status": "open",
-      "added": "2026-10-05T04:20:00-07:00",
-      "by": "Claude"
-    },
-    {
-      "id": "studio-device-none",
-      "title": "Turn off Studio's Device Simulator before UI test runs",
-      "priority": "high",
-      "why": "Under device emulation (e.g. 750x361 phone) Studio's injected mouse clicks land at the wrong screen point, so the UI suite's ~57 click contracts can't run. Automation can't change the setting during Play (the menu is greyed out).",
-      "blocks": "/compat-check UI suite (click contracts) -> push to main",
-      "when": "Now, before the next /compat-check run.",
-      "steps": [
-        "Stop Play in Studio.",
-        "Test tab > Device: choose 'None' (or close the Device Simulator) so the game view uses the normal window size.",
-        "Start Play again (or tell Claude it's done; Claude restarts Play itself)."
-      ],
-      "status": "open",
-      "added": "2026-10-08T12:00:00-07:00",
-      "by": "Claude"
-    },
-    {
-      "id": "ui-manual-escape-foreign-e",
-      "title": "Manual UI checks: Escape closes panels, foreign workshop E, phone resize",
-      "priority": "medium",
-      "why": "Owner decision 2026-10-08: these can't be automated (Roblox reserves Escape for its menu; the foreign-plot E prompt needs 2 real players), so they are manual checks instead of gate blockers.",
-      "blocks": "Nothing (manual verification before a release)",
-      "when": "Before a release, or after changing PanelSwitch / ProgressionUi / WorkshopService.",
-      "steps": [
-        "In Play, open INDEX, press Escape: the panel closes (repeat for STATS, SETTINGS, REBIRTH).",
-        "Start a 2-player local server (Test > Clients and Servers > 2 players).",
-        "With player 1, walk into player 2's workshop zone and press E: nothing of player 2's opens (no RacerWorkshop for player 1).",
-        "Resize check: in Play, switch Test > Device to a phone (e.g. iPhone landscape) and back to None: the HUD re-lays out each time, no old SpeedHud / AutoRaceButton / roll controls reappear, nothing overlaps."
-      ],
-      "status": "open",
-      "added": "2026-10-08T12:00:00-07:00",
-      "by": "Claude"
-    },
-    {
-      "id": "codex-trust-bus-hook",
-      "title": "Trust the agent-bus hook in Codex",
-      "priority": "medium",
-      "why": "`.codex/hooks.json` now delivers Claude's bus messages to Codex automatically, but Codex only runs project hooks the developer has reviewed and trusted. A `codex exec` check on 2026-10-11 confirmed the untrusted hook does not fire.",
-      "blocks": "TODO: Automatic bus delivery for Codex",
-      "when": "Next time you open Codex in this repo.",
-      "steps": [
-        "Run `codex` in the project root.",
-        "Type `/hooks`, review the two `agent_bus.py hook --agent codex` entries (SessionStart, UserPromptSubmit) and trust them.",
-        "Send any prompt; if Claude has unread mail for Codex it shows as an `<agent-bus>` block. Tell Claude \"codex hook trusted\"."
-      ],
-      "status": "open",
-      "added": "2026-10-11T23:20:00-07:00",
-      "by": "Claude"
-    },
-    {
-      "id": "duel-two-player-live",
-      "title": "Play one duel with two clients in Studio",
-      "priority": "high",
-      "why": "The duel request is a ProximityPrompt on another player's avatar. The Studio MCP starts one client only, so Claude cannot walk up to a second player. The server flow is covered by the `duel` harness scenario with fake players and the UI by `ui_duel`; the real prompt, the real seats and the countdown on two screens are not.",
-      "blocks": "Calling the duel feature verified end to end (docs/DUEL_SPEC.md section 4, multiplayer flow)",
-      "when": "When no agent session is using Studio.",
-      "steps": [
-        "Studio > Test tab > Clients and Servers: pick `Local Server`, `2 Players`, press Start. Rojo must be connected first.",
-        "In client 1 check: no `Duel` prompt on your own avatar.",
-        "Walk client 1 next to client 2's avatar (within 10 studs). A `Duel` prompt with the other player's name shows; hold F.",
-        "Client 1: the PICK A TRACK panel opens; click `TRACK 1`.",
-        "Client 2: the DUEL REQUEST panel shows `<name> challenges you on Track 1`; click ACCEPT.",
-        "Both: a car each at the Track 1 start, side by side, `3 2 1 GO!`, both cars race to the finish. During the countdown press R and W: the car must not move.",
-        "Both: `YOU WIN!` on one screen and `YOU LOSE` on the other, then both stand in the spawn area. Money is unchanged.",
-        "Repeat once with DECLINE (client 1 sees `DUEL DECLINED`) and once pressing STOP AUTO mid-race (the other player wins).",
-        "Tell Claude what happened at each step."
-      ],
-      "status": "open",
-      "added": "2026-10-13T06:40:00-07:00",
-      "by": "Claude"
-    },
-    {
-      "id": "weather-icon-live-check",
-      "title": "Reconnect Rojo and keep the screen unlocked for the weather icon UI run",
-      "priority": "high",
-      "why": "Studio was restarted and its Rojo plugin is not connected, so the phone position of the weather icon is not in Studio. With the Mac's screen locked the client does not render (Camera.ViewportSize 1,1): no clicks, no hover, no valid [UITEST] run.",
-      "blocks": "Verifying bug 44fd8ec5 (icon over Market button on phones), the weather card clicks, mouse hover and the full UI suite; card weather-15min-icon.",
-      "when": "Before the next UI test run.",
-      "steps": [
-        "Unlock the Mac and bring Roblox Studio (Racer RNG) to the front.",
-        "In Studio's Rojo plugin click Connect (rojo serve is already running on port 34872).",
-        "Leave the game view visible and Device emulation off.",
-        "Tell Claude to rerun the weather UI checks."
-      ],
-      "status": "done",
-      "added": "2026-10-13T13:05:06-07:00",
-      "by": "Claude"
-    },
-    {
-      "id": "gamepass-car-ids",
-      "title": "Create the two gamepass car passes and send their ids",
-      "priority": "medium",
-      "why": "The Ember Wyvern and Singularity pedestals offer a gamepass purchase, but the game has no pass ids yet (GamepassId = 0), so both prompts say \"Coming soon\". Only the owner can create passes and set prices.",
-      "blocks": "Selling the two gamepass cars (docs/GAMEPASS_CARS_SPEC.md).",
-      "when": "Whenever you want the cars on sale.",
-      "steps": [
-        "Open the Creator Dashboard for the game, Monetization > Passes.",
-        "Create a pass \"Ember Wyvern\" priced 1999 Robux and a pass \"Singularity\" priced 999 Robux (owner, 2026-10-16), give each an icon, and put both on sale.",
-        "Copy each pass id and give them to Claude (or paste them into GamepassId in src/shared/Cars/ember_wyvern.luau and singularity.luau)."
-      ],
-      "status": "open",
-      "added": "2026-10-13T20:30:00-07:00",
-      "by": "Claude"
-    },
-    {
-      "id": "rojo-connect-smooth-rail",
-      "title": "Connect Studio's Rojo plugin to the running rojo serve",
-      "priority": "high",
-      "why": "Studio holds stale scripts (rojo serve was not running). The smooth-auto-race fix (soft rail) cannot be tested until the latest files sync.",
-      "blocks": "The car-loop red/green runs for the choppy auto-race fix, then /compat-check.",
-      "when": "Now.",
-      "steps": [
-        "Claude started rojo serve on localhost:34872.",
-        "In Roblox Studio (Racer RNG, Edit mode) open the Rojo plugin and click Connect.",
-        "Tell Claude it is connected."
-      ],
-      "status": "done",
-      "added": "2026-10-15T15:45:00-07:00",
-      "by": "Claude"
-    },
-    {
-      "id": "shop-dev-products",
-      "title": "Create the Shop's developer products (potion packs, bundle, Server Luck)",
-      "priority": "medium",
-      "why": "The Shop lists potion packs, a Potion Bundle and Server Luck, but they have ProductId = 0, so their buttons say \"Coming soon\". Only the owner can create developer products.",
-      "blocks": "Selling potions for Robux (docs/SHOP_PURCHASES_SPEC.md). Server Luck also needs its feature built before it can be sold.",
-      "when": "Whenever you want potions on sale.",
-      "steps": [
-        "Creator Dashboard > Monetization > Developer Products.",
-        "Create x5 Luck Potion III, x5 Money Potion III, x5 Speed Potion III (49 Robux each, proposed) and POTION BUNDLE (999, proposed). Change prices freely; the Shop shows Roblox's live price once an id is set.",
-        "Paste each product id into ProductId in src/shared/MonetizationConfig.luau (Products), or give them to Claude.",
-        "Also set real gamepass ids in MonetizationConfig.Gamepasses when those passes exist."
-      ],
-      "status": "open",
-      "added": "2026-10-16T18:00:00-07:00",
-      "by": "Claude"
-    },
-    {
-      "id": "shop-codes",
-      "title": "Choose the real redeem codes",
-      "priority": "low",
-      "why": "The Shop's code box works, but the only code is the placeholder RELEASE (2x Luck Potion II, 2x Speed Potion II). Codes may give potions only, never Money.",
-      "blocks": "Promo codes for socials.",
-      "when": "Before you post codes anywhere.",
-      "steps": [
-        "Open src/server/CodeConfig.luau (server only).",
-        "Add codes as UPPER-CASE keys with Grants = { <boost id> = count }, e.g. LAUNCH = { Grants = { LuckIII = 3 } }. Remove RELEASE if you do not want it.",
-        "Or tell Claude the codes and rewards."
-      ],
-      "status": "open",
-      "added": "2026-10-16T18:00:00-07:00",
-      "by": "Claude"
-    },
-    {
-      "id": "biome-mesh-api",
-      "title": "Enable Mesh / Image APIs for the published game",
-      "why": "Biome props build their CC0 meshes on each client with EditableMesh, which fails by default in published games; without the toggle players only see the plain-part fallbacks.",
-      "blocks": "biome-drive-by mesh art in live servers (Studio already works)",
-      "when": "Before publishing the biome branch",
-      "steps": [
-        "Open the game in Studio: File > Game Settings (or Home > Game Settings).",
-        "Security: turn on \"Allow Mesh / Image APIs\" (review the linked Terms of Use first). The same toggle is in the Creator Dashboard: the experience > Configure > Settings.",
-        "Save.",
-        "Tell Claude \"mesh APIs on\"; Claude checks a live server shows meshes."
-      ],
-      "status": "done",
-      "done": "2026-10-20",
-      "note": "Owner confirmed 2026-10-20: Allow Mesh / Image APIs was already on. Live-server mesh check happens after the biome branch is merged and published."
-    },
-    {
-      "id": "car-redesign-upload-key",
-      "title": "Open Cloud API key for the car mesh uploads",
-      "why": "The redesigned cars are Blender MeshParts (docs/CAR_REDESIGN_SPEC.md). Each car's FBX has to be uploaded to Roblox to get mesh ids; doing 111 by hand in Studio's 3D Importer is very slow.",
-      "blocks": "car-redesign: every wave (the Go-Kart pilot FBX is ready in drafts/cars/go_kart/redesign/)",
-      "when": "Before wave 1",
-      "steps": [
-        "Open create.roblox.com > Dashboard > Open Cloud > API Keys > Create API Key.",
-        "Name it \"car-redesign-upload\". Add the API system \"Assets\" with Read and Write. Under Accepted IP Addresses add 0.0.0.0/0 (or your IP).",
-        "Save, copy the key and keep it private. Do not paste it in chat or commit it.",
-        "In a terminal: echo 'export ROBLOX_OPEN_CLOUD_KEY=<key>' >> ~/.zshrc and echo 'export ROBLOX_CREATOR_ID=<your user id or group id>' >> ~/.zshrc, then open a new terminal.",
-        "Tell Claude \"upload key set\"; Claude pilots the Go-Kart upload. If Open Cloud does not work, the fallback is importing each FBX with Studio's 3D Importer."
-      ],
-      "status": "done",
-      "done": "2026-10-20",
-      "note": "Verified 2026-10-20: Go-Kart pilot uploaded (Model 90296948247442) with /usr/bin/python3 (python.org 3.14 lacks CA certs)."
-    },
-    {
-      "id": "studio-update-unlock-2026-10-22",
-      "title": "Finish Studio update and unlock screen for the compat check",
-      "why": "Roblox Studio keeps quitting a few minutes into test runs (log ends at InstallerInfo.log: pending auto-update), and the locked Mac screen stops the client rendering, so the UI suite cannot click.",
-      "blocks": "Compat check UI, world, multiplayer and regression suites (harness already green at a855483bd887)",
-      "when": "2026-10-22",
-      "status": "open",
-      "steps": [
-        "Quit Roblox Studio and reopen it so the pending update installs.",
-        "Open the Racer RNG place (placeId 126725530984268).",
-        "Make sure `rojo serve` runs in the project root and click Connect in the Rojo plugin.",
-        "Unlock the Mac and keep Studio's game view visible (no device emulation).",
-        "Tell Claude it is ready."
-      ]
-    },
-    {
-      "id": "rebake-startergui-2026-10-26",
-      "title": "Re-bake the Racer UI ScreenGuis into StarterGui.rbxm",
-      "why": "The UI modules were regenerated from their specs (2026-10-26). RacerIndex, RacerStats, RacerSettings, RacerRebirth and RacerUpgrades now carry a newer SpecHash than the baked assets/studio/StarterGui.rbxm, so Bind rebuilds them from code at runtime instead of using the saved GUIs. Done 2026-10-26 by Claude offline with Lune (no Studio save needed): RacerStats, RacerSettings, RacerRebirth, RacerUpgrades and RollShowcase re-baked; all seven baked SpecHashes match their modules; verify.py --lune passes; live Play shows no client errors.",
-      "blocks": "Nothing breaks (Bind falls back to Build); the baked asset just stops being used for those five GUIs until refreshed.",
-      "when": "2026-10-26",
-      "status": "done",
-      "steps": [
-        "Open the place in Studio with `rojo serve` running and Rojo connected (Edit mode, not Play).",
-        "For each of RacerIndex, RacerStats, RacerSettings, RacerRebirth and RacerUpgrades, run ui/generated/<Name>.studio.luau in the command bar (no studio.luau for Stats/Settings: ask Claude to generate one) so StarterGui holds the new ScreenGui.",
-        "Keep the Gallery / Rows subtrees as ui/tooling/README.md describes, or let the controller re-bake them on first Play.",
-        "Save StarterGui to assets/studio/StarterGui.rbxm and tell Claude, who will run `python3 -B ui/tooling/verify.py --lune` and the UI suite."
-      ],
-      "done": "2026-10-26"
-    },
-    {
-      "id": "vfx-preview-app-management-2026-10-26",
-      "title": "Let the terminal copy draft VFX textures into Roblox Studio",
-      "why": "The redesigned trails and auras (vfx/trails/) use 16 drawn textures. Studio's Trails and ParticleEmitters only draw local files from its own content folder (rbxasset://textures/vfxpreview/...) or uploaded assets; EditableImages render white. macOS App Management blocks writing inside RobloxStudio.app ('Operation not permitted'), even from the owner's own shell. Done 2026-10-26: owner enabled App Management; textures copied to vfxpreview/014519 and all load in the test Studio (ContentProvider Success).",
-      "blocks": "Seeing the six draft cosmetics live in the test Studio (vfx/trails/preview.luau); without it they show as untextured placeholders.",
-      "when": "2026-10-26",
-      "status": "done",
-      "steps": [
-        "Open System Settings > Privacy & Security > App Management.",
-        "Turn on the app Claude Code runs in (Terminal, iTerm, VS Code or Claude). Quit and reopen it if macOS asks.",
-        "In Claude Code type: ! /Applications/Blender.app/Contents/Resources/5.2/python/bin/python3.13 ~/.claude/skills/roblox-vfx/scripts/vfxtex.py preview /Users/alexnguyen7369/Documents/RobloxGames/vfx/trails/out/*.png",
-        "Tell Claude the printed vfxpreview/<stamp> folder; Claude re-runs the preview in the test Studio. Remove the copies later with vfxtex.py clean-preview."
-      ]
-    },
-    {
-      "id": "lighting-future-2026-10-26",
-      "title": "Set Lighting.Technology to Future and save the place",
-      "why": "docs/RENDERING_SPEC.md section 1: scripts cannot set Lighting.Technology, and the glossy car finish and Asphalt/Concrete materials look best with Future lighting.",
-      "blocks": "The full look of the rendering pass (reflections, soft shadows).",
-      "when": "2026-10-26",
-      "status": "open",
-      "steps": [
-        "Stop Play in Studio.",
-        "Explorer > Lighting > Properties > Technology: choose Future.",
-        "File > Save to Roblox (or publish)."
-      ]
-    },
-    {
-      "id": "car-geometry-wave-approval-2026-10-26",
-      "title": "Approve the car geometry pass before upload",
-      "why": "CAR_REDESIGN_SPEC section 6/8: waves merge only after owner approval. 101 expansion cars were rebuilt locally (rounder tyres, rounder thick paint panels); the 10 hand-built wave-1 cars kept their geometry (already near 6,000 tris). Owner 2026-10-26: make it stronger, then upload. Done: level-2 pass on 110 cars (golden_racer level 1), all 111 re-uploaded and synced.",
-      "blocks": "Uploading 101 car meshes and re-syncing RedesignCarModels.",
-      "when": "2026-10-26",
-      "status": "done",
-      "steps": [
-        "Compare old vs new previews: drafts/cars/<id>/redesign/preview.png (git diff shows the changed files).",
-        "Say approve (Claude uploads with tools/upload_car_meshes.py, refreshes meshes.json and RedesignCarModels) or ask for a stronger pass.",
-        "To discard: git checkout drafts/cars."
-      ]
-    },
-    {
-      "id": "scenery-device-check-2026-10-27",
-      "title": "Check frame rate and particles of the bigger scenery on a phone and with 7 players",
-      "why": "Owner 2026-10-27: bigger scenery in mass (BIOME_DRESSING_SPEC Scale, budget 1200, scenery ~5.7K parts, 77 emitters). Studio throttles an unfocused window to 15 fps, so frame cost cannot be measured from MCP.",
-      "blocks": "Tuning BiomeDressing.SCALE / BUDGET (placeholders) for low-end devices.",
-      "when": "2026-10-27",
-      "status": "open",
-      "steps": [
-        "Publish or use Team Test; join on a phone (or Device Simulator with a low-end phone).",
-        "Auto race through Track 6 (City) and Track 8 (Snow); open the Developer Console (F9) > Stats and note FPS and render time.",
-        "With 7 players in one server, watch the same tracks for frame drops from particles.",
-        "Tell Claude the numbers; it lowers SCALE or BUDGET if FPS falls below about 30."
-      ]
-    },
-    {
-      "id": "ui-rules-manual-2026-10-27",
-      "title": "Run the hand-only UI checks: gamepad focus and notched-phone safe insets",
-      "why": "HUD_LAYOUT_SPEC section 7 (owner 2026-10-26). ui-test-writer added ui_gamepad_focus, ui_safe_insets_notch and the gamepad_* clicks; they need a Controller Emulator or a notched Device Simulator, which scripts cannot drive.",
-      "blocks": "Closing todo ui-gamepad-focus and ui-safe-insets.",
-      "when": "2026-10-27",
-      "status": "open",
-      "steps": [
-        "Studio > Test > Device: pick a notched phone (e.g. iPhone 14). Start Play.",
-        "On the server set ReplicatedStorage attribute UiTestRun false then true; read the [UITEST] lines for ui_safe_insets_notch.",
-        "Test > Controller Emulator: connect a gamepad, rerun UiTestRun, then press B with the Index open and D-pad up inside it (clicks gamepad_b_closes_index, gamepad_dpad_up_stays_in_index).",
-        "Paste the [UITEST] END line to Claude."
-      ]
-    },
-    {
-      "id": "ember-wyvern-draft2-review",
-      "title": "Review the Ember Wyvern draft 4 (cyan shadow wyvern: model, textures, flap, effects)",
-      "why": "New dragon mesh and effects drafted 2026-10-27; only the owner approves art and new effects (design doc).",
-      "blocks": "Uploading the mesh, the RedesignCarModels export and wiring the effects (todo ember-wyvern-draft2).",
-      "when": "2026-10-27",
-      "status": "done",
-      "steps": [
-        "Open drafts/cars/ember_wyvern/redesign/preview.png and views/ (side, front, top, rear34, head, flap_cycle; studio_vfx*.jpg show the draft 2 orange effects).",
-        "Say what to change (shape, colours, wings, effects strength), or approve.",
-        "On approval: decide when the effects play (always, or only on boost) so the design doc can record it."
-      ],
-      "done": "2026-10-27",
-      "note": "Owner approved draft 4 (2026-10-27)."
-    },
-    {
-      "id": "rojo-reconnect-2026-10-27",
-      "title": "Reconnect Rojo in Studio and save the place",
-      "why": "Studio was restarted, so its Rojo plugin is disconnected. The Ember Wyvern was built into ReplicatedStorage.RedesignCarModels by hand; Rojo replaces it with assets/studio/RedesignCarModels/ember_wyvern.rbxmx once connected.",
-      "blocks": "Studio matching the files on disk (every later test run).",
-      "when": "2026-10-27",
-      "status": "done",
-      "steps": [
-        "Keep `rojo serve` running in the project root (it is).",
-        "In Studio: Plugins > Rojo > Connect.",
-        "Check ReplicatedStorage.RedesignCarModels.ember_wyvern has 7 MeshParts, then File > Save."
-      ],
-      "done": "2026-10-27",
-      "note": "Verified: Studio scripts match disk (RedesignTests synced live); RedesignCarModels.ember_wyvern present once."
-    },
-    {
-      "id": "save-place-wyvern-rig-2026-10-27",
-      "title": "Save the Studio place (rigged Ember Wyvern model)",
-      "why": "Rojo cannot create or update MeshParts (MeshId is plugin-locked), so ReplicatedStorage.RedesignCarModels.ember_wyvern (rigged, 33 bones, Model 100205140229978 (long tail)) was built in Studio through MCP. It only persists when the place is saved; assets/studio/RedesignCarModels/ember_wyvern.rbxmx on disk is the same model for rojo build.",
-      "blocks": "The flying wyvern in a published game and in the next Studio session.",
-      "when": "2026-10-27",
-      "status": "open",
-      "steps": [
-        "In Studio (edit mode) check ReplicatedStorage.RedesignCarModels.ember_wyvern: Body has a Root bone tree, the model has attribute Rig = Wyvern.",
-        "File > Save (or Publish to Roblox when you ship)."
-      ]
-    }
-  ]
+ "items": [
+  {
+   "id": "project-configs",
+   "title": "Configs & setup for a new collaborator or LLM",
+   "category": "config",
+   "persistent": true,
+   "priority": "high",
+   "why": "This project needs local CLI tools, Roblox Studio, Rojo, MCP connections, and GitHub access before an agent can safely edit, test, or push the game.",
+   "blocks": "Reliable Rojo sync, live Studio compatibility tests, Blender work, and GitHub delivery",
+   "when": "Before the first implementation or compatibility run on a new machine.",
+   "steps": [
+    "Install Python 3, Git, Roblox Studio, and Homebrew (macOS). Install the project CLIs: `brew install rojo stylua selene lune gh uv`.",
+    "From the repository root, verify the tools: `rojo --version`, `stylua --version`, `selene --version`, `lune --version`, `gh --version`, and `python3 --version`.",
+    "Configure Codex MCP servers: `codex mcp add Roblox_Studio -- /Applications/RobloxStudio.app/Contents/MacOS/StudioMCP` and `codex mcp add blender -- uvx blender-mcp`; restart Codex and verify with `codex mcp list`. On another OS, use that StudioMCP executable path.",
+    "For Blender live editing, install the add-on with `uvx mcp-for-blender install-addon`, enable it in Blender, and start the BlenderMCP server from the N-panel. Headless exports do not need the live connection.",
+    "Start Rojo from the repository root with `rojo serve`; in Roblox Studio open Plugins > Rojo and connect to `localhost:34872`. Confirm the synced script matches the files on disk before testing.",
+    "Open the Roblox Studio place in Edit mode, enable the Roblox Studio MCP, and turn on Game Settings > Security > Enable Studio Access to API Services when real DataStore tests are needed. Set the place server size to 7 for the workshop.",
+    "Authenticate GitHub for branch and push workflows: `gh auth login --hostname github.com --git-protocol https --web`; verify with `gh auth status`.",
+    "Start the shared dashboard with `python3 tools/dashboard/server.py --no-fetch --no-auto-branch` and open `http://127.0.0.1:8765`. Use the dashboard Agents tab and manual tasks as the handoff record.",
+    "Run local checks before a live gate: `stylua --check src`, `selene src`, and `rojo build --output /tmp/racer-rng.rbxl`. Never run two Studio test sessions at once, never edit synced scripts inside Studio, and do not push without an ALL GREEN `/compat-check`."
+   ],
+   "status": "open",
+   "added": "2026-10-06T19:30:00-07:00",
+   "by": "Codex"
+  },
+  {
+   "id": "max-players-7",
+   "title": "Set the server size to 7 players",
+   "priority": "medium",
+   "why": "Each player gets one of the 7 workshop plots in the spawn area (docs/WORKSHOP_SPEC.md). With a larger server, an 8th player would get no plot. Rojo can't set the server size, so it's set by hand in the place settings.",
+   "blocks": "Publishing a server with workshops (Studio tests are unaffected)",
+   "when": "Before the next publish.",
+   "steps": [
+    "In Studio, open Home > Game Settings > Places.",
+    "Open the place's settings (the ... button > Edit) and set Server Size (Max Players) to 7.",
+    "Save, then tell Claude \"server size 7\"."
+   ],
+   "status": "open",
+   "added": "2026-10-06T12:00:00-07:00",
+   "by": "Claude"
+  },
+  {
+   "id": "rojo-connect",
+   "title": "Click Connect in Studio's Rojo plugin",
+   "priority": "high",
+   "why": "Claude can not open Studio or click Connect. On 2026-10-12 no Studio was connected to the MCP and `rojo serve` was not running, so the red tests and the design-doc fixes (rebirth, Money sources, session-locked saves, turbo) have never been run.",
+   "blocks": "TODO: conflict-rebirth-speed, conflict-money-sources, conflict-session-lock, turbo-10x; every later phase (weather sky, leaderboards, duels) and /compat-check",
+   "when": "Before the next Claude session continues this work.",
+   "steps": [
+    "Run `rojo serve` in the project root (branch design-doc-conflicts).",
+    "Open the Racer RNG place in Roblox Studio with the Roblox Studio MCP plugin active.",
+    "Click Connect in the Rojo plugin.",
+    "Tell Claude \"studio connected\"."
+   ],
+   "status": "open",
+   "added": "2026-10-05T20:00:00-07:00",
+   "by": "Claude",
+   "updated": "2026-10-12T00:50:26-07:00",
+   "updatedBy": "Codex",
+   "verified": "Current Edit DataModel lacks the new RebirthService, BoostService, and DailyLoginService; reconnect localhost:34872 before live testing."
+  },
+  {
+   "id": "recover-hud-items",
+   "title": "Reopen Studio WITHOUT saving to recover two deleted HUD items",
+   "priority": "high",
+   "why": "Claude deleted Client/Ui (Racer HUD) in Edit mode after exporting only part of it: Ui/RollShowcase and Ui/RacerMotion were not exported, and Studio's undo did not restore them. They still exist in the last saved version of the place.",
+   "blocks": "Saving the complete Racer HUD to git (branch studio/racer-hud-ui) and finishing the compat check",
+   "when": "Now, before any save.",
+   "steps": [
+    "Do NOT press Ctrl+S or publish.",
+    "Close Roblox Studio and choose Don't Save.",
+    "Reopen the place \"Racer RNG\" (Edit mode, do not press Play).",
+    "Tell Claude \"reopened\"; Claude exports every item under StarterPlayerScripts.Client/Ui and RacerUiController from Edit mode before changing anything."
+   ],
+   "status": "done",
+   "added": "2026-10-05T19:50:00-07:00",
+   "by": "Claude",
+   "doneBy": "Alex Nguyen",
+   "doneAt": "2026-10-05T20:00:00-07:00",
+   "verified": "Reopened without saving. The place never held the HUD scripts; Ui/RollShowcase and Ui/RacerMotion are not recoverable on this machine (noted in drafts/ui/racer-hud/DRAFT.md on branch studio/racer-hud-ui)."
+  },
+  {
+   "id": "hud-screenguis-rbxm",
+   "title": "Save the Racer HUD ScreenGuis to files",
+   "priority": "low",
+   "why": "The HUD's baked ScreenGuis (RacerHud, RacerIndex, RacerStats, RacerSettings, RollShowcase) exist only in the place. Claude moved them to ServerStorage.RacerHudStash for the compat check; they are not in git.",
+   "blocks": "Rebuilding the Racer HUD from the repo later",
+   "when": "Any time after the compat check.",
+   "steps": [
+    "In Explorer open ServerStorage > RacerHudStash.",
+    "Select the five ScreenGuis, right-click > Save to File, and save them as `~/Documents/RobloxGames/drafts/ui/racer-hud/RacerHudGuis.rbxm`.",
+    "Tell Claude; it adds the file to branch studio/racer-hud-ui.",
+    "To use the HUD in the place again, drag the five ScreenGuis back into StarterGui."
+   ],
+   "status": "open",
+   "added": "2026-10-05T20:00:00-07:00",
+   "by": "Claude"
+  },
+  {
+   "id": "save-place-spawn",
+   "title": "Save the place after the stray spawn was deleted",
+   "priority": "high",
+   "why": "Claude deleted the stray Workspace.SpawnLocation (-2, 0.5, -2) in Edit mode. Studio only keeps that change if you save; otherwise it comes back next time and the spawn_area test fails again.",
+   "blocks": "Keeping spawn_area green (exactly one spawn in the game)",
+   "when": "After the compat check finishes (play stopped), not during a test run.",
+   "steps": [
+    "Make sure play is stopped (Edit mode).",
+    "Check Explorer: Workspace has no `SpawnLocation` directly under it (Workspace.SpawnArea is built only during play).",
+    "Press Ctrl+S (File > Save to Roblox) to save the place.",
+    "Mark this done."
+   ],
+   "status": "done",
+   "added": "2026-10-05T06:30:00-07:00",
+   "by": "Claude",
+   "doneBy": "Alex Nguyen",
+   "doneAt": "2026-10-05T08:30:00-07:00",
+   "verified": "Claude, 2026-10-05: after a Studio restart the place has exactly one SpawnLocation (SpawnArea.Spawn) during play."
+  },
+  {
+   "id": "duplicate-baseplate",
+   "title": "Remove the extra Baseplate saved in the place",
+   "priority": "low",
+   "why": "world-tester found two identical Workspace.Baseplate parts (2048x16x2048 at 0,-8,0), both purple-ish (180,107,191) instead of the green Rojo defines in default.project.json. One is most likely an old Baseplate saved in the place file next to the Rojo one. Harmless for physics, but it z-fights and hides the intended green ground.",
+   "blocks": "Nothing (cosmetic, keeps the place matching the repo)",
+   "when": "With the place save after the compat check (Studio in Edit mode).",
+   "steps": [
+    "In Edit mode, select Workspace and look for two children named `Baseplate`.",
+    "Decide which ground colour you want: green (the repo's default.project.json) or purple. If purple is intended, tell Claude so it updates default.project.json instead.",
+    "Delete the one that is NOT managed by Rojo (Rojo recreates its own on sync; if unsure, delete one, wait a few seconds and check one Baseplate remains).",
+    "Save the place (Ctrl+S)."
+   ],
+   "status": "open",
+   "added": "2026-10-05T07:30:00-07:00",
+   "by": "Claude"
+  },
+  {
+   "id": "reopen-studio",
+   "title": "Reopen Studio so the compat check can finish",
+   "priority": "high",
+   "why": "The compat check stopped halfway: the harness ran (23/24 pass) but the UI, multiplayer and world testers were cut off by a usage limit, and Studio is no longer connected to Claude.",
+   "blocks": "An ALL GREEN /compat-check, which is what lets initial-import go to main",
+   "when": "Now.",
+   "steps": [
+    "Open Roblox Studio with the place \"Racer RNG\" (Edit mode, not playing).",
+    "Make sure the Roblox Studio MCP is enabled (Assistant settings) and the Rojo plugin is connected (`rojo serve` is already running in the project).",
+    "Optional but recommended: in the Explorer, delete `Workspace.SpawnLocation` (the default spawn at -2, 0.5, -2; NOT `Workspace.SpawnArea.Spawn`) and save the place (Ctrl+S). It is the only harness failure: the game must have exactly one spawn. If you skip this, Claude deletes it in Edit mode and asks you to save.",
+    "Tell Claude \"Studio is open\"."
+   ],
+   "status": "done",
+   "added": "2026-10-05T06:05:00-07:00",
+   "by": "Claude",
+   "doneBy": "Alex Nguyen",
+   "doneAt": "2026-10-05T06:30:00-07:00"
+  },
+  {
+   "id": "hatchback-import",
+   "title": "Import the Rusty Hatchback into Studio",
+   "priority": "high",
+   "why": "Studio can only import a 3D file through its own Import 3D window; no script or MCP tool can do it. Until this is done the Rusty Hatchback shows a \"?\" in rolls.",
+   "blocks": "Rusty Hatchback in the game (TODO: Import the Rusty Hatchback into Studio)",
+   "when": "Not while a test run is using Studio (wait for the compat check to finish; the Agents tab shows physics-tester / ui-tester as running).",
+   "steps": [
+    "In Roblox Studio (place \"Racer RNG\"), open File > Import 3D (or Avatar tab > Import 3D).",
+    "Pick `~/Documents/RobloxGames/blender/exports/rusty_hatchback/RustyHatchback.fbx`.",
+    "In the importer check the size reads about 6.6 studs long. If it is 100x too big or small, change the file units (Stud / Meter) until it does.",
+    "Keep it importing as ONE model, then click Import. Leave it wherever Studio puts it.",
+    "Tell Claude \"hatchback imported\". Claude renames and orients it, makes it non-colliding and massless, checks the mesh and texture ids uploaded, and moves it to ReplicatedStorage.CarModels."
+   ],
+   "status": "done",
+   "added": "2026-10-05T04:20:00-07:00",
+   "by": "Claude",
+   "doneBy": "Alex Nguyen",
+   "doneAt": "2026-10-06T02:40:00-07:00",
+   "verified": "Isaac's Draft05 import was used instead of the textured blender/exports FBX (owner chose this 2026-10-06); CarModels.rbxm mapped; rolls show the model"
+  },
+  {
+   "id": "hatchback-rbxm",
+   "title": "Save the hatchback model to the repo",
+   "priority": "high",
+   "why": "The place file is not in git, so other developers only get the model if it is saved as a file Rojo can sync.",
+   "blocks": "Collaborators seeing the Rusty Hatchback",
+   "when": "After Claude has finished setting up the imported model (it will say so).",
+   "steps": [
+    "In Studio's Explorer, open ReplicatedStorage > CarModels and right-click RustyHatchback.",
+    "Choose Save to File... and save it as `~/Documents/RobloxGames/assets/CarModels/RustyHatchback.rbxm` (create the CarModels folder if asked).",
+    "Tell Claude \"rbxm saved\". Claude maps ReplicatedStorage.CarModels to assets/CarModels in default.project.json and sets Model = \"RustyHatchback\" in Cars/rusty_hatchback.luau."
+   ],
+   "status": "done",
+   "added": "2026-10-05T04:20:00-07:00",
+   "by": "Claude",
+   "doneBy": "Alex Nguyen",
+   "doneAt": "2026-10-06T02:40:00-07:00",
+   "verified": "Isaac's Draft05 import was used instead of the textured blender/exports FBX (owner chose this 2026-10-06); CarModels.rbxm mapped; rolls show the model"
+  },
+  {
+   "id": "upgrade-decisions",
+   "title": "Confirm two upgrade tree decisions",
+   "priority": "medium",
+   "why": "Claude made two calls the spec did not spell out. Both are easy to change now and harder after the UI is built.",
+   "blocks": "Upgrade tree phase 3 (UI)",
+   "when": "Any time.",
+   "steps": [
+    "Read docs/UPGRADE_TREE_DESIGN.md, sections \"Tile ids and the tree\" and \"Prices\".",
+    "Decision 1: Turbo forks off Roll Speed I (so its first tier is never the first purchase) instead of having its own direction from Start.",
+    "Decision 2: prices round halves UP (Roll Speed I $230, Walkspeed II $170).",
+    "Tell Claude \"keep both\", or what to change. Changing a price means test-writer updates the test first."
+   ],
+   "status": "done",
+   "added": "2026-10-05T04:20:00-07:00",
+   "by": "Claude",
+   "doneBy": "Alex Nguyen",
+   "doneAt": "2026-10-06T13:10:00-07:00",
+   "verified": "Owner: keep both (Turbo forks off Roll Speed I; prices round halves up). No change needed."
+  },
+  {
+   "id": "studio-api-access",
+   "title": "Let Studio use DataStores (to test real saving)",
+   "priority": "medium",
+   "why": "Real DataStore saving has never been tested: Studio blocks it by default, so only a stubbed store is tested (the console shows StudioAccessToApisNotAllowed).",
+   "blocks": "TODO: Test real DataStore saving",
+   "when": "Any time Studio is not running a test.",
+   "steps": [
+    "In Studio: Home > Game Settings > Security.",
+    "Turn on \"Enable Studio Access to API Services\" and Save.",
+    "Tell Claude \"API access on\"; Claude then tests saving and loading for real."
+   ],
+   "status": "open",
+   "added": "2026-10-05T04:20:00-07:00",
+   "by": "Claude"
+  },
+  {
+   "id": "slack-token",
+   "title": "Revoke the exposed Slack token and reinstall the bot",
+   "priority": "medium",
+   "why": "A user (xoxp) Slack token was exposed earlier (ProjectContext TODO 3). Only you can revoke it and install the app.",
+   "blocks": "Posting test results to #racer-dev",
+   "when": "Soon (security).",
+   "steps": [
+    "At api.slack.com/apps, open the app, go to OAuth & Permissions and revoke the old xoxp token.",
+    "Add bot scopes: chat:write, channels:read, channels:history, groups:read, groups:history, users:read, reactions:write. Reinstall to the workspace and copy the new xoxb- token.",
+    "In a terminal: `claude mcp remove slack --scope user`, then re-add the Slack MCP with the xoxb- token and SLACK_TEAM_ID=T0C5AK11CNB.",
+    "In Slack: `/invite` the bot to #racer-dev."
+   ],
+   "status": "open",
+   "added": "2026-10-05T04:20:00-07:00",
+   "by": "Claude"
+  },
+  {
+   "id": "blender-mcp",
+   "title": "Reconnect the Blender MCP add-on (optional)",
+   "priority": "low",
+   "why": "The Blender add-on is out of date and not connected, so Claude cannot see or edit an open Blender scene. Exports still work headless, so this only matters for new modelling work.",
+   "blocks": "Live Blender work (new car drafts)",
+   "when": "Before the next car or prop draft.",
+   "steps": [
+    "In a terminal: `uvx mcp-for-blender install-addon`.",
+    "Restart Blender (or Preferences > Add-ons: disable and re-enable \"Interface: Blender MCP\").",
+    "In the 3D view press N, open the BlenderMCP tab and click Start MCP Server / Connect."
+   ],
+   "status": "open",
+   "added": "2026-10-05T04:20:00-07:00",
+   "by": "Claude"
+  },
+  {
+   "id": "studio-device-none",
+   "title": "Turn off Studio's Device Simulator before UI test runs",
+   "priority": "high",
+   "why": "Under device emulation (e.g. 750x361 phone) Studio's injected mouse clicks land at the wrong screen point, so the UI suite's ~57 click contracts can't run. Automation can't change the setting during Play (the menu is greyed out).",
+   "blocks": "/compat-check UI suite (click contracts) -> push to main",
+   "when": "Now, before the next /compat-check run.",
+   "steps": [
+    "Stop Play in Studio.",
+    "Test tab > Device: choose 'None' (or close the Device Simulator) so the game view uses the normal window size.",
+    "Start Play again (or tell Claude it's done; Claude restarts Play itself)."
+   ],
+   "status": "open",
+   "added": "2026-10-08T12:00:00-07:00",
+   "by": "Claude"
+  },
+  {
+   "id": "ui-manual-escape-foreign-e",
+   "title": "Manual UI checks: Escape closes panels, foreign workshop E, phone resize",
+   "priority": "medium",
+   "why": "Owner decision 2026-10-08: these can't be automated (Roblox reserves Escape for its menu; the foreign-plot E prompt needs 2 real players), so they are manual checks instead of gate blockers.",
+   "blocks": "Nothing (manual verification before a release)",
+   "when": "Before a release, or after changing PanelSwitch / ProgressionUi / WorkshopService.",
+   "steps": [
+    "In Play, open INDEX, press Escape: the panel closes (repeat for STATS, SETTINGS, REBIRTH).",
+    "Start a 2-player local server (Test > Clients and Servers > 2 players).",
+    "With player 1, walk into player 2's workshop zone and press E: nothing of player 2's opens (no RacerWorkshop for player 1).",
+    "Resize check: in Play, switch Test > Device to a phone (e.g. iPhone landscape) and back to None: the HUD re-lays out each time, no old SpeedHud / AutoRaceButton / roll controls reappear, nothing overlaps."
+   ],
+   "status": "open",
+   "added": "2026-10-08T12:00:00-07:00",
+   "by": "Claude"
+  },
+  {
+   "id": "codex-trust-bus-hook",
+   "title": "Trust the agent-bus hook in Codex",
+   "priority": "medium",
+   "why": "`.codex/hooks.json` now delivers Claude's bus messages to Codex automatically, but Codex only runs project hooks the developer has reviewed and trusted. A `codex exec` check on 2026-10-11 confirmed the untrusted hook does not fire.",
+   "blocks": "TODO: Automatic bus delivery for Codex",
+   "when": "Next time you open Codex in this repo.",
+   "steps": [
+    "Run `codex` in the project root.",
+    "Type `/hooks`, review the two `agent_bus.py hook --agent codex` entries (SessionStart, UserPromptSubmit) and trust them.",
+    "Send any prompt; if Claude has unread mail for Codex it shows as an `<agent-bus>` block. Tell Claude \"codex hook trusted\"."
+   ],
+   "status": "open",
+   "added": "2026-10-11T23:20:00-07:00",
+   "by": "Claude"
+  },
+  {
+   "id": "duel-two-player-live",
+   "title": "Play one duel with two clients in Studio",
+   "priority": "high",
+   "why": "The duel request is a ProximityPrompt on another player's avatar. The Studio MCP starts one client only, so Claude cannot walk up to a second player. The server flow is covered by the `duel` harness scenario with fake players and the UI by `ui_duel`; the real prompt, the real seats and the countdown on two screens are not.",
+   "blocks": "Calling the duel feature verified end to end (docs/DUEL_SPEC.md section 4, multiplayer flow)",
+   "when": "When no agent session is using Studio.",
+   "steps": [
+    "Studio > Test tab > Clients and Servers: pick `Local Server`, `2 Players`, press Start. Rojo must be connected first.",
+    "In client 1 check: no `Duel` prompt on your own avatar.",
+    "Walk client 1 next to client 2's avatar (within 10 studs). A `Duel` prompt with the other player's name shows; hold F.",
+    "Client 1: the PICK A TRACK panel opens; click `TRACK 1`.",
+    "Client 2: the DUEL REQUEST panel shows `<name> challenges you on Track 1`; click ACCEPT.",
+    "Both: a car each at the Track 1 start, side by side, `3 2 1 GO!`, both cars race to the finish. During the countdown press R and W: the car must not move.",
+    "Both: `YOU WIN!` on one screen and `YOU LOSE` on the other, then both stand in the spawn area. Money is unchanged.",
+    "Repeat once with DECLINE (client 1 sees `DUEL DECLINED`) and once pressing STOP AUTO mid-race (the other player wins).",
+    "Tell Claude what happened at each step."
+   ],
+   "status": "open",
+   "added": "2026-10-13T06:40:00-07:00",
+   "by": "Claude"
+  },
+  {
+   "id": "weather-icon-live-check",
+   "title": "Reconnect Rojo and keep the screen unlocked for the weather icon UI run",
+   "priority": "high",
+   "why": "Studio was restarted and its Rojo plugin is not connected, so the phone position of the weather icon is not in Studio. With the Mac's screen locked the client does not render (Camera.ViewportSize 1,1): no clicks, no hover, no valid [UITEST] run.",
+   "blocks": "Verifying bug 44fd8ec5 (icon over Market button on phones), the weather card clicks, mouse hover and the full UI suite; card weather-15min-icon.",
+   "when": "Before the next UI test run.",
+   "steps": [
+    "Unlock the Mac and bring Roblox Studio (Racer RNG) to the front.",
+    "In Studio's Rojo plugin click Connect (rojo serve is already running on port 34872).",
+    "Leave the game view visible and Device emulation off.",
+    "Tell Claude to rerun the weather UI checks."
+   ],
+   "status": "done",
+   "added": "2026-10-13T13:05:06-07:00",
+   "by": "Claude"
+  },
+  {
+   "id": "gamepass-car-ids",
+   "title": "Create the two gamepass car passes and send their ids",
+   "priority": "medium",
+   "why": "The Ember Wyvern and Singularity pedestals offer a gamepass purchase, but the game has no pass ids yet (GamepassId = 0), so both prompts say \"Coming soon\". Only the owner can create passes and set prices.",
+   "blocks": "Selling the two gamepass cars (docs/GAMEPASS_CARS_SPEC.md).",
+   "when": "Whenever you want the cars on sale.",
+   "steps": [
+    "Open the Creator Dashboard for the game, Monetization > Passes.",
+    "Create a pass \"Ember Wyvern\" priced 1999 Robux and a pass \"Singularity\" priced 999 Robux (owner, 2026-10-16), give each an icon, and put both on sale.",
+    "Copy each pass id and give them to Claude (or paste them into GamepassId in src/shared/Cars/ember_wyvern.luau and singularity.luau)."
+   ],
+   "status": "open",
+   "added": "2026-10-13T20:30:00-07:00",
+   "by": "Claude"
+  },
+  {
+   "id": "rojo-connect-smooth-rail",
+   "title": "Connect Studio's Rojo plugin to the running rojo serve",
+   "priority": "high",
+   "why": "Studio holds stale scripts (rojo serve was not running). The smooth-auto-race fix (soft rail) cannot be tested until the latest files sync.",
+   "blocks": "The car-loop red/green runs for the choppy auto-race fix, then /compat-check.",
+   "when": "Now.",
+   "steps": [
+    "Claude started rojo serve on localhost:34872.",
+    "In Roblox Studio (Racer RNG, Edit mode) open the Rojo plugin and click Connect.",
+    "Tell Claude it is connected."
+   ],
+   "status": "done",
+   "added": "2026-10-15T15:45:00-07:00",
+   "by": "Claude"
+  },
+  {
+   "id": "shop-dev-products",
+   "title": "Create the Shop's developer products (potion packs, bundle, Server Luck)",
+   "priority": "medium",
+   "why": "The Shop lists potion packs, a Potion Bundle and Server Luck, but they have ProductId = 0, so their buttons say \"Coming soon\". Only the owner can create developer products.",
+   "blocks": "Selling potions for Robux (docs/SHOP_PURCHASES_SPEC.md). Server Luck also needs its feature built before it can be sold.",
+   "when": "Whenever you want potions on sale.",
+   "steps": [
+    "Creator Dashboard > Monetization > Developer Products.",
+    "Create x5 Luck Potion III, x5 Money Potion III, x5 Speed Potion III (49 Robux each, proposed) and POTION BUNDLE (999, proposed). Change prices freely; the Shop shows Roblox's live price once an id is set.",
+    "Paste each product id into ProductId in src/shared/MonetizationConfig.luau (Products), or give them to Claude.",
+    "Also set real gamepass ids in MonetizationConfig.Gamepasses when those passes exist."
+   ],
+   "status": "open",
+   "added": "2026-10-16T18:00:00-07:00",
+   "by": "Claude"
+  },
+  {
+   "id": "shop-codes",
+   "title": "Choose the real redeem codes",
+   "priority": "low",
+   "why": "The Shop's code box works, but the only code is the placeholder RELEASE (2x Luck Potion II, 2x Speed Potion II). Codes may give potions only, never Money.",
+   "blocks": "Promo codes for socials.",
+   "when": "Before you post codes anywhere.",
+   "steps": [
+    "Open src/server/CodeConfig.luau (server only).",
+    "Add codes as UPPER-CASE keys with Grants = { <boost id> = count }, e.g. LAUNCH = { Grants = { LuckIII = 3 } }. Remove RELEASE if you do not want it.",
+    "Or tell Claude the codes and rewards."
+   ],
+   "status": "open",
+   "added": "2026-10-16T18:00:00-07:00",
+   "by": "Claude"
+  },
+  {
+   "id": "biome-mesh-api",
+   "title": "Enable Mesh / Image APIs for the published game",
+   "why": "Biome props build their CC0 meshes on each client with EditableMesh, which fails by default in published games; without the toggle players only see the plain-part fallbacks.",
+   "blocks": "biome-drive-by mesh art in live servers (Studio already works)",
+   "when": "Before publishing the biome branch",
+   "steps": [
+    "Open the game in Studio: File > Game Settings (or Home > Game Settings).",
+    "Security: turn on \"Allow Mesh / Image APIs\" (review the linked Terms of Use first). The same toggle is in the Creator Dashboard: the experience > Configure > Settings.",
+    "Save.",
+    "Tell Claude \"mesh APIs on\"; Claude checks a live server shows meshes."
+   ],
+   "status": "done",
+   "done": "2026-10-20",
+   "note": "Owner confirmed 2026-10-20: Allow Mesh / Image APIs was already on. Live-server mesh check happens after the biome branch is merged and published."
+  },
+  {
+   "id": "car-redesign-upload-key",
+   "title": "Open Cloud API key for the car mesh uploads",
+   "why": "The redesigned cars are Blender MeshParts (docs/CAR_REDESIGN_SPEC.md). Each car's FBX has to be uploaded to Roblox to get mesh ids; doing 111 by hand in Studio's 3D Importer is very slow.",
+   "blocks": "car-redesign: every wave (the Go-Kart pilot FBX is ready in drafts/cars/go_kart/redesign/)",
+   "when": "Before wave 1",
+   "steps": [
+    "Open create.roblox.com > Dashboard > Open Cloud > API Keys > Create API Key.",
+    "Name it \"car-redesign-upload\". Add the API system \"Assets\" with Read and Write. Under Accepted IP Addresses add 0.0.0.0/0 (or your IP).",
+    "Save, copy the key and keep it private. Do not paste it in chat or commit it.",
+    "In a terminal: echo 'export ROBLOX_OPEN_CLOUD_KEY=<key>' >> ~/.zshrc and echo 'export ROBLOX_CREATOR_ID=<your user id or group id>' >> ~/.zshrc, then open a new terminal.",
+    "Tell Claude \"upload key set\"; Claude pilots the Go-Kart upload. If Open Cloud does not work, the fallback is importing each FBX with Studio's 3D Importer."
+   ],
+   "status": "done",
+   "done": "2026-10-20",
+   "note": "Verified 2026-10-20: Go-Kart pilot uploaded (Model 90296948247442) with /usr/bin/python3 (python.org 3.14 lacks CA certs)."
+  },
+  {
+   "id": "studio-update-unlock-2026-10-22",
+   "title": "Finish Studio update and unlock screen for the compat check",
+   "why": "Roblox Studio keeps quitting a few minutes into test runs (log ends at InstallerInfo.log: pending auto-update), and the locked Mac screen stops the client rendering, so the UI suite cannot click.",
+   "blocks": "Compat check UI, world, multiplayer and regression suites (harness already green at a855483bd887)",
+   "when": "2026-10-22",
+   "status": "open",
+   "steps": [
+    "Quit Roblox Studio and reopen it so the pending update installs.",
+    "Open the Racer RNG place (placeId 126725530984268).",
+    "Make sure `rojo serve` runs in the project root and click Connect in the Rojo plugin.",
+    "Unlock the Mac and keep Studio's game view visible (no device emulation).",
+    "Tell Claude it is ready."
+   ]
+  },
+  {
+   "id": "rebake-startergui-2026-10-26",
+   "title": "Re-bake the Racer UI ScreenGuis into StarterGui.rbxm",
+   "why": "The UI modules were regenerated from their specs (2026-10-26). RacerIndex, RacerStats, RacerSettings, RacerRebirth and RacerUpgrades now carry a newer SpecHash than the baked assets/studio/StarterGui.rbxm, so Bind rebuilds them from code at runtime instead of using the saved GUIs. Done 2026-10-26 by Claude offline with Lune (no Studio save needed): RacerStats, RacerSettings, RacerRebirth, RacerUpgrades and RollShowcase re-baked; all seven baked SpecHashes match their modules; verify.py --lune passes; live Play shows no client errors.",
+   "blocks": "Nothing breaks (Bind falls back to Build); the baked asset just stops being used for those five GUIs until refreshed.",
+   "when": "2026-10-26",
+   "status": "done",
+   "steps": [
+    "Open the place in Studio with `rojo serve` running and Rojo connected (Edit mode, not Play).",
+    "For each of RacerIndex, RacerStats, RacerSettings, RacerRebirth and RacerUpgrades, run ui/generated/<Name>.studio.luau in the command bar (no studio.luau for Stats/Settings: ask Claude to generate one) so StarterGui holds the new ScreenGui.",
+    "Keep the Gallery / Rows subtrees as ui/tooling/README.md describes, or let the controller re-bake them on first Play.",
+    "Save StarterGui to assets/studio/StarterGui.rbxm and tell Claude, who will run `python3 -B ui/tooling/verify.py --lune` and the UI suite."
+   ],
+   "done": "2026-10-26"
+  },
+  {
+   "id": "vfx-preview-app-management-2026-10-26",
+   "title": "Let the terminal copy draft VFX textures into Roblox Studio",
+   "why": "The redesigned trails and auras (vfx/trails/) use 16 drawn textures. Studio's Trails and ParticleEmitters only draw local files from its own content folder (rbxasset://textures/vfxpreview/...) or uploaded assets; EditableImages render white. macOS App Management blocks writing inside RobloxStudio.app ('Operation not permitted'), even from the owner's own shell. Done 2026-10-26: owner enabled App Management; textures copied to vfxpreview/014519 and all load in the test Studio (ContentProvider Success).",
+   "blocks": "Seeing the six draft cosmetics live in the test Studio (vfx/trails/preview.luau); without it they show as untextured placeholders.",
+   "when": "2026-10-26",
+   "status": "done",
+   "steps": [
+    "Open System Settings > Privacy & Security > App Management.",
+    "Turn on the app Claude Code runs in (Terminal, iTerm, VS Code or Claude). Quit and reopen it if macOS asks.",
+    "In Claude Code type: ! /Applications/Blender.app/Contents/Resources/5.2/python/bin/python3.13 ~/.claude/skills/roblox-vfx/scripts/vfxtex.py preview /Users/alexnguyen7369/Documents/RobloxGames/vfx/trails/out/*.png",
+    "Tell Claude the printed vfxpreview/<stamp> folder; Claude re-runs the preview in the test Studio. Remove the copies later with vfxtex.py clean-preview."
+   ]
+  },
+  {
+   "id": "lighting-future-2026-10-26",
+   "title": "Set Lighting.Technology to Future and save the place",
+   "why": "docs/RENDERING_SPEC.md section 1: scripts cannot set Lighting.Technology, and the glossy car finish and Asphalt/Concrete materials look best with Future lighting.",
+   "blocks": "The full look of the rendering pass (reflections, soft shadows).",
+   "when": "2026-10-26",
+   "status": "open",
+   "steps": [
+    "Stop Play in Studio.",
+    "Explorer > Lighting > Properties > Technology: choose Future.",
+    "File > Save to Roblox (or publish)."
+   ]
+  },
+  {
+   "id": "car-geometry-wave-approval-2026-10-26",
+   "title": "Approve the car geometry pass before upload",
+   "why": "CAR_REDESIGN_SPEC section 6/8: waves merge only after owner approval. 101 expansion cars were rebuilt locally (rounder tyres, rounder thick paint panels); the 10 hand-built wave-1 cars kept their geometry (already near 6,000 tris). Owner 2026-10-26: make it stronger, then upload. Done: level-2 pass on 110 cars (golden_racer level 1), all 111 re-uploaded and synced.",
+   "blocks": "Uploading 101 car meshes and re-syncing RedesignCarModels.",
+   "when": "2026-10-26",
+   "status": "done",
+   "steps": [
+    "Compare old vs new previews: drafts/cars/<id>/redesign/preview.png (git diff shows the changed files).",
+    "Say approve (Claude uploads with tools/upload_car_meshes.py, refreshes meshes.json and RedesignCarModels) or ask for a stronger pass.",
+    "To discard: git checkout drafts/cars."
+   ]
+  },
+  {
+   "id": "scenery-device-check-2026-10-27",
+   "title": "Check frame rate and particles of the bigger scenery on a phone and with 7 players",
+   "why": "Owner 2026-10-27: bigger scenery in mass (BIOME_DRESSING_SPEC Scale, budget 1200, scenery ~5.7K parts, 77 emitters). Studio throttles an unfocused window to 15 fps, so frame cost cannot be measured from MCP.",
+   "blocks": "Tuning BiomeDressing.SCALE / BUDGET (placeholders) for low-end devices.",
+   "when": "2026-10-27",
+   "status": "open",
+   "steps": [
+    "Publish or use Team Test; join on a phone (or Device Simulator with a low-end phone).",
+    "Auto race through Track 6 (City) and Track 8 (Snow); open the Developer Console (F9) > Stats and note FPS and render time.",
+    "With 7 players in one server, watch the same tracks for frame drops from particles.",
+    "Tell Claude the numbers; it lowers SCALE or BUDGET if FPS falls below about 30."
+   ]
+  },
+  {
+   "id": "ui-rules-manual-2026-10-27",
+   "title": "Run the hand-only UI checks: gamepad focus and notched-phone safe insets",
+   "why": "HUD_LAYOUT_SPEC section 7 (owner 2026-10-26). ui-test-writer added ui_gamepad_focus, ui_safe_insets_notch and the gamepad_* clicks; they need a Controller Emulator or a notched Device Simulator, which scripts cannot drive.",
+   "blocks": "Closing todo ui-gamepad-focus and ui-safe-insets.",
+   "when": "2026-10-27",
+   "status": "open",
+   "steps": [
+    "Studio > Test > Device: pick a notched phone (e.g. iPhone 14). Start Play.",
+    "On the server set ReplicatedStorage attribute UiTestRun false then true; read the [UITEST] lines for ui_safe_insets_notch.",
+    "Test > Controller Emulator: connect a gamepad, rerun UiTestRun, then press B with the Index open and D-pad up inside it (clicks gamepad_b_closes_index, gamepad_dpad_up_stays_in_index).",
+    "Paste the [UITEST] END line to Claude."
+   ]
+  },
+  {
+   "id": "ember-wyvern-draft2-review",
+   "title": "Review the Ember Wyvern draft 4 (cyan shadow wyvern: model, textures, flap, effects)",
+   "why": "New dragon mesh and effects drafted 2026-10-27; only the owner approves art and new effects (design doc).",
+   "blocks": "Uploading the mesh, the RedesignCarModels export and wiring the effects (todo ember-wyvern-draft2).",
+   "when": "2026-10-27",
+   "status": "done",
+   "steps": [
+    "Open drafts/cars/ember_wyvern/redesign/preview.png and views/ (side, front, top, rear34, head, flap_cycle; studio_vfx*.jpg show the draft 2 orange effects).",
+    "Say what to change (shape, colours, wings, effects strength), or approve.",
+    "On approval: decide when the effects play (always, or only on boost) so the design doc can record it."
+   ],
+   "done": "2026-10-27",
+   "note": "Owner approved draft 4 (2026-10-27)."
+  },
+  {
+   "id": "rojo-reconnect-2026-10-27",
+   "title": "Reconnect Rojo in Studio and save the place",
+   "why": "Studio was restarted, so its Rojo plugin is disconnected. The Ember Wyvern was built into ReplicatedStorage.RedesignCarModels by hand; Rojo replaces it with assets/studio/RedesignCarModels/ember_wyvern.rbxmx once connected.",
+   "blocks": "Studio matching the files on disk (every later test run).",
+   "when": "2026-10-27",
+   "status": "done",
+   "steps": [
+    "Keep `rojo serve` running in the project root (it is).",
+    "In Studio: Plugins > Rojo > Connect.",
+    "Check ReplicatedStorage.RedesignCarModels.ember_wyvern has 7 MeshParts, then File > Save."
+   ],
+   "done": "2026-10-27",
+   "note": "Verified: Studio scripts match disk (RedesignTests synced live); RedesignCarModels.ember_wyvern present once."
+  },
+  {
+   "id": "save-place-wyvern-rig-2026-10-27",
+   "title": "Save the Studio place (rigged Ember Wyvern model)",
+   "why": "Rojo cannot create or update MeshParts (MeshId is plugin-locked), so ReplicatedStorage.RedesignCarModels.ember_wyvern (rigged, 33 bones, Model 100205140229978 (long tail)) was built in Studio through MCP. It only persists when the place is saved; assets/studio/RedesignCarModels/ember_wyvern.rbxmx on disk is the same model for rojo build.",
+   "blocks": "The flying wyvern in a published game and in the next Studio session.",
+   "when": "2026-10-27",
+   "status": "open",
+   "steps": [
+    "In Studio (edit mode) check ReplicatedStorage.RedesignCarModels.ember_wyvern: Body has a Root bone tree, the model has attribute Rig = Wyvern.",
+    "File > Save (or Publish to Roblox when you ship)."
+   ]
+  },
+  {
+   "id": "friends-boost-rule-2026-10-28",
+   "title": "Write the rule for the friends-in-server boost (nf3)",
+   "category": "decision",
+   "priority": "medium",
+   "why": "Orchestrator goal new-features nf3 (todo ee591f0e) has no rule in docs/GAME_DESIGN_REQUIREMENTS.md and no spec. The orchestrator never invents a rule.",
+   "blocks": "nf3 Friends-in-server boost",
+   "when": "2026-10-28",
+   "status": "done",
+   "steps": [
+    "Decide: +10% luck and Money per friend in the server, cap +40%? Does it also apply to Speed gain? Friends = Roblox friends (IsFriendsWith) only?",
+    "Add a dated owner entry to docs/GAME_DESIGN_REQUIREMENTS.md (Monetization or Multipliers) and a short docs/FRIENDS_BOOST_SPEC.md, or tell the orchestrator the answers on the bus and it drafts them for your review."
+   ],
+   "resolution": "Owner 2026-10-28 approved the proposal: +10% luck and Money per Roblox friend in the server, cap +40%. Orchestrator drafts the design-doc entry + docs/FRIENDS_BOOST_SPEC.md."
+  },
+  {
+   "id": "offline-double-product-2026-10-28",
+   "title": "Create the 19 Robux 'Double offline Speed' developer product",
+   "category": "account",
+   "priority": "high",
+   "why": "The offline-reward Double button (docs/OFFLINE_DOUBLE_SPEC.md, owner 2026-10-28) needs a real developer product id; with id 0 it shows COMING SOON.",
+   "blocks": "Selling the offline double",
+   "when": "2026-10-28",
+   "status": "open",
+   "steps": [
+    "Roblox Creator Dashboard > Racer RNG > Monetization > Developer Products > Create: name 'Double offline Speed', price 19 Robux.",
+    "Copy the product id.",
+    "Paste it into src/shared/MonetizationConfig.luau OfflineDouble.ProductId (or tell the orchestrator the id)."
+   ]
+  },
+  {
+   "id": "fresh-place-copy-2026-10-28",
+   "title": "Save a fresh local copy of Racer RNG for parallel Studio tests",
+   "category": "studio",
+   "priority": "medium",
+   "why": "Parallel test runs (UITEST in a second Studio while CARTEST uses the shared one, .claude/orchestrator.md exclusive_resources.studio.isolate) start from IdleVehicleSimulator.rbxl. That file is from 2026-10-11 and lacks content inserted through MCP since (wyvern MeshParts, car / NPC models), so UI results from it would be wrong.",
+   "blocks": "Running UI and physics suites at the same time; every isolated task Studio",
+   "when": "2026-10-28",
+   "status": "open",
+   "steps": [
+    "In the Racer RNG Studio (shared one), stop play if running.",
+    "File > Save to File As... > /Users/alexnguyen7369/Documents/RobloxGames/IdleVehicleSimulator.rbxl (overwrite).",
+    "Re-save it whenever MCP inserts new Studio-only content (MeshParts, models)."
+   ]
+  },
+  {
+   "id": "hud-pair-phone-rule",
+   "title": "Decide: HUD Items/Upgrade pair on phone landscape and tablet",
+   "category": "decision",
+   "priority": "high",
+   "when": "2026-10-28",
+   "status": "open",
+   "why": "docs/HUD_LAYOUT_SPEC.md section 6 stacks the pair above the bars at viewport height <= 400 and shrinks it on phone and tablet; the UI test (UiSpec.HudPair) wants it beside the bars at 844x390 and never shrunk at tablet 1024x768. Code follows the doc. One must change.",
+   "blocks": "ui_layout green (w1e)",
+   "steps": [
+    "Choose A: keep the doc (<= 400 stacks, tablet shrinks); the test is updated.",
+    "Or B: lower the stack threshold (e.g. 380) and/or never shrink on tablet; doc, HudChrome, UiResponsive and UiSpec change together.",
+    "Tell the orchestrator A or B (dated doc entry)."
+   ]
+  },
+  {
+   "id": "speed-float-phone",
+   "title": "Decide: where the +Speed float goes on phone",
+   "category": "decision",
+   "priority": "medium",
+   "when": "2026-10-28",
+   "status": "open",
+   "why": "The doc says the float rises above the Speed number; on phone only ~27 px are free above SpeedValue (the roll toast sits 4 px above), the float is 30 px tall and rises 46 px, so it overlaps the toast.",
+   "blocks": "ui_layout phone green",
+   "steps": [
+    "Choose: smaller rise / label on phone, or a different spot on phone (e.g. beside Speed).",
+    "Tell the orchestrator; it writes the dated doc rule, then the code."
+   ]
+  }
+ ]
 }

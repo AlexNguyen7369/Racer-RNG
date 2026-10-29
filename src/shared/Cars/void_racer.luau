@@ -4,7 +4,7 @@ return {
 	Id = "void_racer",
 	Name = "Void Racer",
 	Rarity = "Secret",
-	Chance = 100000, -- 1 in N
+	Chance = 1e16, -- 1 in N
 	SpeedMulti = 1000,
 	Order = 7,
 	Model = "void_racer", -- ReplicatedStorage.CarModels.void_racer (assets/studio/CarModels.rbxm, Draft05 import)

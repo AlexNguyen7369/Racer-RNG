@@ -4,7 +4,7 @@ return {
 	Id = "street_sweeper",
 	Name = "Street Sweeper",
 	Rarity = "Uncommon",
-	Chance = 26,
+	Chance = 32,
 	SpeedMulti = 1.65,
 	Order = 1007,
 	Model = "street_sweeper",

@@ -4,7 +4,7 @@ return {
 	Id = "prairie_pulse",
 	Name = "Prairie Pulse",
 	Rarity = "Rare",
-	Chance = 200,
+	Chance = 13000,
 	SpeedMulti = 5.25,
 	Order = 1038,
 	Model = "prairie_pulse",

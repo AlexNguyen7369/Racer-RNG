@@ -43,13 +43,13 @@
     "files": "Tracks/*, TrackBuilder, TrackRegistry"
   },
   "money": {
-    "checks": "MoneyService contract: pad payouts are decided by the server, paid once per pass, with a per-player cooldown, and bad awards are rejected.",
+    "checks": "MoneyService contract: pad payouts are decided by the server, paid once per pass, with a per-player cooldown, and bad awards are rejected. Owner 2026-10-27 payout curve: Track 2 pays x10 Track 1; Shared/PayoutCurve constants (BASE_CASH 100, GROWTH {10, 7.5}, COST_POWER 1.5), Ratio / Cash for tracks 1-10 ($100 ... $31,640,625,000) equal to TrackBuilder.CashFor, bad or non-number n reads as Track 1 and n is floored, NiceRound (2 significant figures, halves up, 0 for bad input) and Cost(base, step) = NiceRound(base x Ratio(step) ^ 1.5).",
     "why": "Money is the economy; clients must never be able to pay themselves.",
     "limits": "MoneyService.COOLDOWN",
     "files": "Server/MoneyService"
   },
   "race": {
-    "checks": "The real chain is auto-raced by RaceService at the Speed stat's cruise speed: stays on its path, never flips or tilts, pads pay once, the stat grows, also at MAX_STAT speed. race_rail_never_snaps / max_speed_rail_never_snaps: from start to the last checkpoint the rail never teleports the car (run.RailSnaps, frames where the rail fell back to PivotTo; missing counts as a fail).",
+    "checks": "The real chain is auto-raced by RaceService at the Speed stat's cruise speed: stays on its path, never flips or tilts, pads pay once, the stat grows, also at MAX_STAT speed. race_rail_never_snaps / max_speed_rail_never_snaps: from start to the last checkpoint the rail never teleports the car (run.RailSnaps, frames where the rail fell back to PivotTo; missing counts as a fail). huge_multi_*: with GachaService.SpeedMulti stubbed to 1e7 for one 3 s run, Speed still grows (each 0.25 s commit is over PlayerData.MAX_ADD 1e6, so RaceService must carry the rest, bug 6e39efe6).",
     "why": "This is the core loop of the game. A server PivotTo every frame replicates to the client as a stutter (the car moves 3.7, 0, 3.7, 0 studs on alternate frames at speed 111, measured 2026-10-15); steering by velocity moves it smoothly every frame.",
     "limits": "race: MaxPathDeviation 5, MinUpY 0.9, MaxFlips 0; lap.MinUpYStrict 0.9; race.MaxRailSnaps 0",
     "files": "RaceService, PathDriver, RaceConfig, CarPhysics, Tracks"
@@ -67,7 +67,7 @@
     "files": "Shared/RaceConfig"
   },
   "data": {
-    "checks": "PlayerData saves and loads Money, Speed, cars, rolls, stat allocation, upgrade tiles, BestTrack, TurboCount and WorkshopLevel through a stub store; never writes before the load finished; old save formats (v1-v3) still load (v3: TurboCount = Rolls % 10, BestTrack 0, WorkshopLevel 1). Owner 2026-10-21: the base Speed is player.BaseSpeed (saved, loaded, AddSpeed); leaderstats.Speed is display only = BaseSpeed x ShownSpeedMulti after AddSpeed and Equip, a write to it never changes the stat, and the save payload Speed is the base.",
+    "checks": "PlayerData saves and loads Money, Speed, cars, rolls, stat allocation, upgrade tiles, BestTrack, TurboCount and WorkshopLevel through a stub store; never writes before the load finished; old save formats (v1-v3) still load (v3: TurboCount = Rolls % 10, BestTrack 0, WorkshopLevel 1). Owner 2026-10-21: the base Speed is player.BaseSpeed (saved, loaded, AddSpeed); leaderstats.Speed is display only = BaseSpeed x ShownSpeedMulti after AddSpeed and Equip, a write to it never changes the stat, and the save payload Speed is the base. Owner 2026-10-27: the Money and MoneyEarned cap is 1e15 (was 1e12); values between the old and new cap are kept, and MoneyService.Award caps MoneyEarned at 1e15.",
     "why": "Lost or overwritten saves are the worst bug a game can ship.",
     "limits": "PlayerData VERSION 4 rules; WorkshopLevel clamped to 1..WorkshopConfig.MAX_LEVEL",
     "files": "Server/PlayerData, Server/UpgradeService, Server/WorkshopService"
@@ -133,13 +133,13 @@
     "files": "Client/RollToast, Shared/RollAnimConfig, GachaService"
   },
   "upgrades": {
-    "checks": "Upgrade tree: tiles, prices, gates, bonuses, roll interval, turbo and walkspeed tables (pure); UpgradeService.Buy takes Money once and refuses unknown / owned / locked / gated / poor / non-string / too-fast buys without changing anything; a buy changes only the buyer (another player's Money, tiles, BestTrack, TurboCount and badge stay the same, and one player's cooldown never blocks another); the gate uses the real track count; bonuses are ADDED to stat points in Luck, Money and Speed multis; turbo rolls follow TurboCount and the tier; the auto-roll interval and on-foot WalkSpeed follow the tiles; the badge count and save fields are right.",
+    "checks": "Upgrade tree: tiles, prices, gates, bonuses, roll interval, turbo and walkspeed tables (pure); UpgradeService.Buy takes Money once and refuses unknown / owned / locked / gated / poor / non-string / too-fast buys without changing anything; a buy changes only the buyer (another player's Money, tiles, BestTrack, TurboCount and badge stay the same, and one player's cooldown never blocks another); the gate uses the real track count; bonuses are ADDED to stat points in Luck, Money and Speed multis; turbo rolls follow TurboCount and the tier; the auto-roll interval and on-foot WalkSpeed follow the tiles; the badge count and save fields are right. Owner 2026-10-27: prices are NiceRound(150 x PayoutCurve.Ratio(depth) ^ 1.5 x weight) (depth bases 150, 4.7k, 97k, 3.1m, 63m, 2.0b, 41b), PRICE_GROWTH removed, UpgradeTree.NiceRound gives the same results as PayoutCurve.NiceRound.",
     "why": "Money buys permanent power: a double charge, a free tile or a wrong multi breaks the economy.",
     "limits": "docs/UPGRADE_TREE_SPEC.md (owner numbers), UpgradeConfig",
     "files": "Shared/UpgradeTree, Shared/UpgradeConfig, Server/UpgradeService, GachaService, GachaConfig, CarService"
   },
   "workshop": {
-    "checks": "Mechanical Workshop: 7 plots with the spec rects in the spawn floor, never overlapping each other, the hub, the spawn, the StartPad or any track, each open toward the hub; zone and rate maths (Shared/Workshop); WorkshopService gives each player the lowest free plot with their workshop and sign, frees it on leave, an 8th player gets none; standing in your own zone (alive, on foot) earns exactly rate x dt Speed, anywhere else nothing.",
+    "checks": "Mechanical Workshop: 7 plots with the spec rects in the spawn floor, never overlapping each other, the hub, the spawn, the StartPad or any track, each open toward the hub; zone and rate maths (Shared/Workshop); WorkshopService gives each player the lowest free plot with their workshop and sign, frees it on leave, an 8th player gets none; standing in your own zone (alive, on foot) earns exactly rate x dt Speed, anywhere else nothing. Owner 2026-10-27: ten levels, Levels[L].Price = PayoutCurve.Cost(500, L - 1) ($500, $16k, $320k, $10m, $210m, $6.7b, $140b, $4.3t, $89t) and Multi = 2 ^ (L - 1).",
     "why": "Idle Speed must only be earned in your own workshop, decided by the server, and no plot may ever block a road.",
     "limits": "docs/WORKSHOP_SPEC.md, WorkshopConfig",
     "files": "Shared/Workshop, Shared/WorkshopConfig, Server/WorkshopService, Shared/SpawnArea"
@@ -181,10 +181,10 @@
     "files": "All UI"
   },
   "ui_hud": {
-    "checks": "The left HUD shows the server's Speed, Money and Unbanked.",
-    "why": "Client only displays; it must match leaderstats.",
-    "limits": "UiSpec",
-    "files": "Client/SpeedHud"
+    "checks": "The HUD shows the server's Speed, Money and Unbanked: each label's text is exactly HudFormat (SpeedText + \" SPEED\", MoneyText, \"UNBANKED \" + MoneyText) of a server value from the last 0.5 s (count-up lag), re-sampled each frame for up to 2 s. MoneyPlate (owner 2026-10-27) exists, sits behind MoneyValue and Unbanked (lower ZIndex), holds both and takes no click; MoneyValue, Unbanked and SpeedValue each have a UIGradient.",
+    "why": "Client only displays; it must match leaderstats. Design doc suffix rule (lowercase k m b t qd, Money too) and HUD_LAYOUT_SPEC sections 8-9.",
+    "limits": "UiSpec.Waits.HudLag 0.5 s, HudFollow 2 s, UiSpec.Hud.MoneyPlate / GradientLabels",
+    "files": "Client/RollToast/RacerUiController, Shared/HudFormat, UiTest/UiScenarios"
   },
   "ui_index": {
     "checks": "The Index panel lists cars, owned state and opens below the Auto Race button. Open, it shows the car gallery (GridHost) and no consumables tab or view (index_open_index_gallery_shown, index_open_index_no_consumables_view); its one header tab, CarsTab, is declared and the index_cars_tab click keeps the gallery shown and fires no remote.",
@@ -223,10 +223,10 @@
     "files": "Client/RollToast"
   },
   "ui_loser": {
-    "checks": "The loser screen shows after a lost NPC race and goes away after LOSE_SCREEN_SECONDS.",
-    "why": "Players must know why they were sent back.",
-    "limits": "NpcConfig.LOSE_SCREEN_SECONDS",
-    "files": "Client/LoserScreen"
+    "checks": "The loser screen shows after a lost NPC race (on top of every gui, full-screen, non-interactive) and hides after the next Reset / Start / Stop. Its recap (read 1.2 s after the Lose) has Banner (\"YOU LOST\"), NpcName (the track's NpcConfig label, never \"The NPC\"), TrackTitle (\"TRACK n · ...\"), YourTime / NpcTime (the Result's times as mm:ss.cc), Gap (\"+1.50s\" = PlayerTime - NpcTime), Pb (\"PB --\" or \"PB mm:ss.cc\"), BackTo, a Countdown frame with Fill, and every text in FredokaOne.",
+    "why": "Players must know why they were sent back. NPC_RACER_SPEC \"Loser screen (owner 2026-10-27)\".",
+    "limits": "NpcConfig.LOSE_SCREEN_SECONDS, UiSpec.Loser, UiSpec.Waits.LoserShowGrace / LoserHideGrace",
+    "files": "Client/NpcRacerView"
   },
   "ui_billboards": {
     "checks": "Pad $ text and NPC labels show only within their MaxDistance. The Best Roll Ever pedestal and the two gamepass car pedestals have their Stats billboard (finite MaxDistance from config, label texts, labels inside the billboard, not clickable) and the gamepass Buy prompt text.",
@@ -336,6 +336,12 @@
     "limits": "docs/SHOP_PURCHASES_SPEC.md, docs/GAMEPASS_SHOP_SPEC.md section 2, docs/SAVE_SPEC.md 2a, docs/GAME_DESIGN_REQUIREMENTS.md Monetization (Shop, Codes)",
     "files": "Server/ShopService, Server/CodeConfig, Shared/MonetizationConfig, Server/BoostService, Server/PlayerData"
   },
+  "offline_double": {
+    "checks": "MonetizationConfig.OfflineDouble has Id 'offline_double', a whole ProductId >= 0, a whole RobuxPrice > 0, WINDOW_SECONDS 300 and is not in Products. ShopService.SetOfflineReward with 0, a negative, NaN or infinite gain closes the window (OfflineDoubleOpen false) and a receipt then returns NotProcessedYet with nothing added; a positive gain opens it. With a made-up ProductId and a fake save (SetSave), via ProcessReceipt: player absent, DataLoaded false or DataFailed -> NotProcessedYet, nothing added, no save; a failed save -> NotProcessedYet with the Speed, PurchaseId and OfflineDoubled undone and the window still open; a valid receipt adds exactly the offline amount to Speed, leaves Money and every potion unchanged, saves once, records the PurchaseId, closes the window and sets OfflineDoubled; the same PurchaseId again -> PurchaseGranted with nothing added; a second purchase for the same reward -> NotProcessedYet, nothing added, no save. With a shortened window the reward closes on its own (OfflineDoubleOpen false) and a late receipt is still granted once. All state is restored afterwards.",
+    "why": "Robux can not be refunded by the game: the double must add exactly the server's offline amount once, only after a successful save, never Money or potions, and never be granted without an undoubled reward.",
+    "limits": "docs/OFFLINE_DOUBLE_SPEC.md sections 1-4, docs/SHOP_PURCHASES_SPEC.md section 2, docs/GAME_DESIGN_REQUIREMENTS.md Monetization (Offline reward double)",
+    "files": "Server/ShopService, Shared/MonetizationConfig, Server/PlayerData"
+  },
   "ui_shop": {
     "checks": "The Shop panel has its sections in order (Featured, Gamepasses, Potions with the Bundle, Server Luck, Codes, Thanks), one card per gamepass car / gamepass / product, prices with thousands separators plus 'Coming soon' for id 0 or 'Owned' for an owned car, a square red X, and stays inside the panel band with no overlaps at every tested viewport. Clicks: Coming soon buttons do nothing; Redeem with a bad code shows the server's reply.",
     "why": "docs/GAMEPASS_SHOP_SPEC.md (owner 2026-10-16): the Shop must look like the references and never prompt a purchase for an item without a Roblox id.",
@@ -349,9 +355,9 @@
     "files": "Client/MarketUi, Client/UiTest/UiShopMarket"
   },
   "environment": {
-    "checks": "Builds the full chain (and the spawn area) away from the play area, runs BiomeDressing.Prune, and checks per track: Biome spec/attribute and theme, Environment folder non-empty with a Gate at the start, every prop anchored and non-colliding/touching/querying, no prop within CLEARANCE of any road, wall, checkpoint, pad or spawn-area part, at most BUDGET (1200) parts, two builds identical, lights without shadows, and Lighting / Sky / Atmosphere / Clouds unchanged. Probe parts confirm Prune removes a prop on the road and keeps a far one. Baked meshes: every Shared/BiomeMeshData entry decodes (BiomeMeshCodec) to a valid buffer (length 4 + vc*10 + ic*2, whole triangles, at most 20000 triangles and 60000 vertices, indices < vc, positive Size), has an rbxassetid in BiomeMeshAssets and is returned by BiomeDressing.MeshFor; every built prop with data is a BiomeMesh-tagged model with Mesh attribute and an invisible visual-only MeshBounds at the prop's scaled height (theme Size.Y x BiomeDressing.SCALE[layer], layer from the Landmark_/Horizon_/Scatter_ prefix, Rhythm and gate x1; a Horizon_ piece may instead be at any 0.25 step from SCALE.Horizon down to x1, spec Rules Scale) and mesh proportions, props without data have neither; each track's Ground top is -1 - 0.02 x Number (no z-fighting). Gate sign (owner 2026-10-21): GateSign / GateSignGui faces the oncoming car with labels Biome (upper-case, words split) and RecSpeed = \"REC. SPEED \" + the HUD format of RaceConfig.StatFor(NPC speed); the recommendation cruises at the NPC speed, is finite on every track and below 10,000 on Track 1. Visual pass (owner 2026-10-26, spec Layers 7-8): after Prune every track keeps at least 1 Landmark_*, 1 Horizon_*, 10 Scatter_* and 5 Patch_* children; every Patch_* part is at most 0.2 studs thick with its bottom on that track's Ground top; every ParticleEmitter is named BiomeParticles inside a Landmark_* model (at most one per landmark) with Rate <= 8, and each track has at least one. Scale and detail (owner 2026-10-27, spec Rules Budget / Scale / City skyscrapers): BUDGET is 1200; BiomeDressing.SCALE is Landmarks 1.75, Horizon 2, Scatter 1.5; on Track 6 (City) no landmark, skyline or Skyscraper/SkyscraperPink/Block/Skyline scatter tower carries MeshBounds, a BiomeMesh tag or a City tower Mesh attribute; every City Landmark_ has at least 25 parts, a Glass part (window bands) and a Neon part (crown), and the tallest City landmark's bounding box is at least 100 studs high.",
+    "checks": "Builds the full chain (and the spawn area) away from the play area, runs BiomeDressing.Prune, and checks per track: Biome spec/attribute and theme, Environment folder non-empty with a Gate at the start, every prop anchored and non-colliding/touching/querying, no prop within CLEARANCE of any road, wall, checkpoint, pad or spawn-area part, at most BUDGET (1200) parts (a theme Budget replaces it for its track, capped at the doc value: City 2600, every other track 1200; city_budget_value checks City Budget = 2600), two builds identical, lights without shadows, and Lighting / Sky / Atmosphere / Clouds unchanged. Probe parts confirm Prune removes a prop on the road and keeps a far one. Baked meshes: every Shared/BiomeMeshData entry decodes (BiomeMeshCodec) to a valid buffer (length 4 + vc*10 + ic*2, whole triangles, at most 20000 triangles and 60000 vertices, indices < vc, positive Size), has an rbxassetid in BiomeMeshAssets and is returned by BiomeDressing.MeshFor; every built prop with data is a BiomeMesh-tagged model with Mesh attribute and an invisible visual-only MeshBounds at the prop's scaled height (theme Size.Y x BiomeDressing.SCALE[layer], layer from the Landmark_/Horizon_/Scatter_ prefix, Rhythm and gate x1; a Horizon_ piece may instead be at any 0.25 step from SCALE.Horizon down to x1, spec Rules Scale) and mesh proportions, props without data have neither; each track's Ground top is -1 - 0.02 x Number (no z-fighting). Gate sign (owner 2026-10-21): GateSign / GateSignGui faces the oncoming car with labels Biome (upper-case, words split) and RecSpeed = \"REC. SPEED \" + the HUD format of RaceConfig.StatFor(NPC speed); the recommendation cruises at the NPC speed, is finite on every track and below 10,000 on Track 1. Visual pass (owner 2026-10-26, spec Layers 7-8): after Prune every track keeps at least 1 Landmark_*, 1 Horizon_*, 10 Scatter_* and 5 Patch_* children; every Patch_* part is at most 0.2 studs thick with its bottom on that track's Ground top; every ParticleEmitter is named BiomeParticles inside a Landmark_* model (at most one per landmark) with Rate <= 8, and each track has at least one. Scale and detail (owner 2026-10-27, spec Rules Budget / Scale / City skyscrapers): BUDGET is 1200; BiomeDressing.SCALE is Landmarks 1.75, Horizon 2, Scatter 1.5; on Track 6 (City) no landmark, skyline or Skyscraper/SkyscraperPink/Block/Skyline scatter tower carries MeshBounds, a BiomeMesh tag or a City tower Mesh attribute; every City Landmark_ has at least 25 parts, a Glass part (window bands) and a Neon part (crown), and the tallest City landmark's bounding box is at least 100 studs high. Populated city (owner 2026-10-27, spec Layers 9 Blocks, Rules Theme budget), Track 6 after Prune: at least 60 Block_<slot><L|R><row> models, rows 1 and 2 both present, sides L and R both present; no two Block_ footprints (oriented XZ box of each model's largest part, shrunk 0.5 stud) overlap; coverage (city_blocks_gap): probes every 24 studs along straight road, offset Width/2 + Near + RowDepth/2 to each side (middle of row 1), at least 70% inside a Block_ footprint. Block_ parts fall under the per-track visual-only and clearance checks like every Environment part.",
     "why": "docs/BIOME_DRESSING_SPEC.md Acceptance: scenery is visual only and never blocks or clips the road.",
-    "limits": "CLEARANCE 8, BUDGET 1200 (placeholders in BiomeDressing), gate within 60 studs of Start, 0.05 stud overlap tolerance, CFrame 1e-3, mesh sizes 1e-3, ground top 1e-3, patches 0.2 thick (+1e-3) within 0.05 of the ground top, PARTICLE_MAX_RATE 8, SCALE Landmarks 1.75 / Horizon 2 / Scatter 1.5, City landmarks >= 25 parts and tallest >= 100 studs, at least 10 scatter / 5 patches",
+    "limits": "CLEARANCE 8, BUDGET 1200 (placeholders in BiomeDressing), City theme Budget 2600, gate within 60 studs of Start, 0.05 stud overlap tolerance, CFrame 1e-3, mesh sizes 1e-3, ground top 1e-3, patches 0.2 thick (+1e-3) within 0.05 of the ground top, PARTICLE_MAX_RATE 8, SCALE Landmarks 1.75 / Horizon 2 / Scatter 1.5, City landmarks >= 25 parts and tallest >= 100 studs, at least 10 scatter / 5 patches, City Block_ models >= 60, footprint shrink 0.5, coverage >= 70% of 24-stud probes",
     "files": "Shared/BiomeDressing, Shared/BiomeThemes, Tracks/*, TrackBuilder, SpawnArea, Shared/BiomeMeshData, BiomeMeshCodec, BiomeMeshAssets"
   },
   "car_expansion": {
@@ -391,7 +397,7 @@
     "files": "RacerComponents, RacerUiController"
   },
   "vehicle_effects": {
-    "checks": "On a fake player's real auto-racing car: Market equip of void_trail builds MarketEffects (Trail=void_trail) with void_trailCore/EdgeL/EdgeR on chassis attachments (non-zero width, FaceCamera false, Enabled) and the Motes/Smoke emitters (Rate > 0); no BasePart added, mass unchanged (1e-6), same run drives the car; over 3 s the chassis moves > 20 studs with every attachment riding on it and up-vector Y >= MinUpYStrict; skin replacement and Stop/Start respawn re-apply it and keep EquippedTrail; unequip clears every effect.",
+    "checks": "On a fake player's real auto-racing car: Market equip of void_trail builds MarketEffects (Trail=void_trail) with void_trailCore/EdgeL/EdgeR on chassis attachments (non-zero width, FaceCamera false, Enabled) and the Motes/Smoke emitters (Rate > 0); no BasePart added, mass unchanged (1e-6), same run drives the car; over 3 s the chassis moves > 20 studs with every attachment riding on it and up-vector Y >= MinUpYStrict; skin replacement and Stop/Start respawn re-apply it and keep EquippedTrail; unequip clears every effect. Owner 2026-10-27: trail prices (rainbow, solar, void, frost, prism) = PayoutCurve.Cost(500, i) = $500, $16k, $320k, $10m, $210m and aura prices (azure, ember, galaxy) = Cost(2500, i) = $2.5k, $79k, $1.6m, SpeedMulti values unchanged.",
     "why": "Cosmetic trails must look right in motion without touching physics, controls or the server-owned equip attributes.",
     "limits": "docs/PANEL_ART_GIFTING_SPEC.md; GAME_DESIGN_REQUIREMENTS.md cosmetic profiles; PhysicsTargets.lap.MinUpYStrict",
     "files": "VehicleEffects, CarService, MarketService, CarAppearance"
@@ -450,10 +456,58 @@
     "limits": "docs/WYVERN_BREATH_SPEC.md sections 1-3; docs/WYVERN_FLIGHT_SPEC.md section 3 (60 deg, 4 deg glide flutter)",
     "files": "WyvernMotion, WyvernBreath, VehicleEffects, Client/WyvernAnimator, CarModels.ember_wyvern"
   },
+  "ui_speed_dial": {
+    "checks": "RacerHud/Speed/SpeedDial (Frame) exists with a Needle and a DialSpeed TextLabel, nothing in it is clickable, and SpeedIcon is its hub (child of Speed, ZIndex above the dial, centre inside it). On foot the Needle's DialValue is 0 and DialSpeed reads \"0\" (on_foot fixture); while auto racing DialValue and DialSpeed follow the car's real speed (seat displacement over 0.6 s), within max(3 studs/s, 15%).",
+    "why": "HUD_LAYOUT_SPEC section 9 (owner 2026-10-27): the speedometer shows the car's real speed, rests at 0 on foot, and is presentation only.",
+    "limits": "UiSpec.SpeedDial (SampleSeconds 0.6, Tolerance 3, RelTolerance 0.15, CarWait 5)",
+    "files": "Client/RollToast/RacerUiController, RollToast/Ui/RacerHud, UiTest/UiScenarios"
+  },
+  "ui_theme": {
+    "checks": "Every TextLabel / TextButton in the game's ScreenGuis (UiSpec.Guis) uses FredokaOne. Multiplier labels (RollShowcase SpeedMulti, Index tile Info, Backpack car Multi) write every multi as HudFormat.Multi (x + digits, at most 2 decimals, no trailing zero) and never \"25x\"; at least one such multi is found.",
+    "why": "HUD_LAYOUT_SPEC section 8 (owner 2026-10-27): one theme, Fredoka text, multipliers written x1.5 everywhere.",
+    "limits": "UiSpec.Theme",
+    "files": "Shared/UiTheme, Shared/HudFormat, every client UI script"
+  },
+  "ui_motion_reduced": {
+    "checks": "With ReduceEffects on, UiMotion.Pop leaves no MotionScale away from 1, SlideIn leaves the gui at its place and fully shown, Shine leaves no band mid-sweep, Pulse returns a stop function and does not loop, Shake does not move, Float shows nothing. With it off (and Roblox Reduced Motion off) Pop grows above 1x, Pulse moves and its stop puts the value back. ReduceEffects is restored.",
+    "why": "HUD_LAYOUT_SPEC section 10 (owner 2026-10-27): every preset lands on its end state at once while motion is reduced and no loop runs.",
+    "limits": "none (exact end states)",
+    "files": "Client/UiMotion, UiTest/UiAccessibility"
+  },
+  "ui_race_progress_map": {
+    "checks": "Standalone client test (require UiTest.UiRaceProgressMap .Run()): the map card stays transparent and non-interactive, the route is the Path2D lines RouteOutline / RouteDriven / RouteAhead once each inside a CanvasGroup with a UIGradient fade, driven / ahead split exactly at YOU, a 180 degree turn mirrors the route, YouDot has a Heading, the NPC caption is NpcConfig.For(n).Label, the status is a pill reading AHEAD 1.2s / BEHIND 1.2s / EVEN, markers once each, everything empty after Result / Reset / Stop, far NPC clamped to the edge.",
+    "why": "RACE_PROGRESS_MAP_SPEC Contract and Look (owner 2026-10-27).",
+    "limits": "UiSpec.RaceMapLook",
+    "files": "Client/RaceProgressMap, Shared/RaceProgressMap, UiTest/UiRaceProgressMap"
+  },
+  "ui_checkpoints": {
+    "checks": "Checkpoints panel (also re-run after every checkpoint click): one TextButton card Track_n per track in order, each with a Preview ViewportFrame, \"TRACK n\", the biome in upper case and a Lock (shown, 40% dim, \"Beat Track n\", icon, never taking the click) on locked tracks; every card is clickable. On open, Detail shows the current checkpoint: Preview, Title \"TRACK n · NAME\", Biome, RecSpeed \"REC. SPEED \" + HudFormat.SpeedText(RaceConfig.StatFor(NpcConfig.For(n).Speed)), YourSpeed \"YOUR SPEED \" + the player's Speed, Status READY / NEED <x> MORE, Cash = MoneyText(CashFor(n)), and Start \"START HERE\" (Active) / \"SELECTED\" / \"LOCKED\" (disabled). Header, hint, grid and detail never overlap. Clicks (ui-tester): a card click (selected, locked or open) fires nothing and shows that track in Detail; Start on LOCKED or SELECTED fires nothing; Start on START HERE fires SetCheckpoint(2) exactly once and the Checkpoint attribute only follows the server.",
+    "why": "CHECKPOINT_SPEC section 4 (owner 2026-10-27): cards only show a track, the Detail pane's Start does the pick; the server decides (section 1).",
+    "limits": "UiSpec.Checkpoints (Detail texts, LockTransparency 0.4), UiSpec.Clicks checkpoint_*",
+    "files": "Client/CheckpointUi, Client/BiomePreview, UiTest/UiContracts, UiTest/UiSpec"
+  },
   "singularity_orb": {
     "checks": "Singularity orb. Template: CarModels.singularity has exactly three Orb = true MeshParts, Metal2 (Metal, the black core), Light3 and Light4 (Neon), all centred within 0.02 studs of one point; the core is smaller than the ring and the halo; the core holds a PointLight OrbGlow with Shadows false (Brightness and Range > 0). Motion (Shared/OrbMotion.Offset(t, reduced), 3 slowest periods at 20 Hz, normal and reduced): returns a finite, deterministic CFrame; translation only vertical, |y| <= BOB_HEIGHT and reaching at least half of it; up-vector stays vertical (spin about the vertical axis only); spin rate within 2% of SPIN_SPEED in one direction; bob repeats every 2 pi / BOB_RATE; reduced has no bob and a third of the spin. Bounds: every orb part at rest x Offset(t) stays within |x| <= 1.95, |z| <= 3.3, y >= 0 (car_redesign tolerance). Apply: each orb part's only joint is a Weld SkinWeld with AnimatedOrb = true, Part0 the chassis, C0 = its rest offset and C1 identity; every other non-wheel skin part keeps a WeldConstraint; a car without an orb gets no AnimatedOrb weld; Display copies keep the three Orb parts anchored. Client/OrbAnimator exists. Physics: a Track 1-2 race with singularity equipped (HALF_STAT and MAX_STAT) finishes with 0 flips, 0 flip recoveries, 0 off-track, up-vector Y >= MinUpYStrict, path deviation <= MaxPathDeviation, the starter's cruise speed, actual speed (2%) and mass, and the orb welds (same Weld, Part0, C0) unchanged after 3 s and at the finish.",
     "why": "Singularity's black hole floats, spins and bobs with a neon glow, played only on clients; it must stay inside the car's bounds and never change physics, speed or the server's welds.",
     "limits": "docs/CAR_REDESIGN_SPEC.md sections 2, 7 and 11; docs/VEHICLE_SKINS_SPEC.md optional animated parts; PhysicsTargets.lap.MinUpYStrict, PhysicsTargets.race.MaxPathDeviation",
     "files": "OrbMotion, CarAppearance, Client/OrbAnimator, CarModels.singularity (RedesignCarModels), RaceService"
+  },
+  "ui_speed_float": {
+    "checks": "When Speed grows, a rising \"+<gain>\" in Speed yellow appears above the Speed number, gains summed and shown about every 0.25 s (a 0.5 gain shows \"+0.5\"); none under Money, none while motion is reduced.",
+    "why": "Owner 2026-10-27: Speed gain should be visible like the +$ payout float (HUD_LAYOUT_SPEC section 10).",
+    "limits": "UiSpec.SpeedFloat",
+    "files": "Client/RollToast/RacerUiController, Client/UiMotion"
+  },
+  "speed_probe": {
+    "checks": "On demand only (TestConfig.OnDemand; set ReplicatedStorage CarTestOnly = \"speed_probe\" then CarTestRun = true). Builds the whole track chain once and auto-races it with RaceService at 600, 700, 800, 900 and 1000 studs/s (RaceConfig.SpeedFor stubbed to the probe speed, restored after each run). Per speed, overall and per track: flips, minimum body up-vector Y outside loops, max distance to the route, finished. highest_green = highest speed that finished with 0 flips, minUpY >= lap.MinUpYStrict and maxDev <= race.MaxPathDeviation on every track. Fails only if a run did not start at its probe speed (speed_probe_ran), SpeedFor was not restored, or 600 is not green; 900 / 1000 are data.",
+    "why": "Sets RaceConfig.MAX_CRUISE (WORLDS_SPEC section 1): highest green speed minus 10 %, kept within 700 .. 800.",
+    "limits": "PhysicsTargets.lap.MinUpYStrict 0.9, lap.MinUpY 0.3 (flip), race.MaxPathDeviation 5",
+    "files": "CarTest/SpeedProbeTests, RaceService, RaceConfig.SpeedFor, PathDriver, CarPhysics, Tracks"
+  },
+  "friends_boost": {
+    "checks": "FriendBoostService.MultiFor 0..5 = 1.0, 1.1, 1.2, 1.3, 1.4, 1.4; NaN, -1, non-number -> 1; inf -> 1.4. With ReplicatedStorage FriendBoostTestCount 0 vs 3 (x1.3) and 5 (x1.4): GachaService.Luck, MoneyMulti and MoneyService.Quote on a 1e6 WinPad grow by exactly that factor (float tolerance; Quote +-1 for flooring). SpeedMulti, RaceConfig.SpeedFor(stat, CruiseMultis) unchanged. Real players' FriendsInServer / FriendBoost attributes follow the override. The override is restored afterwards. IsFriendsWith errors are skipped (no stub point in the service; reason in metrics).",
+    "why": "Friends in the same server give +10% Luck and Money each, capped at +40%, and must never touch Speed gain or cruise (docs/FRIENDS_BOOST_SPEC.md, owner 2026-10-28).",
+    "limits": "PER_FRIEND 0.10, CAP 0.40 (placeholders in the spec)",
+    "files": "CarTest/FriendBoostTests, Server/FriendBoostService, GachaService, MoneyService, RaceConfig"
   }
 }

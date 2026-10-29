@@ -133,6 +133,23 @@ function RaceProgressMap.Status(you, npc)
 	return math.abs(difference) < 0.01 and "EVEN" or (difference > 0 and "AHEAD" or "BEHIND")
 end
 
+-- Seconds a racer with per-point `times` (aligned with route.Points) needs to reach `progress`.
+function RaceProgressMap.TimeAt(route, times, progress)
+	local count = math.min(#route.Points, #times)
+	if count == 0 then
+		return 0
+	end
+	local target = math.clamp(progress or 0, 0, 1) * route.Total
+	for i = 2, count do
+		if route.Lengths[i] >= target then
+			local span = route.Lengths[i] - route.Lengths[i - 1]
+			local alpha = span > 1e-9 and (target - route.Lengths[i - 1]) / span or 0
+			return times[i - 1] + (times[i] - times[i - 1]) * alpha
+		end
+	end
+	return times[count]
+end
+
 function RaceProgressMap.FormatTime(seconds)
 	local centiseconds = math.floor(math.max(0, seconds or 0) * 100 + 1e-6)
 	return string.format("%02d:%02d.%02d", centiseconds // 6000, (centiseconds // 100) % 60, centiseconds % 100)

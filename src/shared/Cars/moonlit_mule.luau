@@ -4,7 +4,7 @@ return {
 	Id = "moonlit_mule",
 	Name = "Moonlit Mule",
 	Rarity = "Secret",
-	Chance = 300000,
+	Chance = 2.2e16,
 	SpeedMulti = 1400,
 	Order = 1093,
 	Model = "moonlit_mule",

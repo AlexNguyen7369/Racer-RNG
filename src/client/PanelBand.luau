@@ -73,7 +73,8 @@ function Band.Fit(panel, maxWidth)
 		end
 		panel.AnchorPoint = Vector2.new(0.5, 0.5)
 		panel.Position = UDim2.fromOffset((left + right) / 2, (top + bottom) / 2)
-		panel.Size = UDim2.fromOffset(math.max(240, math.min(maxWidth, right - left)), math.max(160, bottom - top))
+		-- Never larger than the band: a minimum size would push the panel over the Race button on short phones.
+		panel.Size = UDim2.fromOffset(math.max(0, math.min(maxWidth, right - left)), math.max(0, bottom - top))
 	end)
 end
 

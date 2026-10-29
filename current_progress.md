@@ -67,8 +67,18 @@
 64. 2026-10-27 — Alex Nguyen — Rebuilt all 111 reference cars as toy racers (15,000-triangle cap, pilot approved, re-uploaded) and gave Singularity a floating, spinning, bobbing neon-glow black hole orb with the singularity_orb test, on feature/alex/car-redesign-v3-toy-racer (ce060e6).
 65. 2026-10-27 — Alex Nguyen — Verified car redesign v3 in Studio: full harness 50/3 with every car and Singularity orb scenario green (the 3 failures come from the uncommitted giant-scenery work, bug b99e2c0b logged) (c390103).
 66. 2026-10-27 — Alex Nguyen — Merged car redesign v3 (toy racer skins for all 111 cars and the Singularity orb) into main (6ad9717).
+67. 2026-10-27 — Alex Nguyen — Committed and pushed the speed gain rebalance (aura and trail multiply all Speed gain, Frost/Prism trails), the additive x5-per-rebirth multi capped at x100 with a Rebirth leaderstat, giant roadside scenery in every biome and the Codex workflow doc (fc97c34).
+68. 2026-10-27 — Alex Nguyen — Merged the UI visual pass (theme, counters, speedometer, loser recap, map) and main's repo slim into the car redesign branch (4997ba8) and served it on Rojo port 34872.
+69. 2026-10-28 — Alex Nguyen — Landed World 1 balance (payout curve, rebirth rev 4, XP 122/37.2, cruise cap 800, odds rev) and the giant scenery fix on feature/alex/world1-ship; harness 53/0.
+70. 2026-10-27 — Isaac Li — Added the approved ten-icon transparent HUD set, uploaded asset mapping, scale-only hover feedback, saved Settings artwork and project documentation with focused Studio checks.
+71. 2026-10-28 — Alex Nguyen — Ran the full harness (54/1) and UI suite (34/3) on world1-ship, fixed and merged the stale economy above-cap test (71f4163), and logged the UI bugs.
+72. 2026-10-28 — Alex Nguyen — Merged the UI fix round (Welcome font, opaque Upgrades panel, UI test fixes incl. hover-at-rest) into world1-ship (e2a5f70); live UI suite 33/4 with 5 bugs fixed and 8 new ones logged.
+73. 2026-10-28 — Alex Nguyen — Added the orchestrator setup (`.claude/orchestrator.md`, `rules-auditor` agent, `/orchestrate`, goals draft in `docs/ORCHESTRATOR_GOALS.md`) and the dashboard orchestration flow page (`/api/flow`, `static/flow.html`) on `feature/alex/orchestrator-and-flow-dashboard` (68ab0c4).
+74. 2026-10-28 — Alex Nguyen — Confirmed the five orchestrator goals in `docs/ORCHESTRATOR_GOALS.md` (test debt first, then World 1 ship, World 2, new features, improvements in parallel; done = full green) (ccd89db).
+75. 2026-10-28 — Alex Nguyen — Added the orchestrator context-window settings (warn 60%, handoff 75%) and a context gauge on the dashboard flow page's orchestrator node; the overseer hook and 24/7 runner live in the global orchestrator skill.
+76. 2026-10-28 — Alex Nguyen — Allowed the orchestrator to merge into main only through an open PR approved by a fresh, no-context `merge-reviewer` agent (pragmatic: blocks only on real problems); feature-branch commits and pushes stay free.
 
 ## What's next
-**Owner looks at the toy racer cars and the Singularity orb while racing in Studio and tunes the placeholder numbers (`TOY` proportions in tools/build_redesign_cars.py, `OrbMotion` spin / bob, `OrbGlow` brightness) if needed.**
+**Fix the remaining UITEST reds on feature/alex/world1-ship in worktree tasks: Upgrades panel transparency compare and Exit hover (53e24a2e, 3c0dcacf), RollToast padding and reduced-motion viewport (7d99207f, 0261e33b), Rebirth band offset (adf68695), Speed float rounding (fd2412fe), harness cleanup and quest fixture (081c684a, 4796b256); then re-run the full UI suite.**
 
-**Why this is next:** every proportion and orb number is a placeholder in CAR_REDESIGN_SPEC sections 10-11, and any change means a rebuild and re-upload of the cars, so it should be settled before further car art builds on them.
+**Why this is next:** [UITEST] END fail=0 is World 1 deliverable w1e; the speed probe (ORCH-3) and test-debt td1-td7 wait on that green baseline. Phone HudPair and Speed float layout wait on owner decisions.

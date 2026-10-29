@@ -4,7 +4,7 @@ return {
 	Id = "orbit_owl",
 	Name = "Orbit Owl",
 	Rarity = "Legendary",
-	Chance = 1450,
+	Chance = 1.3e7,
 	SpeedMulti = 25,
 	Order = 1065,
 	Model = "orbit_owl",

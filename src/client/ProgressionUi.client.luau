@@ -12,6 +12,7 @@ local Tree = require(shared.UpgradeTree)
 local Tracks = require(shared.TrackRegistry)
 local Workshop = require(shared.Workshop)
 local Format = require(shared.HudFormat)
+local UiTheme = require(shared.UiTheme)
 local Weather = require(shared.WeatherConfig)
 local Boosts = require(shared.BoostConfig)
 local CarCatalog = require(shared.CarCatalog)
@@ -34,38 +35,51 @@ local function make(class, name, parent, properties)
 	instance.Parent = parent
 	return instance
 end
+-- Navy gradient card with a blue glow edge (Backpack look, docs/HUD_LAYOUT_SPEC.md section 8). Opaque: panel
+-- surfaces must cover the read-outs behind them.
+local function plate(frame)
+	UiTheme.Plate(frame, BLUE)
+	frame.BackgroundTransparency = 0
+	return frame
+end
+local themed = {}
 local function screen(name, order)
-	return make("ScreenGui", name, gui, {
+	local root = make("ScreenGui", name, gui, {
 		ResetOnSpawn = false,
 		IgnoreGuiInset = true,
 		DisplayOrder = order,
 		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
 	})
+	table.insert(themed, root)
+	return root
 end
 local function text(name, parent, position, size, value)
-	return make("TextLabel", name, parent, {
+	local label = make("TextLabel", name, parent, {
 		Position = position,
 		Size = size,
 		Text = value,
-		Font = Enum.Font.GothamBold,
+		Font = UiTheme.Font,
 		TextSize = 16,
 		TextWrapped = true,
 		TextColor3 = Color3.new(1, 1, 1),
 		BackgroundTransparency = 1,
 	})
+	UiTheme.Stroke(label, 1.5)
+	return label
 end
 local function button(name, parent, position, size, value)
 	local b = make("TextButton", name, parent, {
 		Position = position,
 		Size = size,
 		Text = value,
-		Font = Enum.Font.GothamBold,
+		Font = UiTheme.Font,
 		TextSize = 15,
 		TextColor3 = Color3.new(1, 1, 1),
 		BackgroundColor3 = BLUE,
 		AutoButtonColor = true,
 	})
-	make("UICorner", "Corner", b, { CornerRadius = UDim.new(0, 8) })
+	make("UICorner", "Corner", b, { CornerRadius = UDim.new(0, UiTheme.Radius.S) })
+	UiTheme.Stroke(b, 1.5)
 	return b
 end
 -- A disabled button gets no hover / press highlight.
@@ -83,7 +97,7 @@ local function panel(name, title)
 		BackgroundColor3 = DARK,
 		Visible = false,
 	})
-	make("UICorner", "Corner", p, { CornerRadius = UDim.new(0, 14) })
+	plate(p)
 	text("Title", p, UDim2.fromOffset(12, 4), UDim2.new(1, -74, 0, 34), title)
 	local close = button("Close", p, UDim2.new(1, -48, 0, 6), UDim2.fromOffset(38, 30), "×")
 	close.BackgroundColor3 = RED
@@ -109,7 +123,7 @@ local weatherCard = make("Frame", "Card", weather, {
 	BackgroundColor3 = DARK,
 	Visible = false,
 })
-make("UICorner", "Corner", weatherCard, { CornerRadius = UDim.new(0, 8) })
+plate(weatherCard)
 local weatherTitle = text("Title", weatherCard, UDim2.fromOffset(8, 4), UDim2.new(1, -16, 0, 22), "")
 local weatherStats = text("Stats", weatherCard, UDim2.fromOffset(8, 26), UDim2.new(1, -16, 0, 22), "")
 local weatherTime = text("Time", weatherCard, UDim2.fromOffset(8, 48), UDim2.new(1, -16, 0, 20), "")
@@ -150,6 +164,19 @@ local _potionLayout = make("UIListLayout", "Layout", potionStatus, {
 	Padding = UDim.new(0, 10),
 })
 
+-- docs/WEATHER_EVENTS_SPEC.md "Weather icon": 8 px from the right edge; on phones (viewport height <= 500) its right
+-- edge is 140 px in, left of the Market button. The potion bottles stay left of it (HUD_LAYOUT_SPEC section 5).
+local function placeCorner()
+	local camera = workspace.CurrentCamera
+	local right = camera and camera.ViewportSize.Y <= 500 and 140 or 8
+	weather.Position = UDim2.new(1, -right, 1, -8)
+	potionStatus.Position = UDim2.new(1, -(right + 52), 1, -8)
+end
+placeCorner()
+if workspace.CurrentCamera then
+	workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(placeCorner)
+end
+
 local potionButtons = {}
 local PotionIcons = require(script.Parent.RollToast.Ui.PotionIcons)
 -- "9m 33s" under each bottle (docs/HUD_LAYOUT_SPEC.md section 5).
@@ -184,7 +211,7 @@ for _, category in Boosts.Order do
 	timer.TextSize = 17
 	timer.TextWrapped = false
 	timer.ZIndex = 2
-	make("UIStroke", "Outline", timer, { Color = Color3.fromRGB(17, 19, 31), Thickness = 2 })
+	UiTheme.Stroke(timer, 2)
 	local card = make("Frame", "Card", icon, {
 		AnchorPoint = Vector2.new(1, 1),
 		Position = UDim2.new(1, 0, 0, -6),
@@ -193,7 +220,7 @@ for _, category in Boosts.Order do
 		Visible = false,
 		ZIndex = 20,
 	})
-	make("UICorner", "Corner", card, { CornerRadius = UDim.new(0, 8) })
+	UiTheme.Plate(card, BLUE).BackgroundTransparency = 0
 	local name = text("Name", card, UDim2.fromOffset(8, 4), UDim2.new(1, -16, 0, 22), "")
 	name.TextSize = 14
 	local effect = text("Effect", card, UDim2.fromOffset(8, 26), UDim2.new(1, -16, 0, 20), "")
@@ -238,7 +265,7 @@ local function refreshPotions(now)
 			slot.Button:SetAttribute("PotionUntil", activePotion.Until)
 			slot.Timer.Text = potionTime(activePotion.Until - now)
 			slot.Name.Text = activePotion.Item.Name
-			slot.Effect.Text = string.format("x%.2f %s", activePotion.Item.Multiplier, activePotion.Item.Category)
+			slot.Effect.Text = Format.Multi(activePotion.Item.Multiplier) .. " " .. activePotion.Item.Category
 			slot.Time.Text = potionTime(activePotion.Until - now) .. " remaining"
 		else
 			slot.Button.Visible = false
@@ -252,6 +279,7 @@ end
 local treeView = require(script.Parent.RollToast.Ui.UpgradeTreeView).Create(gui, Tree, Format)
 local treePanel, feedback, tiles = treeView.Panel, treeView.Feedback, treeView.Tiles
 Switch.Register("Upgrades", treePanel)
+table.insert(themed, treeView.Refs.Gui)
 panels.Upgrades = treePanel
 for _, close in { treeView.Refs.Close, treeView.Refs.Exit } do
 	close.Activated:Connect(function()
@@ -295,7 +323,6 @@ end
 local workshopPanel = panel("Workshop", "WORKSHOP UPGRADE")
 local workshopTitle = workshopPanel:FindFirstChild("Title")
 if workshopTitle then
-	workshopTitle.Font = Enum.Font.Gotham
 	workshopTitle.TextSize = 14
 end
 local levelLabel = text("Level", workshopPanel, UDim2.new(0, 12, 0.22, 0), UDim2.new(0.42, -24, 0, 36), "")
@@ -303,13 +330,11 @@ local priceLabel = text("Price", workshopPanel, UDim2.new(0, 12, 0.42, 0), UDim2
 local workshopRate = text("Rate", workshopPanel, UDim2.new(0, 12, 0.58, 0), UDim2.new(0.42, -24, 0, 26), "")
 local workshopResult = text("Result", workshopPanel, UDim2.new(0, 12, 0.72, 0), UDim2.new(0.42, -24, 0, 24), "")
 for _, label in { levelLabel, priceLabel, workshopRate, workshopResult } do
-	label.Font = Enum.Font.Gotham
 	label.TextSize = 13
 	label.TextColor3 = Color3.fromRGB(218, 224, 235)
 end
 local buyWorkshop =
 	button("Buy", workshopPanel, UDim2.new(0, 12, 1, -48), UDim2.new(0.42, -24, 0, 36), "BUY NEXT LEVEL")
-buyWorkshop.Font = Enum.Font.Gotham
 buyWorkshop.TextSize = 12
 -- Showcase (docs/WORKSHOP_SPEC.md "Showcase"): the right part of the Workshop panel. The server validates every pick.
 local showcaseFrame = make("Frame", "Showcase", workshopPanel, {
@@ -329,7 +354,7 @@ for i = 1, GachaConfig.SHOWCASE_SLOTS do
 		Size = UDim2.new(1 / GachaConfig.SHOWCASE_SLOTS, -4, 0, 30),
 		BackgroundColor3 = Color3.fromRGB(42, 46, 74),
 	})
-	make("UICorner", "Corner", slot, { CornerRadius = UDim.new(0, 6) })
+	plate(slot)
 	local name = text("Name", slot, UDim2.fromOffset(4, 0), UDim2.new(1, -30, 0.55, 0), "EMPTY")
 	local info = text("Info", slot, UDim2.new(0, 4, 0.55, 0), UDim2.new(1, -30, 0.45, 0), "")
 	info.TextSize = 10
@@ -395,7 +420,7 @@ local function refreshShowcase()
 	for _, c in candidates do
 		copiesOf[c.Spec.Id] = c.Copies
 	end
-	showcaseMulti.Text = string.format("SHOWCASE  x%.2f Speed gain", player:GetAttribute("ShowcaseMulti") or 1)
+	showcaseMulti.Text = "SHOWCASE  " .. Format.Multi(player:GetAttribute("ShowcaseMulti") or 1) .. " Speed gain"
 	for i, slot in slots do
 		local spec = ids[i] and CarCatalog.Get(ids[i])
 		slot.Name.Text = spec and spec.Name or "EMPTY"
@@ -518,9 +543,11 @@ local function refresh()
 	treeView.Balance(balance)
 	local level = Workshop.CleanLevel(player:GetAttribute("WorkshopLevel"))
 	local nextLevel = Workshop.Config.Levels[level + 1]
-	levelLabel.Text = "Level " .. level .. " • x" .. Workshop.LevelMulti(level) .. " Speed gain"
+	levelLabel.Text = "Level " .. level .. " • " .. Format.Multi(Workshop.LevelMulti(level)) .. " Speed gain"
 	priceLabel.Text = nextLevel
-			and ("Level " .. (level + 1) .. " • x" .. nextLevel.Multi .. " • " .. Format.MoneyText(nextLevel.Price))
+			and ("Level " .. (level + 1) .. " • " .. Format.Multi(nextLevel.Multi) .. " • " .. Format.MoneyText(
+				nextLevel.Price
+			))
 		or "MAX LEVEL"
 	setActive(buyWorkshop, nextLevel ~= nil and balance >= nextLevel.Price)
 	buyWorkshop.Selectable = buyWorkshop.Active
@@ -560,7 +587,9 @@ local function refreshWelcome()
 		Switch.Close("Welcome")
 		lastCredit = nil
 	end
-	earnings.Text = string.format("+%s Speed earned while away", Format.SpeedText(credit))
+	-- After a bought double the server sets OfflineDoubled to the extra amount it added.
+	local doubled = player:GetAttribute("OfflineDoubled") or 0
+	earnings.Text = string.format("+%s SPEED", Format.SpeedText(credit + doubled))
 	away.Text = string.format(
 		"Away %dh %dm %ds • 25%% gain • 8h maximum",
 		math.floor(seconds / 3600),
@@ -578,7 +607,7 @@ end
 for _, attr in { "BestTrack", "UpgradesBuyable", "WorkshopLevel", "InWorkshop", "WorkshopRate" } do
 	player:GetAttributeChangedSignal(attr):Connect(refresh)
 end
-for _, attr in { "OfflineSpeed", "OfflineSeconds" } do
+for _, attr in { "OfflineSpeed", "OfflineSeconds", "OfflineDoubled" } do
 	player:GetAttributeChangedSignal(attr):Connect(refreshWelcome)
 end
 task.spawn(function()
@@ -619,3 +648,12 @@ RunService.Heartbeat:Connect(function(dt)
 end)
 refresh()
 refreshWelcome()
+-- Fredoka text and token radii on every code-built screen, rows added later included (section 8).
+for _, root in themed do
+	UiTheme.Apply(root)
+end
+
+-- Offline reward presentation; the existing credit amount and close flow are unchanged.
+require(script.Parent:WaitForChild("WelcomeStyle")).Apply(welcome, function()
+	Switch.Close("Welcome")
+end)

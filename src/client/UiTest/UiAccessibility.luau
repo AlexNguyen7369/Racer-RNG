@@ -3,6 +3,13 @@
 -- decision, 2026-10-26 (accessibility and devices)"). Limits and paths: UiSpec.Accessibility. Owned by ui-test-writer.
 --   ui_reduced_motion    Client/UiMotion: Reduced() = ReducedMotionEnabled OR ReduceEffects; Create lands at once and
 --                        never loops while reduced; the roll reel does not spin and the reveal keeps its time.
+--   ui_motion_reduced    Client/UiMotion presets (docs/HUD_LAYOUT_SPEC.md section 10, owner 2026-10-27): with
+--                        ReduceEffects on, Pop / SlideIn / Shine / Pulse / Shake / Float land on their end state at
+--                        once and nothing loops; with it off (and Roblox's Reduced Motion off) Pop and Pulse animate.
+--   ui_speed_float       Client/RollToast/RacerUiController (section 10, owner 2026-10-27; UiSpec.SpeedFloat): a local
+--                        growth of leaderstats.Speed shows one MotionFloat "+<GainText(gain)>" in Speed yellow above
+--                        SpeedValue, in its parent; 0.5 floats "+0.5"; a burst of growths is summed per 0.25 s and
+--                        floats about every 0.25 s (several per second, never closer than MinGap); nothing floats while ReduceEffects is on. Speed and ReduceEffects are put back.
 --   ui_safe_insets       Client/SafeInsets: every player ScreenGui except the full-bleed ones uses DeviceSafeInsets
 --                        (also one added later); every shown button / label lies inside its gui's safe rect.
 --   ui_safe_insets_notch (MANUAL, Device Simulator notched phone) the same, and the safe rect really is inset.
@@ -14,10 +21,12 @@
 -- Every attribute, panel and selection touched is put back.
 
 local ContextActionService = game:GetService("ContextActionService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GuiService = game:GetService("GuiService")
 local UserInputService = game:GetService("UserInputService")
 
 local Spec = require(script.Parent.UiSpec)
+local HudFormat = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("HudFormat"))
 
 local Access = {}
 
@@ -215,6 +224,300 @@ function Access.Build(h)
 		player:SetAttribute(cfg.ReduceAttr, true)
 		local ok, err = pcall(reducedReelChecks, res)
 		player:SetAttribute(cfg.ReduceAttr, saved)
+		if not ok then
+			error(err)
+		end
+	end
+
+	---------------------------------------------------------------------------------------------------------------
+	-- Motion presets while reduced (section 10)
+
+	function scenarios.ui_motion_reduced(res)
+		local motion = motionModule()
+		local presets = { "Pop", "SlideIn", "Shine", "Pulse", "Shake", "Float" }
+		local missing = {}
+		for _, name in presets do
+			if not (motion and type(motion[name]) == "function") then
+				table.insert(missing, name)
+			end
+		end
+		h.checkList(res, "motion_presets_present", missing)
+		if #missing > 0 then
+			return
+		end
+		local saved = player:GetAttribute(cfg.ReduceAttr)
+		local probeGui = Instance.new("ScreenGui")
+		probeGui.Name = "UiTestMotionProbe"
+		probeGui.Enabled = false
+		probeGui.Parent = playerGui
+		local function frame(class)
+			local f = Instance.new(class or "Frame")
+			f.Position = UDim2.fromOffset(100, 100)
+			f.Size = UDim2.fromOffset(100, 40)
+			f.BackgroundTransparency = 0
+			f.Parent = probeGui
+			return f
+		end
+		local ok, err = pcall(function()
+			player:SetAttribute(cfg.ReduceAttr, true)
+			-- Pop: no MotionScale left away from 1
+			local pop = frame()
+			motion.Pop(pop)
+			h.frames(1)
+			local scale = pop:FindFirstChild("MotionScale")
+			h.check(res, "reduced_pop_lands", scale and scale.Scale or 1, 1, scale == nil or scale.Scale == 1)
+			-- SlideIn: already at its place, fully shown
+			local group = frame("CanvasGroup")
+			local home = group.Position
+			motion.SlideIn(group, Vector2.new(0, 40))
+			h.frames(1)
+			h.check(
+				res,
+				"reduced_slidein_lands",
+				("%s t=%.2f"):format(tostring(group.Position), group.GroupTransparency),
+				("%s t=0"):format(tostring(home)),
+				group.Position == home and group.GroupTransparency == 0
+			)
+			-- Shine: no band left mid-sweep (no overlay, or its band already at the end)
+			local plate = frame()
+			motion.Shine(plate)
+			h.frames(1)
+			local overlay = plate:FindFirstChild("MotionShine")
+			local band = overlay and overlay:FindFirstChildOfClass("UIGradient")
+			h.check(
+				res,
+				"reduced_shine_no_sweep",
+				band and tostring(band.Offset) or "no overlay",
+				"no overlay or band at (1, 0)",
+				overlay == nil or (band ~= nil and band.Offset == Vector2.new(1, 0))
+			)
+			-- Pulse: returns a stop function and nothing loops (the property stays put)
+			local glow = frame()
+			local stop = motion.Pulse(glow, { BackgroundTransparency = 0.8 }, 0.2)
+			h.frames(3)
+			task.wait(0.15)
+			h.check(res, "reduced_pulse_returns_stop", typeof(stop), "function", type(stop) == "function")
+			h.check(res, "reduced_pulse_no_loop", glow.BackgroundTransparency, 0, glow.BackgroundTransparency == 0)
+			if type(stop) == "function" then
+				stop()
+			end
+			-- Shake: stays at home
+			local shaken = frame()
+			local shakeHome = shaken.Position
+			motion.Shake(shaken, 8, 0.3)
+			h.frames(1)
+			task.wait(0.06)
+			h.check(
+				res,
+				"reduced_shake_still",
+				tostring(shaken.Position),
+				tostring(shakeHome),
+				shaken.Position == shakeHome
+			)
+			-- Float: no rising text
+			local host = frame()
+			motion.Float(host, "+$1", Color3.new(1, 1, 1), UDim2.fromOffset(0, 0))
+			h.frames(1)
+			h.check(
+				res,
+				"reduced_float_nothing",
+				host:FindFirstChild("MotionFloat") and "MotionFloat shown" or "none",
+				"none",
+				host:FindFirstChild("MotionFloat") == nil
+			)
+			-- Not reduced (proves the checks above are not vacuous): Pop grows and Pulse moves
+			if not GuiService.ReducedMotionEnabled then
+				player:SetAttribute(cfg.ReduceAttr, false)
+				local popped = frame()
+				motion.Pop(popped)
+				local peak = 1
+				for _ = 1, 6 do
+					h.frames(1)
+					local s = popped:FindFirstChild("MotionScale")
+					peak = math.max(peak, s and s.Scale or 1)
+				end
+				h.check(res, "pop_animates_when_not_reduced", peak, "> 1", peak > 1.001)
+				local pulsing = frame()
+				local stopPulse = motion.Pulse(pulsing, { BackgroundTransparency = 0.8 }, 0.2)
+				task.wait(0.12)
+				local moved = pulsing.BackgroundTransparency
+				if type(stopPulse) == "function" then
+					stopPulse()
+				end
+				h.check(res, "pulse_animates_when_not_reduced", moved, "> 0", moved > 0.001)
+				h.check(
+					res,
+					"pulse_stop_restores",
+					pulsing.BackgroundTransparency,
+					0,
+					pulsing.BackgroundTransparency == 0
+				)
+			end
+		end)
+		player:SetAttribute(cfg.ReduceAttr, saved)
+		probeGui:Destroy()
+		if not ok then
+			error(err)
+		end
+	end
+
+	---------------------------------------------------------------------------------------------------------------
+	-- Speed gain float (section 10)
+
+	function scenarios.ui_speed_float(res)
+		local F = Spec.SpeedFloat
+		h.waitGuis()
+		local stats = player:FindFirstChild("leaderstats")
+		local speed = stats and stats:FindFirstChild("Speed")
+		local host, value, moneyHost = h.find(F.Host), h.find(F.SpeedValue), h.find(F.Money)
+		if not (speed and speed:IsA("ValueBase") and host and value) then
+			h.stateMissing(res, "speed_float_setup", "hud", "leaderstats.Speed, " .. F.Host .. " or " .. F.SpeedValue)
+			return
+		end
+		h.check(res, "speed_float_host_is_value_parent", h.pathOf(value.Parent), F.Host, value.Parent == host)
+		if GuiService.ReducedMotionEnabled then
+			h.stateMissing(res, "speed_float_motion_on", "reduced_motion_off", "Roblox Reduced Motion is on")
+			return
+		end
+		-- The floats sum every Speed gain of a 0.25 s window: a racing car's (or a workshop's) real gains would mix
+		-- into the planted ones, so this runs on foot (UiSpec.Progression.FixtureChecks on_foot) and outside a workshop
+		if player:GetAttribute("AutoRacing") == true or player:GetAttribute("InWorkshop") == true then
+			h.stateMissing(res, "speed_float_no_live_gain", "on_foot", "AutoRacing or InWorkshop: live Speed gains")
+			return
+		end
+		local floats, misplaced = {}, 0
+		local conns = {
+			host.ChildAdded:Connect(function(c)
+				if c.Name == F.Label then
+					table.insert(floats, { t = os.clock(), label = c })
+				end
+			end),
+		}
+		if moneyHost then
+			table.insert(
+				conns,
+				moneyHost.ChildAdded:Connect(function(c)
+					if c.Name == F.Label then
+						misplaced += 1
+					end
+				end)
+			)
+		end
+		local savedReduce = player:GetAttribute(cfg.ReduceAttr)
+		local saved, written = speed.Value, nil
+		local function grow(by)
+			written = speed.Value + by
+			speed.Value = written
+		end
+		local ok, err = pcall(function()
+			player:SetAttribute(cfg.ReduceAttr, false)
+			task.wait(F.Quiet)
+			-- One growth: one float with its text, colour and place
+			local before = #floats
+			grow(F.Gain)
+			local deadline = os.clock() + F.Wait
+			while #floats == before and os.clock() < deadline do
+				task.wait(0.05)
+			end
+			local first = floats[before + 1]
+			h.check(res, "speed_float_appears", #floats - before, ">= 1", first ~= nil)
+			if first then
+				h.frames(1)
+				local label = first.label
+				local want = "+" .. HudFormat.GainText(F.Gain)
+				h.check(res, "speed_float_is_textlabel", label.ClassName, "TextLabel", label:IsA("TextLabel"))
+				if label:IsA("TextLabel") then
+					h.check(res, "speed_float_text", label.Text, want, label.Text == want)
+					local c, w = label.TextColor3, F.Color
+					local d = math.max(math.abs(c.R - w.R), math.abs(c.G - w.G), math.abs(c.B - w.B))
+					h.check(
+						res,
+						"speed_float_colour",
+						("%d,%d,%d"):format(
+							math.floor(c.R * 255 + 0.5),
+							math.floor(c.G * 255 + 0.5),
+							math.floor(c.B * 255 + 0.5)
+						),
+						"255,232,30",
+						d <= F.ColorTolerance
+					)
+					if label.Parent then
+						local r, v = h.rect(label), h.rect(value)
+						h.check(
+							res,
+							"speed_float_above_value",
+							("float %s value %s"):format(h.rstr(r), h.rstr(v)),
+							"float centre above the value centre",
+							r.y + r.h / 2 < v.y + v.h / 2
+						)
+					else
+						h.check(res, "speed_float_above_value", "destroyed before measured", "measured", false)
+					end
+				end
+			end
+			-- A fractional growth floats with one decimal
+			task.wait(F.Quiet)
+			before = #floats
+			grow(F.FracGain)
+			deadline = os.clock() + F.Wait
+			while #floats == before and os.clock() < deadline do
+				task.wait(0.05)
+			end
+			local frac = floats[before + 1]
+			local fracText = frac and frac.label:IsA("TextLabel") and frac.label.Text or "no float"
+			h.check(res, "speed_float_fraction_text", fracText, F.FracText, fracText == F.FracText)
+			-- A burst: summed per window, a float about every 0.25 s
+			task.wait(F.Quiet)
+			before = #floats
+			for _ = 1, F.BurstCount do
+				grow(F.BurstStep)
+				task.wait(F.BurstEvery)
+			end
+			task.wait(F.Wait)
+			local burst, minGap, single, summed = {}, math.huge, "+" .. HudFormat.GainText(F.BurstStep), false
+			for i = before + 1, #floats do
+				table.insert(burst, floats[i])
+				if #burst > 1 then
+					minGap = math.min(minGap, floats[i].t - floats[i - 1].t)
+				end
+				local label = floats[i].label
+				if label:IsA("TextLabel") and label.Text ~= single then
+					summed = true
+				end
+			end
+			h.check(res, "speed_float_burst_shown", #burst, ">= 1", #burst >= 1)
+			h.check(
+				res,
+				"speed_float_quarter_second_cadence",
+				#burst,
+				">= " .. F.BurstMinFloats,
+				#burst >= F.BurstMinFloats
+			)
+			h.check(
+				res,
+				"speed_float_min_gap",
+				minGap == math.huge and "one float" or minGap,
+				">= " .. F.MinGap,
+				#burst >= 1 and (minGap == math.huge or minGap >= F.MinGap)
+			)
+			h.check(res, "speed_float_gain_summed", summed and "summed" or ("every float " .. single), "summed", summed)
+			h.check(res, "speed_float_not_on_money", misplaced, 0, misplaced == 0)
+			-- Reduced: no float
+			task.wait(F.Quiet)
+			player:SetAttribute(cfg.ReduceAttr, true)
+			before = #floats
+			grow(F.Gain)
+			task.wait(F.Wait)
+			h.check(res, "speed_float_reduced_none", #floats - before, 0, #floats == before)
+		end)
+		for _, c in conns do
+			c:Disconnect()
+		end
+		-- Only put Speed back if the server did not replicate a newer value meanwhile.
+		if written ~= nil and speed.Value == written then
+			speed.Value = saved
+		end
+		player:SetAttribute(cfg.ReduceAttr, savedReduce)
 		if not ok then
 			error(err)
 		end

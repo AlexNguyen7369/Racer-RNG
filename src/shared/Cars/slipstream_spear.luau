@@ -4,7 +4,7 @@ return {
 	Id = "slipstream_spear",
 	Name = "Slipstream Spear",
 	Rarity = "Epic",
-	Chance = 420,
+	Chance = 99000,
 	SpeedMulti = 7.5,
 	Order = 1046,
 	Model = "slipstream_spear",

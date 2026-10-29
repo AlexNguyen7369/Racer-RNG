@@ -27,6 +27,7 @@ local CarCatalog = require(Shared.CarCatalog)
 local GachaConfig = require(Shared.GachaConfig)
 local HudFormat = require(Shared.HudFormat)
 local RollAnimConfig = require(Shared.RollAnimConfig)
+local UiTheme = require(Shared.UiTheme)
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
 local rollRemote = remotes:WaitForChild("RollResult")
 local autoRollRemote = remotes:WaitForChild("SetAutoRoll")
@@ -43,8 +44,9 @@ local BLACK = Color3.new(0, 0, 0)
 local CARD_BG = Color3.fromRGB(20, 28, 48)
 local GOLD = Color3.fromRGB(255, 200, 60)
 local TURBO_BLUE = Color3.fromRGB(60, 170, 255)
-local ITALIC = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Heavy, Enum.FontStyle.Italic)
-local BOLD = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Heavy)
+-- FredokaOne everywhere (docs/HUD_LAYOUT_SPEC.md section 8)
+local ITALIC = Font.new("rbxasset://fonts/families/FredokaOne.json", Enum.FontWeight.Heavy, Enum.FontStyle.Italic)
+local BOLD = Font.new("rbxasset://fonts/families/FredokaOne.json", Enum.FontWeight.Heavy)
 
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -689,12 +691,12 @@ local function isEnlarged()
 	return gui:GetAttribute("View") == "Enlarged"
 end
 
--- The compact roll is the always-available top-centre entry point. Clicking it
--- opens the enlarged showcase, where the AUTO option lives. It remains visible
--- while a panel is open so HUD entry points never disappear on click.
+-- The compact roll is the top-centre entry point. Clicking it opens the enlarged showcase, where the AUTO option
+-- lives. Owner 2026-10-28 (docs/HUD_LAYOUT_SPEC.md section 6, ROLL_ANIMATION_CONTRACT): it HIDES while any
+-- PanelSwitch panel is open, so it never covers a panel's top or takes its clicks; the roll keeps playing.
 local function refreshToast()
 	local playing = phase ~= "Idle"
-	local show = not isEnlarged() and (playing or not autoRollOn())
+	local show = not isEnlarged() and not PanelSwitch.AnyOpen() and (playing or not autoRollOn())
 	local hud = playerGui:FindFirstChild("RacerHud")
 	if hud and not isEnlarged() then
 		hud.Enabled = true
@@ -804,7 +806,7 @@ local function fillResult(b, roll)
 		b.GlowGradient.Color = ColorSequence.new(CARD_BG:Lerp(color, 0.15), CARD_BG)
 		b.CarName.Text = spec.Name
 		b.CarName.TextColor3 = WHITE
-		b.SpeedMulti.Text = "x" .. tostring(spec.SpeedMulti or 1) .. " SPEED MULTIPLIER"
+		b.SpeedMulti.Text = HudFormat.Multi(spec.SpeedMulti or 1) .. " SPEED"
 		b.Rarity.Text = spec.Rarity
 		b.Rarity.TextColor3 = textColor(spec)
 		b.Rarity.TextStrokeColor3 = spec.Rarity == "Secret" and color or BLACK
@@ -816,7 +818,7 @@ local function fillResult(b, roll)
 			b.ScrapBadge.Text = "+1 COPY"
 		end
 		b.Aliases.Name.Text = spec.Name
-		b.Aliases.Speed.Text = tostring(spec.SpeedMulti or 1) .. "x Speed"
+		b.Aliases.Speed.Text = "Speed " .. HudFormat.Multi(spec.SpeedMulti or 1)
 		b.Aliases.Rarity.Text = spec.Rarity
 		b.Aliases.Odds.Text = b.Odds.Text
 		b.Aliases.Name.TextColor3 = b.CarName.TextColor3
@@ -1305,8 +1307,14 @@ end
 workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(function()
 	task.defer(fitRollArt)
 end)
+-- The generated fit also re-runs on its own (a delayed first fit, ScreenGui size changes): follow every change, so
+-- the car art never keeps the other variant's rect and spills out of the card.
+rollRefs.PreviewCar:GetPropertyChangedSignal("Position"):Connect(fitRollArt)
+rollRefs.PreviewCar:GetPropertyChangedSignal("Size"):Connect(fitRollArt)
 fitRollArt()
 autoButton.Font = Enum.Font.FredokaOne
 autoButton:FindFirstChildOfClass("UIStroke").Thickness = 3
+UiTheme.Apply(gui)
+UiTheme.Apply(showcase)
 fillResult(enlarged, { Spec = CarCatalog.Get("rusty_hatchback"), IsNew = false, Turbo = 1 })
 fillResult(compact, { Spec = CarCatalog.Get("rusty_hatchback"), IsNew = false, Turbo = 1 })

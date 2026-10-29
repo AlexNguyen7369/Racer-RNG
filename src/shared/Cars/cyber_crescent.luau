@@ -4,7 +4,7 @@ return {
 	Id = "cyber_crescent",
 	Name = "Cyber Crescent",
 	Rarity = "Legendary",
-	Chance = 4700,
+	Chance = 3.8e8,
 	SpeedMulti = 90,
 	Order = 1078,
 	Model = "cyber_crescent",
