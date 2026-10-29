@@ -18,7 +18,7 @@ body.flow-page { margin: 0; background: var(--bg); color: var(--text); display: 
 .flow-main { flex: 1; display: grid; grid-template-columns: 1fr 340px; gap: 0; min-height: 0; }
 .graph-wrap { overflow: auto; padding: 8px; }
 #graph { width: 100%; min-width: 900px; height: auto; display: block; }
-.feed { border-left: 1px solid var(--line); background: var(--panel); overflow-y: auto; max-height: calc(100vh - 150px); }
+.feed { border-left: 1px solid var(--line); background: var(--panel); height: calc(100vh - 150px); position: sticky; top: 0; }
 .feed h3 { margin: 0; padding: 10px 12px; font-size: 14px; position: sticky; top: 0; background: var(--panel); border-bottom: 1px solid var(--line); }
 .feed ol { list-style: none; margin: 0; padding: 0; }
 .feed li { padding: 8px 12px; border-bottom: 1px solid var(--line); font-size: 12px; cursor: default; }
@@ -28,8 +28,18 @@ body.flow-page { margin: 0; background: var(--bg); color: var(--text); display: 
 .feed .kind { color: var(--muted); margin-left: 6px; }
 .feed .when { float: right; color: var(--muted); }
 .feed .text { margin-top: 3px; color: var(--text); white-space: pre-wrap; word-break: break-word; }
+.feed { display: flex; flex-direction: column; }
+.feed > ol { flex: 1 1 auto; overflow-y: auto; min-height: 120px; }
+.board { flex: 0 1 auto; max-height: 60%; overflow-y: auto; border-bottom: 1px solid var(--line); }
+.board details { border-bottom: 1px solid var(--line); }
+.board summary { padding: 8px 12px 4px; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); cursor: pointer; position: sticky; top: 0; background: var(--panel); }
+.board ul { list-style: none; margin: 0; padding: 0 0 6px; }
+.board li { padding: 4px 12px; font-size: 12px; display: flex; gap: 6px; align-items: baseline; }
+.board li.new { animation: feed-in 1.2s ease-out; }
+.board li .t { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.board li .pill { flex: none; }
 @keyframes feed-in { from { background: var(--run-bg); } to { background: transparent; } }
-@media (max-width: 900px) { .flow-main { grid-template-columns: 1fr; } .feed { border-left: none; border-top: 1px solid var(--line); max-height: 40vh; } }
+@media (max-width: 900px) { .flow-main { grid-template-columns: 1fr; } .feed { border-left: none; border-top: 1px solid var(--line); height: 70vh; position: static; } }
 
 /* graph */
 .edge { fill: none; stroke: var(--line); stroke-width: 2; transition: stroke .4s, stroke-width .4s; }
@@ -92,6 +102,6 @@ body.flow-page { margin: 0; background: var(--bg); color: var(--text); display: 
 .legend .pulse { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--a-claude); margin-right: 5px; box-shadow: 0 0 6px var(--a-claude); }
 
 @media (prefers-reduced-motion: reduce) {
-  .node.orch.active, .node.flash, .feed li.new { animation: none; }
+  .node.orch.active, .node.flash, .feed li.new, .board li.new { animation: none; }
   .edge, .node-g { transition: none; }
 }

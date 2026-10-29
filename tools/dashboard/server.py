@@ -486,7 +486,7 @@ def _codex_analytics():
                 elif p.get("type") == "turn_aborted":
                     status = "stopped"
                 if p.get("type") == "token_count":
-                    total = p.get("info", {}).get("total_token_usage", {})
+                    total = (p.get("info") or {}).get("total_token_usage") or {}
                     if total:
                         last_total = total
             elif e.get("type") == "response_item":
@@ -579,7 +579,7 @@ def _codex_quota():
         if value.get("id") == 2:
             reply = value
             break
-    limits = (reply or {}).get("result", {}).get("rateLimits", {})
+    limits = ((reply or {}).get("result") or {}).get("rateLimits") or {}
     windows = []
     for key, fallback in (("primary", "Current window"), ("secondary", "Weekly")):
         window = limits.get(key) or {}
@@ -735,6 +735,22 @@ def live_subagents():
     return out[:24]
 
 
+def board_view(tasks):
+    """The TODO board's Doing and Next cards in board order, each tagged with the orchestrator task working it."""
+    by_todo = {}
+    for t in tasks:
+        for key in (t.get("todo"), t.get("id")):
+            if key:
+                by_todo.setdefault(key, t)
+    out = {"doing": [], "next": []}
+    for i in read_json(TODO_FILE, {"items": []}).get("items", []):
+        if i.get("status") in out:
+            t = by_todo.get(i.get("id")) or {}
+            out[i["status"]].append({k: i.get(k) for k in ("id", "title", "owner", "branch", "updated", "updatedBy")}
+                                    | {"task": t.get("id"), "taskStatus": t.get("status")})
+    return out
+
+
 def flow_view():
     with WRITE_LOCK:
         if FLOW_CACHE["data"] is not None and time.time() - FLOW_CACHE["at"] < FLOW_SECONDS:
@@ -770,6 +786,7 @@ def flow_view():
         "tasks": tasks,
         "overlaps": overlaps(tasks),
         "studioQueue": st.get("studio_queue") or [],
+        "board": board_view(tasks),
         "events": (st.get("events") or [])[-200:],
         "outside": [a for a in live_subagents() if a["id"] not in known],
         "worktrees": worktree_list(),

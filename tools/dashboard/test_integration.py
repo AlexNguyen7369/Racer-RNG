@@ -260,6 +260,19 @@ class FlowTests(unittest.TestCase):
         self.assertEqual(d["overlaps"], [{"a": "a", "b": "b", "files": ["src/y.luau"]}])
         self.assertTrue(all(t["worktreeExists"] is False for t in d["tasks"]))
 
+    def test_board_lists_doing_and_next_cards_tagged_with_their_task(self):
+        todo = os.path.join(self.tmp.name, "todo.json")
+        Path(todo).write_text(json.dumps({"items": [
+            {"id": "a", "title": "A", "status": "doing"}, {"id": "b", "title": "B", "status": "next"},
+            {"id": "c", "title": "C", "status": "done"}, {"id": "d", "title": "D", "status": "backlog"}]}))
+        state = os.path.join(self.tmp.name, "orchestrator.json")
+        Path(state).write_text(json.dumps({"tasks": [{"id": "t1", "todo": "a", "status": "running"}]}))
+        with patch.object(server, "ORCH_FILE", state), patch.object(server, "TODO_FILE", todo), \
+                patch.object(server, "live_subagents", return_value=[]):
+            b = server.flow_view()["board"]
+        self.assertEqual([(i["id"], i["task"], i["taskStatus"]) for i in b["doing"]], [("a", "t1", "running")])
+        self.assertEqual([i["id"] for i in b["next"]], ["b"])
+
 
 if __name__ == "__main__":
     unittest.main()

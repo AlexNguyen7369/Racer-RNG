@@ -373,6 +373,41 @@ function header(d) {
 }
 
 // ---------------------------------------------------------------------------------------------------------------
+// board: the TODO board's Doing / Up next cards and the orchestrator's queued tasks, refreshed every poll
+
+let boardSeen = null; // card keys already shown; new ones flash
+
+function board(d) {
+  const b = d.board || {};
+  const queued = (d.tasks || []).filter((t) => t.status === "queued");
+  const keys = new Set();
+  const row = (key, title, tip, pill) => {
+    keys.add(key);
+    const fresh = boardSeen && !boardSeen.has(key);
+    return `<li class="${fresh ? "new" : ""}" title="${esc(tip)}"><span class="t">${esc(title)}</span>${pill}</li>`;
+  };
+  const card = (sec) => (i) => row(`${sec}:${i.id}`, i.title || i.id, [i.owner, i.branch, i.updated && `updated ${ago(i.updated)}`].filter(Boolean).join(" · "),
+    i.taskStatus ? `<span class="pill st-${esc(i.taskStatus)}">${esc(i.taskStatus)}</span>` : i.owner ? `<span class="muted">${esc(i.owner)}</span>` : "");
+  // <details> keep their open/closed state across polls (only the lists inside are replaced)
+  const list = (key, name, items) => {
+    let el = $("board").querySelector(`details[data-k="${key}"]`);
+    if (!el) {
+      el = document.createElement("details");
+      el.dataset.k = key;
+      el.open = true;
+      el.innerHTML = "<summary></summary><ul></ul>";
+      $("board").append(el);
+    }
+    el.querySelector("summary").innerHTML = `${name} <span class="muted">(${items.length})</span>`;
+    el.querySelector("ul").innerHTML = items.join("") || '<li class="muted">none</li>';
+  };
+  list("queue", "Orchestrator queue", queued.map((t) => row(`q:${t.id}`, t.title || t.id, t.branch || "", `<span class="pill st-queued">queued</span>`)));
+  list("doing", "Doing", (b.doing || []).map(card("doing")));
+  list("next", "Up next", (b.next || []).map(card("next")));
+  boardSeen = keys;
+}
+
+// ---------------------------------------------------------------------------------------------------------------
 // demo: a simulated orchestrator moving four tasks through the loop
 
 const demo = (() => {
@@ -417,7 +452,9 @@ const demo = (() => {
     const tasks = s.tasks.map((x) => ({ ...x }));
     const overlaps = overlapping && OPEN.includes(s.tasks[1].status) ? [{ a: "shop-ui", b: "engine-sfx", files: ["src/client/EngineAudio.luau"] }] : [];
     return { orchestrator: { active: true, phase: s.phase, tick: s.tick, updated: now(), age: 0, context: { pct: (s.tick % 30) / 36, tokens: 0, window: 200000, at: now() } }, goals: s.goals, tasks, overlaps,
-      studioQueue: s.queue, events: s.events.slice(-200), outside: [], branch: "feature/alex/juice",
+      studioQueue: s.queue, board: { doing: [{ id: "boost-vfx", title: "Boost trail VFX", taskStatus: tasks[0].status }, { id: "loser", title: "Loser screen recap", owner: "Codex" }],
+        next: [{ id: "quests", title: "Daily Quest System" }, ...(s.tick % 10 > 4 ? [{ id: "pets", title: "Pet companions" }] : [])] },
+      events: s.events.slice(-200), outside: [], branch: "feature/alex/juice",
       bus: { messages: s.messages.slice(-80), status: { codex: { task: "Loser screen recap", files: ["src/client/NpcRacerView.luau"] } } } };
   };
 })();
@@ -429,6 +466,7 @@ async function tick() {
   try {
     const d = DEMO ? demo() : await (await fetch("/api/flow", { cache: "no-store" })).json();
     header(d);
+    board(d);
     apply(d);
     communicate(d);
   } catch (e) {
