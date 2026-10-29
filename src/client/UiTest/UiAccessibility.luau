@@ -364,6 +364,65 @@ function Access.Build(h)
 	---------------------------------------------------------------------------------------------------------------
 	-- Speed gain float (section 10)
 
+	-- Owner 2026-10-29 (UiSpec.PhoneSpeed, docs/HUD_LAYOUT_SPEC.md sections 6 and 9): the +Speed float rises inside the
+	-- viewport, and on phones (where Speed sits bottom right) its whole path overlaps no PhoneSpeed.Clear element. The
+	-- float is followed every frame until it is destroyed; its path (union of rects) is checked live, and at every
+	-- simulated phone viewport by carrying its offset from the Speed group over with the group's scale.
+	-- shortcut: assumes the float keeps the same offset in the group on both variants; model it per variant if it moves.
+	local function placeFloat(res, label)
+		local P = Spec.PhoneSpeed
+		local host = label.Parent
+		local liveGroup = host and h.rect(host)
+		local path
+		local deadline = os.clock() + P.FloatSampleSeconds
+		while label.Parent and os.clock() < deadline do
+			local r = h.rect(label)
+			if label.Visible and r.w > 0 and r.h > 0 then
+				if path then
+					local x0, y0 = math.min(path.x, r.x), math.min(path.y, r.y)
+					local x1, y1 = math.max(path.x + path.w, r.x + r.w), math.max(path.y + path.h, r.y + r.h)
+					path = h.R(x0, y0, x1 - x0, y1 - y0)
+				else
+					path = r
+				end
+			end
+			h.frames(1)
+		end
+		if not (path and liveGroup and liveGroup.w > 0) then
+			h.check(res, "speed_float_path_measured", "no visible float rect", "measured", false)
+			return
+		end
+		local vp = h.viewport()
+		h.check(
+			res,
+			"speed_float_inside_viewport_current",
+			h.rstr(path),
+			h.rstr(h.R(0, 0, vp.X, vp.Y)),
+			h.contains(h.R(0, 0, vp.X, vp.Y), path)
+		)
+		if vp.Y <= P.PhoneMaxHeight then
+			h.checkList(res, "speed_float_clear_current", h.phoneSpeedHits(path, h.rect))
+		end
+		for _, vpSpec in Spec.Viewports do
+			if vpSpec.Size and vpSpec.Size.Y <= P.PhoneMaxHeight then
+				local rectOf = h.provider(vpSpec)
+				local g = rectOf(host)
+				local k = g.w / liveGroup.w
+				local sim =
+					h.R(g.x + (path.x - liveGroup.x) * k, g.y + (path.y - liveGroup.y) * k, path.w * k, path.h * k)
+				local full = h.R(0, 0, vpSpec.Size.X, vpSpec.Size.Y)
+				h.check(
+					res,
+					"speed_float_inside_viewport_" .. vpSpec.Name,
+					h.rstr(sim),
+					h.rstr(full),
+					h.contains(full, sim)
+				)
+				h.checkList(res, "speed_float_clear_" .. vpSpec.Name, h.phoneSpeedHits(sim, rectOf))
+			end
+		end
+	end
+
 	function scenarios.ui_speed_float(res)
 		local F = Spec.SpeedFloat
 		h.waitGuis()
@@ -453,6 +512,7 @@ function Access.Build(h)
 					else
 						h.check(res, "speed_float_above_value", "destroyed before measured", "measured", false)
 					end
+					placeFloat(res, label)
 				end
 			end
 			-- A fractional growth floats with one decimal

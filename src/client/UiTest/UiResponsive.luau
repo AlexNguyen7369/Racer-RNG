@@ -1719,7 +1719,9 @@ Model.Scales = generated.Scales
 -- Layout props per variant (AnchorPoint, Position, Size, TextSize, Visible when present)
 Model.Nodes = generated.Nodes
 
--- Runtime changes the scripts make on top of the generated layout:
+-- Runtime changes the scripts make on top of the generated layout (2026-10-29: SpeedGroup still describes the
+-- implementation's centring at every variant; the owner's phone bottom-right rule is the TEST, UiSpec.PhoneSpeed;
+-- regenerate SpeedGroup from RacerUiController once it places the phone Speed group at the bottom right):
 -- RacerUiController moves the Speed group horizontally every frame to centre its visible dial + text (SpeedDial's left
 -- edge to SpeedValue's text end, HUD spec section 9) (X is live on the
 -- live viewport; Model.SpeedGroup applies the same rule at a simulated one).
@@ -1890,6 +1892,8 @@ end
 --   Owner 2026-10-28 (section 6): at viewport height <= StackMaxHeight the pair stacks ABOVE the bars instead:
 --   AnchorPoint (1, 1) / (0, 1), bottom y = min(Level top, Money top) - StackGap, ItemsSlot x = min(left, Speed
 --   left) - StackGap, UpgradeSlot x = max(right, Speed right) + StackGap (Money / Speed only when visible).
+--   (2026-10-29: this still describes the implementation. The owner rule that replaced stacking is the TEST,
+--   UiSpec.HudPair.Beside; regenerate this model from HudChrome once the stacking code is gone.)
 Model.HudChrome = {
 	Phone = 0.68,
 	BottomScale = 0.75,

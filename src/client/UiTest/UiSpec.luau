@@ -531,6 +531,14 @@ UiSpec.PanelSwitch = {
 	},
 }
 
+-- Panels a fixture opens that are not in PanelSwitch.Names (closed by UiScenarios.CloseFixturePanels, bug 081c684a):
+-- the OFFLINE REWARD modal (Client/ProgressionUi panel "Welcome", Client/WelcomeStyle), opened by offline_* fixtures
+-- and again when 'restore' puts a nonzero OfflineSpeed back.
+UiSpec.FixturePanels = {
+	Welcome = "RacerWelcome/Panel",
+	Names = { ["RacerWelcome/Panel"] = "Welcome" },
+}
+
 -- Money market (Client/MarketUi; docs/HUD_LAYOUT_SPEC.md section 2 "Market", owner 2026-10-16: the Backpack look).
 -- Backdrop is the full-screen dim, NON-interactive Frame (owner 2026-10-20, docs/HUD_LAYOUT_SPEC.md section 6: HUD
 -- tiles stay clickable while it is open; a click on empty screen that no GUI processed closes it, click
@@ -709,11 +717,11 @@ UiSpec.Band = {
 	-- the old 240x160 floor pushed panels over the Race button on short phones, e72e9fc).
 }
 
--- Owner 2026-10-28 (docs/HUD_LAYOUT_SPEC.md section 6): at viewport height <= StackMaxHeight the Items / Upgrade
--- pair stacks ABOVE the LEVEL bar (both bottoms at or above the Level top and the Money top) and overlaps none of
--- Clear; elsewhere it stays beside the bars (Items right edge = bars left - SlotGap, Upgrade left = bars right +
--- SlotGap, icon centre on the gap between Level and Turbo) and on desktop (height > 500) the pair is never shrunk
--- (pair UIScale = BottomScale exactly). Expected rects at 667x375 from the brief (screen pixels, +-Tol).
+-- Owner 2026-10-29 (docs/HUD_LAYOUT_SPEC.md section 6, replaces the 2026-10-28 stacking rule): the Items / Upgrade
+-- pair NEVER stacks. At every viewport, phone_small_landscape and phone_landscape included, it stays beside the bars
+-- (Items right edge = bars left - SlotGap, Upgrade left = bars right + SlotGap, icon centre on the gap between Level
+-- and Turbo) and overlaps none of Clear; on desktop (height > 500) the pair is never shrunk (pair UIScale =
+-- BottomScale exactly). (The 2026-10-28 Stacked rects at 667x375 and StackMaxHeight were removed with that rule.)
 UiSpec.HudPair = {
 	-- The slot holders (one CELL each, scaled by their UIScale "Scale"), not the buttons inside
 	Items = "HudChrome/ItemsSlot",
@@ -730,20 +738,52 @@ UiSpec.HudPair = {
 		"HudChrome/Grid",
 		"HudChrome/ShopColumn",
 	},
-	StackMaxHeight = 400,
 	SlotGap = 10,
 	BottomScale = 0.75,
 	IconMid = 36 / 94,
 	Tol = 2,
-	Stacked = {
-		{
-			Viewport = "phone_small_landscape",
-			Items = { x0 = 187, x1 = 229, y0 = 217, y1 = 264 },
-			Upgrade = { x0 = 482, x1 = 525, y0 = 217, y1 = 264 },
-		},
+	-- Every UiSpec viewport except the live one (checked by the same rule in hudPairChecks)
+	Beside = {
+		"desktop_1080p",
+		"laptop_768p",
+		"hd_720p",
+		"tablet_4x3",
+		"phone_landscape",
+		"phone_small_landscape",
 	},
-	Beside = { "phone_landscape", "hd_720p" },
 	Desktop = { "desktop_1080p", "laptop_768p", "hd_720p", "tablet_4x3" },
+}
+
+-- Owner 2026-10-29 (docs/HUD_LAYOUT_SPEC.md sections 6 and 9): on phones (viewport height <= PhoneMaxHeight) the
+-- whole Speed readout (RacerHud/Speed: dial, SpeedValue and its rising +Speed MotionFloat) sits at the BOTTOM RIGHT,
+-- the float rises above it there, and none of it overlaps the weather icon, the potion buttons or any HUD element
+-- in Clear. Desktop and tablet keep it bottom centre (ui_layout speed_group_centred_<viewport>).
+-- "Bottom right" as a test (the doc gives no pixels; these bounds are the test's reading of it, report to the owner
+-- before changing them): the Speed group's rect lies wholly in the right half and the bottom half of the viewport,
+-- its right edge at most MaxRightGap px from the viewport's right edge, its bottom at most MaxBottomGap px from the
+-- bottom edge (room for the weather / potion strip, 82 px tall on phones, below it).
+UiSpec.PhoneSpeed = {
+	Group = "RacerHud/Speed",
+	PhoneMaxHeight = 500,
+	MaxRightGap = 24,
+	MaxBottomGap = 130,
+	Clear = {
+		"RacerProgression/WeatherIcon",
+		"RacerProgression/PotionStatus",
+		"RacerHud/Money",
+		"RacerHud/Level",
+		"RacerHud/Turbo",
+		"RacerHud/Race/Face",
+		"HudChrome/ItemsSlot",
+		"HudChrome/UpgradeSlot",
+		"HudChrome/Grid",
+		"HudChrome/ShopColumn",
+		"HudChrome/TopRight",
+		"RollToast/Toast",
+	},
+	-- Each shown child of these is checked too (the potion buttons)
+	ClearChildrenOf = { "RacerProgression/PotionStatus" },
+	FloatSampleSeconds = 3, -- s the float is followed frame by frame (its whole rise, until it is destroyed)
 }
 
 -- CLAUDE.md: panels open BELOW the Race (Auto Race) button and end ABOVE the bottom TURBO LUCK bar. The progression

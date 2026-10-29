@@ -3160,8 +3160,66 @@ function Help.showcaseAutoButtonLayout(res, vpName, sim, vp, sgui, backdrop, car
 	end
 end
 
--- Owner 2026-10-28 (UiSpec.HudPair, docs/HUD_LAYOUT_SPEC.md section 6): the Items / Upgrade pair stacks above the
--- LEVEL bar at viewport height <= StackMaxHeight, stays beside the bars elsewhere, and is never shrunk on desktop.
+-- UiSpec.PhoneSpeed.Clear (and the shown children of ClearChildrenOf) that `rect` overlaps at a viewport, as
+-- "path rect" strings. rectOf is the viewport's provider; only effectively visible elements count.
+function Help.phoneSpeedHits(rect, rectOf)
+	local cfg = UiSpec.PhoneSpeed
+	local hits = {}
+	local function test(o)
+		if o and o:IsA("GuiObject") and effectivelyVisible(o) then
+			local other = rectOf(o)
+			if other and other.w > 0 and other.h > 0 and intersects(rect, other) then
+				table.insert(hits, ("%s %s"):format(pathOf(o), rstr(other)))
+			end
+		end
+	end
+	for _, path in cfg.Clear do
+		test(Help.findPath(path))
+	end
+	for _, path in cfg.ClearChildrenOf do
+		local parent = Help.findPath(path)
+		for _, child in parent and parent:GetChildren() or {} do
+			test(child)
+		end
+	end
+	return hits
+end
+
+-- Owner 2026-10-29 (UiSpec.PhoneSpeed, docs/HUD_LAYOUT_SPEC.md section 9): at a phone viewport the Speed group sits in
+-- the bottom-right corner (right half, bottom half, MaxRightGap / MaxBottomGap from the edges) and overlaps nothing
+-- in PhoneSpeed.Clear. `r` is the group's rect, `root` its ScreenGui's rect at that viewport.
+function Help.phoneSpeedChecks(res, tag, r, root, rectOf)
+	local cfg = UiSpec.PhoneSpeed
+	local rightGap = root.x + root.w - (r.x + r.w)
+	local bottomGap = root.y + root.h - (r.y + r.h)
+	check(
+		res,
+		"speed_phone_right_edge_" .. tag,
+		rightGap,
+		"0.." .. cfg.MaxRightGap,
+		rightGap >= -TOL and rightGap <= cfg.MaxRightGap
+	)
+	check(
+		res,
+		"speed_phone_bottom_edge_" .. tag,
+		bottomGap,
+		"0.." .. cfg.MaxBottomGap,
+		bottomGap >= -TOL and bottomGap <= cfg.MaxBottomGap
+	)
+	local midX, midY = root.x + root.w / 2, root.y + root.h / 2
+	check(
+		res,
+		"speed_phone_bottom_right_quadrant_" .. tag,
+		rstr(r),
+		("x >= %.0f, y >= %.0f"):format(midX, midY),
+		r.x >= midX - TOL and r.y >= midY - TOL
+	)
+	checkList(res, "speed_phone_clear_" .. tag, Help.phoneSpeedHits(r, rectOf))
+end
+
+-- Owner 2026-10-29 (UiSpec.HudPair, docs/HUD_LAYOUT_SPEC.md section 6, replaces the 2026-10-28 stacking rule): the
+-- Items / Upgrade pair never stacks; it stays beside the bars at every viewport and overlaps none of HudPair.Clear,
+-- and it is never shrunk on desktop.
 function Help.hudPairChecks(res)
 	local spec = UiSpec.HudPair
 	local restore = setPanels({})
@@ -3191,45 +3249,8 @@ function Help.hudPairChecks(res)
 	local function bottom(r)
 		return r.y + r.h
 	end
-	-- Stacked: bottoms at or above Level top and Money top, no overlap with Clear, the brief's rects
-	local function stacked(vpSpec, want)
-		local tag = vpSpec.Name
-		local r = rectsAt(vpSpec, "hud_pair_" .. tag)
-		if not r then
-			return
-		end
-		local low = math.max(bottom(r.Items), bottom(r.Upgrade))
-		check(res, "hud_pair_above_level_" .. tag, low, "<= " .. r.Level.y, low <= r.Level.y + 0.5)
-		check(res, "hud_pair_above_money_" .. tag, low, "<= " .. r.Money.y, low <= r.Money.y + 0.5)
-		local hits = {}
-		for _, key in { "Items", "Upgrade" } do
-			for _, path in spec.Clear do
-				local o = Help.findPath(path)
-				local other = o and o:IsA("GuiObject") and effectivelyVisible(o) and r.rectOf(o)
-				if other and intersects(r[key], other) then
-					table.insert(hits, ("%s %s x %s %s"):format(key, rstr(r[key]), path, rstr(other)))
-				end
-			end
-		end
-		checkList(res, "hud_pair_clear_" .. tag, hits)
-		if want then
-			for _, key in { "Items", "Upgrade" } do
-				local got, w = r[key], want[key]
-				local ok = math.abs(got.x - w.x0) <= spec.Tol
-					and math.abs(got.x + got.w - w.x1) <= spec.Tol
-					and math.abs(got.y - w.y0) <= spec.Tol
-					and math.abs(got.y + got.h - w.y1) <= spec.Tol
-				check(
-					res,
-					("hud_pair_%s_rect_%s"):format(string.lower(key), tag),
-					rstr(got),
-					("x %d..%d y %d..%d +-%d"):format(w.x0, w.x1, w.y0, w.y1, spec.Tol),
-					ok
-				)
-			end
-		end
-	end
-	-- Beside: Items right edge / Upgrade left edge SlotGap outside the bars, icon centre on the Level / Turbo gap
+	-- Beside: Items right edge / Upgrade left edge SlotGap outside the bars, icon centre on the Level / Turbo gap, and
+	-- neither slot overlaps Clear (Speed, Money, the bars, the side columns)
 	local function beside(vpSpec)
 		local tag = vpSpec.Name
 		local r = rectsAt(vpSpec, "hud_pair_" .. tag)
@@ -3253,17 +3274,20 @@ function Help.hudPairChecks(res)
 			end
 		end
 		checkList(res, "hud_pair_beside_bars_" .. tag, bad)
+		local hits = {}
+		for _, key in { "Items", "Upgrade" } do
+			for _, path in spec.Clear do
+				local o = Help.findPath(path)
+				local other = o and o:IsA("GuiObject") and effectivelyVisible(o) and r.rectOf(o)
+				if other and intersects(r[key], other) then
+					table.insert(hits, ("%s %s x %s %s"):format(key, rstr(r[key]), path, rstr(other)))
+				end
+			end
+		end
+		checkList(res, "hud_pair_clear_" .. tag, hits)
 	end
 
 	local live = viewport()
-	for _, st in spec.Stacked do
-		local vpSpec = byName(st.Viewport)
-		if vpSpec then
-			stacked(vpSpec, st)
-		else
-			check(res, "hud_pair_viewport_" .. st.Viewport, "missing", "in UiSpec.Viewports", false)
-		end
-	end
 	for _, name in spec.Beside do
 		local vpSpec = byName(name)
 		if vpSpec then
@@ -3272,12 +3296,8 @@ function Help.hudPairChecks(res)
 			check(res, "hud_pair_viewport_" .. name, "missing", "in UiSpec.Viewports", false)
 		end
 	end
-	-- The live screen by the same rule as its height
-	if live.Y <= spec.StackMaxHeight then
-		stacked({ Name = "current" }, nil)
-	else
-		beside({ Name = "current" })
-	end
+	-- The live screen by the same rule (no stacked variant at any height)
+	beside({ Name = "current" })
 	-- Desktop: the pair's UIScale is exactly BottomScale (shrink factor 1), modelled and live
 	for _, name in spec.Desktop do
 		local vpSpec = byName(name)
@@ -3459,13 +3479,18 @@ function S.ui_layout(res)
 					end
 					local midX = root.x + root.w / 2
 					local cx = right and (left + right) / 2
-					check(
-						res,
-						"speed_group_centred_" .. vpSpec.Name,
-						cx or "number draws nothing",
-						midX,
-						cx ~= nil and math.abs(cx - midX) <= UiSpec.Hud.SpeedCentreTolerance
-					)
+					if vp.Y <= UiSpec.PhoneSpeed.PhoneMaxHeight then
+						-- Owner 2026-10-29 (UiSpec.PhoneSpeed): phones put the Speed readout at the bottom right
+						Help.phoneSpeedChecks(res, vpSpec.Name, rectOf(hud), root, rectOf)
+					else
+						check(
+							res,
+							"speed_group_centred_" .. vpSpec.Name,
+							cx or "number draws nothing",
+							midX,
+							cx ~= nil and math.abs(cx - midX) <= UiSpec.Hud.SpeedCentreTolerance
+						)
+					end
 				else
 					check(res, "speed_group_centred_" .. vpSpec.Name, "missing", "present", false)
 				end
@@ -6718,6 +6743,9 @@ local access = require(script.Parent.UiAccessibility).Build({
 	partOf = partOf,
 	phaseSeq = phaseSeq,
 	animNum = animNum,
+	provider = provider,
+	viewport = viewport,
+	phoneSpeedHits = Help.phoneSpeedHits,
 })
 for name, fn in access.Scenarios do
 	S[name] = fn
@@ -6811,11 +6839,33 @@ end
 -- Panels only a server fixture opens (the duel_* fixtures fire Remotes.Duel at this client; nothing closes them
 -- otherwise): closed locally through PanelSwitch after every scenario, click and full run, so no fixture leaves
 -- one open for the next check (a left-over DuelUi InvitePanel was seen 2026-10-28). Fires nothing.
-function UiScenarios.CloseFixturePanels()
+-- The panel restore a LeavePanels click left for the KeepPanels click after it (nil when no chain is pending).
+Help.chainRestore = nil
+function Help.endPanelChain()
+	local pending = Help.chainRestore
+	Help.chainRestore = nil
+	if pending then
+		pending()
+	end
+end
+
+-- Panels a fixture or a click chain may leave open (bug 081c684a). Called after every run / click and after the
+-- server's 'restore' (UiTestHarness, opts.restore): the Duel panels always; the Checkpoints panel unless a
+-- LeavePanels -> KeepPanels chain is still pending; after 'restore' also the OFFLINE REWARD Welcome modal, which
+-- re-opens when restore puts a real nonzero OfflineSpeed back (Client/ProgressionUi refreshWelcome).
+function UiScenarios.CloseFixturePanels(opts)
 	local switch = panelSwitch()
-	for _, path in { UiSpec.Duel.Pick, UiSpec.Duel.Invite } do
+	local paths = { UiSpec.Duel.Pick, UiSpec.Duel.Invite }
+	if opts and opts.restore then
+		Help.endPanelChain()
+		table.insert(paths, UiSpec.FixturePanels.Welcome)
+	end
+	if not Help.chainRestore then
+		table.insert(paths, UiSpec.Checkpoints.Panel)
+	end
+	for _, path in paths do
 		local object = Help.findPath(path)
-		local name = UiSpec.PanelSwitch.Names[path]
+		local name = UiSpec.PanelSwitch.Names[path] or UiSpec.FixturePanels.Names[path]
 		if object and object:IsA("GuiObject") and object.Visible then
 			if switch and name and type(switch.Close) == "function" then
 				switch.Close(name)
@@ -7217,8 +7267,19 @@ function UiScenarios.RunClick(id)
 	-- Prepare.KeepPanels: the panels stay exactly as the previous click left them (no close / reopen, which would reset
 	-- a view such as the Checkpoints detail pane) and are not restored; Prepare.LeavePanels: prepared as usual but left
 	-- that way after the click, so the next KeepPanels click starts from it.
-	local restorePanels = prep.KeepPanels and function() end or Help.preparePanels(prep)
+	-- A KeepPanels click ends the chain: it restores what the LeavePanels click before it prepared (bug 081c684a: the
+	-- Checkpoints panel stayed open after checkpoint_select_track and broke later clicks). Any other click first ends
+	-- a chain left pending.
+	local restorePanels
+	if prep.KeepPanels then
+		restorePanels = Help.chainRestore or function() end
+		Help.chainRestore = nil
+	else
+		Help.endPanelChain()
+		restorePanels = Help.preparePanels(prep)
+	end
 	if prep.LeavePanels then
+		Help.chainRestore = restorePanels
 		restorePanels = function() end
 	end
 	local grid = upgradeId and Help.findPath("RacerUpgrades/Panel/Canvas")
