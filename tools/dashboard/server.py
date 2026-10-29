@@ -660,6 +660,127 @@ def bus_view():
         "unread": {a: len(agent_bus.unread(a)) for a in agent_bus.AGENTS}}
 
 
+# ---------------------------------------------------------------------------------------------------------------
+# orchestration flow (static/flow.html): the orchestrator's state file + live subagents + bus traffic
+
+ORCH_FILE = os.path.join(ROOT, ".agents", "orchestrator.json")
+FLOW_CACHE = {"at": 0.0, "data": None}
+FLOW_SECONDS = 3  # git calls per worktree cost time; the page polls every few seconds
+OPEN_TASK = ("queued", "running", "verifying", "green")
+
+
+def git_in(path, *args):
+    r = subprocess.run(["git", "-C", path, *args], capture_output=True, text=True)
+    return r.stdout if r.returncode == 0 else ""
+
+
+def worktree_list():
+    out, cur = [], {}
+    for line in git("worktree", "list", "--porcelain", check=False).splitlines() + [""]:
+        if not line:
+            if cur:
+                out.append(cur)
+            cur = {}
+        elif line.startswith("worktree "):
+            cur["path"] = line[9:]
+        elif line.startswith("branch "):
+            cur["branch"] = line[7:].removeprefix("refs/heads/")
+        elif line.startswith("HEAD "):
+            cur["head"] = line[5:12]
+    return out
+
+
+def task_changed(t, base):
+    """Files the task really changed in its worktree: commits since the integration branch plus uncommitted work."""
+    wt = t.get("worktree") or ""
+    if not os.path.isdir(wt):
+        return None
+    files = set(git_in(wt, "diff", "--name-only", f"{base}...HEAD").split()) if base else set()
+    for line in git_in(wt, "status", "--porcelain=v1", "-uall").splitlines():
+        files.add(line[3:].split(" -> ")[-1].strip('"'))
+    files.discard("")
+    files.discard(".orch")
+    return sorted(f for f in files if not f.startswith(".orch/"))
+
+
+def overlaps(tasks):
+    """Pairs of open tasks that touch the same file (actual changes, else claimed files)."""
+    live = [t for t in tasks if t.get("status") in OPEN_TASK]
+    out = []
+    for i, a in enumerate(live):
+        for b in live[i + 1 :]:
+            shared = set(a.get("changed") or a.get("files") or []) & set(b.get("changed") or b.get("files") or [])
+            if shared:
+                out.append({"a": a["id"], "b": b["id"], "files": sorted(shared)})
+    return out
+
+
+def recent(iso, seconds):
+    try:
+        return time.time() - datetime.datetime.fromisoformat(str(iso).replace("Z", "+00:00")).timestamp() < seconds
+    except ValueError:
+        return False
+
+
+def live_subagents():
+    """Subagents of Claude sessions written to in the last 10 minutes (the orchestrator's and anyone else's)."""
+    out = []
+    for path in sorted(glob.glob(os.path.join(TRANSCRIPTS, "*.jsonl")), key=os.path.getmtime, reverse=True)[:5]:
+        if time.time() - os.path.getmtime(path) > 600:
+            break
+        sid = os.path.basename(path)[:-6]
+        for a in agents(sid):
+            if a["status"] == "running" or (a["status"] == "done" and recent(a.get("end"), 900)):
+                out.append({k: a.get(k) for k in ("id", "session", "type", "description", "status", "verdict", "lastTool", "end")})
+    return out[:24]
+
+
+def flow_view():
+    with WRITE_LOCK:
+        if FLOW_CACHE["data"] is not None and time.time() - FLOW_CACHE["at"] < FLOW_SECONDS:
+            return FLOW_CACHE["data"]
+    st = read_json(ORCH_FILE, {})
+    goals = st.get("goals") or []
+    base_of = {g.get("id"): g.get("branch") for g in goals}
+    tasks = []
+    for t in st.get("tasks") or []:
+        t = dict(t)
+        base = base_of.get(t.get("goal")) or ""
+        t["changed"] = task_changed(t, base)
+        t["worktreeExists"] = t["changed"] is not None
+        if base and t.get("branch") and t.get("status") in OPEN_TASK:
+            c = collab.merge_conflicts(base, t["branch"])
+            t["merge"] = "unknown" if c is None else ("conflict" if c else "clean")
+            t["conflicts"] = c or []
+        tasks.append(t)
+    known = {t.get("agent_id") for t in tasks}
+    updated = st.get("updated")
+    age = None
+    if updated:
+        try:
+            age = time.time() - datetime.datetime.fromisoformat(updated.replace("Z", "+00:00")).timestamp()
+        except ValueError:
+            pass
+    data = {
+        "generated": now_iso(),
+        "orchestrator": {"active": bool(st), "phase": st.get("phase") or ("idle" if st else "not running"),
+                         "tick": st.get("tick"), "updated": updated, "age": age, "context": st.get("context"),
+                         "stale": bool(age and age > 600 and any(t.get("status") in OPEN_TASK for t in tasks))},
+        "goals": goals,
+        "tasks": tasks,
+        "overlaps": overlaps(tasks),
+        "studioQueue": st.get("studio_queue") or [],
+        "events": (st.get("events") or [])[-200:],
+        "outside": [a for a in live_subagents() if a["id"] not in known],
+        "worktrees": worktree_list(),
+        "branch": git("branch", "--show-current", check=False).strip(),
+        "bus": {"messages": agent_bus.messages(80), "status": agent_bus.statuses()},
+    }
+    with WRITE_LOCK:
+        FLOW_CACHE.update(at=time.time(), data=data)
+    return data
+
+
 def bus_action(body):
     act = body.get("action")
     if act == "send":
@@ -1191,6 +1312,7 @@ class Handler(BaseHTTPRequestHandler):
                 "/api/messages": lambda: messages(sid) if sid else [],
                 "/api/changes": changes,
                 "/api/bus": bus_view,
+                "/api/flow": flow_view,
                 "/api/analytics": model_analytics,
                 "/api/gate": gate,
                 "/api/needtoknow": need_to_know,

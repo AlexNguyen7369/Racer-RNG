@@ -73,6 +73,10 @@
 70. 2026-10-27 — Isaac Li — Added the approved ten-icon transparent HUD set, uploaded asset mapping, scale-only hover feedback, saved Settings artwork and project documentation with focused Studio checks.
 71. 2026-10-28 — Alex Nguyen — Ran the full harness (54/1) and UI suite (34/3) on world1-ship, fixed and merged the stale economy above-cap test (71f4163), and logged the UI bugs.
 72. 2026-10-28 — Alex Nguyen — Merged the UI fix round (Welcome font, opaque Upgrades panel, UI test fixes incl. hover-at-rest) into world1-ship (e2a5f70); live UI suite 33/4 with 5 bugs fixed and 8 new ones logged.
+73. 2026-10-28 — Alex Nguyen — Added the orchestrator setup (`.claude/orchestrator.md`, `rules-auditor` agent, `/orchestrate`, goals draft in `docs/ORCHESTRATOR_GOALS.md`) and the dashboard orchestration flow page (`/api/flow`, `static/flow.html`) on `feature/alex/orchestrator-and-flow-dashboard` (68ab0c4).
+74. 2026-10-28 — Alex Nguyen — Confirmed the five orchestrator goals in `docs/ORCHESTRATOR_GOALS.md` (test debt first, then World 1 ship, World 2, new features, improvements in parallel; done = full green) (ccd89db).
+75. 2026-10-28 — Alex Nguyen — Added the orchestrator context-window settings (warn 60%, handoff 75%) and a context gauge on the dashboard flow page's orchestrator node; the overseer hook and 24/7 runner live in the global orchestrator skill.
+76. 2026-10-28 — Alex Nguyen — Allowed the orchestrator to merge into main only through an open PR approved by a fresh, no-context `merge-reviewer` agent (pragmatic: blocks only on real problems); feature-branch commits and pushes stay free.
 
 ## What's next
 **Fix the remaining UITEST reds on feature/alex/world1-ship in worktree tasks: Upgrades panel transparency compare and Exit hover (53e24a2e, 3c0dcacf), RollToast padding and reduced-motion viewport (7d99207f, 0261e33b), Rebirth band offset (adf68695), Speed float rounding (fd2412fe), harness cleanup and quest fixture (081c684a, 4796b256); then re-run the full UI suite.**

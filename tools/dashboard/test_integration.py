@@ -232,5 +232,34 @@ class BusTests(unittest.TestCase):
             self.assertEqual(BoardTests.request(object(), "/api/bus", {"action": "send", "to": "codex", "text": "x"}, local=False)[0], 403)
 
 
+class FlowTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        server.FLOW_CACHE.update(at=0.0, data=None)
+        self.addCleanup(server.FLOW_CACHE.update, at=0.0, data=None)
+
+    def test_no_state_file_shows_idle_orchestrator(self):
+        with patch.object(server, "ORCH_FILE", os.path.join(self.tmp.name, "missing.json")), \
+                patch.object(server, "live_subagents", return_value=[]):
+            d = server.flow_view()
+        self.assertFalse(d["orchestrator"]["active"])
+        self.assertEqual((d["tasks"], d["overlaps"]), ([], []))
+
+    def test_overlapping_open_tasks_are_flagged_and_merged_ones_are_not(self):
+        state = {"updated": "2026-10-28T10:00:00+00:00", "phase": "verify", "goals": [{"id": "g", "branch": ""}], "tasks": [
+            {"id": "a", "goal": "g", "status": "running", "files": ["src/x.luau", "src/y.luau"]},
+            {"id": "b", "goal": "g", "status": "verifying", "files": ["src/y.luau"]},
+            {"id": "c", "goal": "g", "status": "merged", "files": ["src/x.luau"]},
+            {"id": "d", "goal": "g", "status": "running", "files": ["src/z.luau"]}]}
+        path = os.path.join(self.tmp.name, "orchestrator.json")
+        Path(path).write_text(json.dumps(state))
+        with patch.object(server, "ORCH_FILE", path), patch.object(server, "live_subagents", return_value=[]):
+            d = server.flow_view()
+        self.assertTrue(d["orchestrator"]["active"])
+        self.assertEqual(d["overlaps"], [{"a": "a", "b": "b", "files": ["src/y.luau"]}])
+        self.assertTrue(all(t["worktreeExists"] is False for t in d["tasks"]))
+
+
 if __name__ == "__main__":
     unittest.main()
