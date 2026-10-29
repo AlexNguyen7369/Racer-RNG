@@ -4244,7 +4244,7 @@ function Scenarios.economy()
 		check(checks, "stat_for_past_double_is_huge", stf(1e6) == math.huge and 1 or 0, 1, stf(1e6) == math.huge)
 		-- above the cap no Speed reaches the speed (owner 2026-10-27); the cap itself is still reachable
 		local aboveCapOk = stf(CRUISE_CAP + 1e-6) == math.huge
-			and stf(1000) == math.huge
+			and stf(CRUISE_CAP * 1.25) == math.huge
 			and num(stf(CRUISE_CAP))
 			and stf(CRUISE_CAP) < math.huge
 		check(checks, "stat_for_above_cap_is_huge", aboveCapOk and 1 or 0, 1, aboveCapOk)
