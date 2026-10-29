@@ -71,8 +71,9 @@
 68. 2026-10-27 — Alex Nguyen — Merged the UI visual pass (theme, counters, speedometer, loser recap, map) and main's repo slim into the car redesign branch (4997ba8) and served it on Rojo port 34872.
 69. 2026-10-28 — Alex Nguyen — Landed World 1 balance (payout curve, rebirth rev 4, XP 122/37.2, cruise cap 800, odds rev) and the giant scenery fix on feature/alex/world1-ship; harness 53/0.
 70. 2026-10-27 — Isaac Li — Added the approved ten-icon transparent HUD set, uploaded asset mapping, scale-only hover feedback, saved Settings artwork and project documentation with focused Studio checks.
+71. 2026-10-28 — Alex Nguyen — Ran the full harness (54/1) and UI suite (34/3) on world1-ship, fixed and merged the stale economy above-cap test (71f4163), and logged the UI bugs.
 
 ## What's next
-**Merge Isaac's simple HUD icons (origin/feature/isaac/simple-hud-icons-20261027) into feature/alex/world1-ship, regenerate RacerHud and re-bake StarterGui.rbxm, then run the full UI suite.**
+**Fix the UITEST reds on feature/alex/world1-ship (HudChrome phone Items/Upgrade placement, on-foot Race button face, Welcome title font, Upgrades tile transparency, phone overlaps, quest Claim state; test bugs via ui-test-writer), then re-run the full UI suite.**
 
-**Why this is next:** the UI suite has not run on the new balance work, and the owner wants Isaac's icons in before it does; the test-debt UI deliverables (td1-td7) build on that green UI baseline.
+**Why this is next:** [UITEST] END fail=0 at desktop and phone is the World 1 deliverable w1e, and the test-debt UI items (td1-td7) need that green baseline.
