@@ -617,6 +617,21 @@
     "Copy the product id.",
     "Paste it into src/shared/MonetizationConfig.luau OfflineDouble.ProductId (or tell the orchestrator the id)."
    ]
+  },
+  {
+   "id": "fresh-place-copy-2026-10-28",
+   "title": "Save a fresh local copy of Racer RNG for parallel Studio tests",
+   "category": "studio",
+   "priority": "medium",
+   "why": "Parallel test runs (UITEST in a second Studio while CARTEST uses the shared one, .claude/orchestrator.md exclusive_resources.studio.isolate) start from IdleVehicleSimulator.rbxl. That file is from 2026-10-11 and lacks content inserted through MCP since (wyvern MeshParts, car / NPC models), so UI results from it would be wrong.",
+   "blocks": "Running UI and physics suites at the same time; every isolated task Studio",
+   "when": "2026-10-28",
+   "status": "open",
+   "steps": [
+    "In the Racer RNG Studio (shared one), stop play if running.",
+    "File > Save to File As... > /Users/alexnguyen7369/Documents/RobloxGames/IdleVehicleSimulator.rbxl (overwrite).",
+    "Re-save it whenever MCP inserts new Studio-only content (MeshParts, models)."
+   ]
   }
  ]
 }

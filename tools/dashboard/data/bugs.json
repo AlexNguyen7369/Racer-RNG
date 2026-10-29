@@ -2321,6 +2321,285 @@
       "foundBy": "ui-tester",
       "foundAt": "2026-10-28T13:28:09-07:00",
       "loggedBy": "Alex Nguyen"
+    },
+    {
+      "id": "d5f9bdf9",
+      "name": "economy stat_for_above_cap_is_huge uses old 800 cap",
+      "kind": "fault",
+      "status": "fixed",
+      "file": "src/server/CarTest/Scenarios.luau",
+      "line": 4246,
+      "endLine": 4250,
+      "snippet": {
+        "from": 4242,
+        "lines": [
+          "\t\tlowStatOk = lowStatOk and stf(nil) == 0",
+          "\t\tcheck(checks, \"stat_for_at_or_below_base_is_zero\", lowStatOk and 1 or 0, 1, lowStatOk)",
+          "\t\tcheck(checks, \"stat_for_past_double_is_huge\", stf(1e6) == math.huge and 1 or 0, 1, stf(1e6) == math.huge)",
+          "\t\t-- above the cap no Speed reaches the speed (owner 2026-10-27); the cap itself is still reachable",
+          "\t\tlocal aboveCapOk = stf(CRUISE_CAP + 1e-6) == math.huge",
+          "\t\t\tand stf(1000) == math.huge",
+          "\t\t\tand num(stf(CRUISE_CAP))",
+          "\t\t\tand stf(CRUISE_CAP) < math.huge",
+          "\t\tcheck(checks, \"stat_for_above_cap_is_huge\", aboveCapOk and 1 or 0, 1, aboveCapOk)",
+          "\tend",
+          "\treturn result(\"economy\", checks, {})",
+          "end",
+          ""
+        ]
+      },
+      "summary": "Check asserts StatForSpeed(1000)==math.huge, true only when MAX_CRUISE was 800; since 31f7547 (cap 1250) 1000 is below the cap and gets a finite stat, so economy fails (test bug, not gameplay).",
+      "error": "FAIL economy | stat_for_above_cap_is_huge: 0 (1)",
+      "foundBy": "physics-tester",
+      "foundAt": "2026-10-28T17:25:38-07:00",
+      "loggedBy": "Alex Nguyen",
+      "fixedAt": "2026-10-28T19:03:09-07:00",
+      "fixedBy": "Alex Nguyen",
+      "fixNote": "3430d85; economy re-run [CARTEST] END pass=1 fail=0 on Studio fb39beec"
+    },
+    {
+      "id": "9de32835",
+      "name": "HudChrome Items/Upgrade mid-screen on phone",
+      "kind": "fault",
+      "status": "open",
+      "file": "src/client/HudChrome.client.luau",
+      "line": 141,
+      "endLine": 141,
+      "snippet": {
+        "from": 137,
+        "lines": [
+          "\tholder(\"ShopColumn\", 1, { AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -14, 0.5, -24) })",
+          "-- Items and Upgrade flank the LEVEL / TURBO LUCK bars at the bottom centre; placed every refresh.",
+          "-- The anchor sits on the icon's centre (not the icon + label), so the icon lines up with the gap.",
+          "local ICON_MID = TILE / 2 / (TILE + LABEL)",
+          "local itemsSlot = holder(\"ItemsSlot\", 1, { AnchorPoint = Vector2.new(1, ICON_MID) })",
+          "local upgradeSlot = holder(\"UpgradeSlot\", 1, { AnchorPoint = Vector2.new(0, ICON_MID) })",
+          "local BOTTOM_SCALE = 0.75 -- the bottom pair is smaller than the edge tiles (owner, 2026-10-15)",
+          "local STACK_MAX_HEIGHT = 400 -- phone_small: the pair stacks above the bars (owner, 2026-10-28)",
+          "local SLOTS = {"
+        ]
+      },
+      "summary": "Phone landscape: ItemsSlot/UpgradeSlot sit at y~216-228 instead of beside the LEVEL/TURBO bars (centre y 246 want 341), overlapping every opened panel; tablet 4:3 pair shrunk to 0.54 (limit 0.75).",
+      "error": "hud_pair_beside_bars_phone_landscape: Items right 290 want 312",
+      "foundBy": "ui-tester",
+      "foundAt": "2026-10-28T19:02:02-07:00",
+      "loggedBy": "Alex Nguyen"
+    },
+    {
+      "id": "ccc13c4f",
+      "name": "Welcome title uses Bangers, not Fredoka",
+      "kind": "fault",
+      "status": "open",
+      "file": "src/client/WelcomeStyle.luau",
+      "line": 78,
+      "endLine": 78,
+      "snippet": {
+        "from": 74,
+        "lines": [
+          "\tend",
+          "\tlocal title = panel.Title",
+          "\ttitle.Text = \"OFFLINE REWARD\"",
+          "\tlabel(title, UDim2.fromOffset(70, 10), UDim2.new(1, -140, 0, 54))",
+          "\ttitle.Font = Enum.Font.Bangers",
+          "\ttitle.ZIndex = 3",
+          "\tpanel.Earnings.ZIndex = 3",
+          "\tpanel.Away.ZIndex = 3",
+          "\tlocal close = panel.Close"
+        ]
+      },
+      "summary": "RacerWelcome/Panel/Title font is Enum.Font.Bangers; theme rule wants Fredoka.",
+      "error": "theme_fonts_fredoka FAIL",
+      "foundBy": "ui-tester",
+      "foundAt": "2026-10-28T19:02:02-07:00",
+      "loggedBy": "Alex Nguyen"
+    },
+    {
+      "id": "d782d207",
+      "name": "Race button face larger than parent on foot",
+      "kind": "fault",
+      "status": "open",
+      "file": "src/client/RollToast/Ui/RacerHud.luau",
+      "line": 36,
+      "endLine": 36,
+      "snippet": {
+        "from": 32,
+        "lines": [
+          "\t)",
+          "\tgui:SetAttribute(\"SpecHash\", \"e45f06c655d8\")",
+          "\trefs.Gui = gui",
+          "\tlocal v1 = new(\"Frame\", {",
+          "\t\tName = \"Race\",",
+          "\t\tAnchorPoint = Vector2.new(0.5, 0),",
+          "\t\tPosition = UDim2.new(0.5, 0, 0, 72),",
+          "\t\tSize = UDim2.fromOffset(180, 48),",
+          "\t\tVisible = true,"
+        ]
+      },
+      "summary": "On foot (AUTO RACE label) Race/Face is 172x46 inside a 166x44 parent: hitbox_inside_parent fails in 7 states, layout model 5.81 (limit 1), panels 2 px too high.",
+      "error": "",
+      "foundBy": "ui-tester",
+      "foundAt": "2026-10-28T19:02:02-07:00",
+      "loggedBy": "Alex Nguyen"
+    },
+    {
+      "id": "9617a457",
+      "name": "Phone UI overlaps: MotionFloat/RollToast, Settings title/ProfileTab, DailyBoosts Status/Upgrade, Backpack CarsTab off-screen",
+      "kind": "failure",
+      "status": "open",
+      "file": "src/client/UiMotion.luau",
+      "line": 193,
+      "endLine": 193,
+      "snippet": {
+        "from": 189,
+        "lines": [
+          "\tif UiMotion.Reduced() then",
+          "\t\treturn",
+          "\tend",
+          "\tlocal label = Instance.new(\"TextLabel\")",
+          "\tlabel.Name = \"MotionFloat\"",
+          "\tlabel.BackgroundTransparency = 1",
+          "\tlabel.AnchorPoint = Vector2.new(0, 1)",
+          "\tlabel.Position = position",
+          "\tlabel.Size = UDim2.fromOffset(200, 30)"
+        ]
+      },
+      "summary": "ui_layout phone variants: Speed MotionFloat over RollToast Toast; Settings Title over ProfileTab; phone small DailyBoosts/Status over Upgrade, Backpack CarsTab outside the viewport.",
+      "error": "",
+      "foundBy": "ui-tester",
+      "foundAt": "2026-10-28T19:02:02-07:00",
+      "loggedBy": "Alex Nguyen"
+    },
+    {
+      "id": "12342e7c",
+      "name": "Quest Claim stays active for incomplete quest",
+      "kind": "failure",
+      "status": "open",
+      "file": "src/client/BoostDailyUi.client.luau",
+      "line": 578,
+      "endLine": 578,
+      "snippet": {
+        "from": 574,
+        "lines": [
+          "\t\t\tUDim2.new(1, -106, 0.5, -18),",
+          "\t\t\tUDim2.fromOffset(96, 32),",
+          "\t\t\tdone and \"CLAIMED\" or current >= quest.Target and \"CLAIM\" or \"LOCKED\"",
+          "\t\t)",
+          "\t\tclaim.Active = not done and current >= quest.Target",
+          "\t\tclaim.AutoButtonColor = claim.Active",
+          "\t\tclaim.BackgroundColor3 = claim.Active and GREEN or TAB",
+          "\t\tquestRows[quest.Id] = { Button = row, Edge = rowEdge }",
+          "\t\tif not selectedQuest then"
+        ]
+      },
+      "summary": "After quest_incomplete fixture (daily_races 1/3) Claim Active=true, want false; row likely not re-rendered on attribute change (unconfirmed).",
+      "error": "",
+      "foundBy": "ui-tester",
+      "foundAt": "2026-10-28T19:02:02-07:00",
+      "loggedBy": "Alex Nguyen"
+    },
+    {
+      "id": "38e4a78b",
+      "name": "UiSpec shop_redeem_invalid_code expects no remote but RedeemCode is real",
+      "kind": "fault",
+      "status": "open",
+      "file": "src/client/UiTest/UiSpec.luau",
+      "line": 1537,
+      "endLine": 1537,
+      "snippet": {
+        "from": 1533,
+        "lines": [
+          "\t\t\t\t[\"ShopUi/Backdrop/Panel/Items/Codes/**/Status\"] = \"\",",
+          "\t\t\t}",
+          "\t\t\treturn p",
+          "\t\tend)(),",
+          "\t\tExpect = {",
+          "\t\t\tPanels = { [\"ShopUi/Backdrop\"] = true },",
+          "\t\t\tRemote = false,",
+          "\t\t\tAfter = { \"shop_redeem_status_from_server\" },",
+          "\t\t},"
+        ]
+      },
+      "summary": "Test bug: spec comment says click calls the real RedeemCode, Expect has Remote=false; fails fires_nothing=RedeemCode.",
+      "error": "",
+      "foundBy": "ui-tester",
+      "foundAt": "2026-10-28T19:02:02-07:00",
+      "loggedBy": "Alex Nguyen"
+    },
+    {
+      "id": "3b10d310",
+      "name": "UiTestSetup missing offline_double_open",
+      "kind": "fault",
+      "status": "open",
+      "file": "src/server/CarTest/UiTestSetup.server.luau",
+      "line": 881,
+      "endLine": 881,
+      "snippet": {
+        "from": 877,
+        "lines": [
+          "\t\t\treturn",
+          "\t\tend",
+          "\t\tlocal fn = id and setups[id]",
+          "\t\tif not fn then",
+          "\t\t\terror(\"unknown setup id \" .. tostring(id))",
+          "\t\tend",
+          "\t\tfor _, player in Players:GetPlayers() do",
+          "\t\t\tfn(player)",
+          "\t\tend"
+        ]
+      },
+      "summary": "Test bug: UiSpec declares setup offline_double_open (UiSpec.luau:2233) but the server errors 'unknown setup id', so offline_double_click never shows the button.",
+      "error": "",
+      "foundBy": "ui-tester",
+      "foundAt": "2026-10-28T19:02:03-07:00",
+      "loggedBy": "Alex Nguyen"
+    },
+    {
+      "id": "03bad751",
+      "name": "Upgrades tree tiles see-through over HUD Speed text",
+      "kind": "failure",
+      "status": "open",
+      "file": "src/client/RollToast/Ui/UpgradeTreeView.luau",
+      "line": 1,
+      "endLine": 1,
+      "snippet": {
+        "from": 1,
+        "lines": [
+          "--!nonstrict",
+          "-- Presentation only: authoritative prices, locks and purchases stay in ProgressionUi/UpgradeTree.",
+          "local View = {}",
+          "local Components = require(script.Parent.RacerComponents)",
+          "local UserInputService = game:GetService(\"UserInputService\")"
+        ]
+      },
+      "summary": "With Upgrades open, RacerHud Speed/SpeedValue/SpeedDial show through tree tiles (BackgroundTransparency 0.38, limit 0.05) at every viewport.",
+      "error": "text_clear_of_buttons_upgrades_open_*",
+      "foundBy": "ui-tester",
+      "foundAt": "2026-10-28T19:02:11-07:00",
+      "loggedBy": "Alex Nguyen"
+    },
+    {
+      "id": "837519cd",
+      "name": "Showcase card viewport measured mid pop-in",
+      "kind": "failure",
+      "status": "open",
+      "file": "src/client/RollToast/Ui/RollShowcase.luau",
+      "line": 1,
+      "endLine": 1,
+      "snippet": {
+        "from": 1,
+        "lines": [
+          "--!nonstrict",
+          "-- GENERATED from RollShowcase.ui.json. DO NOT EDIT: change the spec and run ui/tooling/gen_atlas.py.",
+          "-- spec-hash: 461182e58416",
+          "-- Build(playerGui) creates the ScreenGui and returns refs: refs[<node id>] for every node (buttons: the Face",
+          "-- TextButton, connect .Activated to it), refs.Gui for the ScreenGui."
+        ]
+      },
+      "summary": "Intermittent: open_showcase_from_toast Viewport (237,213 277x203) outside the card; likely measured during the pop-in tween (fixture timing).",
+      "error": "",
+      "foundBy": "ui-tester",
+      "foundAt": "2026-10-28T19:02:11-07:00",
+      "loggedBy": "Alex Nguyen"
     }
   ]
 }

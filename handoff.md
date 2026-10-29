@@ -30,6 +30,22 @@ in git history (`git log -p -- handoff.md`, last full version at 2d99d78) and in
 
 ## Open work
 
+ORCH-4. **Orchestrator 2026-10-28 evening (world1-ship 82929ed): [CARTEST] END pass=54 fail=1, [UITEST] END pass=34 fail=3.**
+   CARTEST red = stale test economy stat_for_above_cap_is_huge (stf(1000) vs cap 1250, bug d5f9bdf9): test-writer fix 3430d85 on
+   orch/world1-ship/economy-cap-test (worktree ../RobloxGames-orch/economy-cap-test), rules-auditor PASS; economy re-run [CARTEST] END pass=1 fail=0 on
+   Studio fb39beec; LANDED as merge 71f4163 on feature/alex/world1-ship (pushed). Bug d5f9bdf9 fixed.
+   UITEST reds (bugs logged): ui_layout phone HudChrome Items/Upgrade mid-screen (9de32835, HudChrome.client.luau:141), Upgrades tiles
+   see-through (03bad751), phone overlaps (9617a457); ui_theme Welcome Bangers font (ccc13c4f, WelcomeStyle.luau:78); ui_speed_dial
+   236.9 vs 178.8+-26.8 while racing (maybe timing); on-foot Race Face 172x46 > parent 166x44 (d782d207, RacerHud.luau:36).
+   Clicks: quest Claim active when incomplete (12342e7c, UI suspected); TEST bugs for ui-test-writer: shop_redeem_invalid_code
+   Remote=false (38e4a78b), missing setup offline_double_open (3b10d310); showcase pop-in timing (837519cd).
+   Not run: manual Escape/gamepad/notch checks, PhoneOnly market clicks.
+   WARNING: Studio 30ded902 died mid-UITEST; fixtures (index_states, stat_points, rebirth_eligible, daily_claimed, quest...) were not
+   restored; if Studio DataStore writes are on they may be saved on the test account.
+   Parallel Studio blocked: IdleVehicleSimulator.rbxl stale (2026-10-11; manual item fresh-place-copy-2026-10-28); port 34873 used by AnimeRun.
+   NEXT: UI fix tasks in worktrees (HudChrome phone + Race Face; WelcomeStyle font; UpgradeTreeView tiles;
+   test bugs via ui-test-writer), then full UITEST again.
+
 ORCH-3. **Owner 2026-10-28: speed probe up to 2000; if every track is green through 2000 (highest_green_contiguous >= 2000),
    set RaceConfig.MAX_CRUISE = 2000 (owner decision, no 10% margin) with a dated design-doc + WORLDS_SPEC entry; else ask the owner.**
    Probe: CarTestOnly = "speed_probe", then CarTestRun = true (on feature/alex/world1-ship b737c85+). Queued after the UI runs.
