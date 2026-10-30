@@ -1,0 +1,29 @@
+{
+  "model_assets": {
+    "TimingTower": "120653695696677",
+    "TyreStack": "119923870230878",
+    "PaddockPalette": "70619536174348"
+  },
+  "MeshId": {
+    "TimingTower": "rbxassetid://75052978286265",
+    "TyreStack": "rbxassetid://129452193431257"
+  },
+  "TextureID": "rbxassetid://97059603748090",
+  "DecalImage": "rbxassetid://87817197400868",
+  "MeshSize": {
+    "TimingTower": [
+      6.04,
+      40,
+      6.04
+    ],
+    "TyreStack": [
+      3,
+      2.8487,
+      3
+    ]
+  },
+  "tris": {
+    "TimingTower": 2672,
+    "TyreStack": 576
+  }
+}

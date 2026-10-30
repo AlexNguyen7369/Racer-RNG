@@ -1,5 +1,5 @@
 --!nonstrict
--- The spawn area (docs/SPAWN_AND_ROLLS_SPEC.md): a large purple floor beside the start of Track 1 with the game's only
+-- The spawn area (docs/SPAWN_AND_ROLLS_SPEC.md): a large concrete paddock floor (section 1b) beside the start of Track 1 with the game's only
 -- SpawnLocation, and the StartPad pavilion within the hub. Players join and respawn here on foot, Stop sends them
 -- back here, and walking onto the StartPad starts auto racing (Server/CarService).
 -- Everything is placed in the local space of Track 1's Start part (forward -Z, right +X). Track 1's finish and
@@ -12,6 +12,7 @@ local CollectionService = game:GetService("CollectionService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RaceStartMeshAssets = require(script.Parent.RaceStartMeshAssets)
 local MarketplaceBuilder = require(script.Parent.MarketplaceBuilder)
+local SpawnDecor = require(script.Parent.SpawnDecor)
 local LeaderboardConfig = require(script.Parent.LeaderboardConfig)
 local PassCarConfig = require(script.Parent.PassCarConfig)
 local CarCatalog = require(script.Parent.CarCatalog)
@@ -40,7 +41,8 @@ end
 
 local SpawnArea = {}
 
-SpawnArea.COLOR = Color3.fromRGB(140, 70, 220) -- purple, so the area is easy to tell apart (placeholder look)
+SpawnArea.COLOR = Color3.fromRGB(206, 196, 180) -- warm paddock concrete (section 1b.2 placeholder)
+SpawnArea.SPAWN_COLOR = Color3.fromRGB(245, 245, 240) -- the Spawn part (placeholder)
 SpawnArea.PAD_COLOR = Color3.fromRGB(60, 220, 110)
 SpawnArea.AREA_MIN = Vector2.new(24, -188) -- local (x, z) corners of the floor: 228 x 232 studs (hub + plots)
 SpawnArea.AREA_MAX = Vector2.new(252, 44)
@@ -62,6 +64,11 @@ local EDGE_WIDTH = 1
 local PAD_RAISE = 0.2
 local SPAWN_SIZE = 12
 local LABEL_DISTANCE = 150
+local KERB_BLOCK = 8 -- studs of each red / white edge block (section 1b.3)
+local KERB_RED, KERB_WHITE = Color3.fromRGB(235, 70, 60), Color3.fromRGB(245, 245, 240)
+local ROOF_COLOR = Color3.fromRGB(235, 70, 60) -- pavilion RoofPurple mesh, by Color only (section 1b.3)
+local SIGN_COLOR = Color3.fromRGB(52, 56, 72) -- leaderboard sign backs (section 1b.3)
+local RING_COLOR = Color3.fromRGB(40, 200, 190) -- CheckpointNpc ring, accent teal (section 1b.3)
 
 -- Track 1's start, flattened: yaw only, at ground level (the local space every spawn-area and plot position uses)
 local function base(startCFrame)
@@ -145,7 +152,7 @@ function SpawnArea.Build(startCFrame)
 
 	local floor = slab(model, "Floor", startCFrame, amin, amax, top, THICKNESS)
 	floor.Color = SpawnArea.COLOR
-	floor.Material = Enum.Material.SmoothPlastic
+	floor.Material = Enum.Material.Concrete
 
 	-- Low edges on the three outer sides; the side facing the road and the pad stays open
 	local edges = {
@@ -169,9 +176,19 @@ function SpawnArea.Build(startCFrame)
 		end
 	end
 	for name, corners in edges do
-		local edge = slab(model, name, startCFrame, corners[1], corners[2], top + EDGE_HEIGHT, EDGE_HEIGHT)
-		edge.Color = SpawnArea.COLOR:Lerp(Color3.new(0, 0, 0), 0.35)
-		edge.Material = Enum.Material.SmoothPlastic
+		-- kerb red / white blocks along the edge's long side (names keep the "Edge" prefix)
+		local lo, hi = corners[1], corners[2]
+		local along = hi.X - lo.X >= hi.Y - lo.Y and "X" or "Y"
+		local k = 0
+		for a = lo[along], hi[along] - 1e-6, KERB_BLOCK do
+			local a1 = math.min(a + KERB_BLOCK, hi[along])
+			local bMin = along == "X" and Vector2.new(a, lo.Y) or Vector2.new(lo.X, a)
+			local bMax = along == "X" and Vector2.new(a1, hi.Y) or Vector2.new(hi.X, a1)
+			k += 1
+			local edge = slab(model, name .. "_" .. k, startCFrame, bMin, bMax, top + EDGE_HEIGHT, EDGE_HEIGHT)
+			edge.Color = k % 2 == 1 and KERB_RED or KERB_WHITE
+			edge.Material = Enum.Material.SmoothPlastic
+		end
 	end
 
 	local c = centre(SpawnArea.HUB_MIN, SpawnArea.HUB_MAX)
@@ -188,7 +205,7 @@ function SpawnArea.Build(startCFrame)
 	)
 	spawn.Neutral = true
 	spawn.Duration = 0 -- no force field
-	spawn.Color = SpawnArea.COLOR
+	spawn.Color = SpawnArea.SPAWN_COLOR
 	spawn.Material = Enum.Material.SmoothPlastic
 	local decal = spawn:FindFirstChildOfClass("Decal")
 	if decal then
@@ -232,6 +249,9 @@ function SpawnArea.Build(startCFrame)
 			mesh.CastShadow = false
 			if mesh:IsA("MeshPart") then
 				mesh.DoubleSided = true
+			end
+			if mesh.Name == "RoofPurple" then
+				mesh.Color = ROOF_COLOR
 			end
 		end
 	end
@@ -324,7 +344,7 @@ function SpawnArea.Build(startCFrame)
 		sign.Size = size
 		sign.CFrame = base(startCFrame)
 			* CFrame.new(LeaderboardConfig.SIGN_X[i], top + size.Y / 2, LeaderboardConfig.SIGN_Z)
-		sign.Color = Color3.fromRGB(28, 22, 48)
+		sign.Color = SIGN_COLOR
 		sign.Material = Enum.Material.SmoothPlastic
 		sign.TopSurface = Enum.SurfaceType.Smooth
 		sign.BottomSurface = Enum.SurfaceType.Smooth
@@ -454,7 +474,7 @@ function SpawnArea.Build(startCFrame)
 	end
 	passCars.Parent = model
 
-	-- Checkpoints NPC (docs/CHECKPOINT_SPEC.md): a rig on a purple ring; its prompt opens Client/CheckpointUi.
+	-- Checkpoints NPC (docs/CHECKPOINT_SPEC.md): a rig on a teal ring; its prompt opens Client/CheckpointUi.
 	local npc = Instance.new("Model")
 	npc.Name = "CheckpointNpc"
 	local spot = CheckpointConfig.NPC_POS
@@ -466,7 +486,7 @@ function SpawnArea.Build(startCFrame)
 	ring.Shape = Enum.PartType.Cylinder
 	ring.Size = Vector3.new(0.3, 9, 9)
 	ring.CFrame = stand * CFrame.new(0, 0.15, 0) * CFrame.Angles(0, 0, math.rad(90))
-	ring.Color = Color3.fromRGB(190, 90, 255)
+	ring.Color = RING_COLOR
 	ring.Material = Enum.Material.Neon
 	ring.Transparency = 0.3
 	ring.Anchored = true
@@ -535,6 +555,9 @@ function SpawnArea.Build(startCFrame)
 	end
 	npc.PrimaryPart = anchor
 	npc.Parent = model
+
+	-- Paddock theme pieces (section 1b.4): paint, pit lane, timing tower, floodlights, tyre stacks
+	SpawnDecor.Build(startCFrame).Parent = model
 	return model
 end
 

@@ -85,9 +85,9 @@
     "files": "CarService, RaceService, Client/AutoRaceButton"
   },
   "spawn_area": {
-    "checks": "The purple spawn floor (228 x 232, with the old 160 x 144 area as the hub) is the only SpawnLocation, sits right of Track 1's start, the spawn is at the hub centre, edges only on the outer sides, never overlaps a track; walking on the StartPad starts racing with a cooldown.",
+    "checks": "The Concrete spawn floor (SpawnArea.COLOR, no longer purple; Spawn in SpawnArea.SPAWN_COLOR) (228 x 232, with the old 160 x 144 area as the hub) is the only SpawnLocation, sits right of Track 1's start, the spawn is at the hub centre, edges only on the outer sides, never overlaps a track; walking on the StartPad starts racing with a cooldown.",
     "why": "First thing every player sees.",
-    "limits": "docs/SPAWN_AND_ROLLS_SPEC.md, docs/WORKSHOP_SPEC.md section 1",
+    "limits": "docs/SPAWN_AND_ROLLS_SPEC.md sections 1 and 1b (owner 2026-10-30), docs/WORKSHOP_SPEC.md section 1, docs/RENDERING_SPEC.md section 2",
     "files": "Shared/SpawnArea, CarService"
   },
   "gacha": {
@@ -521,5 +521,11 @@
     "why": "Daily/weekly quests rotate 3 of a pool per UTC period, the same for every server, and pay potions only (docs/QUESTS_SPEC.md Rotation, owner 2026-10-30; design doc Progression).",
     "limits": "PICK 3, pool values placeholders",
     "files": "CarTest/QuestTests, Shared/QuestConfig, Server/QuestService, BoostService"
+  },
+  "spawn_decor": {
+    "checks": "Workspace.SpawnArea.Decor (Shared/SpawnDecor, the pit-lane paddock theme): at most 300 new parts in the whole redesign (Decor plus the SpawnArea Edge* kerb blocks, owner 2026-10-30) and 20,000 mesh triangles in Decor (fails as 'skipped' when EditableMesh cannot measure them), every part anchored with CanTouch off, flat paint never collides or queries, colliders invisible, small parts cast no shadow; nothing in a plot, the placed pad, the marketplace, a pedestal, the portal spot (96, -88), outside the floor or within 4 studs of a road or wall, and nothing taller than 0.1 in the pit lane or within 10 studs of the walk spawn; a 40-stud timing tower at (176, -92); at most 4 lights without shadows; Lighting unchanged; two builds identical; the CheckpointNpc ring and pavilion roof no longer purple.",
+    "why": "The spawn area is the first thing every player sees, and its decor must never block a plot, the pad or the walk spawn, or cost phones frame time.",
+    "limits": "docs/SPAWN_AND_ROLLS_SPEC.md section 1b (owner 2026-10-30), docs/RENDERING_SPEC.md section 3, drafts/environments/spawn-area-redesign/DRAFT.md sections 3 and 6",
+    "files": "Shared/SpawnDecor, Shared/SpawnArea, CarTest/SpawnDecorTests"
   }
 }

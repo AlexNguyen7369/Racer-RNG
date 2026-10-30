@@ -9002,7 +9002,16 @@ end
 -- through the two server entry points: CarService.OnCharacter(player, character) (what CharacterAdded runs on join
 -- and on every respawn) and CarService.PadTouched(player, hitPart) (what StartPad.Touched runs once it has
 -- resolved the player).
-local SPAWN_COLOR = Color3.fromRGB(140, 70, 220)
+-- docs/SPAWN_AND_ROLLS_SPEC.md 1b (owner 2026-10-30): the purple floor is gone; COLOR and SPAWN_COLOR are placeholders,
+-- so the checks read them from the module. Fixed: the floor is Concrete (RENDERING_SPEC.md section 2) and not purple.
+-- (one local only: this file is near Luau's 200-local limit)
+local function spawnIsPurple(c) -- the old (140, 70, 220), or any clearly saturated violet hue
+	if typeof(c) ~= "Color3" then
+		return false
+	end
+	local h, sat = c:ToHSV()
+	return colorClose(c, Color3.fromRGB(140, 70, 220)) or (h >= 0.7 and h <= 0.9 and sat >= 0.25)
+end
 -- Owner brief 2026-10-06 (docs/WORKSHOP_SPEC.md section 1, a requested layout change): the floor grew from
 -- (24, -100)..(184, 44) (160 x 144) to hold the 7 workshop plots; the old floor is now the HUB (kept free of plots),
 -- and the Spawn / walk spawn stay at its centre (same world spot as before).
@@ -9042,6 +9051,15 @@ local SPAWN_AT_SPAWN = 4 -- studs (horizontal) the avatar may be from WalkSpawnC
 local SPAWN_FACING = 0.9 -- walk spawn look . direction to the pad centre (flat)
 local SPAWN_STAND_MIN, SPAWN_STAND_MAX = 1.5, 5 -- root height above the floor top while standing
 
+-- Adds the world XZ bounding box (Min / Max, Vector2) of the points, used to skip far pairs cheaply.
+local function spawnPolyWithBox(pts, dirs)
+	local lo, hi = Vector2.new(math.huge, math.huge), Vector2.new(-math.huge, -math.huge)
+	for _, p in pts do
+		lo, hi = lo:Min(p), hi:Max(p)
+	end
+	return { Points = pts, Dirs = dirs, Min = lo, Max = hi }
+end
+
 -- Horizontal footprint of a part as a convex polygon: its 8 corners projected on XZ and the projected axes.
 local function spawnPartPoly(part)
 	local cf, s = part.CFrame, part.Size / 2
@@ -9061,7 +9079,7 @@ local function spawnPartPoly(part)
 			table.insert(dirs, d.Unit)
 		end
 	end
-	return { Points = pts, Dirs = dirs }
+	return spawnPolyWithBox(pts, dirs)
 end
 
 -- A local (x, z) rectangle in the space of `base`, as a world footprint polygon.
@@ -9085,7 +9103,7 @@ local function spawnRectPoly(base, minV, maxV)
 			table.insert(dirs, d.Unit)
 		end
 	end
-	return { Points = pts, Dirs = dirs }
+	return spawnPolyWithBox(pts, dirs)
 end
 
 -- Separating-axis test of two convex footprints: > 0 is the gap between them, <= 0 means they overlap by -value.
@@ -9108,6 +9126,40 @@ local function spawnPolySeparation(a, b)
 		end
 	end
 	return best
+end
+
+-- Gap between the XZ bounding boxes of two footprints (> 0: boxes apart, so the footprints are apart too and the
+-- separating-axis value is > 0; it can never count as an overlap).
+local function spawnBoxGap(a, b)
+	return math.max(b.Min.X - a.Max.X, a.Min.X - b.Max.X, b.Min.Y - a.Max.Y, a.Min.Y - b.Max.Y)
+end
+
+-- Pairs whose boxes are further apart than this skip the exact test (no overlap possible); closest_track_gap is
+-- then the closest gap among the pairs within this scan distance.
+local SPAWN_GAP_SCAN = 10 -- studs
+
+-- Track part footprints ({ Part, Poly }) under `folder` (not Ground / Start) whose box is within SPAWN_GAP_SCAN of
+-- the union box of `polys`. Yields every 500 parts so a big chain never exhausts the script timeout.
+local function spawnTrackPartsNear(folder, polys)
+	local lo, hi = Vector2.new(math.huge, math.huge), Vector2.new(-math.huge, -math.huge)
+	for _, p in polys do
+		lo, hi = lo:Min(p.Min), hi:Max(p.Max)
+	end
+	local union = { Min = lo, Max = hi }
+	local list, total = {}, 0
+	for i, d in folder:GetDescendants() do
+		if d:IsA("BasePart") and d.Name ~= "Ground" and d.Name ~= "Start" then
+			total += 1
+			local poly = spawnPartPoly(d)
+			if spawnBoxGap(union, poly) <= SPAWN_GAP_SCAN then
+				table.insert(list, { Part = d, Poly = poly })
+			end
+		end
+		if i % 500 == 0 then
+			task.wait()
+		end
+	end
+	return list, total
 end
 
 -- Local (x, z) bounds of a part in the space of `base`, and its world top Y.
@@ -9154,7 +9206,10 @@ function Scenarios.spawn_area()
 	local function v2is(v, want)
 		return typeof(v) == "Vector2" and spawnV2Err(v, want) <= 1e-6
 	end
-	check(checks, "spawn_color", colorClose(A.COLOR, SPAWN_COLOR) and 1 or 0, 1, colorClose(A.COLOR, SPAWN_COLOR))
+	local colorOk = typeof(A.COLOR) == "Color3" and not spawnIsPurple(A.COLOR)
+	check(checks, "spawn_color", colorOk and 1 or 0, 1, colorOk)
+	local spawnColorOk = typeof(A.SPAWN_COLOR) == "Color3"
+	check(checks, "spawn_spawn_color_constant", spawnColorOk and 1 or 0, 1, spawnColorOk)
 	local boundsConst = v2is(A.AREA_MIN, SPAWN_AREA_MIN) and v2is(A.AREA_MAX, SPAWN_AREA_MAX)
 	check(checks, "spawn_area_bounds_constants", boundsConst and 1 or 0, 1, boundsConst)
 	local hubConst = v2is(A.HUB_MIN, SPAWN_LAYOUT.HUB_MIN) and v2is(A.HUB_MAX, SPAWN_LAYOUT.HUB_MAX)
@@ -9226,7 +9281,7 @@ function Scenarios.spawn_area()
 	check(checks, "spawn_location_exists", spawnOk and 1 or 0, 1, spawnOk)
 	check(checks, "spawn_start_pad_exists", padOk and 1 or 0, 1, padOk)
 
-	-- Floor: anchored, purple SmoothPlastic, covers AREA_MIN..AREA_MAX (228 x 232 since 2026-10-06), top at TOP_Y
+	-- Floor: anchored, Concrete in SpawnArea.COLOR (1b, owner 2026-10-30), covers AREA_MIN..AREA_MAX (228 x 232 since 2026-10-06), top at TOP_Y
 	if floorOk then
 		local fMin, fMax, fTop = spawnLocalBounds(base, floor)
 		local err = math.max(spawnV2Err(fMin, SPAWN_AREA_MIN), spawnV2Err(fMax, SPAWN_AREA_MAX))
@@ -9238,10 +9293,10 @@ function Scenarios.spawn_area()
 		check(checks, "spawn_floor_228_by_232", size.X, SPAWN_LAYOUT.FLOOR_SIZE.X, sizeOk)
 		check(checks, "spawn_floor_top", fTop, SPAWN_TOP_Y, math.abs(fTop - SPAWN_TOP_Y) <= SPAWN_TOP_TOL)
 		check(checks, "spawn_floor_anchored", floor.Anchored and 1 or 0, 1, floor.Anchored)
-		local purple = colorClose(floor.Color, SPAWN_COLOR)
-		check(checks, "spawn_floor_purple", purple and 1 or 0, 1, purple)
-		local smooth = floor.Material == Enum.Material.SmoothPlastic
-		check(checks, "spawn_floor_smooth_plastic", smooth and 1 or 0, 1, smooth)
+		local floorColor = colorClose(floor.Color, A.COLOR) and not spawnIsPurple(floor.Color)
+		check(checks, "spawn_floor_color", floorColor and 1 or 0, 1, floorColor)
+		local concrete = floor.Material == Enum.Material.Concrete
+		check(checks, "spawn_floor_concrete", concrete and 1 or 0, 1, concrete)
 		local collide = floor.CanCollide
 		check(checks, "spawn_floor_walkable", collide and 1 or 0, 1, collide)
 	end
@@ -9304,7 +9359,7 @@ function Scenarios.spawn_area()
 	check(checks, "spawn_no_edge_on_pad_side", onPadSide, 0, onPadSide == 0)
 	check(checks, "spawn_no_edge_inside_floor", inside, 0, inside == 0)
 
-	-- SpawnLocation: the game's only one, Neutral, Duration 0, 12 x 1 x 12, purple, in the middle of the HUB, top at TOP_Y
+	-- SpawnLocation: the game's only one, Neutral, Duration 0, 12 x 1 x 12, SPAWN_COLOR, in the middle of the HUB, top at TOP_Y
 	local spawnCount = 0
 	for _, d in Workspace:GetDescendants() do
 		if d:IsA("SpawnLocation") then
@@ -9317,8 +9372,8 @@ function Scenarios.spawn_area()
 		check(checks, "spawn_location_duration", spawn.Duration, 0, spawn.Duration == 0)
 		local sizeErr = (spawn.Size - SPAWN_LOCATION_SIZE).Magnitude
 		check(checks, "spawn_location_size", sizeErr, 0.01, sizeErr <= 0.01)
-		local sc = colorClose(spawn.Color, SPAWN_COLOR)
-		check(checks, "spawn_location_purple", sc and 1 or 0, 1, sc)
+		local sc = colorClose(spawn.Color, A.SPAWN_COLOR)
+		check(checks, "spawn_location_color", sc and 1 or 0, 1, sc)
 		local _, _, sTop = spawnLocalBounds(base, spawn)
 		check(checks, "spawn_location_top", sTop, SPAWN_TOP_Y, math.abs(sTop - SPAWN_TOP_Y) <= SPAWN_TOP_TOL)
 		local centre = base:PointToWorldSpace(
@@ -9472,44 +9527,53 @@ function Scenarios.spawn_area()
 
 	-- No part of the area (floor, edges, spawn, pad) overlaps any road / wall / checkpoint part of ANY chained
 	-- track horizontally (each track's Ground and its invisible Start marker are not road)
-	local trackParts = {}
-	for _, d in trackFolder:GetDescendants() do
-		if d:IsA("BasePart") and d.Name ~= "Ground" and d.Name ~= "Start" then
-			table.insert(trackParts, { Part = d, Poly = spawnPartPoly(d) })
-		end
-	end
-	metrics.track_parts_checked = #trackParts
-	local overlaps, worst, worstName = 0, math.huge, ""
+	-- (AABB pre-filter: only pairs whose boxes are within SPAWN_GAP_SCAN get the exact separating-axis test)
+	local specRects = {
+		spawnRectPoly(base, SPAWN_AREA_MIN, SPAWN_AREA_MAX),
+		spawnRectPoly(base, SPAWN_LAYOUT.HUB_MIN, SPAWN_LAYOUT.HUB_MAX),
+		spawnRectPoly(base, SPAWN_PAD.MIN, SPAWN_PAD.MAX),
+	}
+	local areaPolys = {}
 	for _, d in area:GetDescendants() do
 		if d:IsA("BasePart") then
-			local poly = spawnPartPoly(d)
-			for _, t in trackParts do
+			table.insert(areaPolys, { Part = d, Poly = spawnPartPoly(d) })
+		end
+	end
+	local scanPolys = table.clone(specRects)
+	for _, a in areaPolys do
+		table.insert(scanPolys, a.Poly)
+	end
+	local trackParts, trackTotal = spawnTrackPartsNear(trackFolder, scanPolys)
+	metrics.track_parts_checked = trackTotal
+	metrics.track_parts_near = #trackParts
+	local overlaps, worst, worstName = 0, math.huge, ""
+	for i, a in areaPolys do
+		local poly = a.Poly
+		for _, t in trackParts do
+			if spawnBoxGap(poly, t.Poly) <= SPAWN_GAP_SCAN then
 				local sep = spawnPolySeparation(poly, t.Poly)
 				if sep < worst then
-					worst, worstName = sep, d.Name .. "/" .. t.Part:GetFullName()
+					worst, worstName = sep, a.Part.Name .. "/" .. t.Part:GetFullName()
 				end
 				if sep < -SPAWN_OVERLAP_TOL then
 					overlaps += 1
 				end
 			end
 		end
+		if i % 100 == 0 then
+			task.wait()
+		end
 	end
 	if overlaps > 0 then
 		metrics.worst_overlap = worstName
 	end
 	metrics.closest_track_gap = worst == math.huge and -1 or round(worst)
-	check(checks, "spawn_area_no_track_overlap", overlaps, 0, #trackParts > 0 and overlaps == 0)
+	check(checks, "spawn_area_no_track_overlap", overlaps, 0, trackTotal > 0 and overlaps == 0)
 	-- the spec rectangles themselves stay clear too (the area is not allowed to grow into a road later)
 	local rectOverlaps = 0
-	for _, rect in
-		{
-			spawnRectPoly(base, SPAWN_AREA_MIN, SPAWN_AREA_MAX),
-			spawnRectPoly(base, SPAWN_LAYOUT.HUB_MIN, SPAWN_LAYOUT.HUB_MAX),
-			spawnRectPoly(base, SPAWN_PAD.MIN, SPAWN_PAD.MAX),
-		}
-	do
+	for _, rect in specRects do
 		for _, t in trackParts do
-			if spawnPolySeparation(rect, t.Poly) < -SPAWN_OVERLAP_TOL then
+			if spawnBoxGap(rect, t.Poly) <= 0 and spawnPolySeparation(rect, t.Poly) < -SPAWN_OVERLAP_TOL then
 				rectOverlaps += 1
 			end
 		end
@@ -13665,27 +13729,42 @@ function Scenarios.workshop()
 
 		-- no part of any plot overlaps a road / wall / checkpoint of any chained track, the Spawn, the StartPad or
 		-- the hub, and every part stays on the floor; the spec rects themselves stay clear of the tracks too
-		local trackParts = {}
-		for _, d in trackFolder:GetDescendants() do
-			if d:IsA("BasePart") and d.Name ~= "Ground" and d.Name ~= "Start" then
-				table.insert(trackParts, { Part = d, Poly = spawnPartPoly(d) })
+		-- (AABB pre-filter: only pairs whose boxes are within SPAWN_GAP_SCAN get the exact separating-axis test)
+		local plotPolys = {}
+		for _, d in folder:GetDescendants() do
+			if d:IsA("BasePart") then
+				table.insert(plotPolys, { Part = d, Poly = spawnPartPoly(d) })
 			end
 		end
+		local plotRects = {}
+		for _, p in WSHOP.PLOTS do
+			table.insert(plotRects, spawnRectPoly(base, p.Min, p.Max))
+		end
+		local scanPolys = table.clone(plotRects)
+		for _, a in plotPolys do
+			table.insert(scanPolys, a.Poly)
+		end
+		local trackParts, trackTotal = spawnTrackPartsNear(trackFolder, scanPolys)
 		local area = Workspace:FindFirstChild("SpawnArea")
 		local spawnPart = area and area:FindFirstChild("Spawn")
 		local padPart = area and area:FindFirstChild("StartPad")
 		local hubPoly = spawnRectPoly(base, SPAWN_LAYOUT.HUB_MIN, SPAWN_LAYOUT.HUB_MAX)
 		local trackHits, spawnHits, outside, worst, worstName = 0, 0, 0, math.huge, ""
-		for _, d in folder:GetDescendants() do
-			if d:IsA("BasePart") then
-				local poly = spawnPartPoly(d)
+		for i, a in plotPolys do
+			local d, poly = a.Part, a.Poly
+			if i % 100 == 0 then
+				task.wait()
+			end
+			do
 				for _, t in trackParts do
-					local sep = spawnPolySeparation(poly, t.Poly)
-					if sep < worst then
-						worst, worstName = sep, d:GetFullName() .. "/" .. t.Part:GetFullName()
-					end
-					if sep < -SPAWN_OVERLAP_TOL then
-						trackHits += 1
+					if spawnBoxGap(poly, t.Poly) <= SPAWN_GAP_SCAN then
+						local sep = spawnPolySeparation(poly, t.Poly)
+						if sep < worst then
+							worst, worstName = sep, d:GetFullName() .. "/" .. t.Part:GetFullName()
+						end
+						if sep < -SPAWN_OVERLAP_TOL then
+							trackHits += 1
+						end
 					end
 				end
 				for _, other in { spawnPart, padPart } do
@@ -13711,7 +13790,7 @@ function Scenarios.workshop()
 			metrics.worst_track_overlap = worstName
 		end
 		metrics.closest_track_gap = worst == math.huge and -1 or round(worst)
-		check(checks, "workshop_live_no_track_overlap", trackHits, 0, #trackParts > 0 and trackHits == 0)
+		check(checks, "workshop_live_no_track_overlap", trackHits, 0, trackTotal > 0 and trackHits == 0)
 		check(
 			checks,
 			"workshop_live_clear_of_spawn_pad_hub",
@@ -13721,10 +13800,9 @@ function Scenarios.workshop()
 		)
 		check(checks, "workshop_live_parts_on_floor", outside, 0, outside == 0)
 		local rectHits = 0
-		for _, p in WSHOP.PLOTS do
-			local rp = spawnRectPoly(base, p.Min, p.Max)
+		for _, rp in plotRects do
 			for _, t in trackParts do
-				if spawnPolySeparation(rp, t.Poly) < -SPAWN_OVERLAP_TOL then
+				if spawnBoxGap(rp, t.Poly) <= 0 and spawnPolySeparation(rp, t.Poly) < -SPAWN_OVERLAP_TOL then
 					rectHits += 1
 				end
 			end
@@ -14230,6 +14308,7 @@ Scenarios.speed_probe = require(script.Parent.SpeedProbeTests).speed_probe
 Scenarios.quests = require(script.Parent.QuestTests).quests
 -- docs/WORLDS_SPEC.md section 2: WorldConfig.Current() / WorldOverride and the per-world TrackRegistry
 Scenarios.worlds = require(script.Parent.WorldTests).worlds
+Scenarios.spawn_decor = require(script.Parent.SpawnDecorTests).spawn_decor -- docs/SPAWN_AND_ROLLS_SPEC.md 1b
 -- docs/PANEL_ART_GIFTING_SPEC.md: cosmetic effects on the chassis, no mass/controls change, equip preserved
 Scenarios.vehicle_effects = require(script.Parent.VehicleEffectTests).make({
 	newFakeCharacter = newFakeCharacter,

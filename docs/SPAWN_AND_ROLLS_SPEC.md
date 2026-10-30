@@ -84,8 +84,9 @@ Every colour, size and count below is a placeholder unless marked fixed.
    24 x 12 footprint and +Z facing are placeholders. The decor task only reserves it (nothing else is placed there); the World 2 task builds it.
 8. **Lighting:** decor never changes `Lighting`, `Atmosphere`, `Sky` or post effects. At most 4 new local lights,
    all `Shadows = false`.
-9. **Budget:** at most 250 new BaseParts and 20,000 mesh triangles in `Decor`; parts with `Size.Magnitude` <= 30
-   cast no shadow (`RENDERING_SPEC.md` section 3).
+9. **Budget:** at most 300 new BaseParts in the whole spawn redesign (`Decor` plus the red/white `Edge*` kerb blocks
+   and any other new SpawnArea part; owner 2026-10-30, was 250 in `Decor` only) and 20,000 mesh triangles in `Decor`;
+   parts with `Size.Magnitude` <= 30 cast no shadow (`RENDERING_SPEC.md` section 3).
 10. **World 2 hub:** reuses this layout and theme in its own palette, chosen when the World 2 hub is built.
 11. Unchanged: `Spawn` size and place, `StartPad`, `PAD_CENTER`, plots, marketplace, leaderboards, pedestals and
     every section 1 overlap rule. Test: `spawn_area` (updated) and a new `spawn_decor` scenario (test-writer).
