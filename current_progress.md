@@ -78,8 +78,9 @@
 75. 2026-10-28 — Alex Nguyen — Added the orchestrator context-window settings (warn 60%, handoff 75%) and a context gauge on the dashboard flow page's orchestrator node; the overseer hook and 24/7 runner live in the global orchestrator skill.
 76. 2026-10-28 — Alex Nguyen — Allowed the orchestrator to merge into main only through an open PR approved by a fresh, no-context `merge-reviewer` agent (pragmatic: blocks only on real problems); feature-branch commits and pushes stay free.
 77. 2026-10-30 — Alex Nguyen — Recorded owner phone HUD rules (pair never stacks, phone Speed bottom right, min 50%) and landed two UI fix rounds on world1-ship (UITEST 33/4 to 35/2, 9 bugs fixed).
+78. 2026-10-30 — Alex Nguyen — Landed World split task 1 on feature/alex/world2: Shared/WorldConfig, per-world TrackRegistry and tracks moved to Shared/Tracks/World1 (worlds 35/35, CARTEST 56/0, rules audit PASS).
 
 ## What's next
-**Fix the last UITEST reds on feature/alex/world1-ship: ui-test-writer models the phone DailyBoosts/Status move (85d9464c) and closes the Welcome offline modal in fixtures (e628ec7b); then the phone panel overlaps (9617a457, f4a7be5c, b53e7fa8) and quest Claim (4796b256); re-run the full UI suite.**
+**World split task 2: PlayerData VERSION 13 with the migration of Speed, BestTrack, Checkpoint, RaceBestTimes, Level and XP into Worlds["1"] (WORLDS_SPEC 3-4, SAVE_SPEC), red tests first by test-writer.**
 
-**Why this is next:** [UITEST] END fail=0 is World 1 deliverable w1e; the ORCH-3 speed probe and test-debt td1-td7 wait on that green baseline. The tablet pair shrink waits on the owner (hud-pair-tablet-shrink).
+**Why this is next:** the per-world consumers (task 3) and the WorldService portal and teleport (task 4) read and write the per-world save, so the save format must land first; task 4 also waits on the owner's World 2 place id (manual world2-place-id).
