@@ -1,5 +1,5 @@
 --!nonstrict
--- Turns a track spec (see src/shared/Tracks/*.luau) into geometry.
+-- Turns a track spec (see src/shared/Tracks/World<N>/*.luau) into geometry.
 --
 -- Layout(spec)  pure maths: pieces, centreline waypoints, curvature, end pose. No instances.
 -- Build(spec, origin)  Layout + Parts (road, walls, start line, checkpoint + win pad, grass) under a Model.

@@ -10,7 +10,7 @@ You are the test author for the car project in this repository (the project root
 ## What you own
 - `src/server/CarTest/TrackTests/<TrackName>.luau`: one acceptance test per track. The harness auto-discovers every file here and runs it as `track:<TrackName>`.
 - New checks in `src/server/CarTest/Scenarios.luau` and new targets in `src/shared/PhysicsTargets.luau`, only when a brief needs something the harness cannot yet measure.
-- You do NOT edit `src/shared/Tracks/*`, `CarConfig.luau`, `CarPhysics.luau`, or any other implementation file.
+- You do NOT edit `src/shared/Tracks/**`, `CarConfig.luau`, `CarPhysics.luau`, or any other implementation file.
 
 ## Mode 1: WRITE (start of a build)
 Input: a brief such as "track two: technical circuit with a hairpin".
