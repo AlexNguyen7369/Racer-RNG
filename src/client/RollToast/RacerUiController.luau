@@ -834,7 +834,7 @@ end
 -- Upgrade tile and the LEVEL / TURBO bars), below the race map and the Shop tile with room for the rising float
 -- (the map's place is reserved even while it is hidden, so the readout does not jump when a race starts). It keeps
 -- the generated phone scale and shrinks only as far as needed to fit there.
-local PHONE_MAX_HEIGHT, SPEED_EDGE, SPEED_GAP, SPEED_MIN_SCALE = 500, 8, 6, 0.3
+local PHONE_MAX_HEIGHT, SPEED_EDGE, SPEED_GAP, SPEED_MIN_SCALE = 500, 8, 6, 0.5 -- min: 50% of the phone size (HUD_LAYOUT_SPEC 9, owner 2026-10-29)
 local FLOAT_HEIGHT, FLOAT_RISE = 30, 46 -- shortcut: copies of UiMotion.Float's label size and rise; keep in step
 local function absRect(o, needVisible)
 	if not (o and o:IsA("GuiObject")) or (needVisible and not o.Visible) then
@@ -899,7 +899,7 @@ local function placeSpeedBottomRight(group, visibleWidth, viewportHeight)
 	local k = math.clamp(viewportHeight / 390, 0.85, 1.15)
 	if scale and base > 0 then
 		if not fits(k) then
-			local lo, hi = SPEED_MIN_SCALE, k
+			local lo, hi = SPEED_MIN_SCALE * k, k
 			for _ = 1, 12 do
 				local mid = (lo + hi) / 2
 				if fits(mid) then
