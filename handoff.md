@@ -51,7 +51,7 @@ ORCH-6. **Orchestrator 2026-10-29: owner decisions + UI fix round 2 (worktrees .
    53e24a2e 3c0dcacf 7d99207f adf68695 fd2412fe 081c684a. Still red: speed_phone_clear/no_overlap phone (85d9464c test model lacks Status
    phone move), reduced_roll_lands_on_result + showcase_backdrop_closes (e628ec7b: Welcome offline modal stays open, test fixture),
    pre-existing 9617a457 f4a7be5c b53e7fa8 4796b256/12342e7c, tablet shrink (owner hud-pair-tablet-shrink).
-   NEXT: ui-test-writer task 85d9464c + e628ec7b; UI task for 9617a457/f4a7be5c phone overlaps; quest Claim 4796b256 live debug; then ORCH-3
+   POSTPONED by owner 2026-10-30. NEXT: ui-test-writer task 85d9464c + e628ec7b; UI task for 9617a457/f4a7be5c phone overlaps; quest Claim 4796b256 live debug; then ORCH-3
    speed probe. Owner by hand: live Device emulation phone check (844x390, 667x375), PhoneOnly + MANUAL clicks.
 
 ORCH-5. **Orchestrator 2026-10-28 ~19:15: UI fix round, 3 task branches off feature/alex/world1-ship 7d7cc70 (worktrees ../RobloxGames-orch/<task>).**
