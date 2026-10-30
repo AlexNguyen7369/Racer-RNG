@@ -3245,8 +3245,17 @@ end
 function Help.phoneSpeedHits(rect, rectOf)
 	local cfg = UiSpec.PhoneSpeed
 	local hits = {}
+	local seen = {}
+	local speed = Help.findPath(UiSpec.Hud.Speed)
 	local function test(o)
-		if o and o:IsA("GuiObject") and effectivelyVisible(o) then
+		if
+			o
+			and not seen[o]
+			and o:IsA("GuiObject")
+			and effectivelyVisible(o)
+			and not (speed and (o == speed or speed:IsAncestorOf(o)))
+		then
+			seen[o] = true
 			local other = rectOf(o)
 			if other and other.w > 0 and other.h > 0 and intersects(rect, other) then
 				table.insert(hits, ("%s %s"):format(pathOf(o), rstr(other)))
@@ -3261,6 +3270,9 @@ function Help.phoneSpeedHits(rect, rectOf)
 		for _, child in parent and parent:GetChildren() or {} do
 			test(child)
 		end
+	end
+	for _, e in Help.elementsFor({}) do
+		test(e.obj)
 	end
 	return hits
 end
@@ -4171,7 +4183,14 @@ function S.ui_hud(res)
 		local pr = realRect(hudPanel)
 		local outside = {}
 		for _, l in hudPanel:GetDescendants() do
-			if l:IsA("TextLabel") and l.Visible and not contains(pr, realRect(l)) then
+			-- Not the transient payout float (UiSpec.SpeedFloat.Label "MotionFloat"): HUD_LAYOUT_SPEC section 10 has
+			-- it rise above the Money number and fade, so it leaves the plate by design (bug 78a303ce)
+			if
+				l:IsA("TextLabel")
+				and l.Visible
+				and l.Name ~= UiSpec.SpeedFloat.Label
+				and not contains(pr, realRect(l))
+			then
 				table.insert(outside, pathOf(l) .. rstr(realRect(l)) .. " outside " .. rstr(pr))
 			end
 		end

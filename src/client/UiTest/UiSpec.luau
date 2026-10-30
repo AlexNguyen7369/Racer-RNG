@@ -781,7 +781,13 @@ UiSpec.PhoneSpeed = {
 		"HudChrome/ShopColumn",
 		"HudChrome/TopRight",
 		"RollToast/Toast",
+		-- Bottom-right HUD labels (bug 102389fe: Speed covered the claim status): the Daily / Quest claim answer
+		-- (Client/BoostDailyUi, 16 px in, 130 px up) and the workshop rate line (Client/ProgressionUi R4)
+		"DailyBoosts/Status",
+		"RacerProgression/WorkshopRate",
 	},
+	-- Besides Clear, every AlwaysOn element of every UiSpec.Guis entry (outside RacerHud/Speed) is checked too, so a
+	-- new always-on HUD label can not slip under the readout unlisted.
 	-- Each shown child of these is checked too (the potion buttons)
 	ClearChildrenOf = { "RacerProgression/PotionStatus" },
 	FloatSampleSeconds = 3, -- s the float is followed frame by frame (its whole rise, until it is destroyed)
@@ -2550,6 +2556,9 @@ for _, click in
 			Id = "showcase_unshow_row",
 			Path = "Panel/Showcase/List/{showcase_shown}/Show",
 			Prepare = showcaseOpen({ ScrollIntoView = true, LabelIs = "SHOWN", WaitSeconds = 1 }),
+			-- The same re-rendering list as showcase_show_row (bug 8495ae70: one lost press, passed alone)
+			Retries = 1,
+			RetryLostPress = true,
 			NeedSetup = { "spy", "showcase_spy" },
 			Expect = {
 				Remote = { Name = "SetShowcase", Arg = "showcase_hide" },
