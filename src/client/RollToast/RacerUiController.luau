@@ -828,6 +828,104 @@ local function clearSpeedOfToast(group)
 	group.Position = UDim2.new(position.X.Scale, position.X.Offset, position.Y.Scale, speedSetOffset)
 end
 
+-- Owner 2026-10-29 (docs/HUD_LAYOUT_SPEC.md section 9): on phones the whole Speed readout (dial, SpeedValue and
+-- its +Speed float, which rises from SpeedValue) sits at the BOTTOM RIGHT of the safe area: its visible right edge
+-- SPEED_EDGE px in, above whatever sits under its width (weather icon, potion buttons, touch jump button, the
+-- DailyBoosts status line, the Upgrade tile and the LEVEL / TURBO bars), below the race map and the Shop tile with
+-- room for the rising float (the map's place is reserved even while it is hidden, so the readout does not jump when
+-- a race starts). It keeps the generated phone scale and shrinks only as far as needed to fit there.
+local PHONE_MAX_HEIGHT, SPEED_EDGE, SPEED_GAP, SPEED_MIN_SCALE = 500, 8, 6, 0.5 -- min: 50% of the phone size (HUD_LAYOUT_SPEC 9, owner 2026-10-29)
+local FLOAT_HEIGHT, FLOAT_RISE = 30, 46 -- shortcut: copies of UiMotion.Float's label size and rise; keep in step
+local function absRect(o, needVisible)
+	if not (o and o:IsA("GuiObject")) or (needVisible and not o.Visible) then
+		return nil
+	end
+	local p, sz = o.AbsolutePosition, o.AbsoluteSize
+	return { p.X, p.Y, p.X + sz.X, p.Y + sz.Y }
+end
+local function placeSpeedBottomRight(group, visibleWidth, viewportHeight)
+	local origin, area = hud.Gui.AbsolutePosition, hud.Gui.AbsoluteSize
+	local rightEdge = origin.X + area.X - SPEED_EDGE
+	local below = {}
+	local progression = playerGui:FindFirstChild("RacerProgression")
+	if progression then
+		table.insert(below, absRect(progression:FindFirstChild("WeatherIcon"), true))
+		local potions = progression:FindFirstChild("PotionStatus")
+		if potions and potions.Visible then
+			for _, bottle in potions:GetChildren() do
+				table.insert(below, absRect(bottle, true))
+			end
+		end
+	end
+	local touch = playerGui:FindFirstChild("TouchGui")
+	local touchFrame = touch and touch.Enabled and touch:FindFirstChild("TouchControlFrame")
+	table.insert(below, absRect(touchFrame and touchFrame:FindFirstChild("JumpButton"), true))
+	local daily = playerGui:FindFirstChild("DailyBoosts")
+	table.insert(below, absRect(daily and daily:FindFirstChild("Status"), true))
+	local chrome = playerGui:FindFirstChild("HudChrome")
+	for _, name in { "ItemsSlot", "UpgradeSlot" } do
+		table.insert(below, absRect(chrome and chrome:FindFirstChild(name), true))
+	end
+	for _, name in { "Level", "Turbo" } do
+		table.insert(below, absRect(hud.Gui:FindFirstChild(name), true))
+	end
+	local ceiling = origin.Y
+	local above = {
+		absRect(hud.Gui:FindFirstChild("RaceMap"), false),
+		absRect(chrome and chrome:FindFirstChild("ShopColumn"), true),
+	}
+	for _, r in above do
+		ceiling = math.max(ceiling, r[4] + SPEED_GAP)
+	end
+	local scale = group:FindFirstChildOfClass("UIScale")
+	local old = scale and scale.Scale or 1
+	local base = group.Size.Y.Offset
+	-- Room for the +Speed float above the group: UiMotion.Float's 30 px label, bottom on SpeedValue's top, rises 46 px.
+	local floatAbove = math.max(0, FLOAT_HEIGHT + FLOAT_RISE - hud.SpeedValue.Position.Y.Offset)
+	-- Bottom limit: the highest top of everything under the readout's visible span at scale k.
+	local function floorAt(k)
+		local left = rightEdge - visibleWidth * k / old
+		local floor = origin.Y + area.Y - SPEED_EDGE
+		for _, r in below do
+			if r[3] + SPEED_GAP > left and r[1] < rightEdge then
+				floor = math.min(floor, r[2] - SPEED_GAP)
+			end
+		end
+		return floor
+	end
+	-- Same phone k as the generated fit (RacerHud.luau); the readout never grows past it. A smaller scale only
+	-- narrows the span (fewer things beneath it), so "fits" is monotonic: binary-search the largest scale that fits.
+	local function fits(k)
+		return floorAt(k) - ceiling >= (base + floatAbove) * k
+	end
+	local k = math.clamp(viewportHeight / 390, 0.85, 1.15)
+	if scale and base > 0 then
+		if not fits(k) then
+			local lo, hi = SPEED_MIN_SCALE * k, k
+			for _ = 1, 12 do
+				local mid = (lo + hi) / 2
+				if fits(mid) then
+					lo = mid
+				else
+					hi = mid
+				end
+			end
+			k = lo
+		end
+		scale.Scale = k
+	else
+		k = old
+	end
+	local floor = floorAt(k)
+	local width, height = group.Size.X.Offset * k, base * k
+	local centre = Vector2.new(
+		rightEdge - visibleWidth * k / old + width * group.AnchorPoint.X,
+		floor - height * (1 - group.AnchorPoint.Y)
+	) - origin
+	group.Position = UDim2.fromOffset(math.floor(centre.X + 0.5), math.floor(centre.Y + 0.5))
+	speedShift, speedSetOffset = 0, nil -- back on a desktop / tablet fit, clearSpeedOfToast starts from scratch
+end
+
 -- The numbers count up towards the server's values (HudFormat.Approach) and pop when they grow (section 9, 10).
 local function refreshReadouts(dt)
 	shownSpeed = format.Approach(shownSpeed, speed.Value, dt)
@@ -853,6 +951,12 @@ end)
 -- Speed gain floats like the +$ payout: the gain of each quarter second, summed (HUD_LAYOUT_SPEC section 10).
 local SPEED_FLOAT_EVERY = 0.25
 local lastSpeed, speedGain = speed.Value, 0
+-- The summed differences of large stats carry float error (12345 arrives as 12344.9999...), which GainText's
+-- whole-number floor would show one short: snap a sum within that error to the whole gain it really is.
+local function shownGain(gain)
+	local whole = math.floor(gain + 0.5)
+	return if math.abs(gain - whole) <= math.max(1e-6, math.abs(lastSpeed) * 1e-12) then whole else gain
+end
 speed.Changed:Connect(function(value)
 	if value > lastSpeed then
 		speedGain += value - lastSpeed
@@ -865,7 +969,7 @@ task.spawn(function()
 		if speedGain > 0 then
 			UiMotion.Float(
 				hud.SpeedValue.Parent,
-				"+" .. format.GainText(speedGain),
+				"+" .. format.GainText(shownGain(speedGain)),
 				palette.Speed,
 				UDim2.fromOffset(hud.SpeedValue.Position.X.Offset, hud.SpeedValue.Position.Y.Offset)
 			)
@@ -922,15 +1026,86 @@ RunService.Heartbeat:Connect(function(dt)
 	if hud.SpeedValue.TextBounds.X > 0 then
 		local group = icon.Parent
 		local visibleWidth = right - icon.AbsolutePosition.X
-		local groupPosition = group.Position
-		group.Position =
-			UDim2.new(0.5, (group.AbsoluteSize.X - visibleWidth) / 2, groupPosition.Y.Scale, groupPosition.Y.Offset)
-		clearSpeedOfToast(group)
+		local camera = workspace.CurrentCamera
+		-- Phones: placeSpeedBottomRight is event-driven (below), never per frame (section 10 "Budget").
+		if not (camera and camera.ViewportSize.Y <= PHONE_MAX_HEIGHT) then
+			local groupPosition = group.Position
+			group.Position =
+				UDim2.new(0.5, (group.AbsoluteSize.X - visibleWidth) / 2, groupPosition.Y.Scale, groupPosition.Y.Offset)
+			clearSpeedOfToast(group)
+		end
 		local wrapper = hud.Turbo.Parent
 		local position = wrapper.Position
 		wrapper.Position = UDim2.new(0.5, 0, position.Y.Scale, position.Y.Offset)
 	end
 end)
+-- Phone Speed layout runs only when something it measures changes: the viewport, the Speed text, the generated fit
+-- resetting the group, or a move / resize / show / hide of anything it clears. Many signals in one frame queue one
+-- deferred layout; its own writes settle on the next pass (same values, so no further events).
+local phoneSpeedQueued = false
+local function layoutPhoneSpeed()
+	phoneSpeedQueued = false
+	local camera = workspace.CurrentCamera
+	local icon, value = hud.SpeedDial, hud.SpeedValue
+	if camera and camera.ViewportSize.Y <= PHONE_MAX_HEIGHT and value.TextBounds.X > 0 then
+		local visibleWidth = value.AbsolutePosition.X + value.TextBounds.X - icon.AbsolutePosition.X
+		placeSpeedBottomRight(icon.Parent, visibleWidth, camera.ViewportSize.Y)
+	end
+end
+local function queuePhoneSpeed()
+	if not phoneSpeedQueued then
+		phoneSpeedQueued = true
+		task.defer(layoutPhoneSpeed)
+	end
+end
+local watched = setmetatable({}, { __mode = "k" })
+local function watch(object, properties)
+	if watched[object] then
+		return
+	end
+	watched[object] = true
+	for _, property in properties do
+		object:GetPropertyChangedSignal(property):Connect(queuePhoneSpeed)
+	end
+	queuePhoneSpeed()
+end
+local CLEARED = {
+	WeatherIcon = true,
+	PotionStatus = true,
+	JumpButton = true,
+	ItemsSlot = true,
+	UpgradeSlot = true,
+	ShopColumn = true,
+	Level = true,
+	Turbo = true,
+	RaceMap = true,
+	Status = true, -- DailyBoosts/Status (bottom left on phones, BoostDailyUi)
+}
+local GEOMETRY = { "AbsolutePosition", "AbsoluteSize", "Visible" }
+local function watchCleared(object)
+	local potionButton = object.Parent and object.Parent.Name == "PotionStatus"
+	if object:IsA("GuiObject") and (CLEARED[object.Name] or potionButton) then
+		watch(object, GEOMETRY)
+	elseif object:IsA("ScreenGui") and object.Name == "TouchGui" then
+		watch(object, { "Enabled" })
+	end
+end
+for _, object in playerGui:GetDescendants() do
+	watchCleared(object)
+end
+playerGui.DescendantAdded:Connect(watchCleared)
+local speedGroup = hud.SpeedDial.Parent
+watch(hud.SpeedValue, { "TextBounds" })
+watch(speedGroup, { "Position" }) -- the generated fit puts the authored place back
+local speedScale = speedGroup:FindFirstChildOfClass("UIScale")
+if speedScale then
+	watch(speedScale, { "Scale" })
+end
+watch(hud.Gui, { "AbsoluteSize" })
+if workspace.CurrentCamera then
+	watch(workspace.CurrentCamera, { "ViewportSize" })
+end
+
 -- Session-local audio preference: preserve authored volumes and mute new sounds too.
 local muted = false
 local volumes = setmetatable({}, { __mode = "k" })
