@@ -171,6 +171,9 @@ adds the shared slight enlargement without a white hover box; its Claim button r
   `+Speed` float, section 10) sits at the BOTTOM RIGHT instead of bottom centre, and the float rises above it there.
   It must not overlap the weather icon, the potion buttons or any other HUD element (section 6). Desktop and tablet
   keep it bottom centre.
+  Owner 2026-10-29: "bottom right" means its right edge within 24 px of the screen's right edge (inside the safe
+  area) and its bottom within 130 px of the screen bottom (placeholders). When the corner is crowded the readout may
+  scale down, never below 50% of its phone size (placeholder); below that it may overlap the touch jump button.
 - The needle and the arc fill show the car's REAL speed in studs/s (the local player's car chassis velocity)
   while auto racing; on foot or without a car the needle rests at 0 and the dial dims. The full scale is
   `max(RaceConfig.SpeedFor(stat) * 1.25, RaceConfig.BASE_SPEED * 2)` (placeholder). The dial is presentation
