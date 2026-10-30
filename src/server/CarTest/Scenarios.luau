@@ -14226,6 +14226,8 @@ Scenarios.singularity_orb = require(script.Parent.SingularityOrbTests).singulari
 Scenarios.friends_boost = require(script.Parent.FriendBoostTests).friends_boost
 -- docs/WORLDS_SPEC.md section 1: on-demand cruise speed probe for RaceConfig.MAX_CRUISE (TestConfig.OnDemand)
 Scenarios.speed_probe = require(script.Parent.SpeedProbeTests).speed_probe
+-- docs/QUESTS_SPEC.md "Rotation": 3 of 6 per UTC period, active-only progress/claims, potion rewards, save
+Scenarios.quests = require(script.Parent.QuestTests).quests
 -- docs/WORLDS_SPEC.md section 2: WorldConfig.Current() / WorldOverride and the per-world TrackRegistry
 Scenarios.worlds = require(script.Parent.WorldTests).worlds
 -- docs/PANEL_ART_GIFTING_SPEC.md: cosmetic effects on the chassis, no mass/controls change, equip preserved

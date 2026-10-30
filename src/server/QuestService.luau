@@ -61,8 +61,9 @@ local function publish(player)
 	player:SetAttribute("QuestWeeklyClaimed", game:GetService("HttpService"):JSONEncode(current.ClaimedWeekly))
 end
 
+-- Only this period's active quests can progress or be claimed (QUESTS_SPEC "Rotation").
 local function list(weekly)
-	return weekly and Config.Weekly or Config.Daily
+	return Config.Active(weekly, os.time())
 end
 
 function QuestService.Setup(player)

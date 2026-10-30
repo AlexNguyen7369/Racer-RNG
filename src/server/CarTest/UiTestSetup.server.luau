@@ -415,7 +415,7 @@ function setups.checkpoint_open(player)
 	checkpointFixture(player, 2)
 end
 
--- Quest fixtures (UiSpec quest_claim_*, docs/QUESTS_SPEC.md): today's daily_races quest unclaimed with progress 0
+-- Quest fixtures (UiSpec quest_claim_*, docs/QUESTS_SPEC.md): today's first active daily quest unclaimed with progress 0
 -- (incomplete: Claim disabled) or at its Target (complete: Claim enabled). Unsaved; 'restore' applies the
 -- QuestService snapshot taken before the first quest fixture.
 local function questFixture(player, complete)
@@ -428,18 +428,14 @@ local function questFixture(player, complete)
 	if not questSnapshots[player] then
 		questSnapshots[player] = saved
 	end
-	local target
-	for _, quest in require(Shared.QuestConfig).Daily do
-		if quest.Id == "daily_races" then
-			target = quest.Target
-		end
-	end
-	assert(target, "QuestConfig.Daily has no daily_races")
+	-- docs/QUESTS_SPEC.md "Rotation": the first of today's active daily quests (UiSpec ACTIVE_DAILY_QUEST)
+	local quest = require(Shared.QuestConfig).Active(false, workspace:GetServerTimeNow())[1]
+	assert(quest and quest.Target, "QuestConfig.Active(false, now) returned no quest")
 	local fixture = table.clone(saved)
 	fixture.QuestDaily = table.clone(saved.QuestDaily)
 	fixture.QuestDailyClaimed = table.clone(saved.QuestDailyClaimed)
-	fixture.QuestDaily.daily_races = complete and target or 0
-	fixture.QuestDailyClaimed.daily_races = nil
+	fixture.QuestDaily[quest.Id] = complete and quest.Target or 0
+	fixture.QuestDailyClaimed[quest.Id] = nil
 	QuestService.Apply(player, fixture)
 end
 

@@ -6923,15 +6923,28 @@ S.ui_daily_boosts = function(res)
 			tab ~= nil and tab:IsA("GuiButton") and allText(tab) == string.upper(category)
 		)
 	end
+	-- docs/QUESTS_SPEC.md "Rotation" (owner 2026-10-30): only this UTC day's QuestConfig.Active set has rows.
+	local active = QuestConfig.Active(false, workspace:GetServerTimeNow())
+	local isActive = {}
 	local rows = {}
-	for _, quest in QuestConfig.Daily do
+	for _, quest in active do
+		isActive[quest.Id] = true
 		local row = content and content:FindFirstChild(quest.Id)
 		local claim = row and row:FindFirstChild("Claim")
-		if not (row and row:IsA("TextButton") and claim and claim:IsA("TextButton")) then
-			table.insert(rows, quest.Id .. ": missing TextButton row or Claim")
+		if not (row and row:IsA("TextButton") and claim and claim:IsA("TextButton") and effectivelyVisible(row)) then
+			table.insert(rows, quest.Id .. ": missing visible TextButton row or Claim")
 		end
 	end
 	checkList(res, "daily_quest_rows_and_claims", rows)
+	check(res, "daily_quest_active_count", #active, QuestConfig.PICK, #active == QuestConfig.PICK)
+	local inactiveShown = {}
+	for _, quest in QuestConfig.Daily do
+		local row = content and content:FindFirstChild(quest.Id)
+		if not isActive[quest.Id] and row and row:IsA("GuiObject") and effectivelyVisible(row) then
+			table.insert(inactiveShown, quest.Id)
+		end
+	end
+	checkList(res, "daily_quest_inactive_rows_hidden", inactiveShown)
 	if detail then
 		local interactive = {}
 		for _, descendant in detail:GetDescendants() do
@@ -8014,7 +8027,7 @@ function UiScenarios.RunClick(id)
 			local weekly = cond == "quests_weekly_view"
 			local title = Help.findPath(UiSpec.DailyBoosts.Title)
 			local tabs = Help.findPath(UiSpec.DailyBoosts.QuestTabs)
-			local quest = (weekly and QuestConfig.Weekly or QuestConfig.Daily)[1]
+			local quest = QuestConfig.Active(weekly, workspace:GetServerTimeNow())[1]
 			local row = quest and Help.findPath(UiSpec.DailyBoosts.Content .. "/" .. quest.Id)
 			local ok = title ~= nil
 				and title.Text == UiSpec.DailyBoosts.QuestTitle
@@ -8026,7 +8039,7 @@ function UiScenarios.RunClick(id)
 		elseif cond == "quest_detail_selected" then
 			local detail = Help.findPath(UiSpec.DailyBoosts.QuestDetail)
 			local name = detail and detail:FindFirstChild("Name")
-			local expected = QuestConfig.Daily[1]
+			local expected = QuestConfig.Active(false, workspace:GetServerTimeNow())[1]
 			local ok = name ~= nil and name:IsA("TextLabel") and expected ~= nil and name.Text == expected.Name
 			check(res, cond, name and name.Text or "missing", expected and expected.Name or "daily quest", ok)
 		elseif cond == "equipped_is_tile" then
