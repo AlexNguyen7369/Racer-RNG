@@ -823,7 +823,8 @@ Idle Vehicle Simulator — Game Design Requirements
        purple, the low wall on the road side and reusing the theme for the World 2 hub are
        left to the developer's design judgement. Purely visual: the spawn point, the
        StartPad, the plots and every gameplay rule stay as they are. Colours, sizes and the
-       part budget are placeholders.
+       part budget are placeholders. Owner 2026-10-30: the part budget is 300 for the whole
+       spawn redesign (decor plus kerb edges), was 250 for the decor only.
 
   Jett Fuel (luck burst, shown in game as TURBO LUCK)
 

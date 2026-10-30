@@ -20,6 +20,9 @@
       },
       "SpawnMarketplace": {
         "$path": "assets/studio/SpawnMarketplace.rbxmx"
+      },
+      "SpawnPaddockProps": {
+        "$path": "assets/studio/SpawnPaddockProps.rbxmx"
       }
     },
     "ServerScriptService": {
