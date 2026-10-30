@@ -236,6 +236,21 @@ local status = make("TextLabel", "Status", screen, {
 	Text = "",
 })
 local statusHome = status.Position
+-- On phones (viewport height <= 500) the bottom right holds the Speed readout, weather icon and potions
+-- (docs/HUD_LAYOUT_SPEC.md sections 5, 9), so the status line sits bottom left instead: right of the icon tiles,
+-- just above the Money read-out.
+local function placeStatus()
+	local camera = workspace.CurrentCamera
+	local phone = camera and camera.ViewportSize.Y <= 500
+	status.AnchorPoint = phone and Vector2.new(0, 1) or Vector2.new(1, 0)
+	statusHome = phone and UDim2.new(0, 72, 1, -114) or UDim2.new(1, -16, 1, -130)
+	status.TextXAlignment = phone and Enum.TextXAlignment.Left or Enum.TextXAlignment.Right
+	status.Position = statusHome
+end
+placeStatus()
+if workspace.CurrentCamera then
+	workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(placeStatus)
+end
 -- A claim answer slides in from the right edge.
 local function notify(text)
 	status.Text = text

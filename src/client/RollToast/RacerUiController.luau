@@ -831,9 +831,9 @@ end
 -- Owner 2026-10-29 (docs/HUD_LAYOUT_SPEC.md section 9): on phones the whole Speed readout (dial, SpeedValue and
 -- its +Speed float, which rises from SpeedValue) sits at the BOTTOM RIGHT of the safe area: its visible right edge
 -- SPEED_EDGE px in, above whatever sits under its width (weather icon, potion buttons, touch jump button, the
--- Upgrade tile and the LEVEL / TURBO bars), below the race map and the Shop tile with room for the rising float
--- (the map's place is reserved even while it is hidden, so the readout does not jump when a race starts). It keeps
--- the generated phone scale and shrinks only as far as needed to fit there.
+-- DailyBoosts status line, the Upgrade tile and the LEVEL / TURBO bars), below the race map and the Shop tile with
+-- room for the rising float (the map's place is reserved even while it is hidden, so the readout does not jump when
+-- a race starts). It keeps the generated phone scale and shrinks only as far as needed to fit there.
 local PHONE_MAX_HEIGHT, SPEED_EDGE, SPEED_GAP, SPEED_MIN_SCALE = 500, 8, 6, 0.5 -- min: 50% of the phone size (HUD_LAYOUT_SPEC 9, owner 2026-10-29)
 local FLOAT_HEIGHT, FLOAT_RISE = 30, 46 -- shortcut: copies of UiMotion.Float's label size and rise; keep in step
 local function absRect(o, needVisible)
@@ -860,6 +860,8 @@ local function placeSpeedBottomRight(group, visibleWidth, viewportHeight)
 	local touch = playerGui:FindFirstChild("TouchGui")
 	local touchFrame = touch and touch.Enabled and touch:FindFirstChild("TouchControlFrame")
 	table.insert(below, absRect(touchFrame and touchFrame:FindFirstChild("JumpButton"), true))
+	local daily = playerGui:FindFirstChild("DailyBoosts")
+	table.insert(below, absRect(daily and daily:FindFirstChild("Status"), true))
 	local chrome = playerGui:FindFirstChild("HudChrome")
 	for _, name in { "ItemsSlot", "UpgradeSlot" } do
 		table.insert(below, absRect(chrome and chrome:FindFirstChild(name), true))
@@ -1077,6 +1079,7 @@ local CLEARED = {
 	Level = true,
 	Turbo = true,
 	RaceMap = true,
+	Status = true, -- DailyBoosts/Status (bottom left on phones, BoostDailyUi)
 }
 local GEOMETRY = { "AbsolutePosition", "AbsoluteSize", "Visible" }
 local function watchCleared(object)
