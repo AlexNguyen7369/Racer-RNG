@@ -62,6 +62,19 @@ ORCH-9. **Owner 2026-10-30: PAUSE w2 after task 1; work on nf3 friends boost, nf
    size placeholder, budget 250 parts / 20k tris), RENDERING_SPEC 2 (Concrete), QUESTS_SPEC "Rotation" (6+6 pool, PICK 3, Random.new(key),
    QuestConfig.Active), FRIENDS_BOOST_SPEC 4 + HUD_LAYOUT_SPEC 5 (chip), CHECKPOINT_SPEC / WORKSHOP_SPEC purple notes, goals nf4.
    rules-auditor PASS after one fix round. Owner has NOT re-read the written text (tell them; they may tweak placeholders).
+   IN FLIGHT 2026-10-30 (owner: "implement those into code"; spawn assets as Blender meshes for TimingTower + TyreStack):
+   - quests-rotation (worktree ../RobloxGames-orch/quests-rotation): QuestTests.luau `quests` (test-writer), QuestConfig PICK/Active
+     + QuestService active-only + BoostDailyUi active list + SAVE_SPEC quest-fields line (implementer), UiScenarios/UiSpec/UiTestSetup
+     use Active() (ui-test-writer). NOT run in Studio. rules-auditor pending. Then: Studio queue -> `quests` + UITEST quests.
+   - spawn-paddock (worktree ../RobloxGames-orch/spawn-paddock): spawn_area updated + SpawnDecorTests `spawn_decor` (test-writer, done);
+     SpawnArea/SpawnDecor implementer running; Blender agent building blender/paddock/build_paddock.py + SpawnPaddock.blend, upload,
+     assets/studio/SpawnPaddockProps.rbxmx (ReplicatedStorage.SpawnPaddockProps, default.project.json). SpawnDecor falls back to parts.
+     CLAUDE.md scenario list needs `spawn_decor` + `quests` added (orchestrator, at land).
+   - friends-chip (worktree ../RobloxGames-orch/friends-chip): ui-test-writer red tests running; then UI implementer via .ui.json/generator.
+   HANDOFF (context 76%): background agents may still be writing when this window ends. Next window: check each worktree with
+   `git -C ../RobloxGames-orch/<task> status --short` (spawn: SpawnDecor.luau + SpawnPaddockProps.rbxmx present? friends: UiTest edits?);
+   re-run rules-auditor on quests-rotation if no PASS is recorded; then implement whatever is missing, then Studio verify (one at a time).
+   Merge note: Scenarios.luau / TestConfig.luau / tests_explained.json touched by both spawn and quests branches: merge carefully.
    NEXT (worktree tasks off feature/alex/new-features, file sets disjoint, can run in parallel):
    (a) spawn-paddock: test-writer updates spawn_area (spawn_floor_purple / spawn_color / spawn_floor_smooth_plastic -> 1b rules) + new
        spawn_decor red; then world-builder/general builds SpawnArea.luau + SpawnDecor.luau (plain Parts first; meshes later); world-tester.
