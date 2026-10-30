@@ -30,6 +30,30 @@ in git history (`git log -p -- handoff.md`, last full version at 2d99d78) and in
 
 ## Open work
 
+ORCH-6. **Orchestrator 2026-10-29: owner decisions + UI fix round 2 (worktrees ../RobloxGames-orch/{ui-tests,phone-hud,ui-polish}).**
+   Owner 2026-10-29 (docs on feature/alex/world1-ship 1a33161 + 65cd315, HUD_LAYOUT_SPEC 6/9): the Items/Upgrade pair NEVER stacks; the phone
+   Speed readout sits bottom right (bounds 24/130 px, may shrink to >= 50% of phone k). manual hud-pair-phone-rule + speed-float-phone done;
+   new open manual hud-pair-tablet-shrink (doc says tablet shrinks, UiSpec.HudPair.Desktop says never).
+   Task commits: ui-tests fb4be98 (phone checks, layout model, fixture panel close 081c684a, stricter hitbox content), phone-hud e56405f
+   (HudChrome no stack, RacerUiController placeSpeedBottomRight event-driven, SpeedDial 0 on foot, fd2412fe), ui-polish da523e4
+   (53e24a2e 3c0dcacf 7d99207f 0261e33b 12342e7c; adf68695 NOT fixed, no root cause). rules-auditor: PASS / PASS / owner Q answered (min 50%).
+   Main tree is on orch/world1-ship/verify (= world1-ship + all three merged, NOT pushed) so Rojo 34872 serves it; ui-tester running full
+   UITEST on Studio 7978e86d (Racer RNG).
+   UITEST on verify (Studio now id 1f339384, Racer RNG): [UITEST] END pass=33 fail=4; clicks 118/121. Phone pair beside: PASS both phones;
+   phone Speed bounds/min-scale PASS (modelled). New reds -> fix round 2 sent: phone-hud 102389fe (Speed x DailyBoosts/Status);
+   ui-polish a4da1214 (compact roll rect regressed), 0261e33b (still red), 2568b64c (AUTO OFF toast late); ui-tests 8495ae70 (RetryLostPress),
+   PhoneSpeed.Clear + Status, 78a303ce (Money float). Pre-existing reds, not this round: 9617a457 (Settings title/ProfileTab, Backpack tabs
+   phone), f4a7be5c (Upgrades tiles over TurboLabel, Workshop Rate/Buy, Welcome phone), b53e7fa8/93e8fade (Market detail phone),
+   tablet shrink (owner hud-pair-tablet-shrink), quest 4796b256 still red despite BoostDailyUi re-render. Live Device emulation phone check +
+   2 PhoneOnly clicks need the owner (MCP cannot resize). After round 2: rebuild verify (delete + re-merge), rerun UITEST.
+   DONE 2026-10-30: round 2 UITEST on verify 2e41c8e [UITEST] END pass=35 fail=2, clicks 119/121 (was 33/4); no regressions.
+   LANDED on feature/alex/world1-ship 4427b4a (pushed); task branches, worktrees and verify deleted. Bugs fixed: 78a303ce a4da1214 8495ae70
+   53e24a2e 3c0dcacf 7d99207f adf68695 fd2412fe 081c684a. Still red: speed_phone_clear/no_overlap phone (85d9464c test model lacks Status
+   phone move), reduced_roll_lands_on_result + showcase_backdrop_closes (e628ec7b: Welcome offline modal stays open, test fixture),
+   pre-existing 9617a457 f4a7be5c b53e7fa8 4796b256/12342e7c, tablet shrink (owner hud-pair-tablet-shrink).
+   NEXT: ui-test-writer task 85d9464c + e628ec7b; UI task for 9617a457/f4a7be5c phone overlaps; quest Claim 4796b256 live debug; then ORCH-3
+   speed probe. Owner by hand: live Device emulation phone check (844x390, 667x375), PhoneOnly + MANUAL clicks.
+
 ORCH-5. **Orchestrator 2026-10-28 ~19:15: UI fix round, 3 task branches off feature/alex/world1-ship 7d7cc70 (worktrees ../RobloxGames-orch/<task>).**
    - ui-style: COMMITTED d5d7c70 (WelcomeStyle Bangers line removed -> FredokaOne; UpgradeTreeView Panel transparency 0.38 -> 0.05). Bugs ccc13c4f, 03bad751.
      Owner look check: Upgrades tree now covers the world almost fully in dark blue.
