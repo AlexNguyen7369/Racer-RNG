@@ -1719,7 +1719,8 @@ Model.Scales = generated.Scales
 -- Layout props per variant (AnchorPoint, Position, Size, TextSize, Visible when present)
 Model.Nodes = generated.Nodes
 
--- Runtime changes the scripts make on top of the generated layout:
+-- Runtime changes the scripts make on top of the generated layout (desktop / tablet: SpeedGroup below; phones:
+-- PhoneSpeedRect, regenerated 2026-10-29 from RacerUiController placeSpeedBottomRight, orch phone-hud 6ee7a90):
 -- RacerUiController moves the Speed group horizontally every frame to centre its visible dial + text (SpeedDial's left
 -- edge to SpeedValue's text end, HUD spec section 9) (X is live on the
 -- live viewport; Model.SpeedGroup applies the same rule at a simulated one).
@@ -1737,6 +1738,7 @@ end
 --  Y: after centring the group moves DOWN by max(0, min(need, room)), need = Toast bottom + SPEED_TOAST_GAP - group
 --     top, room = Turbo top - SPEED_TURBO_GAP - group bottom. The Toast keeps its rect while hidden.
 Model.SpeedRule = { ToastGap = 4, TurboGap = 2 }
+-- Desktop / tablet only (RacerUiController skips both on phones, viewport height <= PHONE_MAX_HEIGHT).
 -- `group` is the generated rect (ScaledHudRect), `visibleWidth` the dial + number width at that viewport, `toast` and
 -- `turbo` the screen rects the rule reads. Returns the group's screen rect.
 function Model.SpeedGroup(viewport, group, visibleWidth, toast, turbo)
@@ -1747,6 +1749,60 @@ function Model.SpeedGroup(viewport, group, visibleWidth, toast, turbo)
 		r.y += math.max(0, math.min(need, room))
 	end
 	return r
+end
+
+-- RacerUiController placeSpeedBottomRight (owner 2026-10-29, docs/HUD_LAYOUT_SPEC.md section 9), phones only,
+-- event-driven: right edge of the dial + number = safe-area right - Edge; bottom = the highest top (- Gap) of the
+-- `below` rects whose x span meets the readout's span [right - w0 k, right] (the gui's bottom - Edge when none);
+-- room above for the +Speed float: (Size.Y + max(0, FloatHeight + FloatRise - SpeedValue.Y)) x k must fit between
+-- that bottom and the ceiling = max(gui top, bottom + Gap of each `above` rect: RaceMap (even hidden), ShopColumn).
+-- k = the generated phone k, else the largest k in [MinScaleOfK x k, k] that fits (12-step bisection; owner
+-- 2026-10-29: never below 50% of the phone size, phone-hud e56405f); UIScale = k.
+-- design = { visible = dial left .. number text end, width = Size.X, height = Size.Y, valueY = SpeedValue's Y
+-- offset } in design pixels; root = the RacerHud rect. Returns the group's screen rect and k.
+Model.PhoneSpeedRule = { Edge = 8, Gap = 6, MinScaleOfK = 0.5, FloatHeight = 30, FloatRise = 46, Steps = 12 }
+function Model.PhoneSpeedRect(viewport, root, design, below, above)
+	local cfg = Model.PhoneSpeedRule
+	local rightEdge = root.x + root.w - cfg.Edge
+	local ceiling = root.y
+	for _, r in above do
+		ceiling = math.max(ceiling, r.y + r.h + cfg.Gap)
+	end
+	local floatAbove = math.max(0, cfg.FloatHeight + cfg.FloatRise - design.valueY)
+	local function floorAt(k)
+		local left = rightEdge - design.visible * k
+		local floor = root.y + root.h - cfg.Edge
+		for _, r in below do
+			if r.x + r.w + cfg.Gap > left and r.x < rightEdge then
+				floor = math.min(floor, r.y - cfg.Gap)
+			end
+		end
+		return floor
+	end
+	local function fits(k)
+		return floorAt(k) - ceiling >= (design.height + floatAbove) * k
+	end
+	local k = math.clamp(viewport.Y / Model.Phone.Ref, Model.Phone.Min, Model.Phone.Max)
+	if not fits(k) then
+		local lo, hi = cfg.MinScaleOfK * k, k
+		for _ = 1, cfg.Steps do
+			local mid = (lo + hi) / 2
+			if fits(mid) then
+				lo = mid
+			else
+				hi = mid
+			end
+		end
+		k = lo
+	end
+	local floor = floorAt(k)
+	return {
+		x = rightEdge - design.visible * k,
+		y = floor - design.height * k,
+		w = design.width * k,
+		h = design.height * k,
+	},
+		k
 end
 
 -- RacerUiController.fitPanels, every Heartbeat, for each Racer panel's outer Frame. Since the PanelBand merge it reads
@@ -1887,9 +1943,9 @@ end
 --   fromOffset(left - SlotGap, gap), UpgradeSlot's = fromOffset(right + SlotGap, gap), where left / right are the
 --   outer edges of RacerHud/Level and RacerHud/Turbo together and gap = (Level bottom + Turbo top) / 2, in screen
 --   pixels (HudChrome ignores the inset). The pair is Visible only when Level and Turbo exist.
---   Owner 2026-10-28 (section 6): at viewport height <= StackMaxHeight the pair stacks ABOVE the bars instead:
---   AnchorPoint (1, 1) / (0, 1), bottom y = min(Level top, Money top) - StackGap, ItemsSlot x = min(left, Speed
---   left) - StackGap, UpgradeSlot x = max(right, Speed right) + StackGap (Money / Speed only when visible).
+--   Owner 2026-10-29 (section 6, replaces the 2026-10-28 stacking): the pair never stacks, at every viewport it
+--   takes the beside-the-bars place above. Regenerated 2026-10-29 from HudChrome (orch phone-hud 6ee7a90): the
+--   stacking branch is gone and the visible weather icon joined the blockers the pair shrinks to clear.
 Model.HudChrome = {
 	Phone = 0.68,
 	BottomScale = 0.75,
@@ -1910,9 +1966,8 @@ Model.HudChrome = {
 	IconMid = 36 / 94, -- ICON_MID = TILE / 2 / (TILE + LABEL)
 	Step = 0.02,
 	Floor = 0.3,
-	Blockers = { "RacerHud/Money", "RacerHud/Speed" },
-	StackMaxHeight = 400, -- HudChrome STACK_MAX_HEIGHT (phone_small, owner 2026-10-28)
-	StackGap = 6,
+	-- Shown only when the node's own Visible is true (HudChrome rect(): o.Visible / weather.Visible)
+	Blockers = { "RacerHud/Money", "RacerHud/Speed", "RacerProgression/WeatherIcon" },
 	Money = "RacerHud/Money",
 	Speed = "RacerHud/Speed",
 }
@@ -1929,30 +1984,13 @@ function Model.HudChromeScale(path, viewport)
 	return nil
 end
 -- The bottom pair's unshrunk placement: { [slot path] = { Position = Vector2 (screen offsets), Anchor = Vector2 } }
--- from the Level / Turbo screen rects and `shown` = { [path] = rect } of the visible Blockers (Money, Speed).
-function Model.HudChromePair(viewport, level, turbo, shown)
+-- from the Level / Turbo screen rects (`shown`, the visible Blockers, is not used for the place: the pair never
+-- stacks, owner 2026-10-29; only HudChromePairScale reads it).
+function Model.HudChromePair(_viewport, level, turbo, _shown)
 	local cfg = Model.HudChrome
 	local left = math.min(level.x, turbo.x)
 	local right = math.max(level.x + level.w, turbo.x + turbo.w)
 	local out = {}
-	if viewport.Y <= cfg.StackMaxHeight then
-		local speed, money = shown[cfg.Speed], shown[cfg.Money]
-		local y = math.min(level.y, money and money.y or math.huge) - cfg.StackGap
-		for path, side in cfg.Slots do
-			if side == "left" then
-				out[path] = {
-					Position = Vector2.new(math.min(left, speed and speed.x or left) - cfg.StackGap, y),
-					Anchor = Vector2.new(1, 1),
-				}
-			else
-				out[path] = {
-					Position = Vector2.new(math.max(right, speed and speed.x + speed.w or right) + cfg.StackGap, y),
-					Anchor = Vector2.new(0, 1),
-				}
-			end
-		end
-		return out
-	end
 	local gap = (level.y + level.h + turbo.y) / 2
 	for path, side in cfg.Slots do
 		if side == "left" then

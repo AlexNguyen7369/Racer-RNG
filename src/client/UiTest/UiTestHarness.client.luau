@@ -94,6 +94,22 @@ ReplicatedStorage:GetAttributeChangedSignal("UiTestClick"):Connect(function()
 	end
 end)
 
+-- After the server's 'restore' fixture (UiTestSetup Done = "restore:<nonce>") close the panels it may re-open
+-- (bug 081c684a: the OFFLINE REWARD modal) and any pending click chain. A few frames first, so the restored player
+-- attributes have replicated and the UI reacted to them.
+local RESTORE_SETTLE = 0.5 -- s
+ReplicatedStorage:GetAttributeChangedSignal("UiTestSetupDone"):Connect(function()
+	local done = ReplicatedStorage:GetAttribute("UiTestSetupDone")
+	if type(done) == "string" and string.sub(done, 1, 8) == "restore:" then
+		task.delay(RESTORE_SETTLE, function()
+			while busy do
+				task.wait(0.1)
+			end
+			pcall(UiScenarios.CloseFixturePanels, { restore = true })
+		end)
+	end
+end)
+
 -- Short fixture-driven checks for world-pad transitions, weather states and zero offline credit.
 ReplicatedStorage:GetAttributeChangedSignal("UiTestScenario"):Connect(function()
 	local name = ReplicatedStorage:GetAttribute("UiTestScenario")
