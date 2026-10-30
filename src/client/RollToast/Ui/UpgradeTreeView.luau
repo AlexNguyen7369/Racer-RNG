@@ -70,7 +70,7 @@ function View.Create(gui, Tree, Format)
 	local panel = make("Frame", "Panel", {
 		Size = UDim2.fromScale(1, 1),
 		BackgroundColor3 = Color3.fromRGB(7, 15, 24),
-		BackgroundTransparency = 0.05, -- opaque surface: HUD read-outs must not show through (UiSpec.PanelCoversReadouts)
+		BackgroundTransparency = 0.04, -- opaque surface: HUD read-outs must not show through; below the 0.05 cap since float32 0.05 > 0.05 (UiSpec.PanelCoversReadouts)
 		BorderSizePixel = 0,
 		Visible = false,
 		ZIndex = 0,

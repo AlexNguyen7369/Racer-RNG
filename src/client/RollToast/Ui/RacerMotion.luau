@@ -59,12 +59,36 @@ function Motion.Attach(root)
 			hovering = false
 			animate(1)
 		end)
+		local function rest()
+			-- No MouseLeave fires when the button's ScreenGui is disabled under the cursor
+			-- (e.g. the upgrade tree's EXIT), so snap back to rest at once.
+			hovering = false
+			if activeTween then
+				activeTween:Cancel()
+				activeTween = nil
+			end
+			scale.Scale = 1
+		end
 		object:GetPropertyChangedSignal("Visible"):Connect(function()
 			if not object.Visible then
-				hovering = false
-				animate(1)
+				rest()
 			end
 		end)
+		local layer = object:FindFirstAncestorWhichIsA("LayerCollector")
+		if layer then
+			layer:GetPropertyChangedSignal("Enabled"):Connect(rest)
+		end
+		-- Still drawn: no hidden ancestor (a panel closed by this click) and an enabled ScreenGui.
+		local function shown()
+			local node = object
+			while node and node:IsA("GuiObject") do
+				if not node.Visible then
+					return false
+				end
+				node = node.Parent
+			end
+			return node ~= nil and (not node:IsA("LayerCollector") or node.Enabled)
+		end
 		if object:IsA("GuiButton") then
 			object.MouseButton1Down:Connect(function()
 				animate(0.97)
@@ -79,8 +103,10 @@ function Motion.Attach(root)
 				pressSound:Play()
 				animate(0.94)
 				task.delay(0.08, function()
-					if object.Parent and object.Visible then
+					if shown() then
 						animate(hovering and 1.035 or 1)
+					else
+						rest()
 					end
 				end)
 			end)
