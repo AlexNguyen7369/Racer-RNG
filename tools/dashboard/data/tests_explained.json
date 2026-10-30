@@ -509,5 +509,11 @@
     "why": "Friends in the same server give +10% Luck and Money each, capped at +40%, and must never touch Speed gain or cruise (docs/FRIENDS_BOOST_SPEC.md, owner 2026-10-28).",
     "limits": "PER_FRIEND 0.10, CAP 0.40 (placeholders in the spec)",
     "files": "CarTest/FriendBoostTests, Server/FriendBoostService, GachaService, MoneyService, RaceConfig"
+  },
+  "worlds": {
+    "checks": "Shared/WorldConfig exists; PLACE_IDS[1] and [2] are distinct numbers. Current() is 1 in Studio with no ReplicatedStorage WorldOverride; WorldOverride 2 -> 2, 1 -> 1; 0, 3, -1, 1.5, NaN, inf, \"2\", true are ignored. Shared/Tracks has Folders World1 and World2, no track ModuleScript directly in Tracks, World1 holds exactly today's 10 tracks. TrackRegistry.Chain(1) = Oval, Hill, DragRace, Circuit, Serpentine, City, Desert, Snow, Volcano, Space with Number 1..10; Chain(2) is empty without error; Names(1)/Names(2) and Get(name, world) are per world; Chain()/Get() default to Current() and follow the override. WorldOverride is restored afterwards.",
+    "why": "World 1 and World 2 are separate places with their own 10-track ladders; each place lists only its own world's tracks (docs/WORLDS_SPEC.md section 2, docs/CHECKPOINT_SPEC.md, owner 2026-10-27).",
+    "limits": "none (exact values); Chain(2) empty until the World 2 tracks are built",
+    "files": "CarTest/WorldTests, Shared/WorldConfig, Shared/TrackRegistry, Shared/Tracks/World1, Shared/Tracks/World2"
   }
 }
