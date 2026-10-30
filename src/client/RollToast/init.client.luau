@@ -637,6 +637,7 @@ local cards = { toast, card }
 local latest = nil -- { Spec, IsNew, Turbo, Emphasized, ScrapMoney } of the roll playing or last played
 local serial = 0 -- RollResults received
 local phase = "Idle"
+local stopped = 0 -- +1 when AUTO goes off mid-roll: the playing roll stops at once
 local tweens = {} -- running tweens of the current roll (cancelled when a new roll starts)
 local autoOpened = false -- the enlarged view was opened by an emphasized roll, not by the player
 local switchStamp = 0
@@ -1042,6 +1043,8 @@ local function flyToIndex(spec)
 	end)
 end
 
+local COMPACT_SETTLE = 0.04 -- s the compact landing pop takes to settle, inside LAND
+
 local function play(roll)
 	serial += 1
 	local mySerial = serial
@@ -1053,8 +1056,9 @@ local function play(roll)
 	setAttr("RollSerial", mySerial)
 	setAttr("RollId", spec.Id)
 
+	local myStop = stopped
 	local function alive()
-		return serial == mySerial
+		return serial == mySerial and stopped == myStop
 	end
 	local function after(seconds)
 		task.wait(seconds)
@@ -1153,7 +1157,8 @@ local function play(roll)
 		local tile = tiles[b][#reelIds]
 		tween(tile, A.LAND, { Position = UDim2.fromScale(0.5, 0.5), Rotation = 0 }, Enum.EasingStyle.Back)
 	end
-	if not untilAt(A.POP + A.SPIN + A.LAND) then
+	-- The compact pop settles inside LAND, so Hold (at POP + SPIN + LAND) finds the Body back at 1x
+	if not untilAt(A.POP + A.SPIN + A.LAND - COMPACT_SETTLE) then
 		return
 	end
 	-- Reveal only after the winning sprite reaches the centre. Previously fillResult
@@ -1164,16 +1169,12 @@ local function play(roll)
 		b.Body.Size = UDim2.fromScale(landingSize, landingSize)
 		local settleTime = b.Full and math.min(A.Hold(spec.Rarity), 0.22) or 0.03
 		tween(b.Body, settleTime, { Size = UDim2.fromScale(1, 1) }, Enum.EasingStyle.Back)
-		if not b.Full then
-			-- Settle without yielding, so Hold (the reveal) is not pushed back
-			task.delay(0.04, function()
-				if alive() then
-					b.Body.Size = UDim2.fromScale(1, 1)
-				end
-			end)
-		end
 		landEffects(b, roll, mySerial)
 	end
+	if not untilAt(A.POP + A.SPIN + A.LAND) then
+		return
+	end
+	compact.Body.Size = UDim2.fromScale(1, 1)
 
 	-- Hold: the result stays, longer for rarer cars
 	setPhase("Hold")
@@ -1203,7 +1204,8 @@ local function play(roll)
 			end
 			RunService.Heartbeat:Wait()
 		end
-		if compact.Body.Parent then
+		-- Only while still exiting: a late wake after Idle (or the next roll) must not shrink the card again
+		if compact.Body.Parent and phase == "Exit" then
 			compact.Body.Size = UDim2.fromScale(0, 0)
 		end
 	end)
@@ -1280,6 +1282,29 @@ end)
 
 local rollQueue = {}
 local playingRoll = false
+
+-- ROLL_ANIMATION_CONTRACT: while AutoRoll is off the idle compact roll shows the last result with AUTO OFF. Turning
+-- it off mid-roll ends that roll on its result at once (and drops queued ones) instead of waiting for it to finish.
+player:GetAttributeChangedSignal("AutoRoll"):Connect(function()
+	if autoRollOn() or phase == "Idle" then
+		return
+	end
+	stopped += 1
+	table.clear(rollQueue)
+	cancelTweens()
+	flyIcon.Visible = false
+	takeover.Visible = false
+	for _, b in bodies do
+		if latest then
+			fillResult(b, latest)
+		end
+		b.Streaks.Visible = false
+		b.Smoke.Visible = false
+		b.Body.Position = UDim2.fromScale(0.5, 0.5)
+		b.Body.Size = UDim2.fromScale(1, 1)
+	end
+	setPhase("Idle")
+end)
 
 local function drainRollQueue()
 	if playingRoll then
