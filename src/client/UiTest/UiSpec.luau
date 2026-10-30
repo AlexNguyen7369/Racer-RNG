@@ -2968,20 +2968,32 @@ for _, category in { "Weekly", "Daily" } do
 		},
 	})
 end
+-- docs/QUESTS_SPEC.md "Rotation" (owner 2026-10-30): the quest clicks use the first of today's active daily quests;
+-- Server/CarTest/UiTestSetup's quest fixtures pick the same one. shortcut: resolved at require time, so a run that
+-- crosses 00:00 UTC must re-require UiSpec.
+local ACTIVE_DAILY_QUEST = require(
+	game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("QuestConfig")
+).Active(false, workspace:GetServerTimeNow())[1].Id
 table.insert(UiSpec.Clicks, {
 	Id = "select_daily_quest",
 	Gui = "DailyBoosts",
-	Path = "ModalBackdrop/Modal/Content/daily_races",
+	Path = "ModalBackdrop/Modal/Content/" .. ACTIVE_DAILY_QUEST,
 	Prepare = { Open = { DAILY }, Showcase = false },
 	NeedSetup = { "spy" },
 	Expect = { Panels = { [DAILY] = true }, Remote = false, After = { "quest_detail_selected" } },
 })
 -- docs/QUESTS_SPEC.md: the server decides progress and claims. quest_incomplete / quest_complete set today's
--- daily_races quest (UiSpec.ServerSetup); Intercept keeps the real claim (a potion reward) from ever running.
+-- first active daily quest (UiSpec.ServerSetup); Intercept keeps the real claim (a potion reward) from ever running.
 for _, item in
 	{
-		{ Id = "quest_incomplete", What = "Today's daily_races quest unclaimed at progress 0: its Claim is disabled." },
-		{ Id = "quest_complete", What = "Today's daily_races quest unclaimed at its Target: its Claim is enabled." },
+		{
+			Id = "quest_incomplete",
+			What = "Today's first active daily quest unclaimed at progress 0: its Claim is disabled.",
+		},
+		{
+			Id = "quest_complete",
+			What = "Today's first active daily quest unclaimed at its Target: its Claim is enabled.",
+		},
 	}
 do
 	item.When = "before the quest_claim_* click that names it, after 'snapshot'; restore applies the quest snapshot"
@@ -2990,19 +3002,19 @@ end
 table.insert(UiSpec.Clicks, {
 	Id = "quest_claim_disabled_fires_nothing",
 	Gui = "DailyBoosts",
-	Path = "ModalBackdrop/Modal/Content/daily_races/Claim",
+	Path = "ModalBackdrop/Modal/Content/" .. ACTIVE_DAILY_QUEST .. "/Claim",
 	Prepare = { Open = { DAILY }, Showcase = false, Intercept = "QuestClaim", TargetActive = false },
 	NeedSetup = { "quest_incomplete", "spy", "progression_spy" },
 	Expect = { Panels = { [DAILY] = true }, Remote = false },
 })
--- A completable quest's Claim asks the server for THAT quest: QuestClaim(weekly = false, "daily_races"), once
+-- A completable quest's Claim asks the server for THAT quest: QuestClaim(weekly = false, ACTIVE_DAILY_QUEST), once
 table.insert(UiSpec.Clicks, {
 	Id = "quest_claim_asks_server",
 	Gui = "DailyBoosts",
-	Path = "ModalBackdrop/Modal/Content/daily_races/Claim",
+	Path = "ModalBackdrop/Modal/Content/" .. ACTIVE_DAILY_QUEST .. "/Claim",
 	Prepare = { Open = { DAILY }, Showcase = false, Intercept = "QuestClaim", TargetActive = true },
 	NeedSetup = { "quest_complete", "spy", "progression_spy" },
-	Expect = { Panels = { [DAILY] = true }, Remote = { Name = "QuestClaim", Args = { false, "daily_races" } } },
+	Expect = { Panels = { [DAILY] = true }, Remote = { Name = "QuestClaim", Args = { false, ACTIVE_DAILY_QUEST } } },
 })
 
 ---------------------------------------------------------------------------------------------------------------

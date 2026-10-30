@@ -539,7 +539,7 @@ local function showQuests()
 		tab.Edge.Color = selected and Color3.new(1, 1, 1) or OUTLINE
 	end
 	local weekly = questCategory == "Weekly"
-	local quests = weekly and questConfig.Weekly or questConfig.Daily
+	local quests = questConfig.Active(weekly, workspace:GetServerTimeNow())
 	local progress = decode(weekly and "QuestWeeklyProgress" or "QuestDailyProgress")
 	local claimed = decode(weekly and "QuestWeeklyClaimed" or "QuestDailyClaimed")
 	local selectedQuest, selectedCurrent = nil, 0

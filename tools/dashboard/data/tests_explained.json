@@ -515,5 +515,11 @@
     "why": "World 1 and World 2 are separate places with their own 10-track ladders; each place lists only its own world's tracks (docs/WORLDS_SPEC.md section 2, docs/CHECKPOINT_SPEC.md, owner 2026-10-27).",
     "limits": "none (exact values); Chain(2) empty until the World 2 tracks are built",
     "files": "CarTest/WorldTests, Shared/WorldConfig, Shared/TrackRegistry, Shared/Tracks/World1, Shared/Tracks/World2"
+  },
+  "quests": {
+    "checks": "QuestConfig.Daily / Weekly each hold the 6 spec Ids, unique, metrics only Races/Rolls/Discoveries/Potions, Target >= 1, Reward a BoostConfig potion (never Money). PICK == 3. Active(weekly, now) returns 3 distinct pool quests, identical at the start, middle and end of a period and on repeat calls; over 30 periods more than 3 Ids appear and the pick changes. On a fake player: Progress fills only active quests (inactive stay 0); claims for incomplete, inactive (even with saved full progress) and already-claimed quests are rejected; a valid claim adds RewardCount of the potion via BoostService and leaves leaderstats.Money unchanged. Snapshot -> Apply -> Snapshot round-trips all six quest fields; a save with old period keys loads with empty progress and claims.",
+    "why": "Daily/weekly quests rotate 3 of a pool per UTC period, the same for every server, and pay potions only (docs/QUESTS_SPEC.md Rotation, owner 2026-10-30; design doc Progression).",
+    "limits": "PICK 3, pool values placeholders",
+    "files": "CarTest/QuestTests, Shared/QuestConfig, Server/QuestService, BoostService"
   }
 }

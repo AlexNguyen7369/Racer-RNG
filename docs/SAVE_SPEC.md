@@ -56,6 +56,13 @@ last confirmed it (`PlayerData` clock, seconds).
 - Still `Version = 9` (additive field, older saves load with the default). `Checkpoint` (integer >= 1), player attribute `Checkpoint`: the track the player's runs start on
   (`docs/CHECKPOINT_SPEC.md`). Missing = 1. A rebirth keeps it.
 
+### Quest fields (documented 2026-10-30, `docs/QUESTS_SPEC.md`)
+
+- Already saved by `Server/PlayerData` from `QuestService.Snapshot`: `QuestDailyKey` / `QuestWeeklyKey` (the UTC
+  period keys, `QuestConfig.PeriodKey`), `QuestDaily` / `QuestWeekly` (`{ [questId] = progress }`) and
+  `QuestDailyClaimed` / `QuestWeeklyClaimed` (`{ [questId] = 1 }`). Quest Ids are permanent keys. Missing = the
+  current period key and empty maps; a save from an earlier period loads with empty progress and claims.
+
 ## 3. What Money and Speed do on load (owner, 2026-10-12)
 
 VERSION 10 (owner 2026-10-20): additive `GiftMailbox` and `GiftReceipts` tables default
