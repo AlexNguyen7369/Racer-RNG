@@ -103,6 +103,12 @@ ORCH-9. **Owner 2026-10-30: PAUSE w2 after task 1; work on nf3 friends boost, nf
    hidden when ViewportSize.Y <= 500 — all uncommitted in ../RobloxGames-orch/friends-chip. Rojo 34872 NOW SERVES friends-chip; waiting
    for owner Connect. Then physics-tester: UITEST at desktop AND under phone Device emulation (friends_* fixtures), harness friends_boost.
    Then commit, rules-auditor, land; rojo back to main tree.
+   UPDATE 5 2026-10-30: TESTS PAUSED BY OWNER. friends-chip Studio run: friends_boost 1/0; ui_friends_chip all fixtures pass except
+   friends_chip_clear_of_hud_tablet_4x3 (friends_4_potions, chip x UpgradeSlot); phone hide untestable via MCP; e5deb113 holds
+   (fixture attr nil). UITEST 32/6 (new reds logged: ecb98ee7 ui_roll_emphasized, 17b777b4 ui_reduced_motion, dc7d9099 RollToast hitbox).
+   OWNER DECISION 2026-10-30: chip STACKS ABOVE the potion row (right-aligned) when in-row would overlap HUD; written into the 3 docs.
+   ProgressionUi: placeFriendsChip (Wraps layout, chipBlockers list) written, uncommitted. ui-test-writer (stack-above checks) was
+   STOPPED mid-edit: UiFriendsChip.luau may be half-edited; re-run ui-test-writer first on resume. Rojo 34872 still serves friends-chip.
    HANDOFF (context 76%): background agents may still be writing when this window ends. Next window: check each worktree with
    `git -C ../RobloxGames-orch/<task> status --short` (spawn: SpawnDecor.luau + SpawnPaddockProps.rbxmx present? friends: UiTest edits?);
    re-run rules-auditor on quests-rotation if no PASS is recorded; then implement whatever is missing, then Studio verify (one at a time).
