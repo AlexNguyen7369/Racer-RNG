@@ -79,8 +79,9 @@
 76. 2026-10-28 — Alex Nguyen — Allowed the orchestrator to merge into main only through an open PR approved by a fresh, no-context `merge-reviewer` agent (pragmatic: blocks only on real problems); feature-branch commits and pushes stay free.
 77. 2026-10-30 — Alex Nguyen — Recorded owner phone HUD rules (pair never stacks, phone Speed bottom right, min 50%) and landed two UI fix rounds on world1-ship (UITEST 33/4 to 35/2, 9 bugs fixed).
 78. 2026-10-30 — Alex Nguyen — Landed World split task 1 on feature/alex/world2: Shared/WorldConfig, per-world TrackRegistry and tracks moved to Shared/Tracks/World1 (worlds 35/35, CARTEST 56/0, rules audit PASS).
+79. 2026-10-30 — Alex Nguyen — Wrote the owner's 2026-10-30 answers (spawn paddock theme with Concrete floor, quest rotation, FRIENDS +N% chip) into the design doc and specs on new branch feature/alex/new-features (rules-auditor PASS).
 
 ## What's next
-**World split task 2: PlayerData VERSION 13 with the migration of Speed, BestTrack, Checkpoint, RaceBestTimes, Level and XP into Worlds["1"] (WORLDS_SPEC 3-4, SAVE_SPEC), red tests first by test-writer.**
+**Spawn paddock redesign: test-writer updates the `spawn_area` purple/SmoothPlastic checks to SPAWN_AND_ROLLS_SPEC 1b and writes the new `spawn_decor` scenario (red), then SpawnArea.luau + a new SpawnDecor.luau build it.**
 
-**Why this is next:** the per-world consumers (task 3) and the WorldService portal and teleport (task 4) read and write the per-world save, so the save format must land first; task 4 also waits on the owner's World 2 place id (manual world2-place-id).
+**Why this is next:** the owner asked to continue implementation now that the rules are written; the quests scenario and the friends chip run in parallel on disjoint files, and World 2 stays paused until these land.
