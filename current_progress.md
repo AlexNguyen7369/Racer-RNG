@@ -81,8 +81,9 @@
 78. 2026-10-30 — Alex Nguyen — Landed World split task 1 on feature/alex/world2: Shared/WorldConfig, per-world TrackRegistry and tracks moved to Shared/Tracks/World1 (worlds 35/35, CARTEST 56/0, rules audit PASS).
 79. 2026-10-30 — Alex Nguyen — Wrote the owner's 2026-10-30 answers (spawn paddock theme with Concrete floor, quest rotation, FRIENDS +N% chip) into the design doc and specs on new branch feature/alex/new-features (rules-auditor PASS).
 80. 2026-10-30 — Alex Nguyen — Landed the daily/weekly quest rotation (3 of the pool per UTC period) with the `quests` scenario into feature/alex/new-features (quests 58/58, CARTEST 57/0) and updated CLAUDE.md, ProjectContext and the board.
+81. 2026-10-30 — Alex Nguyen — Landed the open-track spawn paddock redesign (SpawnDecor, Concrete floor, timing tower, pit lane, 260/300 parts) with the `spawn_decor` scenario into feature/alex/new-features (full harness 57/0).
 
 ## What's next
-**Verify the spawn paddock redesign in Studio (`spawn_area`, `spawn_decor`, full harness, UITEST) and land it into feature/alex/new-features, then finish the friends chip (phone-hidden tests, ProgressionUi update, UITEST).**
+**Verify the friends chip in Studio (UITEST at desktop size and under phone emulation, `friends_boost` harness) and land it into feature/alex/new-features.**
 
-**Why this is next:** Rojo now serves the spawn-paddock worktree and the tests are running; the friends chip shares the same Studio and has to wait for it, and World 2 stays paused until both land.
+**Why this is next:** the chip code, phone-hide rule and its tests are written but unrun; Rojo now serves its worktree, and it is the last nf task before the quest Claim bug and World 2 resume.

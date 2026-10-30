@@ -711,6 +711,21 @@
         "Tell Claude it is connected."
       ],
       "done": "2026-10-30"
+    },
+    {
+      "id": "rojo-reconnect-friends-chip",
+      "title": "Reconnect the Rojo plugin in Racer RNG Studio (port 34872, friends-chip)",
+      "category": "studio",
+      "priority": "high",
+      "when": "2026-10-30",
+      "status": "open",
+      "why": "Rojo on 34872 now serves the friends-chip worktree; the Studio MCP cannot click plugin widgets.",
+      "blocks": "Studio test of the friends chip (UITEST desktop + phone emulation)",
+      "steps": [
+        "In the Racer RNG Studio open the Rojo plugin.",
+        "Check the port is 34872 and click Connect; accept any sync prompt.",
+        "Tell Claude it is connected."
+      ]
     }
   ]
 }

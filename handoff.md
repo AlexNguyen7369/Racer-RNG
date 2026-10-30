@@ -97,6 +97,12 @@ ORCH-9. **Owner 2026-10-30: PAUSE w2 after task 1; work on nf3 friends boost, nf
    physics-tester running spawn_area + spawn_decor + full harness + UITEST on spawn-paddock. Friends-chip phone-hide decision written
    (uncommitted) into the 3 docs in the friends-chip worktree; ui-test-writer updating UiFriendsChip/UiSpec + bug e5deb113.
    Quests landing chores done in main tree: CLAUDE.md `quests`, ProjectContext, todo 9c8021bf done.
+   UPDATE 4 2026-10-30: spawn-paddock LANDED (182d28c, merge 9509998, chores 37df548, pushed; worktree + branch removed): spawn_decor 1/0,
+   spawn_area 1/0 after AABB fix (bug 2471d540 fixed), full harness 57/0, UITEST 32/5. Friends-chip: docs (phone hide) + ui-test-writer
+   tests (UiFriendsChip PhoneMaxHeight 500, bug e5deb113 restore clears UiTestFriendsFixture) + ProgressionUi chip 64x40 TextScaled,
+   hidden when ViewportSize.Y <= 500 — all uncommitted in ../RobloxGames-orch/friends-chip. Rojo 34872 NOW SERVES friends-chip; waiting
+   for owner Connect. Then physics-tester: UITEST at desktop AND under phone Device emulation (friends_* fixtures), harness friends_boost.
+   Then commit, rules-auditor, land; rojo back to main tree.
    HANDOFF (context 76%): background agents may still be writing when this window ends. Next window: check each worktree with
    `git -C ../RobloxGames-orch/<task> status --short` (spawn: SpawnDecor.luau + SpawnPaddockProps.rbxmx present? friends: UiTest edits?);
    re-run rules-auditor on quests-rotation if no PASS is recorded; then implement whatever is missing, then Studio verify (one at a time).
