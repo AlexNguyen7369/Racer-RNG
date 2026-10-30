@@ -3,7 +3,7 @@
 PROJECT CONTEXT - Idle Vehicle Simulator (read me first)
 Shown in Studio at: ServerScriptService > ProjectContext   (source file: context/ProjectContext.luau)
 Do NOT edit this in Studio: edit the file on disk, Rojo syncs it. Claude updates it at the end of every loop.
-Last updated: 2026-10-30 (Claude orchestrator: phone HUD owner rules, UI fix rounds)
+Last updated: 2026-10-30 (Claude orchestrator: World split task 1 WorldConfig + per-world TrackRegistry)
 BALANCE PASS + CRUISE CAP + WORLDS PLAN - 2026-10-27/28 (Claude, uncommitted; owner decisions in the design doc):
 - Rebirth rev. 4 ("+1 Speed" genre table): TOTALS 1.5 .. 10 then x10 to 1e11, levels 15 .. 600, max 20 (Speed gain, XP, Luck).
 - XP/s = 1 x Speed gain multi; XPToNext = XP_LINEAR x level to XP_KNEE 225, then x10 per XP_DECADE levels (122 / 37.2,
@@ -12,6 +12,9 @@ BALANCE PASS + CRUISE CAP + WORLDS PLAN - 2026-10-27/28 (Claude, uncommitted; ow
   HALF_STAT 10K, MAX_CRUISE 800 (speed_probe green to 1000). NPC growth 1.51 (Track 10 = 653).
 - Money: cap 1e30 everywhere, Money is a NumberValue, MAX_AWARD = MAX_MONEY (was 1e9: Track 9-10 payouts were refused).
 - Worlds: docs/WORLDS_SPEC.md (World 2 = separate place, rebirths 11-20, mega biomes); tools/balance_sim.py.
+- 2026-10-30 (WORLDS_SPEC 2, branch feature/alex/world2): Shared/WorldConfig (PLACE_IDS, Current(), WorldOverride attribute wins;
+  PLACE_IDS[2] = -1 placeholder until the World 2 place exists), TrackRegistry Get/Chain/Names(world?), tracks moved to
+  Shared/Tracks/World1 (World2 empty). New scenario worlds 35/35; full [CARTEST] END pass=56 fail=0 (Studio 1f339384).
 - 2026-10-30 (owner rules 2026-10-29, HUD_LAYOUT_SPEC 6/9): Items/Upgrade pair never stacks; phone Speed readout bottom right
   (24/130 px, min 50% of phone size), DailyBoosts/Status bottom left on phones. Live [UITEST] END pass=35 fail=2, clicks 119/121
   (world1-ship 4427b4a). Still red: phone Status test model (85d9464c), Welcome modal left open by fixture (e628ec7b), phone panel

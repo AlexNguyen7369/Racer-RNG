@@ -30,6 +30,16 @@ in git history (`git log -p -- handoff.md`, last full version at 2d99d78) and in
 
 ## Open work
 
+ORCH-8. **Orchestrator 2026-10-30: w2a task 1/4 `w2a-worldconfig` LANDED** on `feature/alex/world2` (merge 1109352, pushed;
+   integration branch made from feature/alex/world1-ship 1c21c56 because main lacks world1-ship). Shared/WorldConfig (PLACE_IDS[1]
+   126725530984268, [2] = -1 placeholder, WorldOverride wins), TrackRegistry Get/Chain/Names(world?), tracks in Shared/Tracks/World1
+   (World2 empty, .gitkeep), scenario `worlds` (test-writer). Live: worlds 35/35, [CARTEST] END pass=56 fail=0 (Studio 1f339384);
+   rules-auditor PASS. Live red step skipped (reds were module-missing). Worktree + task branch removed. Main tree now on
+   feature/alex/world2. Owner Q open: manual world2-place-id (place id + when the World 1 cap at 10 turns on).
+   NEXT tick: task 2 PlayerData VERSION 13 + migration (WORLDS_SPEC 3-4, SAVE_SPEC) via test-writer red tests in worktree
+   ../RobloxGames-orch/w2a-save13; task 3 per-world consumers (Checkpoint/BestTrack/Level/XP/RaceBestTimes per world, World 2
+   NPC ladder, payout n+10, cruise table); task 4 WorldService portal + teleport + rebirth cap (blocked on world2-place-id).
+
 ORCH-7. **Owner 2026-10-30: next tick = NEW FEATURE w2a World 1 / World 2 split** (todo `worlds-split`, goal world2,
    docs/WORLDS_SPEC.md). Read WORLDS_SPEC + design doc "Worlds", rules-gate it, start the goal's integration branch if missing, split
    into worktree tasks (WorldConfig, per-world TrackRegistry, PlayerData VERSION 13 + migration, WorldService portal + teleport),
