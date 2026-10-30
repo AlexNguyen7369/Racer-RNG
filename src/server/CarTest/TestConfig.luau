@@ -54,6 +54,7 @@ return {
 		"wyvern_breath",
 		"singularity_orb",
 		"friends_boost",
+		"worlds",
 	},
 	-- Not in the full suite (each takes minutes). Run on demand during play:
 	--   ReplicatedStorage:SetAttribute("CarTestOnly", "speed_probe"); ReplicatedStorage:SetAttribute("CarTestRun", true)

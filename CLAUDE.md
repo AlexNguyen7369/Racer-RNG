@@ -70,7 +70,7 @@ selene src            # lint
 - The car is auto-raced (no player steering). The old manual controls (W/S, A/D, Space, R via `VehicleSeat`) still exist in `Client/CarController` for cars without the `AutoRace` attribute.
 
 ## Tracks
-One file per track in `src/shared/Tracks/`, auto-loaded by `TrackRegistry`. See `TrackBuilder.luau` for the spec format and `TrackValidator.luau` for the rules (min radius, closure, no overlap).
+One file per track in `src/shared/Tracks/World<N>/` (World 1 today, World 2 empty until built; `docs/WORLDS_SPEC.md` 2), auto-loaded per world by `TrackRegistry`. See `TrackBuilder.luau` for the spec format and `TrackValidator.luau` for the rules (min radius, closure, no overlap).
 
 ### Track rules (every track, enforced by `TrackValidator` + track tests)
 1. **Numbered ladder:** each spec has `Number = N` (1, 2, 3...). Tracks are chained in `Number` order.
