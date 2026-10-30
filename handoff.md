@@ -50,7 +50,14 @@ ORCH-9. **Owner 2026-10-30: PAUSE w2 after task 1; work on nf3 friends boost, nf
    CONFLICT: RENDERING_SPEC 2 says spawn floor stays SmoothPlastic; spawn_area tests check purple + SmoothPlastic. OWNER must pick
    theme, floor material, retint of leftover purple (pavilion RoofPurple, CheckpointNpc ring, leaderboard backs), portal spot, tower
    height OK, pit wall at x=24, W2 hub reuse. NOT shown to owner in detail yet.
-   NEXT: (1) show the owner the spawn draft summary + its questions (AskUserQuestion); (2) branch feature/alex/new-features from
+   OWNER SPAWN ANSWERS 2026-10-30 (verbatim): "I want an open track theme, make the ground pixar themed. The floor can become concrete.
+   Yes up to your design disgression. Portal spot is correct. 40 stud tower is ok. Continue implementation". So: theme = "open track"
+   (read as open-air racetrack plaza; confirm only if the DRAFT's theme A/C do not cover it), ground Pixar-styled (stylised, soft,
+   saturated, rounded shapes, not realistic), floor material Concrete OK (overrides RENDERING_SPEC 2 SmoothPlastic: write dated owner
+   entry there), leftover purple retint + pit wall + W2 hub reuse = orchestrator's design discretion, portal (96,-88) confirmed, 40-stud
+   tower OK. Owner said CONTINUE IMPLEMENTATION (spawn + nf1-nf3).
+   NEXT: (1) write the spawn rules (design doc + SPAWN_AND_ROLLS_SPEC + RENDERING_SPEC 2, dated, placeholders) from the DRAFT + answers;
+   then test-writer updates spawn_area (purple/SmoothPlastic checks -> new rules) + new spawn_decor red; then SpawnArea.luau build; (2) branch feature/alex/new-features from
    feature/alex/world2; (3) write owner answers (a)(b) into QUESTS_SPEC / FRIENDS_BOOST_SPEC / HUD_LAYOUT_SPEC / design doc (dated,
    placeholders), owner OK on the text; (4) worktree tasks: quests scenario (test-writer red) -> rotation in QuestConfig/QuestService;
    quest Claim repro; friends chip (ui-test-writer red -> UI); small tests. Studio 1f339384 (Racer RNG), Rojo 34872 serves main tree.
