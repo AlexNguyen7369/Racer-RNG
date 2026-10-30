@@ -77,8 +77,9 @@
 74. 2026-10-28 — Alex Nguyen — Confirmed the five orchestrator goals in `docs/ORCHESTRATOR_GOALS.md` (test debt first, then World 1 ship, World 2, new features, improvements in parallel; done = full green) (ccd89db).
 75. 2026-10-28 — Alex Nguyen — Added the orchestrator context-window settings (warn 60%, handoff 75%) and a context gauge on the dashboard flow page's orchestrator node; the overseer hook and 24/7 runner live in the global orchestrator skill.
 76. 2026-10-28 — Alex Nguyen — Allowed the orchestrator to merge into main only through an open PR approved by a fresh, no-context `merge-reviewer` agent (pragmatic: blocks only on real problems); feature-branch commits and pushes stay free.
+77. 2026-10-30 — Alex Nguyen — Recorded owner phone HUD rules (pair never stacks, phone Speed bottom right, min 50%) and landed two UI fix rounds on world1-ship (UITEST 33/4 to 35/2, 9 bugs fixed).
 
 ## What's next
-**Fix the remaining UITEST reds on feature/alex/world1-ship in worktree tasks: Upgrades panel transparency compare and Exit hover (53e24a2e, 3c0dcacf), RollToast padding and reduced-motion viewport (7d99207f, 0261e33b), Rebirth band offset (adf68695), Speed float rounding (fd2412fe), harness cleanup and quest fixture (081c684a, 4796b256); then re-run the full UI suite.**
+**Fix the last UITEST reds on feature/alex/world1-ship: ui-test-writer models the phone DailyBoosts/Status move (85d9464c) and closes the Welcome offline modal in fixtures (e628ec7b); then the phone panel overlaps (9617a457, f4a7be5c, b53e7fa8) and quest Claim (4796b256); re-run the full UI suite.**
 
-**Why this is next:** [UITEST] END fail=0 is World 1 deliverable w1e; the speed probe (ORCH-3) and test-debt td1-td7 wait on that green baseline. Phone HudPair and Speed float layout wait on owner decisions.
+**Why this is next:** [UITEST] END fail=0 is World 1 deliverable w1e; the ORCH-3 speed probe and test-debt td1-td7 wait on that green baseline. The tablet pair shrink waits on the owner (hud-pair-tablet-shrink).
