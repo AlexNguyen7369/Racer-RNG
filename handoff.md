@@ -56,11 +56,19 @@ ORCH-9. **Owner 2026-10-30: PAUSE w2 after task 1; work on nf3 friends boost, nf
    saturated, rounded shapes, not realistic), floor material Concrete OK (overrides RENDERING_SPEC 2 SmoothPlastic: write dated owner
    entry there), leftover purple retint + pit wall + W2 hub reuse = orchestrator's design discretion, portal (96,-88) confirmed, 40-stud
    tower OK. Owner said CONTINUE IMPLEMENTATION (spawn + nf1-nf3).
-   NEXT: (1) write the spawn rules (design doc + SPAWN_AND_ROLLS_SPEC + RENDERING_SPEC 2, dated, placeholders) from the DRAFT + answers;
-   then test-writer updates spawn_area (purple/SmoothPlastic checks -> new rules) + new spawn_decor red; then SpawnArea.luau build; (2) branch feature/alex/new-features from
-   feature/alex/world2; (3) write owner answers (a)(b) into QUESTS_SPEC / FRIENDS_BOOST_SPEC / HUD_LAYOUT_SPEC / design doc (dated,
-   placeholders), owner OK on the text; (4) worktree tasks: quests scenario (test-writer red) -> rotation in QuestConfig/QuestService;
-   quest Claim repro; friends chip (ui-test-writer red -> UI); small tests. Studio 1f339384 (Racer RNG), Rojo 34872 serves main tree.
+   DONE 2026-10-30 (tick, task nf-rules): owner answers written into docs on NEW integration branch feature/alex/new-features
+   (from feature/alex/world2; merge ce51771, pushed; main tree now on it): design doc (spawn redesign entry, quests rotation, friends
+   chip), SPAWN_AND_ROLLS_SPEC 1b (theme, Pixar palette placeholders, Concrete, retints, Decor rules, pit lane, tower, portal spot fixed /
+   size placeholder, budget 250 parts / 20k tris), RENDERING_SPEC 2 (Concrete), QUESTS_SPEC "Rotation" (6+6 pool, PICK 3, Random.new(key),
+   QuestConfig.Active), FRIENDS_BOOST_SPEC 4 + HUD_LAYOUT_SPEC 5 (chip), CHECKPOINT_SPEC / WORKSHOP_SPEC purple notes, goals nf4.
+   rules-auditor PASS after one fix round. Owner has NOT re-read the written text (tell them; they may tweak placeholders).
+   NEXT (worktree tasks off feature/alex/new-features, file sets disjoint, can run in parallel):
+   (a) spawn-paddock: test-writer updates spawn_area (spawn_floor_purple / spawn_color / spawn_floor_smooth_plastic -> 1b rules) + new
+       spawn_decor red; then world-builder/general builds SpawnArea.luau + SpawnDecor.luau (plain Parts first; meshes later); world-tester.
+   (b) quests: test-writer `quests` scenario (QuestTests.luau: rotation determinism, progress, UTC reset, claim rejections incl. inactive
+       quest, potion granted + Money unchanged, save round-trip) red; then QuestConfig.Active + QuestService.
+   (c) friends chip: ui-test-writer red (UiSpec chip in PotionStatus row, hidden at 0, no overlap) -> UI via spec/generator -> ui-tester.
+   (d) quest Claim bug 4796b256/12342e7c repro in Studio. Studio 1f339384 (Racer RNG), Rojo 34872 serves main tree. Codes: RELEASE only.
 
 ORCH-8. **Orchestrator 2026-10-30: w2a task 1/4 `w2a-worldconfig` LANDED** on `feature/alex/world2` (merge 1109352, pushed;
    integration branch made from feature/alex/world1-ship 1c21c56 because main lacks world1-ship). Shared/WorldConfig (PLACE_IDS[1]

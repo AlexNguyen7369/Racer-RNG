@@ -651,7 +651,7 @@
       "id": "ee591f0e",
       "title": "Friends-in-server boost",
       "detail": "+10% luck and Money per friend in the same server, up to +40%.\n\nFits this game: Encourages inviting friends; one multiplier in GachaService and MoneyService.\nInspired by: Common in 2025-2026 simulators",
-      "status": "next",
+      "status": "doing",
       "source": "suggestion:friend-boost",
       "by": "Alex Nguyen",
       "added": "2026-10-13T00:06:23-07:00",
@@ -1267,6 +1267,12 @@
       "by": "Alex Nguyen",
       "added": "2026-10-28T00:53:45-07:00",
       "updated": "2026-10-28T00:53:45-07:00"
+    },
+    {
+      "id": "spawn-paddock",
+      "title": "Spawn area paddock redesign (replace purple)",
+      "status": "next",
+      "detail": "Owner 2026-10-30. Rules: docs/SPAWN_AND_ROLLS_SPEC.md 1b, RENDERING_SPEC 2 (Concrete), layout drafts/environments/spawn-area-redesign/DRAFT.md. Next: test-writer updates spawn_area purple/SmoothPlastic checks + new spawn_decor (red), then SpawnArea.luau + new SpawnDecor.luau."
     }
   ]
 }
