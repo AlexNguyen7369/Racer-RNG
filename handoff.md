@@ -65,7 +65,7 @@ ORCH-9. **Owner 2026-10-30: PAUSE w2 after task 1; work on nf3 friends boost, nf
    IN FLIGHT 2026-10-30 (owner: "implement those into code"; spawn assets as Blender meshes for TimingTower + TyreStack):
    - quests-rotation (worktree ../RobloxGames-orch/quests-rotation): QuestTests.luau `quests` (test-writer), QuestConfig PICK/Active
      + QuestService active-only + BoostDailyUi active list + SAVE_SPEC quest-fields line (implementer), UiScenarios/UiSpec/UiTestSetup
-     use Active() (ui-test-writer). NOT run in Studio. rules-auditor pending. Then: Studio queue -> `quests` + UITEST quests.
+     use Active() (ui-test-writer). NOT run in Studio. rules-auditor PASS (minor: server os.time vs client GetServerTimeNow near UTC rollover). Then: Studio queue -> `quests` + UITEST quests.
    - spawn-paddock (worktree ../RobloxGames-orch/spawn-paddock): spawn_area updated + SpawnDecorTests `spawn_decor` (test-writer, done);
      SpawnArea/SpawnDecor implementer running; Blender agent building blender/paddock/build_paddock.py + SpawnPaddock.blend, upload,
      assets/studio/SpawnPaddockProps.rbxmx (ReplicatedStorage.SpawnPaddockProps, default.project.json). SpawnDecor falls back to parts.
