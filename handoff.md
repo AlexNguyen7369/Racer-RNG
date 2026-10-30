@@ -30,6 +30,31 @@ in git history (`git log -p -- handoff.md`, last full version at 2d99d78) and in
 
 ## Open work
 
+ORCH-9. **Owner 2026-10-30: PAUSE w2 after task 1; work on nf3 friends boost, nf1 daily quests, nf2 codes; PLAN a spawn-area
+   redesign (replace purple; plan only).** Goals file: world2 paused, new-features priority 2 (uncommitted -> committed with this handoff).
+   OWNER ANSWERS 2026-10-30 (write them dated into the docs before code):
+   (a) Quests ROTATE from a pool: each UTC day/week the server picks 3 quests from a larger pool, seeded by the period key (same for
+       everyone); pool, targets, potion rewards written into docs/QUESTS_SPEC.md as placeholders first (+ design doc entry).
+   (b) Friends boost HUD: a "FRIENDS +N%" chip next to the potion timers (RacerProgression/PotionStatus), hidden at 0 friends
+       (FRIENDS_BOOST_SPEC 4 + HUD_LAYOUT_SPEC entry, then ui-test-writer red, then UI).
+   (c) Codes: keep RELEASE only for now; owner adds real codes later.
+   (d) Quest Claim bug 4796b256/12342e7c: repro in Studio first, fix whichever side (fixture or BoostDailyUi) is wrong.
+   Gap audit (agent, read-only) ranked tasks: 1 new harness scenario `quests` (QuestTests.luau: progress, UTC reset, claim rejections,
+   potion granted + Money unchanged, save round-trip); 2 quest Claim bug; 3 QUESTS_SPEC + SAVE_SPEC Quest* fields (QuestDailyKey,
+   QuestWeeklyKey, QuestDaily, QuestWeekly, QuestDailyClaimed, QuestWeeklyClaimed), claim API (weekly, id); 4 UiSpec inventory
+   (ShopUi, DailyBoosts/DailyQuestBar/*, RacerProgression/BagIcon; bugs 747c9737 e208fe51) via ui-test-writer; 5 Shop layout bug
+   93e8fade (ShopUi.client.luau); 6 friends chip; 7 small tests (IsFriendsWith seam + leave recompute in FriendBoostTests; code 32-char
+   limit + "Data not loaded" in ShopPurchaseTests); 8 board: ee591f0e / 6f721034 to doing (server side built), 9c8021bf open.
+   Spawn redesign: drafts/environments/spawn-area-redesign/DRAFT.md (recommended theme A pit-lane paddock: charcoal floor
+   (64,68,78), pit lane x184..200 z-132..-116, 40-stud timing tower (176,-92), floodlights, portal spot (96,-88); ~140 parts / 20k tris).
+   CONFLICT: RENDERING_SPEC 2 says spawn floor stays SmoothPlastic; spawn_area tests check purple + SmoothPlastic. OWNER must pick
+   theme, floor material, retint of leftover purple (pavilion RoofPurple, CheckpointNpc ring, leaderboard backs), portal spot, tower
+   height OK, pit wall at x=24, W2 hub reuse. NOT shown to owner in detail yet.
+   NEXT: (1) show the owner the spawn draft summary + its questions (AskUserQuestion); (2) branch feature/alex/new-features from
+   feature/alex/world2; (3) write owner answers (a)(b) into QUESTS_SPEC / FRIENDS_BOOST_SPEC / HUD_LAYOUT_SPEC / design doc (dated,
+   placeholders), owner OK on the text; (4) worktree tasks: quests scenario (test-writer red) -> rotation in QuestConfig/QuestService;
+   quest Claim repro; friends chip (ui-test-writer red -> UI); small tests. Studio 1f339384 (Racer RNG), Rojo 34872 serves main tree.
+
 ORCH-8. **Orchestrator 2026-10-30: w2a task 1/4 `w2a-worldconfig` LANDED** on `feature/alex/world2` (merge 1109352, pushed;
    integration branch made from feature/alex/world1-ship 1c21c56 because main lacks world1-ship). Shared/WorldConfig (PLACE_IDS[1]
    126725530984268, [2] = -1 placeholder, WorldOverride wins), TrackRegistry Get/Chain/Names(world?), tracks in Shared/Tracks/World1

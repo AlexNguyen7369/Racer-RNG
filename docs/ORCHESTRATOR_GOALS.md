@@ -53,7 +53,7 @@ Deliverables:
 Out of scope: World 2 content
 
 ## world2: World 2 split
-Status: active
+Status: paused (owner 2026-10-30: pause after task 1; work on nf1-nf3 and a spawn-area redesign plan first)
 Priority: 3
 Owner-confirmed: 2026-10-28
 Branch: feature/alex/world2 (created on the first task)
@@ -64,7 +64,7 @@ Out of scope: anything WORLDS_SPEC does not state (asked, not guessed)
 
 ## new-features: New player features
 Status: active
-Priority: 4
+Priority: 2 (owner 2026-10-30: before world2)
 Owner-confirmed: 2026-10-28
 Branch: feature/alex/new-features (created on the first task)
 Deliverables (each one is blocked until the owner writes its rule into the design doc and a spec):
