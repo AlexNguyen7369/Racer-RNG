@@ -1272,8 +1272,11 @@
     {
       "id": "spawn-paddock",
       "title": "Spawn area paddock redesign (replace purple)",
-      "status": "next",
-      "detail": "Owner 2026-10-30. Rules: docs/SPAWN_AND_ROLLS_SPEC.md 1b, RENDERING_SPEC 2 (Concrete), layout drafts/environments/spawn-area-redesign/DRAFT.md. Next: test-writer updates spawn_area purple/SmoothPlastic checks + new spawn_decor (red), then SpawnArea.luau + new SpawnDecor.luau."
+      "status": "done",
+      "detail": "Owner 2026-10-30. Rules: docs/SPAWN_AND_ROLLS_SPEC.md 1b, RENDERING_SPEC 2 (Concrete), layout drafts/environments/spawn-area-redesign/DRAFT.md. Next: test-writer updates spawn_area purple/SmoothPlastic checks + new spawn_decor (red), then SpawnArea.luau + new SpawnDecor.luau. Done 2026-10-30: open-track paddock (Shared/SpawnDecor, Concrete floor, 40-stud timing tower, pit lane, Blender TimingTower/TyreStack meshes), 260/300 parts, 9584 tris; merged 9509998 into feature/alex/new-features; spawn_decor 1/0, full harness 57/0. Owner has not seen it in play yet.",
+      "done": "2026-10-30T14:00:00-07:00",
+      "updated": "2026-10-30T14:00:00-07:00",
+      "updatedBy": "Claude"
     }
   ]
 }

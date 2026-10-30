@@ -12,6 +12,10 @@ BALANCE PASS + CRUISE CAP + WORLDS PLAN - 2026-10-27/28 (Claude, uncommitted; ow
   HALF_STAT 10K, MAX_CRUISE 800 (speed_probe green to 1000). NPC growth 1.51 (Track 10 = 653).
 - Money: cap 1e30 everywhere, Money is a NumberValue, MAX_AWARD = MAX_MONEY (was 1e9: Track 9-10 payouts were refused).
 - Worlds: docs/WORLDS_SPEC.md (World 2 = separate place, rebirths 11-20, mega biomes); tools/balance_sim.py.
+- 2026-10-30 (spawn paddock, feature/alex/new-features 9509998): SPAWN_AND_ROLLS_SPEC 1b open-track plaza: Shared/SpawnDecor
+  (Concrete floor, 40-stud timing tower (176,-92), pit lane, kerbs, floodlights; ReplicatedStorage.SpawnPaddockProps meshes, part
+  fallback), purple retinted; 260/300 parts, 9584 tris. New scenario `spawn_decor`. spawn_area/workshop overlap checks AABB-filtered
+  (bug 2471d540). Verified live: full harness END pass=57 fail=0; UITEST 32/5 (no spawn reds).
 - 2026-10-30 (quests rotation, feature/alex/new-features 26a0462): QuestConfig.Active picks 3 of the pool per UTC day/week
   (Random.new(period key)); QuestService/BoostDailyUi use only active quests; new harness scenario `quests` (58/58). Verified live:
   harness END pass=57 fail=0; UITEST pass=31 fail=6 (baseline reds; bugs 80aefcdf efce0961 65067d48 3f0a7c5e). Claim bug open.

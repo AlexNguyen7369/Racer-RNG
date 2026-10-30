@@ -229,9 +229,8 @@ updates automatically whenever the board changes; do not edit this block by hand
 - **Bigger scenery in mass + detailed City skyscrapers**: Owner 2026-10-27: design doc Track environments (scale and detail), BIOME_DRESSING_SPEC Rules Budget 1200 / Scale (Landmarks x1.75, Horizon x2 with 0.25 shrink steps, Scatter x1.5) / City skyscrapers. BiomeThemes skyscraper helper (podium, setbacks, window bands, fins, neon crown, rooftop tank/spire/antenna), Billboard moved to City scatter. environment 338/338, full harness 50/0. Left: owner look while racing, device frame check (Needs you).
 - **UI visual pass**: HUD counters + speedometer, lowercase suffixes, loser recap, minimap Path2D, full restyle on UiTheme, motion graphics (owner 2026-10-27)
 
-### Up next (9)
+### Up next (7)
 
-- **Daily Quest System**: Add a daily quest system with rotating objectives and rewards; define the design/spec before implementation.
 - **Redeem Codes section**: Add a Redeem Codes section projected for the Shop area where the gamepasses are located.
 - **roll_odds_* UI fixtures must close open panels first**: The offline RacerWelcome/Panel opens on join and hides the compact roll (correct behaviour), so roll_odds_compact_odds fails although the text is right. ui-test-writer: have the fixture or ui_roll_odds close every PanelSwitch panel before the planted roll. 2026-10-27: ui-test-writer closes every PanelSwitch panel before the planted roll; not run live yet.
 - **DailyBoosts Status overlaps Daily Rewards / Bag on phones**: Bug 3a6d9cb3, found by ui-tester 2026-10-13 at 844x390 and 667x375. Older than the weather change.
@@ -239,7 +238,6 @@ updates automatically whenever the board changes; do not edit this block by hand
 - **Reconcile UI tests with Isaac's inventory/upgrade-tree UI (ccea607)**: ui-test-writer updates UiSpec/UiScenarios for INVENTORY tabs, removed Bag, full-screen hex upgrade tree; then ui-tester and /compat-check. Blocks the green stamp for main.
 - **Checkpoint tests (harness + UiSpec)**: test-writer: checkpoint scenario (validation, start track, loss resets to checkpoint, loop). ui-test-writer: CheckpointUi in UiSpec (overlap, locked cards, phone landscape). docs/CHECKPOINT_SPEC.md.
 - **Shop/Market panels cover the compact roll toast**: ui_hitboxes button_topmost_at_centre_shop_open/market_open: RollToast/Toast under the panel. PanelBand top = below Race button; the compact roll also sits below Race. Owner: band below the compact roll, or panel over the dimmed toast?
-- **Spawn area paddock redesign (replace purple)**: Owner 2026-10-30. Rules: docs/SPAWN_AND_ROLLS_SPEC.md 1b, RENDERING_SPEC 2 (Concrete), layout drafts/environments/spawn-area-redesign/DRAFT.md. Next: test-writer updates spawn_area purple/SmoothPlastic checks + new spawn_decor (red), then SpawnArea.luau + new SpawnDecor.luau.
 
 ### Backlog (future work) (15)
 
@@ -259,8 +257,10 @@ updates automatically whenever the board changes; do not edit this block by hand
 - **Imrpove gacha roll animation to accuratley reflect a spin of all car models that are getting passed up. Users should be able to see the full rotation of cars spinning before landing on the car theyget**
 - **UI Animations for Upgrade tree. Smooth popups and actuation animations. Events and pops on clicks etc. smooth tree traversal**
 
-### Recently done (65)
+### Recently done (67)
 
+- ~~Spawn area paddock redesign (replace purple)~~ (2026-10-30)
+- ~~Daily Quest System~~ (2026-10-30)
 - ~~Cruise cap from speed probe (700-800 studs/s)~~ (2026-10-28)
 - ~~Speed gain rebalance: rebirth totals, aura + trail multis~~ (2026-10-28)
 - ~~Ember Wyvern flight~~ (2026-10-28)
@@ -269,8 +269,6 @@ updates automatically whenever the board changes; do not edit this block by hand
 - ~~Repo slim~~ (2026-10-28)
 - ~~Exponential payouts + price curve + Speed float~~ (2026-10-28)
 - ~~Orchestrator skill + orchestration flow page~~ (2026-10-28)
-- ~~Biome visual pass: scatter + ground patches, horizon fit, landmark particles, oriented-box Prune~~ (2026-10-27)
-- ~~Ember Wyvern skin: cyan shadow wyvern in Studio (draft 4 approved)~~ (2026-10-27)
 
 <!-- TODO:END -->
 

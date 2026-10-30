@@ -3235,6 +3235,49 @@
       "foundBy": "physics-tester",
       "foundAt": "2026-10-30T09:23:43-07:00",
       "loggedBy": "Alex Nguyen"
+    },
+    {
+      "id": "2471d540",
+      "name": "spawn_area overlap check exhausts script timeout",
+      "kind": "fault",
+      "status": "fixed",
+      "file": "src/server/CarTest/Scenarios.luau",
+      "line": 9495,
+      "endLine": 9507,
+      "snippet": {
+        "from": 9491,
+        "lines": [
+          "\t\t\t\tif sep < -SPAWN_OVERLAP_TOL then",
+          "\t\t\t\t\toverlaps += 1",
+          "\t\t\t\tend",
+          "\t\t\tend",
+          "\t\tend",
+          "\tend",
+          "\tif overlaps > 0 then",
+          "\t\tmetrics.worst_overlap = worstName",
+          "\tend",
+          "\tmetrics.closest_track_gap = worst == math.huge and -1 or round(worst)",
+          "\tcheck(checks, \"spawn_area_no_track_overlap\", overlaps, 0, #trackParts > 0 and overlaps == 0)",
+          "\t-- the spec rectangles themselves stay clear too (the area is not allowed to grow into a road later)",
+          "\tlocal rectOverlaps = 0",
+          "\tfor _, rect in",
+          "\t\t{",
+          "\t\t\tspawnRectPoly(base, SPAWN_AREA_MIN, SPAWN_AREA_MAX),",
+          "\t\t\tspawnRectPoly(base, SPAWN_LAYOUT.HUB_MIN, SPAWN_LAYOUT.HUB_MAX),",
+          "\t\t\tspawnRectPoly(base, SPAWN_PAD.MIN, SPAWN_PAD.MAX),",
+          "\t\t}",
+          "\tdo",
+          "\t\tfor _, t in trackParts do"
+        ]
+      },
+      "summary": "spawn_area_no_track_overlap compares 416 SpawnArea parts x 11280 track parts (~4.7M checks) without yielding; with the paddock decor the harness dies on the Studio script timeout, so spawn_area reports nothing and the full suite stops at scenario 14.",
+      "error": "Script timeout: exhausted allowed execution time / Script 'ServerScriptService.Server.CarTest.Harness', Line 103 - function runAll",
+      "foundBy": "physics-tester",
+      "foundAt": "2026-10-30T11:36:18-07:00",
+      "loggedBy": "Alex Nguyen",
+      "fixedAt": "2026-10-30T11:59:26-07:00",
+      "fixedBy": "Alex Nguyen",
+      "fixNote": "AABB pre-filter + yields in spawn_area/workshop overlap checks (182d28c); spawn_area 1/0, full harness 57/0 live"
     }
   ]
 }
