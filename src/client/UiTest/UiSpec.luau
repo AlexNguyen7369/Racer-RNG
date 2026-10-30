@@ -758,15 +758,16 @@ UiSpec.HudPair = {
 -- whole Speed readout (RacerHud/Speed: dial, SpeedValue and its rising +Speed MotionFloat) sits at the BOTTOM RIGHT,
 -- the float rises above it there, and none of it overlaps the weather icon, the potion buttons or any HUD element
 -- in Clear. Desktop and tablet keep it bottom centre (ui_layout speed_group_centred_<viewport>).
--- "Bottom right" as a test (the doc gives no pixels; these bounds are the test's reading of it, report to the owner
--- before changing them): the Speed group's rect lies wholly in the right half and the bottom half of the viewport,
--- its right edge at most MaxRightGap px from the viewport's right edge, its bottom at most MaxBottomGap px from the
--- bottom edge (room for the weather / potion strip, 82 px tall on phones, below it).
+-- "Bottom right" (owner 2026-10-29, HUD_LAYOUT_SPEC section 9, placeholders): the Speed group's right edge within
+-- MaxRightGap px of the screen's right edge and its bottom within MaxBottomGap px of the bottom; the test also keeps
+-- it wholly in the right half and the bottom half. When the corner is crowded it may scale down, never below
+-- MinScaleOfK x the phone k (its UIScale >= MinScaleOfK x UiResponsive.K(viewport); placeholder).
 UiSpec.PhoneSpeed = {
 	Group = "RacerHud/Speed",
 	PhoneMaxHeight = 500,
 	MaxRightGap = 24,
 	MaxBottomGap = 130,
+	MinScaleOfK = 0.5,
 	Clear = {
 		"RacerProgression/WeatherIcon",
 		"RacerProgression/PotionStatus",

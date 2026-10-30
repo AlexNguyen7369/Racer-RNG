@@ -667,12 +667,14 @@ function Help.marketTabScale(obj, child, ctx)
 	return math.clamp((rr.h / railScale - (n - 1) * fit.Gap) / (n * fit.TabSize), min, fit.Max)
 end
 
--- The visible HudChrome bottom-pair blockers (Money, Speed) at ctx.vp: { [path] = rect }.
+-- The visible HudChrome bottom-pair blockers (Money, Speed, weather icon) at ctx.vp: { [path] = rect }. Without
+-- Speed under ctx.excludeSpeed (Help.phoneSpeedSim: the phone Speed group is placed above the pair, so the pair's
+-- place and scale it reads are the ones Speed does not block).
 function Help.hudPairShown(ctx)
 	local shown = {}
 	for _, path in UiResponsive.HudChrome.Blockers do
 		local o = Help.findPath(path)
-		if o and o:IsA("GuiObject") and o.Visible then
+		if o and o:IsA("GuiObject") and o.Visible and not (ctx.excludeSpeed and path == UiSpec.Hud.Speed) then
 			shown[path] = simRect(o, ctx)
 		end
 	end
@@ -1023,6 +1025,82 @@ function Help.speedVisibleWidth(vp)
 	return s * (valueX + textDesign - dialX), s * dialX
 end
 
+-- The phone Speed group's rect at ctx.vp (UiResponsive.PhoneSpeedRect, RacerUiController placeSpeedBottomRight); it
+-- also sets ctx.scaleOverride for its UIScale so the dial and number scale with it. On the live viewport the live
+-- Position / AnchorPoint / UIScale are solved (the controller wrote them); elsewhere the rule is applied to the
+-- simulated rects of what it clears, measured in a sub-context without Speed as a pair blocker (no cycle). A
+-- TouchGui jump button is not modelled at a simulated viewport (ctx.unsupported). Before the number draws (no
+-- TextBounds) the controller leaves the generated place.
+function Help.phoneSpeedSim(obj, ctx, liveVp)
+	local path = UiSpec.Hud.Speed
+	local gui = Help.guiOf(obj)
+	local root = Help.rootRect(gui, ctx.vp)
+	local scaleObj = obj:FindFirstChild("UIScale")
+	if liveVp then
+		local k = scaleObj and scaleObj:IsA("UIScale") and scaleObj.Scale or 1
+		ctx.scaleOverride[obj] = k
+		local w, h = obj.Size.X.Offset * k, obj.Size.Y.Offset * k
+		local p = obj.Position
+		return R(
+			root.x + root.w * p.X.Scale + p.X.Offset - obj.AnchorPoint.X * w,
+			root.y + root.h * p.Y.Scale + p.Y.Offset - obj.AnchorPoint.Y * h,
+			w,
+			h
+		)
+	end
+	local visible = Help.speedVisibleWidth(ctx.vp)
+	if not visible then
+		ctx.scaleOverride[obj] = UiResponsive.ScaleAt(path, ctx.vp) or 1
+		return UiResponsive.ScaledHudRect(path, ctx.vp, nil, root)
+	end
+	local node = UiResponsive.Nodes[path].Phone
+	local valueNode = UiResponsive.Nodes[UiSpec.Hud.SpeedValue].Phone
+	local s = UiResponsive.ScaleAt(path, ctx.vp) or 1
+	local sub = { vp = ctx.vp, cache = {}, unsupported = ctx.unsupported, scaleOverride = {}, excludeSpeed = true }
+	local function shown(p, needVisible)
+		local o = Help.findPath(p)
+		if o and o:IsA("GuiObject") and (o.Visible or not needVisible) then
+			return simRect(o, sub)
+		end
+		return nil
+	end
+	local below = {}
+	for _, p in
+		{
+			"RacerProgression/WeatherIcon",
+			"HudChrome/ItemsSlot",
+			"HudChrome/UpgradeSlot",
+			"RacerHud/Level",
+			"RacerHud/Turbo",
+		}
+	do
+		table.insert(below, shown(p, true))
+	end
+	local potions = Help.findPath("RacerProgression/PotionStatus")
+	if potions and potions:IsA("GuiObject") and potions.Visible then
+		for _, bottle in potions:GetChildren() do
+			if bottle:IsA("GuiObject") and bottle.Visible then
+				table.insert(below, simRect(bottle, sub))
+			end
+		end
+	end
+	local touch = playerGui:FindFirstChild("TouchGui")
+	if touch and touch:IsA("ScreenGui") and touch.Enabled then
+		ctx.unsupported["TouchGui/TouchControlFrame/JumpButton"] = "Roblox touch controls (phone Speed floor)"
+	end
+	local above = {}
+	table.insert(above, shown("RacerHud/RaceMap", false))
+	table.insert(above, shown("HudChrome/ShopColumn", true))
+	local r, k = UiResponsive.PhoneSpeedRect(ctx.vp, root, {
+		visible = visible / s,
+		width = node.Size.X.Offset,
+		height = node.Size.Y.Offset,
+		valueY = valueNode.Position.Y.Offset,
+	}, below, above)
+	ctx.scaleOverride[obj] = k
+	return r
+end
+
 -- The two roll cards animate (PopIn grows from 0, LAND_POP, Exit shrink, the 0.3 s SWITCH), so their live Size /
 -- Position are only meaningful while settled. The solver places them at their CONTRACT rect
 -- (docs/ROLL_ANIMATION_CONTRACT.md, numbers from Shared/RollAnimConfig) unless ctx.live; liveVsNominal proves the
@@ -1079,6 +1157,8 @@ simRect = function(obj, ctx)
 		r = UiResponsive.RaceFaceRect(ctx.vp)
 	elseif pathOf(obj) == UiSpec.Hud.Turbo then
 		r = UiResponsive.ScaledHudRect(UiSpec.Hud.Turbo, ctx.vp)
+	elseif pathOf(obj) == UiSpec.Hud.Speed and ctx.vp.Y <= UiResponsive.PHONE_MAX_HEIGHT then
+		r = Help.phoneSpeedSim(obj, ctx, liveVp)
 	elseif pathOf(obj) == UiSpec.Hud.Speed then
 		if liveVp then
 			-- The live viewport: where RacerUiController put it (X centring and the R3 shift are live properties)
@@ -3188,8 +3268,16 @@ end
 -- Owner 2026-10-29 (UiSpec.PhoneSpeed, docs/HUD_LAYOUT_SPEC.md section 9): at a phone viewport the Speed group sits in
 -- the bottom-right corner (right half, bottom half, MaxRightGap / MaxBottomGap from the edges) and overlaps nothing
 -- in PhoneSpeed.Clear. `r` is the group's rect, `root` its ScreenGui's rect at that viewport.
-function Help.phoneSpeedChecks(res, tag, r, root, rectOf)
+function Help.phoneSpeedChecks(res, tag, r, root, rectOf, vp, scale)
 	local cfg = UiSpec.PhoneSpeed
+	local minScale = cfg.MinScaleOfK * UiResponsive.K(vp)
+	check(
+		res,
+		"speed_phone_min_scale_" .. tag,
+		scale or "no UIScale",
+		">= " .. minScale,
+		scale ~= nil and scale >= minScale - 1e-3
+	)
 	local rightGap = root.x + root.w - (r.x + r.w)
 	local bottomGap = root.y + root.h - (r.y + r.h)
 	check(
@@ -3481,7 +3569,15 @@ function S.ui_layout(res)
 					local cx = right and (left + right) / 2
 					if vp.Y <= UiSpec.PhoneSpeed.PhoneMaxHeight then
 						-- Owner 2026-10-29 (UiSpec.PhoneSpeed): phones put the Speed readout at the bottom right
-						Help.phoneSpeedChecks(res, vpSpec.Name, rectOf(hud), root, rectOf)
+						local r = rectOf(hud)
+						local scale
+						if vpSpec.Size then
+							scale = ctx.scaleOverride and ctx.scaleOverride[hud]
+						else
+							local s = hud:FindFirstChild("UIScale")
+							scale = s and s:IsA("UIScale") and s.Scale or nil
+						end
+						Help.phoneSpeedChecks(res, vpSpec.Name, r, root, rectOf, vp, scale)
 					else
 						check(
 							res,
@@ -3862,8 +3958,14 @@ function S.ui_hitboxes(res)
 							local drawn = d.BackgroundTransparency < 0.95
 								or ((d:IsA("TextLabel") or d:IsA("TextButton")) and d.Text ~= "" and d.TextTransparency < 0.95)
 								or ((d:IsA("ImageLabel") or d:IsA("ImageButton")) and d.Image ~= "" and d.ImageTransparency < 0.95)
-								-- a ViewportFrame draws its 3D content over its whole rect (the compact roll's model)
-								or (d:IsA("ViewportFrame") and d.ImageTransparency < 0.95)
+								-- a ViewportFrame draws its 3D content over its whole rect (the compact roll's model), but
+								-- only when it holds something to draw: an emptied one (the compact Viewport during the
+								-- spin, init.client resetBody since ui-polish da523e4) shows nothing
+								or (
+									d:IsA("ViewportFrame")
+									and d.ImageTransparency < 0.95
+									and d:FindFirstChildWhichIsA("BasePart", true) ~= nil
+								)
 							local seen = drawn and clipped(d, realRect)
 							if seen then
 								content = Help.union(content, seen)
