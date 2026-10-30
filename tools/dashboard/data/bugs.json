@@ -3067,6 +3067,174 @@
       "foundBy": "ui-tester",
       "foundAt": "2026-10-30T00:16:50-07:00",
       "loggedBy": "Alex Nguyen"
+    },
+    {
+      "id": "42b21c54",
+      "name": "rbxmx CollisionFidelity Hull not Box",
+      "kind": "fault",
+      "status": "open",
+      "file": "tools/write_redesign_rbxmx.py",
+      "line": 23,
+      "endLine": 23,
+      "snippet": {
+        "from": 19,
+        "lines": [
+          "",
+          "ROOT = Path(__file__).resolve().parent.parent",
+          "OUT = ROOT / 'assets/studio/RedesignCarModels'",
+          "MATERIAL = {'SmoothPlastic': 272, 'Neon': 288, 'Metal': 1088, 'Glass': 1568}",
+          "BOX_FIDELITY = 1",
+          "",
+          "",
+          "def cframe(parent, name, comps):",
+          "    e = ET.SubElement(parent, 'CoordinateFrame', name=name)"
+        ]
+      },
+      "summary": "BOX_FIDELITY = 1 writes Hull (Box is 2); car MeshParts get costlier hull collision than intended",
+      "error": "",
+      "foundBy": "blender-agent",
+      "foundAt": "2026-10-30T01:33:49-07:00",
+      "loggedBy": "Alex Nguyen"
+    },
+    {
+      "id": "80aefcdf",
+      "name": "ui_index equipped tile check missing state",
+      "kind": "failure",
+      "status": "open",
+      "file": "src/client/UiTest/UiScenarios.luau",
+      "line": 1,
+      "endLine": 1,
+      "snippet": {
+        "from": 1,
+        "lines": [
+          "--!nonstrict",
+          "-- UI compatibility checks, run on the client by UiTestHarness. Owned by ui-test-writer.",
+          "-- Result shape matches Server/CarTest: { scenario, pass, checks = { { name, value, limit, pass } } }.",
+          "--",
+          "-- Geometry is in SCREEN pixels: (0, 0) is the window's top-left corner, the top-bar inset included."
+        ]
+      },
+      "summary": "state_missing:index_states (equipped car is ember_wyvern): fixture never reaches index_states when the saved player has the gamepass car equipped",
+      "error": "",
+      "foundBy": "physics-tester",
+      "foundAt": "2026-10-30T02:21:26-07:00",
+      "loggedBy": "Alex Nguyen"
+    },
+    {
+      "id": "efce0961",
+      "name": "ui_hitboxes shop Buy Active=false but AutoButtonColor=true",
+      "kind": "failure",
+      "status": "open",
+      "file": "src/client/ShopUi.client.luau",
+      "line": 1,
+      "endLine": 1,
+      "snippet": {
+        "from": 1,
+        "lines": [
+          "--!nonstrict",
+          "-- Shop (docs/GAMEPASS_SHOP_SPEC.md): Featured gamepass cars, Gamepasses, Potions + bundle, Server Luck, Codes.",
+          "-- Display and purchase prompts only; Roblox owns prices and ownership, Server/ShopService grants products and codes.",
+          "local Players = game:GetService(\"Players\")",
+          "local ReplicatedStorage = game:GetService(\"ReplicatedStorage\")"
+        ]
+      },
+      "summary": "ShopUi Featured ember_wyvern Buy button is disabled but still looks clickable (AutoButtonColor=true)",
+      "error": "",
+      "foundBy": "physics-tester",
+      "foundAt": "2026-10-30T02:21:26-07:00",
+      "loggedBy": "Alex Nguyen"
+    },
+    {
+      "id": "65067d48",
+      "name": "ui_loser no Lose event received",
+      "kind": "failure",
+      "status": "open",
+      "file": "src/client/UiTest/UiScenarios.luau",
+      "line": 1,
+      "endLine": 1,
+      "snippet": {
+        "from": 1,
+        "lines": [
+          "--!nonstrict",
+          "-- UI compatibility checks, run on the client by UiTestHarness. Owned by ui-test-writer.",
+          "-- Result shape matches Server/CarTest: { scenario, pass, checks = { { name, value, limit, pass } } }.",
+          "--",
+          "-- Geometry is in SCREEN pixels: (0, 0) is the window's top-left corner, the top-bar inset included."
+        ]
+      },
+      "summary": "loser_shown_after_lose: no NpcRace Result Lose received within the window; loser screen not verified",
+      "error": "",
+      "foundBy": "physics-tester",
+      "foundAt": "2026-10-30T02:21:26-07:00",
+      "loggedBy": "Alex Nguyen"
+    },
+    {
+      "id": "3f0a7c5e",
+      "name": "ui_roll_anim / ui_roll_emphasized flaky",
+      "kind": "failure",
+      "status": "open",
+      "file": "src/client/UiTest/UiScenarios.luau",
+      "line": 1,
+      "endLine": 1,
+      "snippet": {
+        "from": 1,
+        "lines": [
+          "--!nonstrict",
+          "-- UI compatibility checks, run on the client by UiTestHarness. Owned by ui-test-writer.",
+          "-- Result shape matches Server/CarTest: { scenario, pass, checks = { { name, value, limit, pass } } }.",
+          "--",
+          "-- Geometry is in SCREEN pixels: (0, 0) is the window's top-left corner, the top-bar inset included."
+        ]
+      },
+      "summary": "roll_serial_counts_roll_results and emphasized_roll_received alternate pass/fail between runs (timing)",
+      "error": "",
+      "foundBy": "physics-tester",
+      "foundAt": "2026-10-30T02:21:26-07:00",
+      "loggedBy": "Alex Nguyen"
+    },
+    {
+      "id": "e5deb113",
+      "name": "UiTestFriendsFixture left set after friends_clear",
+      "kind": "fault",
+      "status": "open",
+      "file": "src/server/CarTest/UiTestSetup.server.luau",
+      "line": 901,
+      "endLine": 932,
+      "snippet": {
+        "from": 897,
+        "lines": [
+          "\tend)",
+          "\tif not ok then",
+          "\t\tReplicatedStorage:SetAttribute(\"UiTestSetupError\", request .. \":\" .. tostring(err))",
+          "\tend",
+          "\tReplicatedStorage:SetAttribute(\"UiTestSetupDone\", request)",
+          "end",
+          "",
+          "local queue, busy = {}, false",
+          "local function onRequest()",
+          "\tlocal request = ReplicatedStorage:GetAttribute(\"UiTestSetup\")",
+          "\tif type(request) ~= \"string\" or request == \"\" then",
+          "\t\treturn",
+          "\tend",
+          "\ttable.insert(queue, request)",
+          "\tif busy then",
+          "\t\treturn",
+          "\tend",
+          "\tbusy = true",
+          "\twhile #queue > 0 do",
+          "\t\trunSetup(table.remove(queue, 1))",
+          "\tend",
+          "\tbusy = false",
+          "end",
+          "",
+          "ReplicatedStorage:GetAttributeChangedSignal(\"UiTestSetup\"):Connect(onRequest)"
+        ]
+      },
+      "summary": "ReplicatedStorage UiTestFriendsFixture stays 'friends_clear' after restore (restore clears it only while a friends snapshot is held); play-session only, no test result changed",
+      "error": "",
+      "foundBy": "physics-tester",
+      "foundAt": "2026-10-30T09:23:43-07:00",
+      "loggedBy": "Alex Nguyen"
     }
   ]
 }

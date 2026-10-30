@@ -12,6 +12,9 @@ BALANCE PASS + CRUISE CAP + WORLDS PLAN - 2026-10-27/28 (Claude, uncommitted; ow
   HALF_STAT 10K, MAX_CRUISE 800 (speed_probe green to 1000). NPC growth 1.51 (Track 10 = 653).
 - Money: cap 1e30 everywhere, Money is a NumberValue, MAX_AWARD = MAX_MONEY (was 1e9: Track 9-10 payouts were refused).
 - Worlds: docs/WORLDS_SPEC.md (World 2 = separate place, rebirths 11-20, mega biomes); tools/balance_sim.py.
+- 2026-10-30 (quests rotation, feature/alex/new-features 26a0462): QuestConfig.Active picks 3 of the pool per UTC day/week
+  (Random.new(period key)); QuestService/BoostDailyUi use only active quests; new harness scenario `quests` (58/58). Verified live:
+  harness END pass=57 fail=0; UITEST pass=31 fail=6 (baseline reds; bugs 80aefcdf efce0961 65067d48 3f0a7c5e). Claim bug open.
 - 2026-10-30 (docs only, branch feature/alex/new-features ce51771): owner answers written: spawn paddock theme (SPAWN_AND_ROLLS_SPEC 1b,
   Concrete floor, RENDERING_SPEC 2), quest rotation 3-of-pool (QUESTS_SPEC), FRIENDS +N% chip (FRIENDS_BOOST_SPEC 4, HUD_LAYOUT_SPEC 5). No code; unverified in game.
 - 2026-10-30 (WORLDS_SPEC 2, branch feature/alex/world2): Shared/WorldConfig (PLACE_IDS, Current(), WorldOverride attribute wins;

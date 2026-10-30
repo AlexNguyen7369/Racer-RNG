@@ -71,6 +71,32 @@ ORCH-9. **Owner 2026-10-30: PAUSE w2 after task 1; work on nf3 friends boost, nf
      assets/studio/SpawnPaddockProps.rbxmx (ReplicatedStorage.SpawnPaddockProps, default.project.json). SpawnDecor falls back to parts.
      CLAUDE.md scenario list needs `spawn_decor` + `quests` added (orchestrator, at land).
    - friends-chip (worktree ../RobloxGames-orch/friends-chip): ui-test-writer red tests running; then UI implementer via .ui.json/generator.
+   UPDATE 2026-10-30 (tick after /clear): friends-chip: ui-test-writer red tests + ProgressionUi.client.luau chip (runtime-built, no bake)
+   + tests_explained entry; rules-auditor PASS; NOT run in Studio. quests-rotation: audit PASS; NOT run in Studio. Isolate recipe FAILED:
+   `open -n -a RobloxStudio <wt>/.orch/<task>.rbxl` opens Studio on the start page, place not loaded (Studios closed, rojo 34874/34875
+   stopped). Swapping shared rojo 34872 to a worktree was denied by the permission classifier -> owner must choose how to test.
+   Spawn: Blender meshes done (blender/paddock/, assets/studio/SpawnPaddockProps.rbxmx, ids.json); SpawnDecor.luau + SpawnArea.luau now written
+   (205 parts fallback / 177 with meshes; Lune geometry check 0 violations); rules-auditor run; Studio not run; queued 3rd. Bug 42b21c54 logged (write_redesign_rbxmx BOX_FIDELITY=1 is Hull).
+   UPDATE 2 2026-10-30 (context handoff): quests-rotation LANDED: 0f7165d merged 26a0462 into feature/alex/new-features, pushed;
+   quests 58/58, harness END pass=57 fail=0, UITEST pass=31 fail=6 (baseline; new bugs 80aefcdf efce0961 65067d48 3f0a7c5e logged).
+   Worktree + branch removed. NOT YET: CLAUDE.md scenario list (+quests, +spawn_decor), ProjectContext, todo.json, progress-tracker.
+   Owner approved swapping shared rojo 34872 between worktrees; owner must click Rojo Connect in Racer RNG after each swap (MCP cannot).
+   ui-tester refuses to start play: use physics-tester for UITEST runs.
+   friends-chip: UITEST pass=32 fail=6 (no new); ui_friends_chip fixtures friends_1/4/6/4_potions FAIL (chip overlaps
+   HudChrome/UpgradeSlot, RacerHud/Turbo, Money on phone_landscape/phone_small_landscape; Turbo on tablet_4x3 with potions).
+   OWNER DECISION 2026-10-30: HIDE the chip on phones (viewport height <= 500); on desktop/laptop/tablet keep it in the potion row,
+   narrower two-line chip (~64 px wide) so tablet_4x3 fits; boost still applies on phones. NEXT: write it dated into
+   docs/HUD_LAYOUT_SPEC.md:100, docs/FRIENDS_BOOST_SPEC.md:56, docs/GAME_DESIGN_REQUIREMENTS.md:1012 (friends-chip worktree), then
+   ui-test-writer updates UiFriendsChip/UiSpec (hidden at phone viewports), implementer (agent a6cf68a8b3a75439c has context) edits
+   ProgressionUi, physics-tester re-runs UITEST + 6 fixtures. Bug e5deb113 (UiTestFriendsFixture left set) for ui-test-writer.
+   spawn-paddock: owner 2026-10-30 budget 300 parts whole redesign (spec 1b.9 + design doc + SpawnDecorTests updated, uncommitted in
+   worktree); rules-auditor PASS. Rojo 34872 NOW SERVES ../RobloxGames-orch/spawn-paddock; waiting for owner "connected", then verify
+   sync (Shared.SpawnDecor exists) and physics-tester runs spawn_area + spawn_decor + full harness (+UITEST). Then land.
+   At the end: rojo serve --port 34872 from the main tree again (owner reconnects).
+   UPDATE 3 2026-10-30: owner reconnected Rojo; Studio synced spawn-paddock (SpawnDecor, SpawnPaddockProps, SpawnDecorTests present).
+   physics-tester running spawn_area + spawn_decor + full harness + UITEST on spawn-paddock. Friends-chip phone-hide decision written
+   (uncommitted) into the 3 docs in the friends-chip worktree; ui-test-writer updating UiFriendsChip/UiSpec + bug e5deb113.
+   Quests landing chores done in main tree: CLAUDE.md `quests`, ProjectContext, todo 9c8021bf done.
    HANDOFF (context 76%): background agents may still be writing when this window ends. Next window: check each worktree with
    `git -C ../RobloxGames-orch/<task> status --short` (spawn: SpawnDecor.luau + SpawnPaddockProps.rbxmx present? friends: UiTest edits?);
    re-run rules-auditor on quests-rotation if no PASS is recorded; then implement whatever is missing, then Studio verify (one at a time).

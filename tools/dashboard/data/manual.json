@@ -695,6 +695,22 @@
         "Decide: does the World 1 cap at 10 turn on (A) as soon as PLACE_IDS[2] is set, or (B) by a separate flag you flip at launch?",
         "Tell the orchestrator the place id and A or B; it writes the dated rule into WORLDS_SPEC 2."
       ]
+    },
+    {
+      "id": "rojo-reconnect-quests",
+      "title": "Reconnect the Rojo plugin in Racer RNG Studio (port 34872)",
+      "category": "studio",
+      "priority": "high",
+      "when": "2026-10-30",
+      "status": "done",
+      "why": "Rojo on 34872 now serves the quests-rotation worktree for its Studio test; the plugin was connected to the old server and the Studio MCP cannot click plugin widgets.",
+      "blocks": "Studio tests of quests-rotation, friends-chip, spawn-paddock (landing all three)",
+      "steps": [
+        "In the Racer RNG Studio open the Rojo plugin.",
+        "Check the port is 34872 and click Connect; accept any sync prompt.",
+        "Tell Claude it is connected."
+      ],
+      "done": "2026-10-30"
     }
   ]
 }
