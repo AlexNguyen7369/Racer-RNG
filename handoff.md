@@ -30,6 +30,11 @@ in git history (`git log -p -- handoff.md`, last full version at 2d99d78) and in
 
 ## Open work
 
+ORCH-7. **Owner 2026-10-30: next tick = NEW FEATURE w2a World 1 / World 2 split** (todo `worlds-split`, goal world2,
+   docs/WORLDS_SPEC.md). Read WORLDS_SPEC + design doc "Worlds", rules-gate it, start the goal's integration branch if missing, split
+   into worktree tasks (WorldConfig, per-world TrackRegistry, PlayerData VERSION 13 + migration, WorldService portal + teleport),
+   test-writer red tests first. ORCH-6 UI follow-ups (85d9464c, e628ec7b) and ORCH-3 probe stay parked.
+
 ORCH-6. **Orchestrator 2026-10-29: owner decisions + UI fix round 2 (worktrees ../RobloxGames-orch/{ui-tests,phone-hud,ui-polish}).**
    Owner 2026-10-29 (docs on feature/alex/world1-ship 1a33161 + 65cd315, HUD_LAYOUT_SPEC 6/9): the Items/Upgrade pair NEVER stacks; the phone
    Speed readout sits bottom right (bounds 24/130 px, may shrink to >= 50% of phone k). manual hud-pair-phone-rule + speed-float-phone done;
