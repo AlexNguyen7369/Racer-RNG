@@ -28,7 +28,7 @@ All positions are local (x, z) of Track 1's flattened Start, like the rest of th
 
 | Constant | Old | New |
 |---|---|---|
-| `SpawnArea.AREA_MIN` / `AREA_MAX` (the purple floor) | (24, -100) / (184, 44), 160 x 144 | **(24, -188) / (252, 44), 228 x 232** |
+| `SpawnArea.AREA_MIN` / `AREA_MAX` (the spawn floor; purple until the 2026-10-30 paddock redesign) | (24, -100) / (184, 44), 160 x 144 | **(24, -188) / (252, 44), 228 x 232** |
 | `SpawnArea.HUB_MIN` / `HUB_MAX` (new: the old floor, kept free of plots) | | (24, -100) / (184, 44) |
 | Walk spawn / `Spawn` part | centre of the area | **centre of the HUB** (unchanged position: (104, -28)) |
 | `StartPad` | (-20, 2) / (24, 38) | unchanged |

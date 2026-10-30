@@ -1,7 +1,7 @@
 # Spawn area, race payouts, turbo luck and the roll feed
 
 Owner's brief (2026-10-01):
-- Create a spawn area, relatively large and purple for now, close to Track 1 and connected to its start, so players
+- Create a spawn area, relatively large and purple for now (colour superseded 2026-10-30 by section 1b), close to Track 1 and connected to its start, so players
   can walk onto the start platform to start auto racing.
 - It is the spawn point (join and respawn) and where Stop always sends the player, out of the race.
 - Each won track pays its current/last-track reward immediately; stopping does not cash out a growing pot.
@@ -24,7 +24,8 @@ the start at z ~ 40..140, so the area sits to the RIGHT of the start straight, n
 
 | Constant | Value |
 |---|---|
-| `SpawnArea.COLOR` | `Color3.fromRGB(140, 70, 220)` (purple) |
+| `SpawnArea.COLOR` | `Color3.fromRGB(206, 196, 180)` (warm paddock concrete, placeholder; owner 2026-10-30 replaces purple (140, 70, 220), section 1b) |
+| `SpawnArea.SPAWN_COLOR` | `Color3.fromRGB(245, 245, 240)` (the `Spawn` part, placeholder) |
 | `SpawnArea.AREA_MIN` / `AREA_MAX` | local (x, z) `(24, -188)` / `(252, 44)`: the floor, 228 x 232 studs (hub + 7 workshop plots, 2026-10-06) |
 | `SpawnArea.HUB_MIN` / `HUB_MAX` | local (x, z) `(24, -100)` / `(184, 44)`: the hub, 160 x 144 studs, kept free of plots; `Spawn` and the walk spawn are at its centre |
 | `SpawnArea.PAD_MIN` / `PAD_MAX` | local (x, z) `(-20, 2)` / `(24, 38)`: the start platform AS AUTHORED (44 x 36). Its placement comes from the two rows below |
@@ -35,9 +36,9 @@ the start at z ~ 40..140, so the area sits to the RIGHT of the start straight, n
 | `SpawnArea.WALK_ROOT_HEIGHT` | `3` studs: HumanoidRootPart above the floor top when standing |
 
 `Workspace.SpawnArea` (Model) contains:
-- `Floor`: anchored Part, `COLOR`, `Material = SmoothPlastic`, covers AREA_MIN..AREA_MAX, top at `TOP_Y`.
+- `Floor`: anchored Part, `COLOR`, `Material = Concrete` (owner 2026-10-30), covers AREA_MIN..AREA_MAX, top at `TOP_Y`.
 - `Edge*`: low (2 stud) anchored edge walls on the three outer sides of the area (not the side facing the pad/road).
-- `Spawn`: `SpawnLocation` in the middle of the area (`Neutral = true`, `Duration = 0`, 12 x 1 x 12, `COLOR`), top
+- `Spawn`: `SpawnLocation` in the middle of the area (`Neutral = true`, `Duration = 0`, 12 x 1 x 12, `SPAWN_COLOR`), top
   at `TOP_Y`. It is the game's only SpawnLocation.
 - `StartPad`: anchored Part covering PAD_MIN..PAD_MAX in the frame `SpawnArea.PadBase(startCFrame)` (which moves
   the pad, pavilion meshes, boundaries and lights together to `PAD_CENTER` facing `PAD_FRONT`), top at
@@ -54,6 +55,40 @@ Rules (tests): the area and pad overlap no road / wall / checkpoint part of ANY 
 ignoring each track's `Ground`); every waypoint of the race path is at least `CarService` `WALK_CLEARANCE` (75)
 from the walk spawn; the placed pad footprint is `PAD_CENTER` ± (18, 22). Since the 2026-10-10 move the pad no
 longer spans the road centre or touches Track 1's Start: walking onto it starts the race by teleport (section 2).
+
+## 1b. Paddock theme (owner 2026-10-30)
+
+Owner's answers (2026-10-30, verbatim): "I want an open track theme, make the ground pixar themed. The floor can become
+concrete. Yes up to your design disgression. Portal spot is correct. 40 stud tower is ok. Continue implementation".
+Layout reference: `drafts/environments/spawn-area-redesign/DRAFT.md` section 3 (theme A, open-air pit-lane paddock).
+Every colour, size and count below is a placeholder unless marked fixed.
+
+1. **Theme:** an open-air race-track paddock plaza. The plots read as pit garages on one pit lane, the pavilion as
+   the pit exit, a timing tower as the landmark. Style is Pixar-like: stylised, warm, saturated, rounded shapes
+   (bevelled or rounded tops on tall pieces), never realistic or gritty.
+2. **Palette (placeholders):** floor `COLOR` (206, 196, 180); walkway paint (245, 232, 200); pit lane (78, 82, 96)
+   with white (245, 245, 240) edge lines; kerbs red (235, 70, 60) and white; accent teal (40, 200, 190); highlight
+   amber (255, 190, 65). Floor `Concrete` (fixed, owner); paint `SmoothPlastic`; tower and masts `Metal`.
+3. **Leftover purple (developer's discretion, owner 2026-10-30):** the `CheckpointNpc` ring becomes teal
+   (40, 200, 190); the leaderboard sign backs (52, 56, 72); the edge walls kerb red / white; the pavilion
+   `RoofPurple` mesh red (235, 70, 60) by a `Color` change only. The x = 24 road side stays open (no pit wall).
+4. **Decor folder:** every theme piece is under `Workspace.SpawnArea.Decor`. Every decor part is anchored with
+   `CanTouch = false`; flat paint (0.1 high, top at `TOP_Y + 0.05`) is `CanCollide = false` and `CanQuery = false`;
+   tall pieces collide only through invisible box boundaries. No decor part lies inside a plot rect, the placed pad
+   footprint, the marketplace footprint, a pedestal / pass-car stand radius, or outside `AREA_MIN..AREA_MAX` at
+   any height, and none is taller than 0.1 within 10 studs of the walk spawn.
+5. **Pit lane:** the strips in front of the plots (x 184..200 and z -132..-116) hold no part taller than 0.1, so
+   plot fronts are never blocked.
+6. **Timing tower:** 40 studs tall (owner OK), 6 x 6, at local (176, -92), decorative only (no live data).
+7. **Portal spot:** the World 1 `WorldPortal` stands at local (96, -88) inside the hub (fixed, owner); its
+   24 x 12 footprint and +Z facing are placeholders. The decor task only reserves it (nothing else is placed there); the World 2 task builds it.
+8. **Lighting:** decor never changes `Lighting`, `Atmosphere`, `Sky` or post effects. At most 4 new local lights,
+   all `Shadows = false`.
+9. **Budget:** at most 250 new BaseParts and 20,000 mesh triangles in `Decor`; parts with `Size.Magnitude` <= 30
+   cast no shadow (`RENDERING_SPEC.md` section 3).
+10. **World 2 hub:** reuses this layout and theme in its own palette, chosen when the World 2 hub is built.
+11. Unchanged: `Spawn` size and place, `StartPad`, `PAD_CENTER`, plots, marketplace, leaderboards, pedestals and
+    every section 1 overlap rule. Test: `spawn_area` (updated) and a new `spawn_decor` scenario (test-writer).
 
 ## 2. Player flow (`Server/CarService`)
 

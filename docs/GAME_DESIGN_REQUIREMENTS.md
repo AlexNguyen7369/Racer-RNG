@@ -814,6 +814,17 @@ Idle Vehicle Simulator — Game Design Requirements
        still own the sky and restore this baseline when they end. Purely visual: nothing
        here changes physics, payouts or race results.
 
+  Owner spawn-area redesign, 2026-10-30 (docs/SPAWN_AND_ROLLS_SPEC.md section 1b):
+       The flat purple spawn floor is replaced by an open-air race-track paddock plaza
+       (replaces the 2026-10-01 brief "relatively large and purple for now"). The ground is
+       Pixar-styled: stylised, soft, warm and saturated colours with rounded shapes, not
+       realistic. The floor material is Concrete. A 40-stud timing tower is the landmark,
+       and the World 1 portal spot is local (96, -88) in the hub. Retinting the leftover
+       purple, the low wall on the road side and reusing the theme for the World 2 hub are
+       left to the developer's design judgement. Purely visual: the spawn point, the
+       StartPad, the plots and every gameplay rule stay as they are. Colours, sizes and the
+       part budget are placeholders.
+
   Jett Fuel (luck burst, shown in game as TURBO LUCK)
 
   Owner decision, 2026-10-12 (replaces the brainstorm's "every 50 rolls, 10x"):
@@ -998,6 +1009,8 @@ Idle Vehicle Simulator — Game Design Requirements
        It multiplies the player's roll Luck and Money multi alongside the other multipliers; it
        never changes Speed gain, cruise speed or car physics. The server counts friends and decides
        the multi; the client only displays it. The 10% per friend and the 40% cap are placeholders.
+       Owner decision, 2026-10-30: the HUD shows a "FRIENDS +N%" chip next to the potion timers
+       (bottom right), hidden when no friend is in the server (docs/HUD_LAYOUT_SPEC.md section 5).
 
   Weather events
   Contract: docs/WEATHER_EVENTS_SPEC.md.
@@ -1127,6 +1140,10 @@ Idle Vehicle Simulator — Game Design Requirements
 
        Daily and weekly quests (docs/QUESTS_SPEC.md) track core-loop actions, reset on UTC periods, and reward existing
        potion items. They never create a second Money source.
+       Owner decision, 2026-10-30: the quests rotate. Each UTC day (daily) and each UTC week
+       (weekly) the server picks 3 quests from a larger pool, seeded by the period key, so every
+       player and every server gets the same 3. The pool, the targets and the potion rewards
+       are placeholders (docs/QUESTS_SPEC.md).
 
        What survives rebirth: cars, fuel, auras, spoilers, workshop upgrades, Jett Fuel?
 

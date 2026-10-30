@@ -53,9 +53,9 @@ GachaService.MoneyMulti(player) = Multis.Money x RebirthConfig.MoneyMulti x Boos
 
 - Player attributes, set by the server: `FriendsInServer` (integer count) and `FriendBoost` (the multi).
   Updated on every join, leave and test-override change. No remote; clients cannot change either.
-- HUD: no UI yet, open question. A natural place is a status icon in the bottom-right potion row
-  (`RacerProgression/PotionStatus`, HUD_LAYOUT_SPEC section 5) showing `FRIENDS +N%`; it needs an owner
-  decision and a UI spec/bake before it is built.
+- HUD (owner 2026-10-30): a `FRIENDS +N%` chip in the bottom-right potion row
+  (`RacerProgression/PotionStatus`, HUD_LAYOUT_SPEC section 5), where N = `round((FriendBoost - 1) x 100)`.
+  It is hidden when `FriendsInServer` is 0 and updates when either attribute changes. Display only.
 
 ## 5. Test override (Studio only)
 
