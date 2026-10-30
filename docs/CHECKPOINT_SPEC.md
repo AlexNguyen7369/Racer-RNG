@@ -34,7 +34,8 @@ last track goes back to the checkpoint.
 
 - `Shared/SpawnArea` builds `SpawnArea.Checkpoints` (Model "CheckpointNpc") at hub-local `CheckpointConfig.NPC_POS`
   (in front of the pavilion's -Z entrance, beside Track 1's wall), facing the hub centre: an anchored R15 rig,
-  a neon purple ring under it, a BillboardGui "Checkpoints" / "Choose your start", and a `ProximityPrompt`
+  a neon ring under it (purple; teal (40, 200, 190) from the 2026-10-30 paddock redesign,
+  `SPAWN_AND_ROLLS_SPEC.md` 1b.3, placeholder), a BillboardGui "Checkpoints" / "Choose your start", and a `ProximityPrompt`
   `OpenCheckpoints` (E, ActionText "Checkpoints", `MaxActivationDistance` 10). Never overlaps a track or the pad.
 
 ## 3. UI

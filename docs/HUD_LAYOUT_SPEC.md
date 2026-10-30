@@ -97,6 +97,10 @@ adds the shared slight enlargement without a white hover box; its Claim button r
   weather icon. The time left is written under the icon in white outlined text: `9m 33s`, `49m 42s`, or `42s`
   under one minute.
 - Hovering an icon (or tapping it on touch) shows the name and the effect, as before.
+- Friends chip (owner 2026-10-30, `FRIENDS_BOOST_SPEC.md` section 4): a `FRIENDS +N%` chip sits in the same row,
+  left of the potion icons, in the same white outlined text. It is hidden when `FriendsInServer` is 0, so the row
+  then looks as before. It follows
+  the section 6 no-overlap rules at every tested viewport. Chip size is a placeholder.
 
 ## 6. No overlap
 

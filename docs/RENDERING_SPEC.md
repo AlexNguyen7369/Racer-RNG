@@ -18,7 +18,8 @@ nothing here changes physics, payouts, NPC speed or race results. Every number b
 ## 2. World materials
 - Track roads use `Asphalt`, walls `Concrete`, loop and hill supports keep their colour with `Concrete`.
   Colours are unchanged (biome themes). Lines, checkers, pads and every `Neon` part stay as they are.
-- The spawn-area floor stays `SmoothPlastic` (`SPAWN_AND_ROLLS_SPEC.md`).
+- The spawn-area floor is `Concrete` (owner 2026-10-30, replaces "stays `SmoothPlastic`"; `SPAWN_AND_ROLLS_SPEC.md`
+  section 1b).
 
 ## 3. Level of detail
 - Car skins: small detail groups cast no shadow (`CAR_REDESIGN_SPEC.md` section 8).

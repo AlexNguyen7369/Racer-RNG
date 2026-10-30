@@ -66,11 +66,12 @@ Out of scope: anything WORLDS_SPEC does not state (asked, not guessed)
 Status: active
 Priority: 2 (owner 2026-10-30: before world2)
 Owner-confirmed: 2026-10-28
-Branch: feature/alex/new-features (created on the first task)
+Branch: feature/alex/new-features (created 2026-10-30 from feature/alex/world2)
 Deliverables (each one is blocked until the owner writes its rule into the design doc and a spec):
 - nf1 | Daily quest system (todo `9c8021bf`) | spec written by owner; quest scenarios + UI tests green
 - nf2 | Redeem codes in the Shop (todo `6f721034`; may overlap with the codes in `shop-redesign`) | spec written by owner; codes scenario green
 - nf3 | Friends-in-server boost, +10% luck and Money per friend up to +40% (todo `ee591f0e`) | spec written by owner; gacha / economy scenarios green
+- nf4 | Spawn-area paddock redesign (owner 2026-10-30: "open track theme", Pixar ground, Concrete floor; SPAWN_AND_ROLLS_SPEC 1b) | spawn_area + new spawn_decor scenarios green; environment, workshop, leaderboard green
 Out of scope: monetization changes not in a spec
 
 ## improvements: Suggested features, optimizations and fixes (in parallel)
