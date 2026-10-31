@@ -82,8 +82,9 @@
 79. 2026-10-30 — Alex Nguyen — Wrote the owner's 2026-10-30 answers (spawn paddock theme with Concrete floor, quest rotation, FRIENDS +N% chip) into the design doc and specs on new branch feature/alex/new-features (rules-auditor PASS).
 80. 2026-10-30 — Alex Nguyen — Landed the daily/weekly quest rotation (3 of the pool per UTC period) with the `quests` scenario into feature/alex/new-features (quests 58/58, CARTEST 57/0) and updated CLAUDE.md, ProjectContext and the board.
 81. 2026-10-30 — Alex Nguyen — Landed the open-track spawn paddock redesign (SpawnDecor, Concrete floor, timing tower, pit lane, 260/300 parts) with the `spawn_decor` scenario into feature/alex/new-features (full harness 57/0).
+82. 2026-10-30 — Alex Nguyen — Landed the FRIENDS +N% HUD chip (hidden on phones, stacks above the DailyBoosts status line when the row is blocked) with the `ui_friends_chip` scenario into feature/alex/new-features (all 7 friends fixtures pass).
 
 ## What's next
-**Verify the friends chip in Studio (UITEST at desktop size and under phone emulation, `friends_boost` harness) and land it into feature/alex/new-features.**
+**Reproduce and fix the quest Claim bug (4796b256 / 12342e7c: Claim looks active on an incomplete quest) in Studio, in a worktree off feature/alex/new-features.**
 
-**Why this is next:** the chip code, phone-hide rule and its tests are written but unrun; Rojo now serves its worktree, and it is the last nf task before the quest Claim bug and World 2 resume.
+**Why this is next:** it is the oldest open new-features bug and the quests feature is not shippable while Claim misleads players; nf2 codes stays RELEASE-only per the owner, so this unblocks closing the new-features goal before World 2 resumes.
