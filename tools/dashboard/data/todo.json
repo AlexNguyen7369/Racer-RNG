@@ -1278,6 +1278,14 @@
       "done": "2026-10-30T14:00:00-07:00",
       "updated": "2026-10-30T14:00:00-07:00",
       "updatedBy": "Claude"
+    },
+    {
+      "id": "giftpicker-uispec",
+      "title": "Add GiftPicker buttons to UiSpec when gifting goes live",
+      "status": "backlog",
+      "detail": "Owner 2026-10-30: declare Client/GiftPicker Backdrop/Panel/GiftPicker/Cancel, /Confirm, /Recipients/<UserId> in UiSpec (with clicks) only when a MonetizationConfig GiftProductId is set above 0. Until then the picker never opens. Task for ui-test-writer.",
+      "updated": "2026-10-30T19:00:00-07:00",
+      "updatedBy": "Claude"
     }
   ]
 }

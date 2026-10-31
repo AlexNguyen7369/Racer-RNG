@@ -125,6 +125,14 @@ ORCH-9. **Owner 2026-10-30: PAUSE w2 after task 1; work on nf3 friends boost, nf
    Studio during the repro (not sent by the tester; another session?); restore brought Money back. Owner told. Rojo 34872 = main tree again.
    Remaining nf: ui-test-writer round (7b8202bc 3401fc8a e5deb113-style fixtures + UiSpec inventory 747c9737 e208fe51), Shop layout
    93e8fade, small tests (FriendBoostTests seam/leave, code limits), new reds 5285a1c3 1b3adfde a5acf49e.
+   UPDATE 8 2026-10-30: task uitest-faults (worktree ../RobloxGames-orch/uitest-faults, branch orch/new-features/uitest-faults,
+   uncommitted): ui-test-writer fixed 7b8202bc (UiSpec.ServerNow / ActiveDailyQuest, lazy quest clicks) and 3401fc8a
+   (quest_incomplete AutoRoll off + restore); 747c9737 / e208fe51 already resolved in tree (mark fixed after UITEST shows
+   every_screengui_in_spec / every_button_in_spec green). rules-auditor PASS. Rojo swap to the worktree was DENIED by the
+   classifier; owner killed it, Rojo 34872 NOW SERVES the uitest-faults worktree (owner connected). TESTS PAUSED BY OWNER
+   2026-10-30: physics-tester UITEST run stopped before a result, play stopped. On resume: physics-tester full UITEST.
+   Owner 2026-10-30: GiftPicker buttons go into UiSpec when gifting goes live (todo giftpicker-uispec).
+   Then: commit, land into feature/alex/new-features, rojo back to main tree, then Shop layout 93e8fade.
    NEXT (worktree tasks off feature/alex/new-features, file sets disjoint, can run in parallel):
    (a) spawn-paddock: test-writer updates spawn_area (spawn_floor_purple / spawn_color / spawn_floor_smooth_plastic -> 1b rules) + new
        spawn_decor red; then world-builder/general builds SpawnArea.luau + SpawnDecor.luau (plain Parts first; meshes later); world-tester.

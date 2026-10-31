@@ -238,7 +238,7 @@ updates automatically whenever the board changes; do not edit this block by hand
 - **Checkpoint tests (harness + UiSpec)**: test-writer: checkpoint scenario (validation, start track, loss resets to checkpoint, loop). ui-test-writer: CheckpointUi in UiSpec (overlap, locked cards, phone landscape). docs/CHECKPOINT_SPEC.md.
 - **Shop/Market panels cover the compact roll toast**: ui_hitboxes button_topmost_at_centre_shop_open/market_open: RollToast/Toast under the panel. PanelBand top = below Race button; the compact roll also sits below Race. Owner: band below the compact roll, or panel over the dimmed toast?
 
-### Backlog (future work) (15)
+### Backlog (future work) (16)
 
 - **World 2: 10 new tracks via /build-track**: Owner theme 2026-10-27: long, very wide tracks through massive beautiful mega biomes. Proposal in docs/WORLDS_SPEC.md section 6 (width 120, 20-45k studs, 10k tiles in a 5x2 grid, Terrain + streaming, per-biome lighting). Awaiting owner approval, then W2-A rules, W2-B pilot Meadow Valleys, W2-C tracks 2-10, W2-D polish.
 - **static_settle cold-start flake**: Failed 4 of ~8 cold starts (0.58-0.78 vs 0.5). DampingRatio raised to 1.0, not yet re-verified.
@@ -255,6 +255,7 @@ updates automatically whenever the board changes; do not edit this block by hand
 - **Pad billboard: short money text**: Pads now show e.g. $31640625000; track rule 6 says "$Cash". Owner decision needed to show HudFormat.MoneyText.
 - **Imrpove gacha roll animation to accuratley reflect a spin of all car models that are getting passed up. Users should be able to see the full rotation of cars spinning before landing on the car theyget**
 - **UI Animations for Upgrade tree. Smooth popups and actuation animations. Events and pops on clicks etc. smooth tree traversal**
+- **Add GiftPicker buttons to UiSpec when gifting goes live**: Owner 2026-10-30: declare Client/GiftPicker Backdrop/Panel/GiftPicker/Cancel, /Confirm, /Recipients/<UserId> in UiSpec (with clicks) only when a MonetizationConfig GiftProductId is set above 0. Until then the picker never opens. Task for ui-test-writer.
 
 ### Recently done (68)
 
