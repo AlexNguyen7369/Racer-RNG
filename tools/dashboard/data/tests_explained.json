@@ -515,5 +515,11 @@
     "why": "World 1 and World 2 are separate places with their own 10-track ladders; each place lists only its own world's tracks (docs/WORLDS_SPEC.md section 2, docs/CHECKPOINT_SPEC.md, owner 2026-10-27).",
     "limits": "none (exact values); Chain(2) empty until the World 2 tracks are built",
     "files": "CarTest/WorldTests, Shared/WorldConfig, Shared/TrackRegistry, Shared/Tracks/World1, Shared/Tracks/World2"
+  },
+  "ui_friends_chip": {
+    "checks": "FRIENDS +N% chip under RacerProgression/PotionStatus: hidden at 0 friends everywhere; hidden on phones (live viewport height <= 500) even with friends, while FriendsInServer / FriendBoost stay set and match the boost; on desktop/laptop/tablet shown with the server's FriendBoost at 1/4/6 friends, display only. Placement is exactly one of two: in the row left of the potion timers (required whenever that spot is clear, always with no potions, and at 1920x1080 with 3 potions), or stacked above the DailyBoosts status line (bottom 10 px, placeholder, above its top; the status line keeps its place), right-aligned with the rightmost potion icon, only when the row spot would overlap other HUD (e.g. 1024x768 with 3 potions). Either way it stays clear of the potions, weather and HUD at every non-phone viewport. The friends_* fixtures clear UiTestFriendsFixture on restore.",
+    "why": "FRIENDS_BOOST_SPEC 4 / HUD_LAYOUT_SPEC 5 (owner 2026-10-30): the boost must be visible on bigger screens without overlapping the potion row or other HUD; where the row has no room (tablet with 3 potions) the chip stacks above the potions; phones have no room, so the chip is hidden there but the boost still applies.",
+    "limits": "UiSpec.FriendsChip (PhoneMaxHeight 500, RowRequiredAt desktop_1080p, StackGap 10 placeholder, Status home, Tolerance), fixtures friends_0/1/4/6/4_potions/clear in UiTestSetup; run under phone Device emulation, at a desktop size and at a live 1024x768 (friends_4_potions)",
+    "files": "src/client/UiTest/UiFriendsChip.luau, RacerProgression"
   }
 }

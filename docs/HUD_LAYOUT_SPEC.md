@@ -101,6 +101,14 @@ adds the shared slight enlargement without a white hover box; its Claim button r
   left of the potion icons, in the same white outlined text. It is hidden when `FriendsInServer` is 0, so the row
   then looks as before. It follows
   the section 6 no-overlap rules at every tested viewport. Chip size is a placeholder.
+  Owner 2026-10-30: the chip is HIDDEN on phones (viewport height <= 500); the boost still applies there. On
+  desktop, laptop and tablet it stays in the potion row as a narrow two-line chip (about 64 px wide, placeholder)
+  so it fits beside the potions on tablet_4x3.
+  Owner 2026-10-30 (later): when the chip would overlap other HUD (e.g. tablet_4x3 with all 3 potions active), it
+  stacks ABOVE the potion row instead, right-aligned, same text; otherwise it stays left of the potions.
+  Owner 2026-10-30 (stacked spot): the DailyBoosts status line (`DailyBoosts/Status`, y = H-130 .. H-88) always sits
+  just above the potions, so the stacked chip goes above THAT line: chip bottom 10 px (placeholder) above the status
+  line's top, right-aligned with the potions. Only the chip moves; the status line keeps its place.
 
 ## 6. No overlap
 

@@ -189,6 +189,81 @@ local function potionTime(seconds)
 	end
 	return string.format("%ds", seconds)
 end
+-- docs/FRIENDS_BOOST_SPEC.md section 4 / HUD_LAYOUT_SPEC section 5: "FRIENDS +N%" left of the bottles, display only.
+-- Always present; hidden at 0 friends so the row keeps its old width (UIListLayout skips invisible children).
+-- Owner 2026-10-30: narrow two-line chip (about 64 px, placeholder); hidden on phones (viewport height <= 500).
+local friendsChip = make("TextLabel", "FriendsChip", potionStatus, {
+	Size = UDim2.fromOffset(64, 40), -- placeholder size
+	LayoutOrder = -1,
+	Active = false,
+	Visible = false,
+	BackgroundTransparency = 1,
+	Font = Enum.Font.FredokaOne,
+	TextScaled = true,
+	TextWrapped = true,
+	TextColor3 = Color3.new(1, 1, 1),
+	Text = "",
+})
+make("UITextSizeConstraint", "TextSize", friendsChip, { MaxTextSize = 17 })
+UiTheme.Stroke(friendsChip, 2)
+local function refreshFriendsChip()
+	local count, boost = player:GetAttribute("FriendsInServer"), player:GetAttribute("FriendBoost")
+	local camera = workspace.CurrentCamera
+	local phone = camera ~= nil and camera.ViewportSize.Y <= 500
+	local shown = not phone and type(count) == "number" and count > 0 and type(boost) == "number"
+	friendsChip.Visible = shown
+	if shown then
+		friendsChip.Text = string.format("FRIENDS +%d%%", math.floor((boost - 1) * 100 + 0.5))
+	end
+end
+refreshFriendsChip()
+for _, attr in { "FriendsInServer", "FriendBoost" } do
+	player:GetAttributeChangedSignal(attr):Connect(refreshFriendsChip)
+end
+if workspace.CurrentCamera then
+	workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(refreshFriendsChip)
+end
+-- Owner 2026-10-30: when the chip would overlap other HUD left of the bottles (1024x768 with 3 potions), it stacks
+-- above the row, right-aligned, and above the DailyBoosts status line that sits over the bottles (HUD_LAYOUT_SPEC 5).
+local CHIP_W, CHIP_H, POTION_W, ROW_GAP, STATUS_GAP = 64, 40, 64, 10, 10 -- STATUS_GAP placeholder
+local chipBlockers = {
+	{ "HudChrome", "ItemsSlot" },
+	{ "HudChrome", "UpgradeSlot" },
+	{ "RacerHud", "Turbo" },
+	{ "RacerHud", "Money" },
+	{ "RacerHud", "Speed" },
+	{ "RacerHud", "Level" },
+}
+local function chipRowBlocked(activeCount)
+	local right = potionStatus.AbsolutePosition.X + potionStatus.AbsoluteSize.X
+	local bottom = potionStatus.AbsolutePosition.Y + potionStatus.AbsoluteSize.Y
+	local x1 = right - activeCount * (POTION_W + ROW_GAP)
+	local x0, y0, y1 = x1 - CHIP_W, bottom - CHIP_H, bottom
+	for _, path in chipBlockers do
+		local screenGui = gui:FindFirstChild(path[1])
+		local other = screenGui and screenGui:FindFirstChild(path[2])
+		if other and other:IsA("GuiObject") and other.Visible and screenGui.Enabled then
+			local p, s = other.AbsolutePosition, other.AbsoluteSize
+			if s.X > 0 and s.Y > 0 and p.X < x1 and p.X + s.X > x0 and p.Y < y1 and p.Y + s.Y > y0 then
+				return true
+			end
+		end
+	end
+	return false
+end
+local function placeFriendsChip(activeCount)
+	local stacked = friendsChip.Visible and activeCount > 0 and chipRowBlocked(activeCount)
+	if not stacked then
+		friendsChip.Parent, friendsChip.AnchorPoint, friendsChip.Position = potionStatus, Vector2.zero, UDim2.new()
+		return
+	end
+	-- Out of the row so the layout does not place it; bottom STATUS_GAP above the status line (BoostDailyUi).
+	local boosts = gui:FindFirstChild("DailyBoosts")
+	local status = boosts and boosts:FindFirstChild("Status")
+	local top = status and status.AbsolutePosition.Y - hud.AbsolutePosition.Y or hud.AbsoluteSize.Y - 130 -- BoostDailyUi placeStatus default
+	friendsChip.Parent, friendsChip.AnchorPoint = hud, Vector2.new(1, 1)
+	friendsChip.Position = UDim2.new(1, -60, 0, top - STATUS_GAP)
+end
 for _, category in Boosts.Order do
 	local icon = make("ImageButton", category .. "Potion", potionStatus, {
 		Size = UDim2.fromOffset(64, 74),
@@ -274,7 +349,8 @@ local function refreshPotions(now)
 			slot.Card.Visible = false
 		end
 	end
-	potionStatus.Visible = activeCount > 0 and hud.Enabled
+	potionStatus.Visible = (activeCount > 0 or friendsChip.Visible) and hud.Enabled
+	placeFriendsChip(activeCount)
 end
 local treeView = require(script.Parent.RollToast.Ui.UpgradeTreeView).Create(gui, Tree, Format)
 local treePanel, feedback, tiles = treeView.Panel, treeView.Feedback, treeView.Tiles

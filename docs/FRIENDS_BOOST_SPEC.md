@@ -56,6 +56,11 @@ GachaService.MoneyMulti(player) = Multis.Money x RebirthConfig.MoneyMulti x Boos
 - HUD (owner 2026-10-30): a `FRIENDS +N%` chip in the bottom-right potion row
   (`RacerProgression/PotionStatus`, HUD_LAYOUT_SPEC section 5), where N = `round((FriendBoost - 1) x 100)`.
   It is hidden when `FriendsInServer` is 0 and updates when either attribute changes. Display only.
+- Owner 2026-10-30: the chip is also hidden on phones (viewport height <= 500); the boost still applies.
+  Elsewhere it is a narrow two-line chip (about 64 px wide, placeholder), see HUD_LAYOUT_SPEC section 5.
+- Owner 2026-10-30 (later): when there is no room left of the potions (the chip would overlap other HUD), it stacks
+  above the potion row, right-aligned (HUD_LAYOUT_SPEC section 5). Owner 2026-10-30: the stacked chip sits above the
+  DailyBoosts status line too (bottom 10 px above it, placeholder), so it never covers that line.
 
 ## 5. Test override (Studio only)
 

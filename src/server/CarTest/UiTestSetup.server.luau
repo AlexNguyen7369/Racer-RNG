@@ -8,6 +8,7 @@
 --
 -- Ids: snapshot, restore, spy, index_states, daily_unclaimed, daily_claimed, checkpoint_locked, checkpoint_open, quest_incomplete, quest_complete, stat_points, no_stat_points, auto_racing, on_foot, lose_event, turbo_next,
 -- emphasized_next, auto_roll_on, rebirth_eligible, rebirth_not_eligible, duel_* (every id: UiSpec.ServerSetup), roll_odds_*, weather_* (rain, night, gold, aurora, clear, clear_event, rain_roll).
+-- friends_0, friends_1, friends_4, friends_6, friends_4_potions, friends_clear (UiSpec.FriendsChip).
 -- (Ported from the ServerSetup snippets in Client/UiTest/UiSpec.luau.)
 
 local HttpService = game:GetService("HttpService")
@@ -32,6 +33,24 @@ local functionSpies = {} -- original RemoteFunction -> { name, proxy }; original
 local progressionSnapshots = {}
 local weatherSnapshot = nil
 local questSnapshots = {} -- [Player] = QuestService.Snapshot before a quest_* fixture
+
+-- Friends chip fixtures (UiSpec.FriendsChip, docs/FRIENDS_BOOST_SPEC.md section 5): the override and the planted
+-- potions from before the first friends_* fixture. friends_clear and 'restore' put them back.
+local friendsSnapshot = nil -- { count = { value }, boosts = { [Player] = { [attr] = value } } }
+local function friendsRestore()
+	if not friendsSnapshot then
+		return
+	end
+	ReplicatedStorage:SetAttribute("FriendBoostTestCount", friendsSnapshot.count.value)
+	for player, attrs in friendsSnapshot.boosts do
+		if player.Parent then
+			for name, value in attrs do
+				player:SetAttribute(name, value)
+			end
+		end
+	end
+	friendsSnapshot = nil
+end
 
 local function stat(player, name)
 	if name == "Speed" then
@@ -194,6 +213,8 @@ function setups.restore(player)
 		setAutoRoll(player, snap.autoRoll == true)
 	end
 	player:SetAttribute("UiTestRollOdds", nil) -- UiSpec.RollOdds.Attr
+	friendsRestore() -- UiSpec.FriendsChip: the override and the planted potions (no-op without a snapshot)
+	ReplicatedStorage:SetAttribute("UiTestFriendsFixture", nil) -- always, also after friends_clear (bug e5deb113)
 	snapshots[player] = nil
 	removeSpy()
 end
@@ -873,6 +894,39 @@ local function showcaseSpy()
 		return live("GachaService").SetShowcase(player, ...)
 	end
 	proxy.Parent = remotes
+end
+
+-- friends_<n>: ReplicatedStorage.FriendBoostTestCount = n (FriendBoostService refreshes FriendsInServer and
+-- FriendBoost at once). friends_4_potions also starts one potion per BoostConfig category (BoostUntil_<id>), so the
+-- chip is judged beside real potion icons. UiTestFriendsFixture (ReplicatedStorage) names the fixture being judged.
+for _, item in
+	{ { "friends_0", 0 }, { "friends_1", 1 }, { "friends_4", 4 }, { "friends_6", 6 }, { "friends_4_potions", 4 } }
+do
+	setups[item[1]] = function(player)
+		if not friendsSnapshot then
+			friendsSnapshot =
+				{ count = { value = ReplicatedStorage:GetAttribute("FriendBoostTestCount") }, boosts = {} }
+		end
+		if item[1] == "friends_4_potions" and not friendsSnapshot.boosts[player] then
+			local BoostConfig = require(Shared.BoostConfig)
+			local attrs = {}
+			for _, category in BoostConfig.Order do
+				local first = BoostConfig.ItemsFor(category)[1]
+				if first then
+					local name = "BoostUntil_" .. first.Id
+					attrs[name] = player:GetAttribute(name)
+					player:SetAttribute(name, workspace:GetServerTimeNow() + 600)
+				end
+			end
+			friendsSnapshot.boosts[player] = attrs
+		end
+		ReplicatedStorage:SetAttribute("FriendBoostTestCount", item[2])
+		ReplicatedStorage:SetAttribute("UiTestFriendsFixture", item[1])
+	end
+end
+function setups.friends_clear(_player)
+	friendsRestore()
+	ReplicatedStorage:SetAttribute("UiTestFriendsFixture", "friends_clear")
 end
 
 local function runSetup(request)
