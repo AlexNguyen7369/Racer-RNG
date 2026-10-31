@@ -3,7 +3,7 @@
 PROJECT CONTEXT - Idle Vehicle Simulator (read me first)
 Shown in Studio at: ServerScriptService > ProjectContext   (source file: context/ProjectContext.luau)
 Do NOT edit this in Studio: edit the file on disk, Rojo syncs it. Claude updates it at the end of every loop.
-Last updated: 2026-10-30 (Claude orchestrator: friends chip landed, branch feature/alex/new-features)
+Last updated: 2026-10-30 (Claude orchestrator: friends chip + quest Claim fix landed, branch feature/alex/new-features)
 BALANCE PASS + CRUISE CAP + WORLDS PLAN - 2026-10-27/28 (Claude, uncommitted; owner decisions in the design doc):
 - Rebirth rev. 4 ("+1 Speed" genre table): TOTALS 1.5 .. 10 then x10 to 1e11, levels 15 .. 600, max 20 (Speed gain, XP, Luck).
 - XP/s = 1 x Speed gain multi; XPToNext = XP_LINEAR x level to XP_KNEE 225, then x10 per XP_DECADE levels (122 / 37.2,
@@ -12,6 +12,9 @@ BALANCE PASS + CRUISE CAP + WORLDS PLAN - 2026-10-27/28 (Claude, uncommitted; ow
   HALF_STAT 10K, MAX_CRUISE 800 (speed_probe green to 1000). NPC growth 1.51 (Track 10 = 653).
 - Money: cap 1e30 everywhere, Money is a NumberValue, MAX_AWARD = MAX_MONEY (was 1e9: Track 9-10 payouts were refused).
 - Worlds: docs/WORLDS_SPEC.md (World 2 = separate place, rebirths 11-20, mega biomes); tools/balance_sim.py.
+- 2026-10-30 (quest Claim fix, feature/alex/new-features 9beff23): BoostDailyUi redraws the Quests rows when the modal reopens
+  after progress/claims changed while hidden (bugs 4796b256 12342e7c 38ad5dbf fixed). Verified live: quest_claim_disabled_fires_nothing
+  + quest_claim_asks_server pass. Open test bugs: 7b8202bc (UiSpec ACTIVE_DAILY_QUEST before time sync), 3401fc8a (auto-roll in fixture).
 - 2026-10-30 (friends chip, feature/alex/new-features 1dde593): ProgressionUi FRIENDS +N% chip left of the potion timers,
   hidden at 0 friends and on phones (height <= 500); when that spot is blocked (1024x768, 3 potions) it moves above the DailyBoosts
   status line (STATUS_GAP 10 placeholder), right-aligned. New UI scenario `ui_friends_chip` (UiFriendsChip, fixtures friends_*).

@@ -83,8 +83,9 @@
 80. 2026-10-30 — Alex Nguyen — Landed the daily/weekly quest rotation (3 of the pool per UTC period) with the `quests` scenario into feature/alex/new-features (quests 58/58, CARTEST 57/0) and updated CLAUDE.md, ProjectContext and the board.
 81. 2026-10-30 — Alex Nguyen — Landed the open-track spawn paddock redesign (SpawnDecor, Concrete floor, timing tower, pit lane, 260/300 parts) with the `spawn_decor` scenario into feature/alex/new-features (full harness 57/0).
 82. 2026-10-30 — Alex Nguyen — Landed the FRIENDS +N% HUD chip (hidden on phones, stacks above the DailyBoosts status line when the row is blocked) with the `ui_friends_chip` scenario into feature/alex/new-features (all 7 friends fixtures pass).
+83. 2026-10-30 — Alex Nguyen — Fixed the quest Claim bug (stale Claim after progress changed while the Quests modal was hidden) and landed it into feature/alex/new-features, verified live.
 
 ## What's next
-**Reproduce and fix the quest Claim bug (4796b256 / 12342e7c: Claim looks active on an incomplete quest) in Studio, in a worktree off feature/alex/new-features.**
+**Run a ui-test-writer round on the open UI test bugs (7b8202bc ACTIVE_DAILY_QUEST time-sync race, 3401fc8a auto-roll in the quest fixture, UiSpec inventory 747c9737 / e208fe51), then a full UITEST.**
 
-**Why this is next:** it is the oldest open new-features bug and the quests feature is not shippable while Claim misleads players; nf2 codes stays RELEASE-only per the owner, so this unblocks closing the new-features goal before World 2 resumes.
+**Why this is next:** these test faults make the quest and inventory checks flaky or incomplete, so every later new-features UI change (Shop layout 93e8fade, the new reds) needs them fixed before its results can be trusted.

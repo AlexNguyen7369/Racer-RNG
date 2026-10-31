@@ -2479,7 +2479,7 @@
       "id": "12342e7c",
       "name": "Quest Claim stays active for incomplete quest",
       "kind": "failure",
-      "status": "open",
+      "status": "fixed",
       "file": "src/client/BoostDailyUi.client.luau",
       "line": 578,
       "endLine": 578,
@@ -2501,7 +2501,10 @@
       "error": "",
       "foundBy": "ui-tester",
       "foundAt": "2026-10-28T19:02:02-07:00",
-      "loggedBy": "Alex Nguyen"
+      "loggedBy": "Alex Nguyen",
+      "fixedAt": "2026-10-30T18:14:06-07:00",
+      "fixedBy": "Alex Nguyen",
+      "fixNote": "BoostDailyUi questsStale redraw on reopen (3808783); verified live 2026-10-30: quest_claim_disabled_fires_nothing + quest_claim_asks_server pass"
     },
     {
       "id": "38e4a78b",
@@ -2787,7 +2790,7 @@
       "id": "4796b256",
       "name": "quest_incomplete leaves Claim active",
       "kind": "failure",
-      "status": "open",
+      "status": "fixed",
       "file": "src/server/CarTest/UiTestSetup.server.luau",
       "line": 1,
       "endLine": 1,
@@ -2805,7 +2808,10 @@
       "error": "",
       "foundBy": "ui-tester",
       "foundAt": "2026-10-28T20:05:44-07:00",
-      "loggedBy": "Alex Nguyen"
+      "loggedBy": "Alex Nguyen",
+      "fixedAt": "2026-10-30T18:14:05-07:00",
+      "fixedBy": "Alex Nguyen",
+      "fixNote": "BoostDailyUi questsStale redraw on reopen (3808783); verified live 2026-10-30: quest_claim_disabled_fires_nothing + quest_claim_asks_server pass"
     },
     {
       "id": "081c684a",
@@ -3394,6 +3400,118 @@
       "error": "",
       "foundBy": "physics-tester",
       "foundAt": "2026-10-30T17:33:43-07:00",
+      "loggedBy": "Alex Nguyen"
+    },
+    {
+      "id": "38ad5dbf",
+      "name": "Quests rows not redrawn while modal hidden",
+      "kind": "fault",
+      "status": "fixed",
+      "file": "src/client/BoostDailyUi.client.luau",
+      "line": 633,
+      "endLine": 639,
+      "snippet": {
+        "from": 629,
+        "lines": [
+          "\tquestCategory = \"Weekly\"",
+          "\tshowQuests()",
+          "end)",
+          "-- Progress and claims come from the server as attributes: re-render the open list so Claim is Active only while",
+          "-- the quest is complete and unclaimed.",
+          "for _, name in { \"QuestDailyProgress\", \"QuestWeeklyProgress\", \"QuestDailyClaimed\", \"QuestWeeklyClaimed\" } do",
+          "\tplayer:GetAttributeChangedSignal(name):Connect(function()",
+          "\t\tif view == \"Quests\" and backdrop.Visible then",
+          "\t\t\tshowQuests()",
+          "\t\tend",
+          "\tend)",
+          "end",
+          "",
+          "-- The top-right Daily and Quests pills (HudChrome) share this modal; a second click on the same pill closes it.",
+          "local function action(name, show)"
+        ]
+      },
+      "summary": "Quest progress/claim attribute changes while the DailyBoosts modal is hidden were dropped; reopening it by any path but the Quests pill (PanelSwitch.Toggle) showed stale rows, so an incomplete quest's Claim stayed Active. Root cause of 4796b256/12342e7c.",
+      "error": "",
+      "foundBy": "physics-tester",
+      "foundAt": "2026-10-30T18:07:06-07:00",
+      "loggedBy": "Alex Nguyen",
+      "fixedAt": "2026-10-30T18:14:06-07:00",
+      "fixedBy": "Alex Nguyen",
+      "fixNote": "BoostDailyUi questsStale redraw on reopen (3808783); verified live 2026-10-30: quest_claim_disabled_fires_nothing + quest_claim_asks_server pass"
+    },
+    {
+      "id": "3401fc8a",
+      "name": "quest fixture races auto-roll discovery",
+      "kind": "fault",
+      "status": "open",
+      "file": "src/server/CarTest/UiTestSetup.server.luau",
+      "line": 442,
+      "endLine": 461,
+      "snippet": {
+        "from": 438,
+        "lines": [
+          "",
+          "-- Quest fixtures (UiSpec quest_claim_*, docs/QUESTS_SPEC.md): today's first active daily quest unclaimed with progress 0",
+          "-- (incomplete: Claim disabled) or at its Target (complete: Claim enabled). Unsaved; 'restore' applies the",
+          "-- QuestService snapshot taken before the first quest fixture.",
+          "local function questFixture(player, complete)",
+          "\tassert(",
+          "\t\tsnapshots[player],",
+          "\t\t\"snapshot required before quest fixtures ('restore' consumes it: take a fresh 'snapshot')\"",
+          "\t)",
+          "\tlocal QuestService = live(\"QuestService\")",
+          "\tlocal saved = QuestService.Snapshot(player)",
+          "\tif not questSnapshots[player] then",
+          "\t\tquestSnapshots[player] = saved",
+          "\tend",
+          "\t-- docs/QUESTS_SPEC.md \"Rotation\": the first of today's active daily quests (UiSpec ACTIVE_DAILY_QUEST)",
+          "\tlocal quest = require(Shared.QuestConfig).Active(false, workspace:GetServerTimeNow())[1]",
+          "\tassert(quest and quest.Target, \"QuestConfig.Active(false, now) returned no quest\")",
+          "\tlocal fixture = table.clone(saved)",
+          "\tfixture.QuestDaily = table.clone(saved.QuestDaily)",
+          "\tfixture.QuestDailyClaimed = table.clone(saved.QuestDailyClaimed)",
+          "\tfixture.QuestDaily[quest.Id] = complete and quest.Target or 0",
+          "\tfixture.QuestDailyClaimed[quest.Id] = nil",
+          "\tQuestService.Apply(player, fixture)",
+          "end",
+          "",
+          "function setups.quest_incomplete(player)",
+          "\tquestFixture(player, false)",
+          "end"
+        ]
+      },
+      "summary": "quest_incomplete leaves AutoRoll on; daily_discover Target=1, so a real new-car discovery between setup and click makes Claim legitimately Active and the click test flaky. Not seen yet; for ui-test-writer.",
+      "error": "",
+      "foundBy": "physics-tester",
+      "foundAt": "2026-10-30T18:07:06-07:00",
+      "loggedBy": "Alex Nguyen"
+    },
+    {
+      "id": "7b8202bc",
+      "name": "ACTIVE_DAILY_QUEST computed before server time syncs",
+      "kind": "fault",
+      "status": "open",
+      "file": "src/client/UiTest/UiSpec.luau",
+      "line": 3090,
+      "endLine": 3090,
+      "snippet": {
+        "from": 3086,
+        "lines": [
+          "end",
+          "-- docs/QUESTS_SPEC.md \"Rotation\" (owner 2026-10-30): the quest clicks use the first of today's active daily quests;",
+          "-- Server/CarTest/UiTestSetup's quest fixtures pick the same one. shortcut: resolved at require time, so a run that",
+          "-- crosses 00:00 UTC must re-require UiSpec.",
+          "local ACTIVE_DAILY_QUEST = require(",
+          "\tgame:GetService(\"ReplicatedStorage\"):WaitForChild(\"Shared\"):WaitForChild(\"QuestConfig\")",
+          ").Active(false, workspace:GetServerTimeNow())[1].Id",
+          "table.insert(UiSpec.Clicks, {",
+          "\tId = \"select_daily_quest\","
+        ]
+      },
+      "summary": "UiSpec computes ACTIVE_DAILY_QUEST with workspace:GetServerTimeNow() at require time; early in a play session that is ~0, so Active(false,0)[1] = daily_rolls instead of today's quest and the quest_claim_* clicks fail target_exists with no UI fault. For ui-test-writer: resolve it lazily.",
+      "error": "",
+      "foundBy": "physics-tester",
+      "foundAt": "2026-10-30T18:13:27-07:00",
       "loggedBy": "Alex Nguyen"
     }
   ]

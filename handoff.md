@@ -119,6 +119,12 @@ ORCH-9. **Owner 2026-10-30: PAUSE w2 after task 1; work on nf3 friends boost, nf
    Not run: live 1024x768 / phone emulation (owner by hand). Rojo 34872 serves the MAIN tree again: owner must click Connect.
    Remaining new-features: nf2 codes (RELEASE only), quest Claim bug 4796b256/12342e7c, UiSpec inventory (747c9737 e208fe51),
    Shop layout 93e8fade, small tests (FriendBoostTests seam/leave, code limits). Spawn + quests + friends chip are done.
+   UPDATE 7 2026-10-30: quest Claim bug LANDED (3808783, merge 9beff23): BoostDailyUi questsStale redraw on reopen; live PASS; audit PASS.
+   Bugs 4796b256 12342e7c 38ad5dbf fixed. New test bugs for ui-test-writer: 7b8202bc (UiSpec:3090 ACTIVE_DAILY_QUEST computed at require
+   before server time sync), 3401fc8a (quest fixture leaves AutoRoll on). WARNING: an unexplained `/wipe` by FrozenCookie12345 hit the
+   Studio during the repro (not sent by the tester; another session?); restore brought Money back. Owner told. Rojo 34872 = main tree again.
+   Remaining nf: ui-test-writer round (7b8202bc 3401fc8a e5deb113-style fixtures + UiSpec inventory 747c9737 e208fe51), Shop layout
+   93e8fade, small tests (FriendBoostTests seam/leave, code limits), new reds 5285a1c3 1b3adfde a5acf49e.
    NEXT (worktree tasks off feature/alex/new-features, file sets disjoint, can run in parallel):
    (a) spawn-paddock: test-writer updates spawn_area (spawn_floor_purple / spawn_color / spawn_floor_smooth_plastic -> 1b rules) + new
        spawn_decor red; then world-builder/general builds SpawnArea.luau + SpawnDecor.luau (plain Parts first; meshes later); world-tester.
