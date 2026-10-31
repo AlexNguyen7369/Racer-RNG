@@ -520,8 +520,10 @@ local function selectQuest(quest, current, weekly)
 	questReward.Text = string.format("REWARD  •  x%s %s", HudFormat.Short(quest.RewardCount or 1), quest.Reward)
 end
 
+local questsStale = false -- progress/claims changed while the modal was hidden
 local function showQuests()
 	local opening = not backdrop.Visible or view ~= "Quests"
+	questsStale = false
 	view = "Quests"
 	panelFrame:SetTheme("Quests", nil, HudIcons.Quests.Image)
 	if not backdrop.Visible then
@@ -635,9 +637,17 @@ for _, name in { "QuestDailyProgress", "QuestWeeklyProgress", "QuestDailyClaimed
 	player:GetAttributeChangedSignal(name):Connect(function()
 		if view == "Quests" and backdrop.Visible then
 			showQuests()
+		elseif view == "Quests" then
+			questsStale = true
 		end
 	end)
 end
+-- Reopened by anything other than the Quests pill (e.g. PanelSwitch.Toggle): redraw so no stale Claim stays Active.
+backdrop:GetPropertyChangedSignal("Visible"):Connect(function()
+	if backdrop.Visible and questsStale and view == "Quests" then
+		showQuests()
+	end
+end)
 
 -- The top-right Daily and Quests pills (HudChrome) share this modal; a second click on the same pill closes it.
 local function action(name, show)
