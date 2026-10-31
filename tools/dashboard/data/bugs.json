@@ -3278,6 +3278,123 @@
       "fixedAt": "2026-10-30T11:59:26-07:00",
       "fixedBy": "Alex Nguyen",
       "fixNote": "AABB pre-filter + yields in spawn_area/workshop overlap checks (182d28c); spawn_area 1/0, full harness 57/0 live"
+    },
+    {
+      "id": "ecb98ee7",
+      "name": "ui_roll_emphasized got no emphasized roll",
+      "kind": "failure",
+      "status": "open",
+      "file": "src/client/UiTest/UiScenarios.luau",
+      "line": 1,
+      "endLine": 1,
+      "snippet": {
+        "from": 1,
+        "lines": [
+          "--!nonstrict",
+          "-- UI compatibility checks, run on the client by UiTestHarness. Owned by ui-test-writer.",
+          "-- Result shape matches Server/CarTest: { scenario, pass, checks = { { name, value, limit, pass } } }.",
+          "--",
+          "-- Geometry is in SCREEN pixels: (0, 0) is the window's top-left corner, the top-bar inset included."
+        ]
+      },
+      "summary": "The emphasized-roll scenario never received an emphasized RollResult, so the check could not run (friends-chip run 2026-10-30; maybe flaky fixture timing).",
+      "error": "state_missing:emphasized_next (no RollResult with emphasized == true) (present)",
+      "foundBy": "physics-tester",
+      "foundAt": "2026-10-30T12:34:14-07:00",
+      "loggedBy": "Alex Nguyen"
+    },
+    {
+      "id": "17b777b4",
+      "name": "ui_reduced_motion roll card shows no ViewportFrame",
+      "kind": "failure",
+      "status": "open",
+      "file": "src/client/RollToast/init.client.luau",
+      "line": 1,
+      "endLine": 1,
+      "snippet": {
+        "from": 1,
+        "lines": [
+          "--!nonstrict",
+          "-- The roll animation (docs/ROLL_ANIMATION_CONTRACT.md, design doc \"Roll animation\"). Every auto-roll result",
+          "-- (Remotes.RollResult, decided by the server's GachaService) plays as: pop in -> spin (cars drive through a reel,",
+          "-- slowing like a slot reel; fillers are real rolls, never fake near-misses) -> land (the result brakes into the",
+          "-- centre, the card pops, smoke) -> hold (longer for rarer cars, with rarity effects) -> exit (the card shrinks and"
+        ]
+      },
+      "summary": "With reduced motion on, the roll card landed on the result but showed no car viewport (friends-chip run 2026-10-30, not in the 32/5 baseline; maybe flaky).",
+      "error": "reduced_roll_lands_on_result: Odds \"1 in 27\" want \"1 in 27\"; no visible Viewport ViewportFrame (none)",
+      "foundBy": "physics-tester",
+      "foundAt": "2026-10-30T12:34:20-07:00",
+      "loggedBy": "Alex Nguyen"
+    },
+    {
+      "id": "dc7d9099",
+      "name": "RollToast hitbox padding at rest",
+      "kind": "failure",
+      "status": "open",
+      "file": "src/client/RollToast/init.client.luau",
+      "line": 1,
+      "endLine": 1,
+      "snippet": {
+        "from": 1,
+        "lines": [
+          "--!nonstrict",
+          "-- The roll animation (docs/ROLL_ANIMATION_CONTRACT.md, design doc \"Roll animation\"). Every auto-roll result",
+          "-- (Remotes.RollResult, decided by the server's GachaService) plays as: pop in -> spin (cars drive through a reel,",
+          "-- slowing like a slot reel; fillers are real rolls, never fake near-misses) -> land (the result brakes into the",
+          "-- centre, the card pops, smoke) -> hold (longer for rarer cars, with rarity effects) -> exit (the card shrinks and"
+        ]
+      },
+      "summary": "The compact roll toast's 150x110 hitbox is far larger than its visible 150x20 content at rest (friends-chip run 2026-10-30, not in baseline).",
+      "error": "hitbox_padding_rest: RollToast/Toast(549,124 150x110) content(549,213 150x20) (none)",
+      "foundBy": "physics-tester",
+      "foundAt": "2026-10-30T12:34:20-07:00",
+      "loggedBy": "Alex Nguyen"
+    },
+    {
+      "id": "5285a1c3",
+      "name": "Shop wyvern Buy looks enabled",
+      "kind": "failure",
+      "status": "open",
+      "file": "src/client/ShopUi.client.luau",
+      "line": null,
+      "endLine": null,
+      "snippet": null,
+      "summary": "ui_hitboxes disabled_buttons_look_disabled_shop_open: ShopUi Featured ember_wyvern Buy Active=false but AutoButtonColor=true; a disabled buy button still looks pressable. Maybe only on the admin test account that owns the gamepass.",
+      "error": "",
+      "foundBy": "physics-tester",
+      "foundAt": "2026-10-30T17:33:43-07:00",
+      "loggedBy": "Alex Nguyen"
+    },
+    {
+      "id": "1b3adfde",
+      "name": "Index equipped tile check missing state",
+      "kind": "failure",
+      "status": "open",
+      "file": "src/client/UiTest/UiScenarios.luau",
+      "line": null,
+      "endLine": null,
+      "snippet": null,
+      "summary": "ui_index equipped_tile_shows_equipped_and_is_disabled: state_missing:index_states while ember_wyvern is equipped; probably the test account, unconfirmed.",
+      "error": "",
+      "foundBy": "physics-tester",
+      "foundAt": "2026-10-30T17:33:43-07:00",
+      "loggedBy": "Alex Nguyen"
+    },
+    {
+      "id": "a5acf49e",
+      "name": "ui_loser no Lose event",
+      "kind": "failure",
+      "status": "open",
+      "file": "src/client/UiTest/UiScenarios.luau",
+      "line": null,
+      "endLine": null,
+      "snippet": null,
+      "summary": "ui_loser loser_shown_after_lose: state_missing:lose_event, no NpcRace Result Lose received during UITEST 2026-10-30; fixture timing suspected, unconfirmed.",
+      "error": "",
+      "foundBy": "physics-tester",
+      "foundAt": "2026-10-30T17:33:43-07:00",
+      "loggedBy": "Alex Nguyen"
     }
   ]
 }

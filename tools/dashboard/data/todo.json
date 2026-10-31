@@ -652,12 +652,13 @@
       "id": "ee591f0e",
       "title": "Friends-in-server boost",
       "detail": "+10% luck and Money per friend in the same server, up to +40%.\n\nFits this game: Encourages inviting friends; one multiplier in GachaService and MoneyService.\nInspired by: Common in 2025-2026 simulators",
-      "status": "doing",
+      "status": "done",
       "source": "suggestion:friend-boost",
       "by": "Alex Nguyen",
       "added": "2026-10-13T00:06:23-07:00",
       "updated": "2026-10-13T00:07:05-07:00",
-      "updatedBy": "Alex Nguyen"
+      "updatedBy": "Alex Nguyen",
+      "done": "2026-10-30"
     },
     {
       "id": "weather-odds-display",

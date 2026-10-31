@@ -113,6 +113,12 @@ ORCH-9. **Owner 2026-10-30: PAUSE w2 after task 1; work on nf3 friends boost, nf
    `git -C ../RobloxGames-orch/<task> status --short` (spawn: SpawnDecor.luau + SpawnPaddockProps.rbxmx present? friends: UiTest edits?);
    re-run rules-auditor on quests-rotation if no PASS is recorded; then implement whatever is missing, then Studio verify (one at a time).
    Merge note: Scenarios.luau / TestConfig.luau / tests_explained.json touched by both spawn and quests branches: merge carefully.
+   UPDATE 6 2026-10-30: friends-chip LANDED (1fd5ded, merge 1dde593, pushed; worktree + branch removed). Owner: stacked chip sits
+   10 px above DailyBoosts/Status (3 docs). All 7 friends fixtures pass live; rules-auditor PASS. Full UITEST 32/6; new reds logged
+   5285a1c3 (shop wyvern Buy look), 1b3adfde (index equipped tile), a5acf49e (ui_loser lose_event) -- likely admin test account.
+   Not run: live 1024x768 / phone emulation (owner by hand). Rojo 34872 serves the MAIN tree again: owner must click Connect.
+   Remaining new-features: nf2 codes (RELEASE only), quest Claim bug 4796b256/12342e7c, UiSpec inventory (747c9737 e208fe51),
+   Shop layout 93e8fade, small tests (FriendBoostTests seam/leave, code limits). Spawn + quests + friends chip are done.
    NEXT (worktree tasks off feature/alex/new-features, file sets disjoint, can run in parallel):
    (a) spawn-paddock: test-writer updates spawn_area (spawn_floor_purple / spawn_color / spawn_floor_smooth_plastic -> 1b rules) + new
        spawn_decor red; then world-builder/general builds SpawnArea.luau + SpawnDecor.luau (plain Parts first; meshes later); world-tester.

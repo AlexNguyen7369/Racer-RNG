@@ -3,7 +3,7 @@
 PROJECT CONTEXT - Idle Vehicle Simulator (read me first)
 Shown in Studio at: ServerScriptService > ProjectContext   (source file: context/ProjectContext.luau)
 Do NOT edit this in Studio: edit the file on disk, Rojo syncs it. Claude updates it at the end of every loop.
-Last updated: 2026-10-30 (Claude orchestrator: owner answers into docs, branch feature/alex/new-features)
+Last updated: 2026-10-30 (Claude orchestrator: friends chip landed, branch feature/alex/new-features)
 BALANCE PASS + CRUISE CAP + WORLDS PLAN - 2026-10-27/28 (Claude, uncommitted; owner decisions in the design doc):
 - Rebirth rev. 4 ("+1 Speed" genre table): TOTALS 1.5 .. 10 then x10 to 1e11, levels 15 .. 600, max 20 (Speed gain, XP, Luck).
 - XP/s = 1 x Speed gain multi; XPToNext = XP_LINEAR x level to XP_KNEE 225, then x10 per XP_DECADE levels (122 / 37.2,
@@ -12,6 +12,11 @@ BALANCE PASS + CRUISE CAP + WORLDS PLAN - 2026-10-27/28 (Claude, uncommitted; ow
   HALF_STAT 10K, MAX_CRUISE 800 (speed_probe green to 1000). NPC growth 1.51 (Track 10 = 653).
 - Money: cap 1e30 everywhere, Money is a NumberValue, MAX_AWARD = MAX_MONEY (was 1e9: Track 9-10 payouts were refused).
 - Worlds: docs/WORLDS_SPEC.md (World 2 = separate place, rebirths 11-20, mega biomes); tools/balance_sim.py.
+- 2026-10-30 (friends chip, feature/alex/new-features 1dde593): ProgressionUi FRIENDS +N% chip left of the potion timers,
+  hidden at 0 friends and on phones (height <= 500); when that spot is blocked (1024x768, 3 potions) it moves above the DailyBoosts
+  status line (STATUS_GAP 10 placeholder), right-aligned. New UI scenario `ui_friends_chip` (UiFriendsChip, fixtures friends_*).
+  Verified live: all 7 friends fixtures pass at 1247x664 (tablet_4x3 simulated); UITEST 32/6 (new reds 5285a1c3 1b3adfde a5acf49e,
+  likely test account). NOT run: live 1024x768 / phone Device emulation.
 - 2026-10-30 (spawn paddock, feature/alex/new-features 9509998): SPAWN_AND_ROLLS_SPEC 1b open-track plaza: Shared/SpawnDecor
   (Concrete floor, 40-stud timing tower (176,-92), pit lane, kerbs, floodlights; ReplicatedStorage.SpawnPaddockProps meshes, part
   fallback), purple retinted; 260/300 parts, 9584 tris. New scenario `spawn_decor`. spawn_area/workshop overlap checks AABB-filtered
