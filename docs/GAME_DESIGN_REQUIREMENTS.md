@@ -1012,6 +1012,12 @@ Idle Vehicle Simulator — Game Design Requirements
        the multi; the client only displays it. The 10% per friend and the 40% cap are placeholders.
        Owner decision, 2026-10-30: the HUD shows a "FRIENDS +N%" chip next to the potion timers
        (bottom right), hidden when no friend is in the server (docs/HUD_LAYOUT_SPEC.md section 5).
+       Owner decision, 2026-10-30: the chip is hidden on phones (viewport height <= 500); the
+       boost still applies. On desktop, laptop and tablet it is a narrow two-line chip.
+       Owner decision, 2026-10-30 (later): when there is no room beside the potions, the chip
+       stacks above the potion row instead (e.g. 1024x768 with 3 potions).
+       Owner decision, 2026-10-30: the stacked chip sits above the daily status line that
+       is over the potions, so it covers neither.
 
   Weather events
   Contract: docs/WEATHER_EVENTS_SPEC.md.

@@ -145,6 +145,8 @@ UiScenarios.Names = {
 	-- ui_offline_welcome needs its offline_welcome server fixture, so it runs only through
 	-- UiSpec.Progression.FixtureChecks (UiTestScenario), like ui_offline_zero.
 	"ui_weather",
+	-- docs/FRIENDS_BOOST_SPEC.md section 4 (owner 2026-10-30): the FRIENDS +N% chip; with friends via UiSpec.FriendsChip
+	"ui_friends_chip",
 	-- Last: its server setup (emphasized_next) takes the cars away until the emphasized roll happened
 	"ui_roll_emphasized",
 }
@@ -6837,6 +6839,28 @@ local contracts = require(script.Parent.UiContracts).Build({
 	switch = require(script.Parent.Parent.PanelSwitch),
 })
 for name, fn in contracts.Scenarios do
+	S[name] = fn
+end
+
+-- Friends-in-server chip (UiFriendsChip; UiSpec.FriendsChip)
+local friendsChip = require(script.Parent.UiFriendsChip).Build({
+	check = check,
+	checkList = checkList,
+	find = Help.findPath,
+	visible = effectivelyVisible,
+	player = player,
+	pathOf = pathOf,
+	render = Help.renderFrame,
+	provider = provider,
+	viewports = UiSpec.Viewports,
+	viewport = viewport,
+	contains = contains,
+	intersects = intersects,
+	rstr = rstr,
+	realRect = realRect,
+	waitGuis = waitGuis,
+})
+for name, fn in friendsChip.Scenarios do
 	S[name] = fn
 end
 

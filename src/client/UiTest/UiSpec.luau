@@ -2676,6 +2676,122 @@ UiSpec.Progression.FixtureChecks = {
 }
 
 --[[
+Friends-in-server chip (owner 2026-10-30; docs/FRIENDS_BOOST_SPEC.md sections 4-5, docs/HUD_LAYOUT_SPEC.md sections
+5-6, design doc "Friends-in-server boost"). Checked by ui_friends_chip (main run and every FixtureChecks entry below).
+  - A TextLabel named `FriendsChip` DIRECTLY under RacerProgression/PotionStatus (the bottom-right potion row). It
+    exists from the start (hidden, not absent, at 0 friends) and is display only: never a GuiButton, never Active.
+  - FriendsInServer == 0: the chip is not shown (Visible false) and the row looks as before: PotionStatus is shown
+    exactly when a potion button is, and its width is the potion buttons plus the layout padding (the chip takes no
+    room).
+  - Phones (owner 2026-10-30, HUD_LAYOUT_SPEC section 5, FRIENDS_BOOST_SPEC section 4): at a live viewport height
+    <= PhoneMaxHeight the chip is not shown (Visible false) even with FriendsInServer > 0, and the row looks as
+    before (same two row rules as at 0 friends); FriendsInServer and FriendBoost are still set and still match
+    Boost(count) (the boost still applies). Checked on the live viewport, so ui-tester runs the friends_* fixtures
+    under phone Device emulation as well as at a desktop size (UiSpec.ClickNeedsUnemulatedView: geometry scenarios
+    may run emulated). Simulated phone viewports get no chip geometry (nothing is drawn there).
+  - FriendsInServer > 0 at a non-phone viewport: the chip is shown (PotionStatus too, potions or not) and its Text is exactly
+    Text:format(round((FriendBoost - 1) x 100)), from the server's FriendBoost attribute; the attributes match
+    Boost(count) (spec section 2, PER_FRIEND / CAP placeholders). It follows a count change within FollowSeconds,
+    with no rejoin (each fixture run changes the override in the same session).
+  - Geometry at every non-phone UiSpec.Viewports entry (tablet_4x3 with potions included, fixture friends_4_potions),
+    measured when the live viewport is not a phone: inside the screen and its row, clear of the shown potion buttons,
+    the weather icon and every other reachable element (Clear, every AlwaysOn element of every UiSpec.Guis entry,
+    PanelDimmers.PersistentButtons). Chip size and its two-line, about 64 px wide shape are placeholders (any size
+    passes these rules).
+  - Placement (owner 2026-10-30, HUD_LAYOUT_SPEC section 5): exactly one of two.
+      row      left of every shown potion icon (right edge <= the leftmost icon's left edge + Tolerance);
+      stacked  above the DailyBoosts status line (owner 2026-10-30, stacked spot: bottom <= Status top - StackGap +
+               Tolerance; so also above the icons) and right-aligned (right edge within Tolerance of the rightmost
+               icon's right edge). The status line keeps its home (Status, BoostDailyUi placeStatus on non-phones):
+               friends_status_line_home_current. While stacked the chip may be reparented out of PotionStatus to
+               StackedChip (same ScreenGui), so friends_chip_in_row is required only for the row placement.
+    The row is required whenever the row placement would be clear (on screen, clear of potions, weather and the
+    other HUD) and whenever no potion is shown; stacked only when the row placement is not clear. The live viewport
+    ("current") checks the chip's real placement against this (friends_chip_placement_current), so ui-tester runs
+    friends_4_potions at a live 1024x768 as well (there all 3 potions push the row onto HudChrome/UpgradeSlot ->
+    stacked). Simulated viewports check the rule's placement there (the chip's live rect when it is in that placement,
+    else the same chip size built from the icons and the row's UIListLayout padding for the row, or from the
+    status line's modelled home at that viewport minus StackGap and the rightmost icon's right edge for stacked). At RowRequiredAt with potions
+    the row placement must be clear (friends_chip_row_fits_<vp>). Both placements keep every overlap rule above.
+The run assumes no FriendBoostTestCount override before the UI tests (Studio default nil): after friends_clear the
+override must be nil again.
+]]
+UiSpec.FriendsChip = {
+	Row = "RacerProgression/PotionStatus",
+	Chip = "RacerProgression/PotionStatus/FriendsChip",
+	StackedChip = "RacerProgression/FriendsChip", -- where the chip may live while stacked (out of the row, same ScreenGui)
+	-- DailyBoosts status line home on non-phones (BoostDailyUi placeStatus: AnchorPoint (1, 0), Position
+	-- (1, -Right, 1, -Bottom), Width x Height; HUD_LAYOUT_SPEC section 5, y = H-130 .. H-88). It never moves for the chip.
+	Status = { Path = "DailyBoosts/Status", Right = 16, Bottom = 130, Width = 160, Height = 42 },
+	StackGap = 10, -- px, placeholder (owner 2026-10-30): stacked chip bottom this far above the status line's top
+	Name = "FriendsChip",
+	Class = "TextLabel",
+	Text = "FRIENDS +%d%%",
+	CountAttr = "FriendsInServer",
+	BoostAttr = "FriendBoost",
+	Override = "FriendBoostTestCount", -- ReplicatedStorage, Studio only (spec section 5)
+	FixtureAttr = "UiTestFriendsFixture", -- ReplicatedStorage, set by the friends_* fixtures
+	PerFriend = 0.10, -- placeholder (spec section 2)
+	Cap = 0.40, -- placeholder (spec section 2)
+	FollowSeconds = 1, -- the chip shows the new count this soon after the attributes have it
+	PhoneMaxHeight = 500, -- px: at or below this viewport height the chip is hidden (owner 2026-10-30)
+	Weather = "RacerProgression/WeatherIcon",
+	RowRequiredAt = "desktop_1080p", -- UiSpec.Viewports name: with potions the chip must fit in the row here
+	Clear = {
+		"RacerProgression/WeatherIcon",
+		"RacerProgression/WorkshopRate",
+		"RacerHud/Speed",
+		"RacerHud/Money",
+		"RacerHud/Level",
+		"RacerHud/Turbo",
+		"RacerHud/Race/Face",
+		"HudChrome/ItemsSlot",
+		"HudChrome/UpgradeSlot",
+		"HudChrome/Grid",
+		"HudChrome/ShopColumn",
+		"HudChrome/TopRight",
+		"RollToast/Toast",
+		"DailyBoosts/Status",
+	},
+	-- Fixture id -> the override it sets and the chip text it must show (nil = hidden)
+	Fixtures = {
+		friends_0 = { Count = 0 },
+		friends_1 = { Count = 1, Text = "FRIENDS +10%" },
+		friends_4 = { Count = 4, Text = "FRIENDS +40%" },
+		friends_6 = { Count = 6, Text = "FRIENDS +40%" },
+		friends_4_potions = { Count = 4, Text = "FRIENDS +40%", Potions = true },
+		friends_clear = { Restored = true },
+	},
+}
+function UiSpec.FriendsChip.Boost(count)
+	return 1 + math.min(UiSpec.FriendsChip.PerFriend * math.max(0, math.floor(count)), UiSpec.FriendsChip.Cap)
+end
+-- In this order (each count change seen in one session, no rejoin), each run with 'snapshot' before and 'restore'
+-- after, per the fixture run protocol above.
+for _, id in { "friends_1", "friends_4", "friends_6", "friends_4_potions", "friends_0", "friends_clear" } do
+	table.insert(UiSpec.Progression.FixtureChecks, { Setup = id, Scenario = "ui_friends_chip" })
+end
+for _, item in
+	{
+		{ "friends_0", "FriendBoostTestCount = 0 (Studio override): FriendsInServer 0, FriendBoost 1." },
+		{ "friends_1", "FriendBoostTestCount = 1: FriendsInServer 1, FriendBoost 1.1." },
+		{ "friends_4", "FriendBoostTestCount = 4: FriendsInServer 4, FriendBoost 1.4 (the cap)." },
+		{ "friends_6", "FriendBoostTestCount = 6: FriendsInServer 6, FriendBoost 1.4 (capped)." },
+		{
+			"friends_4_potions",
+			"As friends_4, plus one active potion per BoostConfig category (BoostUntil_<first item> = now + 600).",
+		},
+		{ "friends_clear", "Puts FriendBoostTestCount and the planted potions back to their pre-fixture values." },
+	}
+do
+	table.insert(UiSpec.ServerSetup, {
+		Id = item[1],
+		When = "before ui_friends_chip (UiSpec.Progression.FixtureChecks); needs 'snapshot' first, 'restore' undoes it",
+		What = item[2] .. " Sets ReplicatedStorage UiTestFriendsFixture = the id.",
+	})
+end
+
+--[[
 Displayed odds (docs/WEATHER_EVENTS_SPEC.md "Displayed odds"; docs/ROLL_ANIMATION_CONTRACT.md). RollResult's 6th
 argument is the roll's server luck for compatibility, but both Odds labels (RollToast/Toast `Odds`; RollShowcase/Card
 `ResultOdds` and its alias `Odds`) show the catalog rarity with `HudFormat.Odds(Chance)`. A catch-all car (Chance nil)
