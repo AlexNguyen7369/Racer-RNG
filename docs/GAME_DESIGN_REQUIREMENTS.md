@@ -906,6 +906,18 @@ Idle Vehicle Simulator — Game Design Requirements
        Open question: whether a free sprint undercuts the early paid Walkspeed tiers, and
        whether phones and gamepads get a sprint control. Spec: docs/SPRINT_SPEC.md.
 
+  Car mount
+  Proposed by Vic2CS, 2026-11-10, on branch feature/vic2cs/dev-changes. Not yet reviewed by
+  the owner; it needs the owner's agreement before it reaches main.
+
+       Pressing C while on foot puts the character on top of its equipped car and moves
+       with the normal walking controls; pressing C again gets off. It works anywhere on
+       foot and riding still counts as on foot: the race pad, workshop Speed gain and duels
+       all keep working, and reaching the race pad gets off and starts the race.
+       Better cars ride faster: walking speed x (1 + 0.5 x log10(the car's SpeedMulti)),
+       at most x3 and 100 studs/s (placeholders). The server sets the speed. Riding never
+       changes the Speed stat, its gain, Money or race physics. Spec: docs/MOUNT_SPEC.md.
+
   Technical and data requirements
   The server decides every number (Speed, Money, rolls, race results) and the client only
   displays it. That's the main defense against exploiters.

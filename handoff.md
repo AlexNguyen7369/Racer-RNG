@@ -18,6 +18,9 @@ in git history (`git log -p -- handoff.md`, last full version at 2d99d78) and in
   `docs/SPRINT_SPEC.md`. Code: `Client/SprintInput`, `CarService` (`Remotes.SetSprint`, `SPRINT_MULTI`), Shift Lock off in
   `default.project.json`. Needs the owner's agreement before main, because the Walkspeed upgrade tiers sell on-foot speed.
   Keyboard only so far.
+- Car mount (2026-11-10, committed on this branch, seen working in a single-player playtest; two players not tried): C rides the equipped car on foot. Rules: design doc "Car mount", `docs/MOUNT_SPEC.md`.
+  Code: `Shared/MountConfig`, `Client/MountController`, `CarService` (`Remotes.ToggleMount`, `SetMounted`). Needs the owner's
+  agreement before main. Keyboard only so far.
 - Known: `src/server/CarTest/Scenarios.luau` has a stray `return Scenarios` before its last lines, so the harness fails
   to load. Pre-existing; only test-writer edits tests. The new experience also needs Studio API access and EditableMesh
   turned on in its settings.

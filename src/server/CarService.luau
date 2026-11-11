@@ -20,6 +20,8 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local CarConfig = require(Shared.CarConfig)
 local CarFactory = require(Shared.CarFactory)
 local CarAppearance = require(Shared.CarAppearance)
+local CarCatalog = require(Shared.CarCatalog)
+local MountConfig = require(Shared.MountConfig)
 local SpawnArea = require(Shared.SpawnArea)
 local PlayerData = require(script.Parent.PlayerData)
 local RaceService = require(script.Parent.RaceService)
@@ -49,6 +51,8 @@ local watched = setmetatable({}, { __mode = "k" }) -- character -> true once its
 local lastToggle = {} -- player -> os.clock() of the last accepted remote request
 local lastPadStart = {} -- player -> os.clock() of the last stop or StartPad start (StartPad cooldown)
 local sprinting = {} -- player -> true while they hold Shift
+local mounts = {} -- player -> { Car, Humanoid, HipHeight, SpeedMulti } while they ride (docs/MOUNT_SPEC.md)
+local lastMountToggle = {} -- player -> os.clock() of the last accepted ride toggle
 
 local DUEL_SLOT_GAP = 8 -- studs between the two held duel cars (the road is 40 wide)
 
@@ -122,12 +126,16 @@ local function hideCharacter(character)
 	end
 end
 
--- On-foot WalkSpeed: the player's Walkspeed upgrade tier (UpgradeService), raised while sprinting; the StarterPlayer
--- default for fakes.
+-- On-foot WalkSpeed: the player's Walkspeed upgrade tier (UpgradeService), raised while sprinting and while riding;
+-- the StarterPlayer default for fakes.
 local function walkSpeedOf(player)
 	if typeof(player) == "Instance" then
 		local speed = UpgradeService.WalkSpeed(player)
-		return sprinting[player] and speed * CarService.SPRINT_MULTI or speed
+		if sprinting[player] then
+			speed *= CarService.SPRINT_MULTI
+		end
+		local mount = mounts[player]
+		return mount and math.min(speed * mount.SpeedMulti, MountConfig.MAX_SPEED) or speed
 	end
 	return StarterPlayer.CharacterWalkSpeed
 end
@@ -250,6 +258,20 @@ local function unseat(humanoid)
 	end
 end
 
+-- Takes the player off their ridden car (docs/MOUNT_SPEC.md). WalkSpeed is left for the caller to refresh.
+local function dismount(player)
+	local mount = mounts[player]
+	if not mount then
+		return
+	end
+	mounts[player] = nil
+	mount.Car:Destroy()
+	if mount.Humanoid.Parent then
+		mount.Humanoid.HipHeight = mount.HipHeight
+	end
+	player:SetAttribute("Mounted", false)
+end
+
 -- The race is an event in three steps, so nothing drives before the player is really in the car:
 --   1. the car is built at the start line and held there (chassis anchored: nothing can drag it, not even a client
 --      that still reports its avatar where it stood a moment ago);
@@ -263,6 +285,7 @@ end
 -- DUEL_SLOT_GAP studs to the left: two cars held on one spot let each seat take the other player's avatar.
 local function spawnCar(player, character, gen, duel)
 	removeCar(player)
+	dismount(player)
 	local humanoid = character:WaitForChild("Humanoid")
 	character:WaitForChild("HumanoidRootPart")
 	if generation[player] ~= gen then
@@ -402,6 +425,7 @@ local function adopt(player, character)
 		humanoid.Died:Once(function()
 			if characters[player] == character then
 				removeCar(player)
+				dismount(player)
 			end
 		end)
 	end
@@ -511,6 +535,7 @@ function CarService.OnCharacter(player, character)
 	adopt(player, character)
 	local gen = setState(player, false)
 	removeCar(player)
+	dismount(player)
 	if player:GetAttribute("Unbanked") == nil then
 		player:SetAttribute("Unbanked", 0) -- the HUD's UNBANKED row reads it from the start
 	end
@@ -527,6 +552,7 @@ end
 
 local function forget(player)
 	removeCar(player)
+	dismount(player)
 	local character = characters[player]
 	if character and hidden[character] then
 		hidden[character].Added:Disconnect()
@@ -538,6 +564,7 @@ local function forget(player)
 	lastToggle[player] = nil
 	lastPadStart[player] = nil
 	sprinting[player] = nil
+	lastMountToggle[player] = nil
 end
 
 -- Re-applies WalkSpeed to an avatar on foot (a hidden, riding avatar keeps WalkSpeed 0).
@@ -547,6 +574,73 @@ local function refreshWalkSpeed(player)
 	if humanoid and not hidden[character] then
 		humanoid.WalkSpeed = walkSpeedOf(player)
 	end
+end
+
+-- Puts the avatar on top of its equipped car: a cosmetic welded under the root that moves with normal walking.
+-- HipHeight lifts the avatar to the car's roof. Returns true when the player is riding.
+local function mountCar(player)
+	local character = characters[player]
+	if racing[player] == true or not isAlive(character) or hidden[character] then
+		return false
+	end
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	local root = character:FindFirstChild("HumanoidRootPart")
+	if not root then
+		return false
+	end
+	local id = player:GetAttribute("EquippedCar")
+	local car = CarFactory.build(CarConfig)
+	car.Name = "MountedCar"
+	car:SetAttribute("IsCar", nil)
+	car.DriverSeat:Destroy() -- nothing may sit the avatar down: it keeps walking
+	CarAppearance.Apply(car, id, CarConfig)
+	VehicleEffects.Apply(car, player)
+
+	local chassis = car.PrimaryPart
+	chassis.CanCollide = false
+	chassis.CanTouch = false
+	chassis.CanQuery = false
+	chassis.Massless = true
+	chassis.RootPriority = -127
+
+	-- The car is still at the origin here, with its chassis RestHeight above the ground
+	local boxCFrame, boxSize = (car:FindFirstChild("EquippedVisual") or car):GetBoundingBox()
+	local seatHeight = math.min(boxCFrame.Y + boxSize.Y / 2 + CarConfig.RestHeight, MountConfig.MAX_SEAT_HEIGHT)
+	local hipHeight = humanoid.HipHeight
+	humanoid.HipHeight = seatHeight
+
+	-- Move the whole car first: its welds fix their offsets when it enters the Workspace
+	local offset = CFrame.new(0, CarConfig.RestHeight - seatHeight - root.Size.Y / 2, 0)
+	car:PivotTo(root.CFrame * offset)
+	local weld = Instance.new("Weld")
+	weld.Name = "MountWeld"
+	weld.Part0 = root
+	weld.Part1 = chassis
+	weld.C0 = offset
+	weld.Parent = chassis
+	CollectionService:AddTag(car, MountConfig.TAG)
+	car.Parent = Workspace
+
+	local spec = CarCatalog.Get(id)
+	mounts[player] = {
+		Car = car,
+		Humanoid = humanoid,
+		HipHeight = hipHeight,
+		SpeedMulti = MountConfig.SpeedMulti(spec and spec.SpeedMulti),
+	}
+	player:SetAttribute("Mounted", true)
+	return true
+end
+
+-- Rides or gets off the equipped car. Returns whether the player is riding.
+function CarService.SetMounted(player, enabled)
+	if enabled and not mounts[player] then
+		mountCar(player)
+	elseif not enabled then
+		dismount(player)
+	end
+	refreshWalkSpeed(player)
+	return mounts[player] ~= nil
 end
 
 function CarService.Start()
@@ -589,6 +683,38 @@ function CarService.Start()
 		refreshWalkSpeed(player)
 	end)
 
+	local mountRemote = remotes:FindFirstChild("ToggleMount")
+	if not mountRemote then
+		mountRemote = Instance.new("RemoteEvent")
+		mountRemote.Name = "ToggleMount"
+		mountRemote.Parent = remotes
+	end
+	mountRemote.OnServerEvent:Connect(function(player)
+		local now = os.clock()
+		if lastMountToggle[player] and now - lastMountToggle[player] < MountConfig.TOGGLE_COOLDOWN then
+			return
+		end
+		lastMountToggle[player] = now
+		CarService.SetMounted(player, mounts[player] == nil)
+	end)
+
+	-- A rider's raised avatar does not touch the race pad, so riders are checked by position (docs/MOUNT_SPEC.md).
+	task.spawn(function()
+		while true do
+			task.wait(MountConfig.PAD_CHECK)
+			for player, mount in mounts do
+				local root = mount.Humanoid.RootPart
+				for _, pad in CollectionService:GetTagged(SpawnArea.TAG) do
+					local offset = root and pad.CFrame:PointToObjectSpace(root.Position)
+					if offset and math.abs(offset.X) <= pad.Size.X / 2 and math.abs(offset.Z) <= pad.Size.Z / 2 then
+						task.spawn(CarService.PadTouched, player, root)
+						break
+					end
+				end
+			end
+		end
+	end)
+
 	local function onCharacter(player, character)
 		CarService.OnCharacter(player, character)
 	end
@@ -613,10 +739,14 @@ function CarService.Start()
 				CarAppearance.Apply(car, player:GetAttribute("EquippedCar"), CarConfig)
 				VehicleEffects.Apply(car, player)
 			end
+			if mounts[player] then -- swap the ridden car and its speed
+				dismount(player)
+				CarService.SetMounted(player, true)
+			end
 		end)
 		for _, attribute in { "EquippedAura", "EquippedTrail" } do
 			player:GetAttributeChangedSignal(attribute):Connect(function()
-				local car = cars[player]
+				local car = cars[player] or (mounts[player] and mounts[player].Car)
 				if car and car.Parent then
 					VehicleEffects.Apply(car, player)
 				end
