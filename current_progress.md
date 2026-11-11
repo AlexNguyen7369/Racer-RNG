@@ -67,8 +67,10 @@
 64. 2026-10-27 — Alex Nguyen — Rebuilt all 111 reference cars as toy racers (15,000-triangle cap, pilot approved, re-uploaded) and gave Singularity a floating, spinning, bobbing neon-glow black hole orb with the singularity_orb test, on feature/alex/car-redesign-v3-toy-racer (ce060e6).
 65. 2026-10-27 — Alex Nguyen — Verified car redesign v3 in Studio: full harness 50/3 with every car and Singularity orb scenario green (the 3 failures come from the uncommitted giant-scenery work, bug b99e2c0b logged) (c390103).
 66. 2026-10-27 — Alex Nguyen — Merged car redesign v3 (toy racer skins for all 111 cars and the Singularity orb) into main (6ad9717).
+67. 2026-11-10 — Vic2CS — Created a local git repository from the downloaded Racer-RNG-main folder and saved a baseline snapshot commit on branch `baseline/2026-11-10`, with no link to the GitHub history and no tests run.
+68. 2026-11-10 — Vic2CS — Added a character-sized blue block beside the spawn pad, stopped the car handbrake from blocking Space on foot so players can jump (not yet tested in play), and pointed the Rojo dev setup at the Racer RNG Dev experience, on feature/vic2cs/dev-changes.
 
 ## What's next
-**Owner looks at the toy racer cars and the Singularity orb while racing in Studio and tunes the placeholder numbers (`TOY` proportions in tools/build_redesign_cars.py, `OrbMotion` spin / bob, `OrbGlow` brightness) if needed.**
+**Decide the sprint design (key, speed and phone button) and whether it is for the copy only or the main game, then write it into the design doc and build it.**
 
-**Why this is next:** every proportion and orb number is a placeholder in CAR_REDESIGN_SPEC sections 10-11, and any change means a rebuild and re-upload of the cars, so it should be settled before further car art builds on them.
+**Why this is next:** sprint was requested but a new feature must be in the design doc before any code, and it affects the paid Walkspeed upgrade tiers, so the building work depends on that decision.

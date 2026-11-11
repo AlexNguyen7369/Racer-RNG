@@ -17,6 +17,13 @@ local player = Players.LocalPlayer
 
 local handbrake = false
 ContextActionService:BindActionAtPriority("CarHandbrake", function(_, state)
+	local character = player.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	local seat = humanoid and humanoid.SeatPart
+	if not (seat and seat:IsA("VehicleSeat")) then
+		handbrake = false
+		return Enum.ContextActionResult.Pass -- on foot, Space is the normal jump
+	end
 	handbrake = state == Enum.UserInputState.Begin or state == Enum.UserInputState.Change
 	return Enum.ContextActionResult.Sink -- stops Space from making the avatar jump out of the seat
 end, false, Enum.ContextActionPriority.High.Value, Enum.KeyCode.Space)

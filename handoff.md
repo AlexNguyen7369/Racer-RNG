@@ -3,6 +3,22 @@
 Only the current state and open work. Older entries (2026-10-02 .. 2026-10-26) were trimmed on 2026-10-27; they are
 in git history (`git log -p -- handoff.md`, last full version at 2d99d78) and in `context/ProjectContext.luau`.
 
+## State — 2026-11-10 (vic's dev place)
+
+- vic develops in a copied experience, "Racer RNG Dev" (Place ID 79371032891073). `dev.project.json` (`rojo serve dev.project.json`,
+  port 34873) now allows only that place. Code stays in Git; Studio is reached through the Roblox Studio MCP.
+- That place has same-named duplicates in `ReplicatedStorage`, not yet removed (waiting for vic's OK): a second `CarModels`
+  whose 42 MeshParts have empty MeshIds, and a second `RaceStartPavilion` with a different pivot and `Ropilot*` attributes.
+  Keep the first of each. Rojo is connected to this place; the first sync did not add more duplicates.
+- Branch `feature/vic2cs/dev-changes` (2026-11-10): blue character-sized block beside the spawn pad (`SpawnArea`, seen in
+  play) and Space no longer swallowed on foot (`CarController`, so jumping works; not yet tested in play).
+- Waiting on vic: sprint is not built. Proposal: hold Left Shift for 1.5x WalkSpeed, server-set, optional phone button.
+  Left Shift clashes with Shift Lock, which is on. It must go in the design doc first and needs the owner's agreement if
+  it is for the main game, because the Walkspeed upgrade tiers sell on-foot speed.
+- Known: `src/server/CarTest/Scenarios.luau` has a stray `return Scenarios` before its last lines, so the harness fails
+  to load. Pre-existing; only test-writer edits tests. The new experience also needs Studio API access and EditableMesh
+  turned on in its settings.
+
 ## State — 2026-10-27
 
 - Current branch: `feature/alex/ember-wyvern-flight` (from origin/main 820cd25 + c4f4fee); see Open work 0.

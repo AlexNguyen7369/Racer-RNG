@@ -1,0 +1,8 @@
+{
+  "name": "IdleVehicleSimulatorDev",
+  "servePort": 34873,
+  "servePlaceIds": [79371032891073],
+  "tree": {
+    "$path": "default.project.json"
+  }
+}

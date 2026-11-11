@@ -60,6 +60,8 @@ local EDGE_HEIGHT = 2
 local EDGE_WIDTH = 1
 local PAD_RAISE = 0.2
 local SPAWN_SIZE = 12
+local BLOCK_SIZE = Vector3.new(2, 6.25, 3.5) -- one standing character as measured in play: deep, tall, wide
+local BLOCK_GAP = 0.5 -- studs between the block and the spawn pad
 local LABEL_DISTANCE = 150
 
 -- Track 1's start, flattened: yaw only, at ground level (the local space every spawn-area and plot position uses)
@@ -193,6 +195,20 @@ function SpawnArea.Build(startCFrame)
 	if decal then
 		decal:Destroy()
 	end
+
+	-- A character-sized blue block standing on the floor, just off the spawn pad's edge so it never blocks a spawn.
+	local blockX = c.X - half - BLOCK_GAP
+	local blueBlock = slab(
+		model,
+		"BlueBlock",
+		startCFrame,
+		Vector2.new(blockX - BLOCK_SIZE.X, c.Y - BLOCK_SIZE.Z / 2),
+		Vector2.new(blockX, c.Y + BLOCK_SIZE.Z / 2),
+		top + BLOCK_SIZE.Y,
+		BLOCK_SIZE.Y
+	)
+	blueBlock.Color = Color3.fromRGB(30, 110, 255)
+	blueBlock.Material = Enum.Material.SmoothPlastic
 
 	local padFrame = SpawnArea.PadBase(startCFrame)
 	local pad = slab(model, "StartPad", padFrame, SpawnArea.PAD_MIN, SpawnArea.PAD_MAX, top + PAD_RAISE, 1)
