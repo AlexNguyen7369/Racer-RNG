@@ -30,6 +30,7 @@ local VehicleEffects = require(Shared.VehicleEffects)
 local CarService = {}
 
 CarService.TOGGLE_COOLDOWN = 0.75 -- seconds between toggle requests from one player (remote only)
+CarService.SPRINT_MULTI = 1.5 -- on-foot WalkSpeed multiplier while Shift is held (docs/SPRINT_SPEC.md, placeholder)
 
 local HIDDEN_GROUP = "HiddenAvatar" -- the hidden avatar while it rides: collides with nothing
 local UNSEAT_TIMEOUT = 1 -- most seconds Stop waits for the Humanoid to leave the seat
@@ -47,6 +48,7 @@ local hidden = {} -- character -> { Parts = { [part] = props }, Added = connecti
 local watched = setmetatable({}, { __mode = "k" }) -- character -> true once its death is handled
 local lastToggle = {} -- player -> os.clock() of the last accepted remote request
 local lastPadStart = {} -- player -> os.clock() of the last stop or StartPad start (StartPad cooldown)
+local sprinting = {} -- player -> true while they hold Shift
 
 local DUEL_SLOT_GAP = 8 -- studs between the two held duel cars (the road is 40 wide)
 
@@ -120,10 +122,12 @@ local function hideCharacter(character)
 	end
 end
 
--- On-foot WalkSpeed: the player's Walkspeed upgrade tier (UpgradeService), the StarterPlayer default for fakes.
+-- On-foot WalkSpeed: the player's Walkspeed upgrade tier (UpgradeService), raised while sprinting; the StarterPlayer
+-- default for fakes.
 local function walkSpeedOf(player)
 	if typeof(player) == "Instance" then
-		return UpgradeService.WalkSpeed(player)
+		local speed = UpgradeService.WalkSpeed(player)
+		return sprinting[player] and speed * CarService.SPRINT_MULTI or speed
 	end
 	return StarterPlayer.CharacterWalkSpeed
 end
@@ -533,6 +537,16 @@ local function forget(player)
 	generation[player] = nil
 	lastToggle[player] = nil
 	lastPadStart[player] = nil
+	sprinting[player] = nil
+end
+
+-- Re-applies WalkSpeed to an avatar on foot (a hidden, riding avatar keeps WalkSpeed 0).
+local function refreshWalkSpeed(player)
+	local character = characters[player]
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if humanoid and not hidden[character] then
+		humanoid.WalkSpeed = walkSpeedOf(player)
+	end
 end
 
 function CarService.Start()
@@ -558,6 +572,21 @@ function CarService.Start()
 		end
 		lastToggle[player] = now
 		CarService.SetAutoRace(player, enabled)
+	end)
+
+	-- No cooldown: a dropped release would leave the player stuck sprinting, and the server sets the speed either way.
+	local sprintRemote = remotes:FindFirstChild("SetSprint")
+	if not sprintRemote then
+		sprintRemote = Instance.new("RemoteEvent")
+		sprintRemote.Name = "SetSprint"
+		sprintRemote.Parent = remotes
+	end
+	sprintRemote.OnServerEvent:Connect(function(player, enabled)
+		if type(enabled) ~= "boolean" then
+			return
+		end
+		sprinting[player] = enabled or nil
+		refreshWalkSpeed(player)
 	end)
 
 	local function onCharacter(player, character)
@@ -606,14 +635,8 @@ function CarService.Start()
 	for _, p in Players:GetPlayers() do
 		onPlayer(p)
 	end
-	-- A Walkspeed purchase applies at once to an avatar on foot (a hidden, riding avatar keeps WalkSpeed 0)
-	UpgradeService.OnChanged(function(player)
-		local character = characters[player]
-		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-		if humanoid and not hidden[character] then
-			humanoid.WalkSpeed = walkSpeedOf(player)
-		end
-	end)
+	-- A Walkspeed purchase applies at once to an avatar on foot.
+	UpgradeService.OnChanged(refreshWalkSpeed)
 	PlayerData.OnLeaving(forget) -- before the leave save, so the run's last Speed gain is saved
 	Players.PlayerRemoving:Connect(forget)
 end

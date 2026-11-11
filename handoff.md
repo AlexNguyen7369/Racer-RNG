@@ -11,10 +11,13 @@ in git history (`git log -p -- handoff.md`, last full version at 2d99d78) and in
   whose 42 MeshParts have empty MeshIds, and a second `RaceStartPavilion` with a different pivot and `Ropilot*` attributes.
   Keep the first of each. Rojo is connected to this place; the first sync did not add more duplicates.
 - Branch `feature/vic2cs/dev-changes` (2026-11-10): blue character-sized block beside the spawn pad (`SpawnArea`, seen in
-  play) and Space no longer swallowed on foot (`CarController`, so jumping works; not yet tested in play).
-- Waiting on vic: sprint is not built. Proposal: hold Left Shift for 1.5x WalkSpeed, server-set, optional phone button.
-  Left Shift clashes with Shift Lock, which is on. It must go in the design doc first and needs the owner's agreement if
-  it is for the main game, because the Walkspeed upgrade tiers sell on-foot speed.
+  play) and Space no longer swallowed on foot (`CarController`; seen in play: 7.3 stud jump, Space in a car stays seated).
+- Rojo can lose edits made while Studio is in Play: Studio kept a half-updated `CarService`. Edit while stopped, and
+  compare the Source in Studio if a change seems missing; a real change to the file forces a full resend.
+- Sprint (2026-11-10, committed on this branch, seen working in play): hold Shift for 1.5x WalkSpeed (placeholder). Rules: design doc "On-foot sprint",
+  `docs/SPRINT_SPEC.md`. Code: `Client/SprintInput`, `CarService` (`Remotes.SetSprint`, `SPRINT_MULTI`), Shift Lock off in
+  `default.project.json`. Needs the owner's agreement before main, because the Walkspeed upgrade tiers sell on-foot speed.
+  Keyboard only so far.
 - Known: `src/server/CarTest/Scenarios.luau` has a stray `return Scenarios` before its last lines, so the harness fails
   to load. Pre-existing; only test-writer edits tests. The new experience also needs Studio API access and EditableMesh
   turned on in its settings.

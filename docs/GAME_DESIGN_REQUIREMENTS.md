@@ -895,6 +895,17 @@ Idle Vehicle Simulator — Game Design Requirements
        Trails and auras get shared authored transparent icons and distinct cosmetic
        in-world profiles, applied to the shared chassis without changing physics or equip authority.
 
+  On-foot sprint
+  Proposed by Vic2CS, 2026-11-10, on branch feature/vic2cs/dev-changes. Not yet reviewed by
+  the owner; it needs the owner's agreement before it reaches main.
+
+       Holding Shift while on foot moves the character at 1.5x its current WalkSpeed
+       (placeholder). Walkspeed upgrades still raise it, because it multiplies them.
+       The server sets the speed; the client only reports that Shift is held. It has no
+       effect while racing. Roblox's Shift Lock is turned off so the key does one thing.
+       Open question: whether a free sprint undercuts the early paid Walkspeed tiers, and
+       whether phones and gamepads get a sprint control. Spec: docs/SPRINT_SPEC.md.
+
   Technical and data requirements
   The server decides every number (Speed, Money, rolls, race results) and the client only
   displays it. That's the main defense against exploiters.
