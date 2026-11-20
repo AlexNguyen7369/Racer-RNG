@@ -3138,4 +3138,183 @@ table.insert(UiSpec.Clicks, {
 	Expect = { Panels = { ["RacerIndex/Panel"] = true }, Remote = false, After = { "gamepad_selection_in_panel" } },
 })
 
+---------------------------------------------------------------------------------------------------------------
+-- Timed nitro bar (docs/NITRO_SPEC.md; design doc "Timed nitro boost": proposed by Vic2CS 2026-11-19, approved by the
+-- developer for feature/vic2cs/dev-changes, not yet reviewed by the owner). Client/NitroInput builds ScreenGui NitroBar:
+-- Root (Frame) holding Label (TextLabel, the state text) and Bar (TextButton: dark bar with the Good / Perfect zones,
+-- the Charge fill and the white Needle). Shown only while the player attribute AutoRacing is true and NitroReadyAt is a
+-- number; the server owns NitroReadyAt, NitroUntil, NitroMulti, NitroGrade and NitroPresses (Server/NitroService).
+-- Rules the existing UI rules give it (no new number except the brief's gap):
+--  * Overlap: Label and Bar are AlwaysOn, so their place is kept free of every always-on element at every tested
+--    viewport, phone landscape included, even while the bar is hidden (it shows whenever the player auto races).
+--  * Panels: a panel may cover only a read-out, never a button (UiSpec.AllowOverlap, HUD_LAYOUT_SPEC section 6), and
+--    the Racer panel band (Race .. TURBO, between the Index / Stats / Rebirth column and the Shop column) and the
+--    Band.Fit panels cover the space just above Speed. The bar is none of the persistent HUD entries section 6 keeps
+--    drawn. So it is HIDDEN while any PanelSwitch panel is open (HiddenWhilePanelOpen "any"; ui_panels proves it).
+--  * Roll showcase: CLAUDE.md "the HUD hides while the roll showcase is open"; the bar is part of the racing HUD
+--    (NITRO_SPEC: just above the HUD's Speed read-out), so NitroBar is in UiSpec.Showcase.HiddenGuis.
+--  * LoserScreen (DisplayOrder 20) is a declared overlay and draws over it; nothing changes there.
+--  * Not auto racing: hidden and not clickable (click nitro_stop_auto_hides_bar, After nitro_bar_hidden).
+--  * Label: every text NITRO_SPEC promises is drawn inside Label's rect (ui_nitro_bar nitro_label_text_fits), so the
+--    overlap rules, which measure rects, cover what the player sees.
+-- Placement (brief 2026-11-19, NITRO_SPEC "just above the HUD's RacerHud.Speed readout"): Root centred horizontally,
+-- its bottom edge GapAboveSpeed px above the top of RacerHud/Speed in screen pixels. Short screens (Vic2CS 2026-11-19,
+-- after ui-test-writer's phone overlap finding): Root's UIScale FitScale = clamp((Root bottom - (RollToast/Toast bottom
+-- + GapBelowRoll)) / RootSize.Y, MinScale, 1), scaled about Root's bottom centre (AnchorPoint 0.5, 1), so the bar
+-- shrinks to fit under the compact roll. The layout solver places and scales Root by this rule at every simulated
+-- viewport (UiScenarios nitroFit); ui_nitro_bar compares the engine with it on the live one. The no-overlap rule stays
+-- strict: where even MinScale does not fit, Root/Label overlaps RollToast/Toast and that viewport fails.
+-- Target (Vic2CS 2026-11-19, NITRO_SPEC "Target"): the Good / Perfect zones are GOOD_ZONE / PERFECT_ZONE x the bar's
+-- width, centred on the player attribute NitroTarget of the bar that is (or last was) ready: the server picks the next
+-- target when it grades a press, and the client keeps the old zones (beside the press marker) until the next bar is
+-- ready, then moves them. Bar/PressMark (a Frame, not a button, no hitbox) shows at NitroPressPos from the press until
+-- the next bar is ready.
+UiSpec.Guis.NitroBar = {
+	Source = "Client/NitroInput",
+	AlwaysOn = { "Root/Label", "Root/Bar" },
+	Readouts = { "Root/Label" },
+	NonInteractiveParts = { "Label", "Good", "Perfect", "Charge", "Needle", "PressMark" },
+	Buttons = {
+		{
+			-- A click / tap on the bar presses nitro: Remotes.Nitro(workspace:GetServerTimeNow() at the press), only while
+			-- the bar is ready (not charging, locked or boosting: then nothing is sent); the server grades it.
+			Path = "Root/Bar",
+			Does = "remote",
+			Remote = "Nitro",
+			Arg = "nitro_press_time",
+			Label = "UiSpec.Nitro.Text for the server's state (Root/Label; the bar itself has no text)",
+		},
+	},
+}
+UiSpec.Nitro = {
+	Gui = "NitroBar",
+	Root = "NitroBar/Root",
+	Label = "NitroBar/Root/Label",
+	Bar = "NitroBar/Root/Bar",
+	Good = "NitroBar/Root/Bar/Good",
+	Perfect = "NitroBar/Root/Bar/Perfect",
+	Charge = "NitroBar/Root/Bar/Charge",
+	Needle = "NitroBar/Root/Bar/Needle",
+	PressMark = "NitroBar/Root/Bar/PressMark", -- where the last press was graded (NitroPressPos); a Frame, never a button
+	FitScale = "FitScale", -- Root's UIScale (short-screen fit, see above)
+	Roll = "RollToast/Toast", -- the compact roll the bar fits under
+	Remote = "Nitro",
+	Module = "NitroConfig", -- Shared/NitroConfig: PERIOD, zones, multis, DURATION, RECHARGE, MISS_COOLDOWN, START_DELAY
+	-- Brief 2026-11-19 (Client/NitroInput GAP_ABOVE_SPEED): px from the bar's bottom edge to the top of RacerHud/Speed
+	GapAboveSpeed = 10,
+	-- Brief 2026-11-19 (bigger bar, Client/NitroInput BAR_W / BAR_H / GAP_BELOW_ROLL / MIN_SCALE): design px before
+	-- FitScale. Bar 340 x 34; Root 340 x 64 (Label 24 px tall on top, TextSize 20, Bar at the bottom).
+	BarSize = Vector2.new(340, 34),
+	RootSize = Vector2.new(340, 64),
+	LabelHeight = 24,
+	LabelTextSize = 20,
+	GapBelowRoll = 6, -- px kept free under RollToast/Toast when the bar has to shrink
+	MinScale = 0.55, -- FitScale never goes below this (then the overlap rules decide)
+	ScaleTolerance = 0.01, -- FitScale vs the rule (the engine and the harness read the rects in different callbacks)
+	MarkTolerance = 1, -- px: PressMark's centre vs NitroPressPos on the bar (rounding)
+	ChargeTransparency = 0.55, -- brief 2026-11-19: the fill is see-through, the zones and the press marker show under it
+	-- NITRO_SPEC "Feedback": what Label shows. Ready is a prefix (an input hint may follow); %.1f = the grade's multi.
+	Text = {
+		Ready = "NITRO READY",
+		-- Brief 2026-11-19: the ready label names the press: SPACE, or TAP on a touch-only device (no keyboard)
+		ReadyKeyboard = "NITRO READY: SPACE",
+		ReadyTouch = "NITRO READY: TAP",
+		Perfect = "PERFECT! x%.1f",
+		Good = "NITRO x%.1f",
+		Miss = "MISS",
+		Charging = "NITRO CHARGING",
+	},
+	ShowGrace = 0.5, -- s: the bar shows / hides this soon after the server's AutoRacing / NitroReadyAt change
+	GradeWait = 2, -- s for the server's graded press (NitroPresses + 1) to arrive after a press
+	IgnoreWatch = 0.75, -- s a press that must do nothing is watched for a NitroPresses change
+	SweepSeconds = 0.5, -- s the needle is sampled for (about a third of NitroConfig.PERIOD)
+	SweepMinTravel = 20, -- px the needle must cover in that time (it moves 4 / PERIOD bar half-widths per second)
+	TimeTolerance = 0.1, -- s between server times the client and the server read (attributes, press times)
+	-- s between the press the harness saw (mouse down / key down) and the time Remotes.Nitro carries (the bar sends it
+	-- on Activated, i.e. mouse up); under NitroConfig.LATENCY_WINDOW so the server grades the claimed time
+	PressTimeTolerance = 0.25,
+}
+table.insert(UiSpec.ClientScripts, "NitroInput")
+table.insert(UiSpec.Remotes, UiSpec.Nitro.Remote)
+UiSpec.HiddenWhilePanelOpen["NitroBar/Root/Label"] = "any"
+UiSpec.HiddenWhilePanelOpen["NitroBar/Root/Bar"] = "any"
+table.insert(UiSpec.Showcase.HiddenGuis, UiSpec.Nitro.Gui)
+-- Prepare keys of the nitro clicks (handled by UiNitro.Prepare before the spy baseline is read):
+--  NitroReady     wait until the bar is ready (server time >= NitroReadyAt and >= NitroUntil); Label must show Ready
+--                 and the zones must sit on the current NitroTarget
+--  NitroCharging  the harness itself presses with the needle on NitroTarget (Remotes.Nitro, as the bar does) and waits
+--                 for the Perfect boost, so the bar is boosting, then recharging, for NitroConfig.DURATION + RECHARGE s
+-- After conditions (UiNitro.After): nitro_press_graded (exactly one graded press, the grade the needle had at the
+-- press time measured from the bar's NitroTarget, Label shows it, PressMark at NitroPressPos, the zones still on the
+-- graded bar's target while NitroTarget moved on), nitro_not_ready_at_press, nitro_press_ignored, nitro_bar_hidden,
+-- nitro_bar_shown_after_start. Run these clicks in this order (each starts from the state the one before left).
+local NITRO_READY = { Closed = CLOSED, Showcase = false, AttrIs = { AutoRacing = true }, NitroReady = true }
+table.insert(UiSpec.Clicks, {
+	Id = "nitro_bar_tap",
+	Gui = "NitroBar",
+	Path = "Root/Bar",
+	Prepare = NITRO_READY,
+	NeedSetup = { "spy", "auto_racing" },
+	Expect = { Remote = { Name = "Nitro", Arg = "nitro_press_time" }, After = { "nitro_press_graded" } },
+})
+table.insert(UiSpec.Clicks, {
+	-- A tap while the bar is boosting / recharging sends nothing (NITRO_SPEC: a press then does nothing)
+	Id = "nitro_bar_tap_while_charging",
+	Gui = "NitroBar",
+	Path = "Root/Bar",
+	Prepare = { Closed = CLOSED, Showcase = false, AttrIs = { AutoRacing = true }, NitroCharging = true },
+	NeedSetup = { "spy" },
+	Expect = { Remote = false, After = { "nitro_not_ready_at_press", "nitro_press_ignored" } },
+})
+table.insert(UiSpec.Clicks, {
+	-- NITRO_SPEC "Press: Space". ui-tester presses Space once in the game view (Key protocol)
+	Id = "nitro_space_press",
+	Key = "Space",
+	Prepare = NITRO_READY,
+	NeedSetup = { "spy" },
+	Expect = { Remote = { Name = "Nitro" }, After = { "nitro_press_graded" } },
+})
+table.insert(UiSpec.Clicks, {
+	-- NITRO_SPEC "Press: a left click on the world (not on a button)". ClickAt "empty": the first point of the
+	-- EmptyClickStep grid where nothing takes a click (the world); Gui / Path only name the bar the press is for.
+	Id = "nitro_world_click",
+	Gui = "NitroBar",
+	Path = "Root",
+	ClickAt = "empty",
+	Prepare = NITRO_READY,
+	NeedSetup = { "spy" },
+	Expect = { Remote = { Name = "Nitro", Arg = "nitro_press_time" }, After = { "nitro_press_graded" } },
+})
+table.insert(UiSpec.Clicks, {
+	-- STOP AUTO: the server clears NitroReadyAt and the bar hides (no hitbox left behind)
+	Id = "nitro_stop_auto_hides_bar",
+	Gui = "RacerHud",
+	Path = "Race/Face",
+	Prepare = { Closed = CLOSED, Showcase = false, AttrIs = { AutoRacing = true }, WaitSeconds = 1.5 },
+	NeedSetup = { "spy" },
+	Expect = {
+		Remote = { Name = "SetAutoRace", Arg = "not_attr:AutoRacing" },
+		After = { "autoracing_is_arg", "nitro_bar_hidden" },
+	},
+})
+table.insert(UiSpec.Clicks, {
+	-- AUTO RACE again: the bar shows, charging, and is first ready NitroConfig.START_DELAY s after the start
+	Id = "nitro_start_auto_shows_bar",
+	Gui = "RacerHud",
+	Path = "Race/Face",
+	Prepare = { Closed = CLOSED, Showcase = false, AttrIs = { AutoRacing = false }, WaitSeconds = 1.5 },
+	NeedSetup = { "spy" },
+	Expect = {
+		Remote = { Name = "SetAutoRace", Arg = "not_attr:AutoRacing" },
+		After = { "autoracing_is_arg", "nitro_bar_shown_after_start" },
+	},
+})
+
+-- Studio-only dev switches the UI tests must never depend on (Client/RollToast devNoRollPopup): with ReplicatedStorage
+-- attribute DevNoRollPopup = true an emphasized roll does not open the enlarged view by itself, but only while
+-- UiTestRun is not true. The harness tags every RollResult with whether the switch was in effect; the roll-animation
+-- records play it on the compact card then, and ui_roll_emphasized judges only rolls that arrived while it was not
+-- (the spec behaviour), and says so when it finds none.
+UiSpec.DevSwitches = { NoRollPopup = "DevNoRollPopup", IgnoredWhile = "UiTestRun" }
+
 return UiSpec

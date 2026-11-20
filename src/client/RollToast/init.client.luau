@@ -685,6 +685,15 @@ local function autoRollOn()
 	return player:GetAttribute("AutoRoll") ~= false
 end
 
+-- Dev switch, Studio only: with ReplicatedStorage attribute DevNoRollPopup = true, an emphasized roll plays on the
+-- compact card instead of opening the enlarged view by itself. Live servers and UI test runs always keep the spec
+-- behaviour (docs/ROLL_ANIMATION_SPEC.md rule 1).
+local function devNoRollPopup()
+	return RunService:IsStudio()
+		and ReplicatedStorage:GetAttribute("DevNoRollPopup") == true
+		and ReplicatedStorage:GetAttribute("UiTestRun") ~= true
+end
+
 local function isEnlarged()
 	return gui:GetAttribute("View") == "Enlarged"
 end
@@ -1048,7 +1057,7 @@ local function play(roll)
 		resetBody(b, roll)
 		b.Reel:SetAttribute("ReelIds", table.concat(reelIds, ","))
 	end
-	if roll.Emphasized and not isEnlarged() then
+	if roll.Emphasized and not isEnlarged() and not devNoRollPopup() then
 		openEnlarged(true)
 	end
 

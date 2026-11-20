@@ -131,6 +131,8 @@ UiScenarios.Names = {
 	-- ui_offline_welcome needs its offline_welcome server fixture, so it runs only through
 	-- UiSpec.Progression.FixtureChecks (UiTestScenario), like ui_offline_zero.
 	"ui_weather",
+	-- Timed nitro bar (docs/NITRO_SPEC.md; UiNitro): needs auto_racing, about 15 s (a boost, its recharge, a miss)
+	"ui_nitro_bar",
 	-- Last: its server setup (emphasized_next) takes the cars away until the emphasized roll happened
 	"ui_roll_emphasized",
 }
@@ -618,6 +620,28 @@ local function marketTabScale(obj, child, ctx)
 	return math.clamp((rr.h / railScale - (n - 1) * fit.Gap) / (n * fit.TabSize), fit.Min, fit.Max)
 end
 
+-- Client/NitroInput's placement of NitroBar/Root at ctx.vp (UiSpec.Nitro): bottom = RacerHud/Speed's top -
+-- GapAboveSpeed (screen px), and its UIScale FitScale = clamp((bottom - (RollToast/Toast bottom + GapBelowRoll)) /
+-- RootSize.Y, MinScale, 1). nil bottom when RacerHud/Speed is missing; scale 1 without the compact roll.
+local function nitroFit(ctx)
+	if ctx.nitroFit then
+		return ctx.nitroFit
+	end
+	local cfg = UiSpec.Nitro
+	local fit = { scale = 1 }
+	local speed, toast = findPath(UiSpec.Hud.Speed), findPath(cfg.Roll)
+	if speed then
+		fit.bottom = simRect(speed, ctx).y - cfg.GapAboveSpeed
+		if toast and toast:IsA("GuiObject") then
+			local tr = simRect(toast, ctx)
+			local top = tr.y + tr.h + cfg.GapBelowRoll
+			fit.scale = math.clamp((fit.bottom - top) / cfg.RootSize.Y, cfg.MinScale, 1)
+		end
+	end
+	ctx.nitroFit = fit
+	return fit
+end
+
 -- The layout factor of obj's own UIScale children at ctx.vp (1 without one). UIScale scales the object about its
 -- AnchorPoint and all its descendants. Generated "UIScale"s come from the model (UiResponsive.ScaleAt) at every
 -- viewport; hover / press scales (UiSpec.TransientScales) count as 1; any other UIScale is read live on the live
@@ -632,6 +656,7 @@ local function ownScale(obj, ctx)
 				or (child.Name == "UIScale" and UiResponsive.ScaleAt(pathOf(obj), ctx.vp))
 				or (child.Name == UiResponsive.HudChrome.ScaleName and UiResponsive.HudChromeScale(pathOf(obj), ctx.vp))
 				or marketTabScale(obj, child, ctx)
+				or (child.Name == UiSpec.Nitro.FitScale and pathOf(obj) == UiSpec.Nitro.Root and nitroFit(ctx).scale)
 			if modelled then
 				s *= modelled
 			elseif UiResponsive.LiveScales[child.Name] then
@@ -957,6 +982,19 @@ simRect = function(obj, ctx)
 				)
 				r.x -= iconX
 			end
+		end
+	elseif pathOf(obj) == UiSpec.Nitro.Root then
+		-- Client/NitroInput, every frame while shown (brief 2026-11-19, UiSpec.Nitro): Root centred horizontally, its
+		-- bottom edge GapAboveSpeed px above RacerHud/Speed's top in screen pixels; its offset-only Size times its
+		-- FitScale (ownScale -> nitroFit), scaled about its bottom centre
+		local base = simRect(obj.Parent, ctx)
+		local rw, rh = sizeIn(obj, obj.Size, base, ctx, inheritedScale(obj.Parent, ctx))
+		local fit = nitroFit(ctx)
+		if fit.bottom then
+			r = R(base.x + base.w / 2 - rw / 2, fit.bottom - rh, rw, rh)
+		else
+			ctx.unsupported[UiSpec.Nitro.Root] = "missing runtime layout dependency " .. UiSpec.Hud.Speed
+			r = R(base.x, base.y, rw, rh)
 		end
 	elseif kind then
 		local base = simRect(obj.Parent, ctx)
@@ -1343,6 +1381,10 @@ function UiScenarios.Init()
 						rolls = player:GetAttribute("Rolls"), -- set by the server before it fires RollResult
 						t = os.clock(),
 						panelsOpen = {}, -- declared panels open when the roll arrived (roll_odds_*_no_panel_open)
+						-- Studio dev switch in effect (UiSpec.DevSwitches): the emphasized roll does not open the view
+						devNoPopup = RunService:IsStudio() and ReplicatedStorage:GetAttribute(
+							UiSpec.DevSwitches.NoRollPopup
+						) == true and ReplicatedStorage:GetAttribute(UiSpec.DevSwitches.IgnoredWhile) ~= true,
 					}
 					for _, p in allPanels() do
 						local o = findPath(p)
@@ -2192,8 +2234,9 @@ function UiScenarios.SampleRoll(ev)
 		views = {},
 		viewAtStart = viewNow(),
 	}
-	-- The card that plays it: the enlarged one for an emphasized roll or while the player has it open
-	rec.playKey = (ev.emphasized or rec.viewAtStart == "Enlarged") and "Enlarged" or "Compact"
+	-- The card that plays it: the enlarged one for an emphasized roll or while the player has it open (an emphasized
+	-- roll under the Studio DevNoRollPopup switch, UiSpec.DevSwitches, plays on the compact card)
+	rec.playKey = ((ev.emphasized and not ev.devNoPopup) or rec.viewAtStart == "Enlarged") and "Enlarged" or "Compact"
 	table.insert(events.recs, rec)
 	local limit = ev.t + durationFor(rarityOf(ev.id), ev.emphasized) + 3
 	local last, lastView, holdAt, nominalW = {}, nil, {}, {}
@@ -5413,9 +5456,16 @@ function S.ui_roll_emphasized(res)
 		return
 	end
 	local restore = setPanels({})
+	-- Only rolls that arrived with the spec behaviour: never one played while the Studio DevNoRollPopup switch was in
+	-- effect (UiSpec.DevSwitches; the switch is ignored while UiTestRun is true)
+	local devSkipped = 0
 	local function find()
+		devSkipped = 0
 		for i = #events.recs, 1, -1 do
-			if events.recs[i].ev.emphasized then
+			local ev = events.recs[i].ev
+			if ev.emphasized and ev.devNoPopup then
+				devSkipped += 1
+			elseif ev.emphasized then
 				return events.recs[i]
 			end
 		end
@@ -5437,7 +5487,21 @@ function S.ui_roll_emphasized(res)
 		player:SetAttribute("UiTestWaiting", nil)
 	end
 	if not rec then
-		stateMissing(res, "emphasized_roll_received", "emphasized_next", "no RollResult with emphasized == true")
+		stateMissing(
+			res,
+			"emphasized_roll_received",
+			"emphasized_next",
+			"no RollResult with emphasized == true"
+				.. (
+					devSkipped > 0
+						and (" judged; %d arrived while %s was true and %s was not (dev switch: no auto-open)"):format(
+							devSkipped,
+							UiSpec.DevSwitches.NoRollPopup,
+							UiSpec.DevSwitches.IgnoredWhile
+						)
+					or ""
+				)
+		)
 		restore()
 		return
 	end
@@ -5900,6 +5964,27 @@ for name, fn in access.Scenarios do
 	S[name] = fn
 end
 
+-- Timed nitro bar (docs/NITRO_SPEC.md; UiSpec.Nitro): ui_nitro_bar, the nitro_* click Prepare keys and After conditions
+local nitro = require(script.Parent.UiNitro).Build({
+	check = check,
+	checkList = checkList,
+	stateMissing = stateMissing,
+	find = findPath,
+	frames = frames,
+	visible = effectivelyVisible,
+	rect = realRect,
+	hitsAt = hitsAt,
+	viewport = viewport,
+	pathOf = pathOf,
+	waitGuis = waitGuis,
+	setPanels = setPanels,
+	player = player,
+	playerGui = playerGui,
+})
+for name, fn in nitro.Scenarios do
+	S[name] = fn
+end
+
 -- BoostDailyUi now owns Daily Rewards plus a reference-driven Daily/Weekly
 -- quest browser; Backpack moved to RacerBackpack and its old Bag view is not a
 -- valid contract anymore.
@@ -6057,6 +6142,12 @@ local function attrSnapshot()
 		ProgressionOwned = player:FindFirstChild("Upgrades") and #player.Upgrades:GetChildren() or 0,
 		-- The hex tree's zoom (UpgradeTreeView sets the RacerUpgrades attribute TreeZoom; tree_zoom_* clicks)
 		TreeZoom = playerGui:FindFirstChild("RacerUpgrades") and playerGui.RacerUpgrades:GetAttribute("TreeZoom"),
+		-- The nitro bar's server state (UiSpec.Nitro; nitro_* clicks)
+		NitroReadyAt = attr("NitroReadyAt"),
+		NitroUntil = attr("NitroUntil"),
+		NitroPresses = attr("NitroPresses") or 0,
+		NitroTarget = attr("NitroTarget"), -- the zones' centre of the bar the press is graded on
+		NitroPressPos = attr("NitroPressPos"),
 	}
 	for _, stat in GachaConfig.STATS do
 		snap["Alloc_" .. stat] = attr("Alloc_" .. stat) or 0
@@ -6141,6 +6232,15 @@ local function runKey(spec, res)
 		local o = findPath(p)
 		check(res, "prepared_open_" .. p, o and o.Visible, true, o ~= nil and o.Visible == true)
 	end
+	-- The nitro bar's state before the key (UiSpec.Nitro Prepare keys), before the spy baseline
+	if prep.NitroReady or prep.NitroCharging then
+		local why = nitro.Prepare(res, prep)
+		if why then
+			stateMissing(res, "nitro_state_before_key", previous, why)
+			restore()
+			return res
+		end
+	end
 	local preSpy = readSpy()
 	if not preSpy then
 		stateMissing(res, "spy_installed", "spy", "ReplicatedStorage.UiTestSpy missing")
@@ -6152,11 +6252,12 @@ local function runKey(spec, res)
 		local o = findPath(p)
 		prePanels[p] = o and o.Visible
 	end
+	local pre = attrSnapshot()
 
-	local pressed, consumed = false, nil
+	local pressed, consumed, pressT = false, nil, nil
 	local conn = UserInputService.InputBegan:Connect(function(input, gameProcessed)
 		if not pressed and input.KeyCode.Name == spec.Key then
-			pressed, consumed = true, gameProcessed
+			pressed, consumed, pressT = true, gameProcessed, Workspace:GetServerTimeNow()
 		end
 	end)
 	ReplicatedStorage:SetAttribute("UiTestClickDone", nil)
@@ -6223,6 +6324,8 @@ local function runKey(spec, res)
 	for _, cond in expect.After or {} do
 		if access.After[cond] then
 			access.After[cond](res, { spec = spec })
+		elseif nitro.After[cond] then
+			nitro.After[cond](res, { spec = spec, pre = pre, fired = fired, pressT = pressT })
 		else
 			check(res, "unknown_condition_" .. tostring(cond), cond, "known", false)
 		end
@@ -6466,6 +6569,16 @@ function UiScenarios.RunClick(id)
 			return res
 		end
 	end
+	-- The nitro bar's state before the click (UiSpec.Nitro Prepare keys), before the spy baseline: the harness's own
+	-- press for NitroCharging must not count as the click's
+	if prep.NitroReady or prep.NitroCharging then
+		local why = nitro.Prepare(res, prep)
+		if why then
+			stateMissing(res, "nitro_state_before_click", previous, why)
+			restore()
+			return res
+		end
+	end
 	local preSpy = readSpy()
 	if not preSpy then
 		stateMissing(res, "spy_installed", "spy", "ReplicatedStorage.UiTestSpy missing")
@@ -6627,7 +6740,14 @@ function UiScenarios.RunClick(id)
 				local tl = inset()
 				local px, py = input.Position.X + tl.X, input.Position.Y + tl.Y
 				button = findPath(spec.Gui .. "/" .. path) or button
-				press = { x = px, y = py, hit = topAt(px, py), targetShown = shownNow(button), t = os.clock() }
+				press = {
+					x = px,
+					y = py,
+					hit = topAt(px, py),
+					targetShown = shownNow(button),
+					t = os.clock(),
+					serverT = Workspace:GetServerTimeNow(), -- the nitro press time (UiSpec.Nitro)
+				}
 				press.target = button
 			end
 		end)
@@ -6794,6 +6914,31 @@ function UiScenarios.RunClick(id)
 		end
 		if ok and (expect.Remote.Arg == "upgrade_id" or expect.Remote.Arg == "none") then
 			ok = #fired[1].args == (expect.Remote.Arg == "none" and 0 or 1)
+		end
+		if argSpec == "nitro_press_time" then
+			-- Remotes.Nitro(server time at the press): one number within PressTimeTolerance of the press the harness saw
+			local a = #fired == 1 and fired[1].args[1]
+			local pt = press and press.serverT
+			want = ("%s(server time at the press +- %s s)"):format(expect.Remote.Name, UiSpec.Nitro.PressTimeTolerance)
+			names = {}
+			for _, f in fired do
+				local v = f.args[1]
+				table.insert(
+					names,
+					f.name
+						.. "("
+						.. (type(v) == "number" and pt and ("press %+.3f s"):format(v - pt) or tostring(v))
+						.. ", "
+						.. #f.args
+						.. " args)"
+				)
+			end
+			ok = #fired == 1
+				and fired[1].name == expect.Remote.Name
+				and #fired[1].args == 1
+				and type(a) == "number"
+				and pt ~= nil
+				and math.abs(a - pt) <= UiSpec.Nitro.PressTimeTolerance
 		end
 		check(res, "fires_" .. expect.Remote.Name, #names > 0 and table.concat(names, ",") or "nothing", want, ok)
 	else
@@ -7280,6 +7425,8 @@ function UiScenarios.RunClick(id)
 			indexViewChecks(res, "")
 		elseif access.After[cond] then
 			access.After[cond](res, { pre = pre, spec = spec })
+		elseif nitro.After[cond] then
+			nitro.After[cond](res, { pre = pre, spec = spec, fired = fired, pressT = press and press.serverT })
 		elseif extras.After[cond] then
 			extras.After[cond](res, { pre = pre })
 		elseif contracts.After[cond] then

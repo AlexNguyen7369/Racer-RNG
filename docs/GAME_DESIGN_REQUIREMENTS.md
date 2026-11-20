@@ -174,6 +174,8 @@ Idle Vehicle Simulator — Game Design Requirements
        starting a run, a checkpoint or a restart is at its cruise speed at once, so every car
        races at its own speed everywhere on the chain. This must stay stable (no flips, no tilt,
        on the path) up to the test reference stat MAX_STAT. The NPC opponents are unchanged.
+       Proposed exception (Vic2CS, 2026-11-19, not yet reviewed by the owner): a timed nitro
+       boost raises the cruise speed for a few seconds. See "Timed nitro boost".
        Historical decision, 2026-10-20 (superseded by the 2026-10-21 active rule below): cruise speed is much slower
        (placeholders BASE_SPEED 12, MAX_SPEED 18: +3 studs/s per doubling of Speed, still no
        cap). The car's speed multi has diminishing returns: a multi m above 1 counts as 1 + log2(m)
@@ -222,6 +224,23 @@ Idle Vehicle Simulator — Game Design Requirements
        With raw multi 1 this gives about 18 studs/s at 10K, 49 at 50K, 88 at 100K, and 218 at 1M
        (owner 2026-10-26: 218 corrects the earlier 205, which did not match the formula above);
        above 100K every later point adds less cruise speed, with no cap.
+       Early-track Speed curve. Proposed by Vic2CS, 2026-11-19, on branch
+       feature/vic2cs/dev-changes. Not yet reviewed by the owner; it needs the owner's agreement
+       before it reaches main. The Speed a track needs (raw multi 1) grows by one fixed factor per
+       track on Tracks 1-5: placeholder 300 on Track 1 (about 2.5 minutes of racing for a new
+       player; without nitro a stat-0 car still loses, with nitro it can win), landing exactly
+       on what the 1.75x NPC formula needs on
+       Track 6, so Track 6 and every later track are unchanged. With the placeholders the factor
+       is about x5.9: Track 1 300, Track 2 ~1.8K, Track 3 ~10.6K, Track 4 ~63K, Track 5 ~375K
+       (was 7.7K, 23K, 50K, 97K, 301K; Track 5 is slightly harder than before). The NPC speed is
+       the cruise speed at that Speed. Code: NpcConfig.EARLY_TRACKS, EARLY_FIRST_STAT.
+       Faster movement. Proposed by Vic2CS, 2026-11-19 (same branch, same review status): every
+       car and every NPC moves x1.4 faster (placeholder RaceConfig.SPEED_SCALE). It multiplies
+       BASE_SPEED, MAX_SPEED and the NPC formula's base together, so the Speed each track needs,
+       the gate signs and race results are unchanged; tracks are only quicker to drive (Track 1
+       about 66 s instead of 92 s). Speed gain per second is unchanged, so the time to reach each
+       track is unchanged too. CarConfig.TopSpeed (the manual-drive fallback, never used by
+       auto racing) is not scaled, so auto-race cruise speed may exceed it.
        Track gates show a recommended Speed: the shown Speed at which the car's cruise speed
        matches that track's NPC. Players compare their own shown Speed with it, whatever car
        they drive (see Track environments).
@@ -917,6 +936,25 @@ Idle Vehicle Simulator — Game Design Requirements
        Better cars ride faster: walking speed x (1 + 0.5 x log10(the car's SpeedMulti)),
        at most x3 and 100 studs/s (placeholders). The server sets the speed. Riding never
        changes the Speed stat, its gain, Money or race physics. Spec: docs/MOUNT_SPEC.md.
+
+  Timed nitro boost
+  Proposed by Vic2CS, 2026-11-19, on branch feature/vic2cs/dev-changes. Not yet reviewed by
+  the owner; it needs the owner's agreement before it reaches main. It is an exception to the
+  owner's "one steady speed" rule (2026-10-20) and answers the "Light skill check" option of
+  the Continue design flag.
+
+       While auto racing against an NPC, a bar with a sweeping needle shows above the Speed
+       readout. Pressing Space, clicking the world, tapping the bar or pressing gamepad X / R1
+       while the needle is in the green zone gives a boost: cruise speed x1.4 for 2 seconds,
+       x1.7 in the gold centre. A press outside the green locks the bar for 2 seconds; after a
+       boost the bar recharges for 6 seconds. Every new bar puts the green / gold zones at a new
+       random spot, and a marker shows exactly where the last press landed until the next bar
+       is ready. All numbers are placeholders.
+       A boost gets the car to the finish sooner, so a well-timed boost can win a race against an
+       NPC that is slightly faster. It never changes the Speed stat, its gain, Money or payouts.
+       Not in duels. The server grades every press from the needle position at the press time.
+       Open questions: whether a skill element fits an idle game, and how big the boost may be
+       before it makes the early tracks trivial. Spec: docs/NITRO_SPEC.md.
 
   Technical and data requirements
   The server decides every number (Speed, Money, rolls, race results) and the client only

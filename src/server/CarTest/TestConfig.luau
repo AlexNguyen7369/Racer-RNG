@@ -52,5 +52,6 @@ return {
 		"wyvern_flight",
 		"wyvern_breath",
 		"singularity_orb",
+		"nitro",
 	},
 }

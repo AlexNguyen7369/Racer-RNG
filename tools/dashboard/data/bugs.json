@@ -1553,6 +1553,58 @@
       "foundBy": "physics-tester",
       "foundAt": "2026-10-27T18:49:16-07:00",
       "loggedBy": "Alex Nguyen"
+    },
+    {
+      "id": "f8ac5104",
+      "name": "spawn_area overlap check times out",
+      "kind": "fault",
+      "status": "fixed",
+      "file": "src/server/CarTest/Scenarios.luau",
+      "line": 8869,
+      "endLine": 8890,
+      "snippet": {
+        "from": 8865,
+        "lines": [
+          "",
+          "\t-- No part of the area (floor, edges, spawn, pad) overlaps any road / wall / checkpoint part of ANY chained",
+          "\t-- track horizontally (each track's Ground and its invisible Start marker are not road)",
+          "\tlocal trackParts = {}",
+          "\tfor _, d in trackFolder:GetDescendants() do",
+          "\t\tif d:IsA(\"BasePart\") and d.Name ~= \"Ground\" and d.Name ~= \"Start\" then",
+          "\t\t\ttable.insert(trackParts, { Part = d, Poly = spawnPartPoly(d) })",
+          "\t\tend",
+          "\tend",
+          "\tmetrics.track_parts_checked = #trackParts",
+          "\tlocal overlaps, worst, worstName = 0, math.huge, \"\"",
+          "\tfor _, d in area:GetDescendants() do",
+          "\t\tif d:IsA(\"BasePart\") then",
+          "\t\t\tlocal poly = spawnPartPoly(d)",
+          "\t\t\tfor _, t in trackParts do",
+          "\t\t\t\tlocal sep = spawnPolySeparation(poly, t.Poly)",
+          "\t\t\t\tif sep < worst then",
+          "\t\t\t\t\tworst, worstName = sep, d.Name .. \"/\" .. t.Part:GetFullName()",
+          "\t\t\t\tend",
+          "\t\t\t\tif sep < -SPAWN_OVERLAP_TOL then",
+          "\t\t\t\t\toverlaps += 1",
+          "\t\t\t\tend",
+          "\t\t\tend",
+          "\t\tend",
+          "\tend",
+          "\tif overlaps > 0 then",
+          "\t\tmetrics.worst_overlap = worstName",
+          "\tend",
+          "\tmetrics.closest_track_gap = worst == math.huge and -1 or round(worst)",
+          "\tcheck(checks, \"spawn_area_no_track_overlap\", overlaps, 0, #trackParts > 0 and overlaps == 0)"
+        ]
+      },
+      "summary": "The spawn_area no-track-overlap check compares 142 spawn-area parts with 8562 track parts (~1.2M polygon tests, ~11.3 s) without yielding, exceeding Studio's script timeout; the harness dies with no END line, so a full-suite run never reports. Needs a yield or a distance pre-check (test-writer).",
+      "error": "Script timeout: exhausted allowed execution time - Script 'ServerScriptService.Server.CarTest.Harness', Line 97 - function runAll",
+      "foundBy": "physics-tester",
+      "foundAt": "2026-11-19T22:01:25-08:00",
+      "loggedBy": "Vic2CS",
+      "fixedAt": "2026-11-19T23:44:39-08:00",
+      "fixedBy": "Vic2CS",
+      "fixNote": "test-writer added an exact per-axis broad-phase skip and time-based yields; physics-tester full run 2026-11-19: spawn_area 139/139, 1,335,672 pairs checked, 39 exact, no timeout"
     }
   ]
 }

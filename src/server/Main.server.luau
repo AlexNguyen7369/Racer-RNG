@@ -30,6 +30,7 @@ local CheckpointService = require(script.Parent.CheckpointService)
 local PassCarService = require(script.Parent.PassCarService)
 local QuestService = require(script.Parent.QuestService)
 local ShopService = require(script.Parent.ShopService)
+local NitroService = require(script.Parent.NitroService)
 
 -- Tracks are chained in Number order: each one starts where the previous one's finish checkpoint is.
 local chain = TrackRegistry.Chain()
@@ -71,6 +72,7 @@ UpgradeService.Start() -- the money upgrade tree: Remotes.BuyUpgrade and the UPG
 GachaService.Start() -- free auto-rolls (after each save loads), the car index and stat points
 MoneyService.Start()
 CarService.Start()
+NitroService.Start() -- timed nitro boost while auto racing (docs/NITRO_SPEC.md, proposal)
 WorkshopService.Start(track1Start) -- 7 workshop plots in the spawn area, one per player, idle Speed in the zone
 MarketService.Start() -- the spawn-area aura and trail market (physical prompt + client button)
 RebirthService.Start()

@@ -21,6 +21,13 @@ in git history (`git log -p -- handoff.md`, last full version at 2d99d78) and in
 - Car mount (2026-11-10, committed on this branch, seen working in a single-player playtest; two players not tried): C rides the equipped car on foot. Rules: design doc "Car mount", `docs/MOUNT_SPEC.md`.
   Code: `Shared/MountConfig`, `Client/MountController`, `CarService` (`Remotes.ToggleMount`, `SetMounted`). Needs the owner's
   agreement before main. Keyboard only so far.
+- 2026-11-19 (uncommitted on this branch, all need the owner's agreement before main): early-track Speed curve
+  (`NpcConfig.EARLY_*`, design doc "Early-track Speed curve"), timed nitro boost (`Shared/NitroConfig`,
+  `Server/NitroService`, `Client/NitroInput`, `RaceService` `run:Nitro`; `docs/NITRO_SPEC.md`), and a Studio-only
+  `DevNoRollPopup` switch in `Client/RollToast`. Seen working in a single-player playtest (details in ProjectContext).
+  Next: test-writer updates the `npc` scenario's NPC-speed check, ui-test-writer adds `NitroBar` to `UiSpec`.
+- Saving in the dev place: DataStores fail with "Studio access to APIs is not allowed" until vic turns on Game
+  Settings > Security > Enable Studio Access to API Services (saves then go to the dev experience's own stores).
 - Known: `src/server/CarTest/Scenarios.luau` has a stray `return Scenarios` before its last lines, so the harness fails
   to load. Pre-existing; only test-writer edits tests. The new experience also needs Studio API access and EditableMesh
   turned on in its settings.

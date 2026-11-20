@@ -149,7 +149,15 @@ function RaceService.NewRun(car, raceRoute, player, options)
 		Wins = 0,
 		Losses = 0,
 		Resets = 0,
+		NitroMulti = 1, -- timed nitro (docs/NITRO_SPEC.md): cruise speed x this while NitroLeft > 0
+		NitroLeft = 0, -- seconds of nitro left, counted in run time
 	}
+
+	-- The speed the rail holds: the cruise speed, raised while a nitro boost lasts (the only exception to the one
+	-- steady speed; proposed by Vic2CS 2026-11-19, design doc "Timed nitro boost")
+	local function driveSpeed()
+		return run.NitroLeft > 0 and run.TargetSpeed * run.NitroMulti or run.TargetSpeed
+	end
 
 	local function rewardTrackWin(trackNumber)
 		local id = BoostConfig.WinReward(trackNumber)
@@ -227,6 +235,7 @@ function RaceService.NewRun(car, raceRoute, player, options)
 
 	local function backToStart()
 		driver.Index, driver.Done = 1, false
+		run.NitroLeft = 0
 		paid = {}
 		physics:Reset(startCF)
 	end
@@ -389,8 +398,7 @@ function RaceService.NewRun(car, raceRoute, player, options)
 			+ Vector3.new(0, fell and CarConfig.RestHeight + 0.5 or sunk and CarConfig.RestHeight or height, 0)
 		-- One steady speed (design doc, owner 2026-10-20): the rail holds the cruise speed everywhere, from the first
 		-- frame, with no acceleration or corner slowing. Past the last finish the car rolls out on its physics.
-		local forwardSpeed = run.Finished and math.max(0, chassis.AssemblyLinearVelocity:Dot(bestDir))
-			or run.TargetSpeed
+		local forwardSpeed = run.Finished and math.max(0, chassis.AssemblyLinearVelocity:Dot(bestDir)) or driveSpeed()
 		-- Measured BEFORE the correction, or the rail would hide every tilt and flip from the stability rules.
 		local up = chassis.CFrame.UpVector.Y
 		if not physics.LoopAssist and not run.Finished then
@@ -500,6 +508,7 @@ function RaceService.NewRun(car, raceRoute, player, options)
 		local pos = wps[s] + dir * RaceService.START_AHEAD + Vector3.new(0, CarConfig.RestHeight + 0.5, 0)
 		physics:Reset(CFrame.lookAt(pos, pos + Vector3.new(dir.X, 0, dir.Z)))
 		driver.Index, driver.Done = s, false
+		run.NitroLeft = 0 -- every reset of the car ends a nitro boost (docs/NITRO_SPEC.md)
 		paid = {}
 		for _, entry in raceRoute.Pads do
 			if entry.Index < s then
@@ -533,9 +542,12 @@ function RaceService.NewRun(car, raceRoute, player, options)
 			return
 		end
 		local control = driver:Control(chassis, dt)
+		if run.NitroLeft > 0 then
+			run.NitroLeft = math.max(0, run.NitroLeft - dt)
+		end
 		if not run.Finished then
 			-- the rail sets the speed; the driver's corner braking would only fight it inside the step
-			control.Throttle, control.Brake, control.TargetSpeed = 1, 0, run.TargetSpeed
+			control.Throttle, control.Brake, control.TargetSpeed = 1, 0, driveSpeed()
 		end
 		physics:Step(control, dt)
 		run.OffTrackSeconds = driver.OffTrackSeconds
@@ -599,6 +611,22 @@ function RaceService.NewRun(car, raceRoute, player, options)
 			constrainToPath(dt)
 		end
 	end)
+
+	-- Timed nitro (Server/NitroService decides the grade): the rail holds cruise speed x `multi` for `seconds`.
+	-- NPC races only (not duels, not test runs without an NPC). Returns true if the boost started.
+	function run:Nitro(multi, seconds)
+		if not alive or not npcMode or run.Finished then
+			return false
+		end
+		if type(multi) ~= "number" or multi ~= multi or multi <= 1 or multi > 10 then
+			return false
+		end
+		if type(seconds) ~= "number" or seconds ~= seconds or seconds <= 0 or seconds > 30 then
+			return false
+		end
+		run.NitroMulti, run.NitroLeft = multi, seconds
+		return true
+	end
 
 	-- Deprecated compatibility API. NPC rewards are paid at the current track finish, so there is no bank to cash out.
 	function run:CashOut()

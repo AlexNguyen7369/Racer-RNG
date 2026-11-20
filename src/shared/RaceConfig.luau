@@ -6,8 +6,12 @@
 
 local RaceConfig = {}
 
-RaceConfig.BASE_SPEED = 10 -- cruise speed at Speed stat 0 (owner 2026-10-21: lowered from 12)
-RaceConfig.MAX_SPEED = 88 -- cruise reference at the point where post-100K diminishing returns begin; owner 2026-10-22 early-game lift
+-- Movement scale (proposed by Vic2CS 2026-11-19, placeholder; design doc "Faster movement"): every car AND every NPC
+-- moves this many times faster. Cruise speed scales with it and the NPC formula too, so the Speed each track needs
+-- is unchanged; races are the same, only quicker to watch. 1 restores the owner's 2026-10-22 numbers.
+RaceConfig.SPEED_SCALE = 1.4
+RaceConfig.BASE_SPEED = 10 * RaceConfig.SPEED_SCALE -- cruise speed at Speed stat 0 (owner 2026-10-21: 10, lowered from 12)
+RaceConfig.MAX_SPEED = 88 * RaceConfig.SPEED_SCALE -- cruise at HALF_STAT, where diminishing returns begin (owner 2026-10-22: 88)
 RaceConfig.HALF_STAT = 100000 -- owner 2026-10-22: first 100K Speed is easier; diminishing returns begin after this threshold
 RaceConfig.MAX_CRUISE_CAR_MULTI = 1.5 -- high car/market multipliers cannot exceed this effective cruise contribution
 RaceConfig.GAIN_PER_SECOND = 2 -- (owner 2026-10-22, placeholder) friendlier early Speed progression

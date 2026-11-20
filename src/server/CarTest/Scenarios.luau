@@ -1697,7 +1697,7 @@ function Scenarios.race()
 				cD, ci, q, dir = nearestOnPolyline(centre, pos, 1, #centre - 1)
 			end
 			cIdx = ci
-			-- Route samples start after 3 s OR 30 studs of travel (about 3 s at BASE_SPEED): the run is at cruise at
+			-- Route samples start after 3 s OR 30 studs of travel (about 3 s / SPEED_SCALE at BASE_SPEED): cruise at
 			-- once, and at MAX_STAT the whole chain takes under 3 s, so a time-only gate would measure nothing.
 			if t > 3 or st.dist >= 30 then
 				-- how far the car is from the route (to the nearest SEGMENT, not just the nearest waypoint)
@@ -2992,7 +2992,8 @@ function Scenarios.auto_toggle()
 		end
 		frames(2)
 		local car3, run3 = checkRacingState("rapid", nil, nil)
-		-- 8 s: at BASE_SPEED 10 (owner 2026-10-21) the car covers ~80 studs, >= 6 waypoints 12 studs apart
+		-- 8 s: at BASE_SPEED (10 x SPEED_SCALE, owner 2026-10-21 / design doc "Faster movement") the car covers
+		-- >= 80 studs, >= 6 waypoints 12 studs apart
 		checkDrive("rapid", car3, run3, 8, speedRaw())
 
 		-- 8. Bad input while racing changes nothing (same car, same run)
@@ -3548,9 +3549,19 @@ function Scenarios.economy()
 	local function num(x)
 		return type(x) == "number" and x == x
 	end
+	-- Faster movement (Vic2CS 2026-11-19, design doc "Faster movement", placeholder read live): SPEED_SCALE multiplies
+	-- the owner's unscaled cruise numbers, so BASE_SPEED = 10 x SPEED_SCALE and MAX_SPEED = 88 x SPEED_SCALE (the 10
+	-- and 88 stay pinned here; SPEED_SCALE = 1 gives them back exactly).
+	local scale = RaceConfig.SPEED_SCALE
+	local scaleOk = num(scale) and scale > 0 and scale < math.huge
+	check(checks, "const_speed_scale_positive", scaleOk and scale or -1, 0, scaleOk)
+	if not scaleOk then
+		scale = 1 -- the const checks below still compare against the owner's unscaled numbers
+	end
+	local UNSCALED_BASE, UNSCALED_MAX = 10, 88 -- owner 2026-10-21: base lowered from 12; owner 2026-10-26: 88 (8e0a20f)
 	local consts = {
-		BASE_SPEED = 10, -- owner 2026-10-21: lowered from 12
-		MAX_SPEED = 88, -- owner 2026-10-26: confirmed 88 (commit 8e0a20f), +39 studs/s per high-speed doubling
+		BASE_SPEED = UNSCALED_BASE * scale, -- owner 2026-10-21: 10 (lowered from 12), x SPEED_SCALE
+		MAX_SPEED = UNSCALED_MAX * scale, -- owner 2026-10-26: 88, +39 studs/s per high-speed doubling, x SPEED_SCALE
 		HALF_STAT = 100000, -- owner 2026-10-22: friendly linear start, diminishing tail after 100K
 		MAX_CRUISE_CAR_MULTI = 1.5,
 		GAIN_PER_SECOND = 2, -- owner 2026-10-22: friendlier early Speed progression
@@ -3579,7 +3590,17 @@ function Scenarios.economy()
 		return ok and r or nil
 	end
 
-	check(checks, "race_config_below_top_speed", top, CarConfig.TopSpeed, top < CarConfig.TopSpeed)
+	-- Design doc "Faster movement" (Vic2CS 2026-11-19): CarConfig.TopSpeed (the manual-drive fallback) is not scaled,
+	-- so the auto-race cruise may exceed it; the owner's UNSCALED cruise reference (MAX_SPEED / SPEED_SCALE, all three
+	-- read live) must still stay below that manual baseline.
+	local unscaledTop = top / scale
+	check(
+		checks,
+		"race_config_unscaled_below_top_speed",
+		unscaledTop,
+		CarConfig.TopSpeed,
+		scaleOk and unscaledTop < CarConfig.TopSpeed
+	)
 	check(checks, "speed_for_zero_is_base", sf(0) or -1, base, sf(0) == base)
 	local mid = sf(half)
 	check(checks, "speed_for_threshold_is_max_reference", mid or -1, top, num(mid) and math.abs(mid - top) <= 0.01)
@@ -3754,6 +3775,27 @@ function Scenarios.economy()
 	end
 	check(checks, "speed_for_multi_is_damped_and_monotonic", shownWorst, 1e-9, shownOk)
 	check(checks, "speed_for_multi_formula", multiFormulaOk and 1 or 0, 1, multiFormulaOk)
+	-- Faster movement (design doc, Vic2CS 2026-11-19): SpeedFor(stat, multi) is exactly SPEED_SCALE x the owner's
+	-- UNSCALED formula (BASE 10, MAX 88, owner 2026-10-22 shape, written out here) for a spread of stats on both
+	-- sides of HALF_STAT and several multis.
+	local function unscaledFormula(stat, multi)
+		local damped = math.clamp(1 + math.log10(multi), 0.1, 1.5)
+		local effective = stat * damped
+		local b, t = UNSCALED_BASE, UNSCALED_MAX
+		if effective <= half then
+			return b + (t - b) * effective / half
+		end
+		return t + (t - b) / 2 * math.log(1 + (effective - half) / half) / math.log(2)
+	end
+	local scaledWorst = 0
+	for _, x in { 0, 1, 300, 1e4, 5e4, half - 1, half, half + 1, 1.5 * half, 2 * half, 1e6, 1e7, maxStat } do
+		for _, m in { 1, 0.5, 2, 2800 } do
+			local v, want = sfm(x, m), scale * unscaledFormula(x, m)
+			local e = num(v) and math.abs(v - want) / math.max(1, math.abs(want)) or math.huge
+			scaledWorst = math.max(scaledWorst, e)
+		end
+	end
+	check(checks, "speed_for_is_scale_x_unscaled", scaledWorst, 1e-9, scaleOk and scaledWorst <= 1e-9)
 	-- Damping means a high car is faster, but nowhere near as fast as the raw multiplier would imply.
 	local dampedHigh = sfm(half, 2800)
 	local rawHigh = sf(half * 2800)
@@ -3768,7 +3810,7 @@ function Scenarios.economy()
 	end
 	check(checks, "speed_for_multi_at_zero_stat_is_base", sfm(0, 2800) or -1, base, zeroStatOk)
 	-- SpeedMulti 2800 at the threshold: damped past the 1.5 cap, so SpeedFor(HALF_STAT x 1.5) =
-	-- MAX_SPEED + (MAX_SPEED - BASE_SPEED) / 2 x log2(1.5) (99.41 studs/s at MAX_SPEED 88, owner 2026-10-26).
+	-- MAX_SPEED + (MAX_SPEED - BASE_SPEED) / 2 x log2(1.5) (99.41 studs/s at MAX_SPEED 88, owner 2026-10-26; x SPEED_SCALE).
 	local want2800 = top + (top - base) / 2 * math.log(1.5) / math.log(2)
 	check(checks, "speed_for_multi_2800_at_half_stat", sfm(half, 2800) or -1, want2800, rel(sfm(half, 2800), want2800))
 	local multis = { 1, 1.0001, 1.01, 1.5, 2, 3, 10, 100, 1000, 2600, 2800, 1e6, 1e12 }
@@ -3823,7 +3865,7 @@ function Scenarios.economy()
 			return num(a) and num(b) and math.abs(a - b) <= 1e-6 * math.max(1, math.abs(b))
 		end
 		local tripOk = true
-		for _, x in { 0, 1, 100, half, 1e6, maxStat, 1e12, 1e15 } do
+		for _, x in { 0, 1, 100, 300, 1e4, 5e4, half, 1.5 * half, 2 * half, 1e6, maxStat, 1e12, 1e15 } do
 			if not close(stf(sf(x)), x) then
 				tripOk = false
 			end
@@ -3838,6 +3880,7 @@ function Scenarios.economy()
 		check(checks, "speed_for_inverts_stat_for", backOk and 1 or 0, 1, backOk)
 		-- Owner 2026-10-22 (design doc "Core stat model"): linear through HALF_STAT, so MAX_SPEED is reached at
 		-- HALF_STAT and the halfway speed at HALF_STAT / 2 ("49 at 50K, 88 at 100K"); "218 at 1M" in the tail (owner 2026-10-26).
+		-- Those are the unscaled numbers: with SPEED_SCALE (design doc "Faster movement") they are x SPEED_SCALE.
 		check(
 			checks,
 			"stat_for_half_point_is_half_stat",
@@ -3845,8 +3888,8 @@ function Scenarios.economy()
 			half,
 			close(stf(top), half) and close(stf((base + top) / 2), half / 2)
 		)
-		local at1M = sf(1e6)
-		check(checks, "speed_for_1m_is_218", at1M or -1, 217.555, num(at1M) and math.abs(at1M - 217.555) <= 0.5)
+		local at1M, want1M = sf(1e6), 217.555 * scale
+		check(checks, "speed_for_1m_is_218", at1M or -1, want1M, num(at1M) and math.abs(at1M - want1M) <= 0.5)
 		local lowStatOk = stf(base) == 0 and stf(base - 5) == 0 and stf(0) == 0
 		for _, b in { "x", 0 / 0, true, {} } do
 			if stf(b) ~= 0 then
@@ -6507,7 +6550,7 @@ end
 
 -- Index: discoveries -> stat points, allocation, equip, multipliers, and their effect on race gain and pad pay.
 function Scenarios.index()
-	local INDEX_STAT = 10000 -- start Speed of both index racers (linear segment: cruise 17 studs/s with multi 1)
+	local INDEX_STAT = 10000 -- start Speed of both index racers (linear segment: cruise 17.8 x SPEED_SCALE with multi 1)
 	local checks = {}
 	local CarCatalog, GachaConfig, GachaService = gachaModules()
 	local RaceService = serverModule("RaceService")
@@ -6992,8 +7035,13 @@ end
 local NPC_ORIGIN = Vector3.new(40000, 0, 0)
 local MULTI_ORIGIN = Vector3.new(-40000, 0, 0)
 local NPC_LOSE_SCREEN = 1 -- s: LoseScreenSeconds used by the test runs
-local NPC_SLOW = 5 -- studs/s: an NPC every player beats (half of RaceConfig.BASE_SPEED 10; was 6 = half of 12)
-local NPC_FAST = 60 -- studs/s: an NPC a stat-0 player (RaceConfig.BASE_SPEED) can not beat
+-- NPC test speeds from the live RaceConfig.BASE_SPEED (10 x SPEED_SCALE, design doc "Faster movement"); 10 only when
+-- RaceConfig does not load (npc_api_exists fails then anyway)
+local NPC_RACE_CONFIG = sharedModule("RaceConfig")
+local NPC_BEGINNER = NPC_RACE_CONFIG and type(NPC_RACE_CONFIG.BASE_SPEED) == "number" and NPC_RACE_CONFIG.BASE_SPEED
+	or 10
+local NPC_SLOW = 0.5 * NPC_BEGINNER -- studs/s: an NPC every player beats (half of RaceConfig.BASE_SPEED; was 5 = half of 10)
+local NPC_FAST = 6 * NPC_BEGINNER -- studs/s: an NPC a stat-0 player (RaceConfig.BASE_SPEED) can not beat (was 60 = 6 x 10)
 local NPC_RESET_RADIUS = 15 -- studs (horizontal) from Track 1's race start after a reset
 local NPC_FINISH_RADIUS = 25 -- studs (horizontal) from the track's finish pose when its Result arrives
 local NPC_TIME_SLACK = 1 -- s between the run's own times and the test's clock
@@ -7340,19 +7388,136 @@ function Scenarios.npc()
 			local s1Beats = isFiniteNumber(infos[1].Speed) and s1 > RaceConfig.BASE_SPEED
 			check(checks, "npc_track1_beats_beginner", s1, RaceConfig.BASE_SPEED, s1Beats)
 			-- Owner 2026-10-21 ("lower track requirements", replaces "substantially harder" >= 3x BASE_SPEED and the
-			-- fixed x2.5 growth): Track 1 = NpcConfig.BASE_SPEED, x SPEED_GROWTH per track (placeholders, read live),
-			-- and Track 1 must not need ~10M Speed: its recommended shown Speed is below 10,000.
+			-- fixed x2.5 growth): NpcConfig.BASE_SPEED x SPEED_GROWTH^(n-1) per track (placeholders, read live), and
+			-- Track 1 must not need ~10M Speed: its recommended shown Speed is below 10,000.
+			-- Early-track Speed curve (Vic2CS 2026-11-19, design doc "Early-track Speed curve", placeholders read live):
+			-- on Tracks 1..EARLY_TRACKS the needed Speed (RaceConfig.StatFor of the NPC speed) is EARLY_FIRST_STAT x
+			-- g^(n-1) with ONE constant g, landing exactly on the formula's needed Speed on Track EARLY_TRACKS + 1; the
+			-- NPC speed is the cruise speed at that Speed. Track EARLY_TRACKS + 1 and every later track still follow
+			-- the formula above exactly. A stat-0 car still loses Track 1 (npc_track1_beats_beginner above).
 			local cfgBase, cfgGrowth = NpcConfig.BASE_SPEED, NpcConfig.SPEED_GROWTH
-			check(
-				checks,
-				"npc_track1_is_config_base",
-				s1,
-				isFiniteNumber(cfgBase) and cfgBase or -1,
-				isFiniteNumber(cfgBase) and math.abs(s1 - cfgBase) <= 1e-6
-			)
-			local growth = infos[2].Speed / infos[1].Speed
-			local growthOk = isFiniteNumber(cfgGrowth) and cfgGrowth > 1 and math.abs(growth - cfgGrowth) <= 1e-6
-			check(checks, "npc_speed_growth_is_config", growth, isFiniteNumber(cfgGrowth) and cfgGrowth or -1, growthOk)
+			local early, firstStat = NpcConfig.EARLY_TRACKS, NpcConfig.EARLY_FIRST_STAT
+			local curveCfgOk = isFiniteNumber(cfgBase)
+				and cfgBase > 0
+				and isFiniteNumber(cfgGrowth)
+				and cfgGrowth > 1
+				and type(early) == "number"
+				and early >= 1
+				and early == math.floor(early)
+				and isFiniteNumber(firstStat)
+				and firstStat > 0
+				and type(RaceConfig.StatFor) == "function"
+				and type(RaceConfig.SpeedFor) == "function"
+			check(checks, "npc_early_curve_config", curveCfgOk and 1 or 0, 1, curveCfgOk)
+			if curveCfgOk then
+				local function formula(n)
+					return cfgBase * cfgGrowth ^ (n - 1)
+				end
+				-- relative error of a against b (math.huge when either is not a finite number)
+				local function relErr(a, b)
+					if not (isFiniteNumber(a) and isFiniteNumber(b)) then
+						return math.huge
+					end
+					return math.abs(a - b) / math.max(math.abs(b), 1e-9)
+				end
+				local lastN = math.max(10, early + 3)
+				local speeds, allSpeeds = {}, true
+				for n = 1, lastN do
+					local ok, info = pcall(NpcConfig.For, n)
+					speeds[n] = ok and type(info) == "table" and info.Speed or nil
+					allSpeeds = allSpeeds and isFiniteNumber(speeds[n]) and speeds[n] > 0
+				end
+				check(checks, "npc_speeds_1_to_last_finite", allSpeeds and 1 or 0, 1, allSpeeds)
+				if allSpeeds then
+					-- the one factor, computed here from the rule (not from NpcConfig.EarlyGrowth)
+					local joinStat = RaceConfig.StatFor(formula(early + 1))
+					local g = (joinStat / firstStat) ^ (1 / early)
+					metrics.npcEarlyGrowth = g
+					metrics.npcJoinStat = joinStat
+					if type(NpcConfig.EarlyGrowth) == "function" then
+						local okG, cg = pcall(NpcConfig.EarlyGrowth)
+						metrics.npcConfigEarlyGrowth = okG and cg or -1
+					end
+					local needed = {}
+					for n = 1, lastN do
+						needed[n] = RaceConfig.StatFor(speeds[n])
+						metrics["npcNeededSpeed" .. n] = needed[n]
+					end
+					local e1 = relErr(needed[1], firstStat)
+					check(checks, "npc_early_track1_needs_first_stat", needed[1], firstStat, e1 <= 1e-6)
+					-- Tracks 1..EARLY_TRACKS: needed Speed = EARLY_FIRST_STAT x g^(n-1), one constant g > 1
+					local worstCurve, worstCruise = 0, 0
+					for n = 1, early do
+						local want = firstStat * g ^ (n - 1)
+						worstCurve = math.max(worstCurve, relErr(needed[n], want))
+						-- ...and the NPC speed is the cruise speed at that Speed
+						worstCruise = math.max(worstCruise, relErr(speeds[n], RaceConfig.SpeedFor(want)))
+					end
+					local gOk = isFiniteNumber(g) and g > 1
+					check(checks, "npc_early_one_growth_factor", worstCurve, 1e-6, gOk and worstCurve <= 1e-6)
+					check(checks, "npc_early_speed_is_cruise_at_stat", worstCruise, 1e-6, gOk and worstCruise <= 1e-6)
+					-- the curve continued one more track lands exactly on Track EARLY_TRACKS + 1's needed Speed,
+					-- which is the formula's
+					local eJoin = relErr(needed[early + 1], firstStat * g ^ early)
+					local eJoinFormula = relErr(needed[early + 1], joinStat)
+					check(
+						checks,
+						"npc_early_lands_on_formula",
+						math.max(eJoin, eJoinFormula),
+						1e-6,
+						gOk and eJoin <= 1e-6 and eJoinFormula <= 1e-6
+					)
+					-- Track EARLY_TRACKS + 1 onward: exactly BASE_SPEED x SPEED_GROWTH^(n-1), as before the curve
+					local worstFormula = 0
+					for n = early + 1, lastN do
+						worstFormula = math.max(worstFormula, relErr(speeds[n], formula(n)))
+					end
+					check(checks, "npc_formula_after_early_tracks", worstFormula, 1e-9, worstFormula <= 1e-9)
+					local allUp = true
+					for n = 2, lastN do
+						allUp = allUp and speeds[n] > speeds[n - 1]
+					end
+					check(checks, "npc_speed_increasing_1_to_last", allUp and 1 or 0, 1, allUp)
+					-- Faster movement (Vic2CS 2026-11-19, design doc "Faster movement", placeholder read live):
+					-- SPEED_SCALE multiplies the NPC formula's base too (NpcConfig.BASE_SPEED = 16 x SPEED_SCALE), so the
+					-- Speed every track needs is exactly the one with SPEED_SCALE = 1. That one is computed here from
+					-- the owner's UNSCALED numbers, written out: cruise BASE 10 / MAX 88 (owner 2026-10-22 shape), NPC
+					-- base 16 (owner 2026-10-21), the live SPEED_GROWTH, HALF_STAT and early-curve constants.
+					local scale = RaceConfig.SPEED_SCALE
+					local scaleOk = isFiniteNumber(scale) and scale > 0
+					check(checks, "npc_speed_scale_positive", num(scale), 0, scaleOk)
+					local wantBase = scaleOk and 16 * scale or -1
+					check(checks, "npc_base_speed_is_16_x_scale", cfgBase, wantBase, scaleOk and cfgBase == wantBase)
+					local UB, UM, UH = 10, 88, RaceConfig.HALF_STAT
+					local function unscaledStatFor(v)
+						if v <= UB then
+							return 0
+						end
+						local range = UM - UB
+						if v <= UM then
+							return UH * (v - UB) / range
+						end
+						return UH * 2 ^ ((v - UM) / (range / 2))
+					end
+					local function unscaledNpc(n)
+						return 16 * cfgGrowth ^ (n - 1)
+					end
+					local g1 = (unscaledStatFor(unscaledNpc(early + 1)) / firstStat) ^ (1 / early)
+					local worstScaled = 0
+					for n = 1, lastN do
+						local want = n <= early and firstStat * g1 ^ (n - 1) or unscaledStatFor(unscaledNpc(n))
+						worstScaled = math.max(worstScaled, relErr(needed[n], want))
+					end
+					metrics.npcNeededVsUnscaled = worstScaled
+					check(
+						checks,
+						"npc_needed_speed_unchanged_by_scale",
+						worstScaled,
+						1e-6,
+						scaleOk and isFiniteNumber(UH) and worstScaled <= 1e-6
+					)
+				end
+			end
 			local rec1 = type(RaceConfig.StatFor) == "function" and RaceConfig.StatFor(s1) or math.huge
 			check(checks, "npc_track1_rec_speed_below_10k", rec1, 10000, rec1 > 0 and rec1 < 10000)
 			check(
@@ -7524,7 +7689,7 @@ function Scenarios.npc()
 					end
 					check(
 						checks,
-						"npc_profile_flat_rate_" .. s,
+						"npc_profile_flat_rate_" .. math.round(s),
 						rate * s,
 						1,
 						rate > 0 and math.abs(rate * s - 1) <= 0.05
@@ -8349,6 +8514,7 @@ local SPAWN_GEOM_TOL = 0.5 -- studs: footprints match the spec within this
 local SPAWN_TOP_TOL = 0.1 -- studs: tops match the spec within this
 local SPAWN_TOUCH_GAP = 1 -- studs: "touches" = horizontal gap at most this
 local SPAWN_OVERLAP_TOL = 0.05 -- studs of footprint overlap ignored (edges that only touch)
+local SPAWN_YIELD_SECONDS = 0.1 -- the overlap scan yields (task.wait) after this long without one (Studio timeout)
 local SPAWN_SIDE_REACH = 3 -- studs: an Edge part lies along a side when its centre is this close to the side line
 local SPAWN_SIDE_COVER = 0.9 -- share of each of the three outer sides the Edge parts must cover
 local SPAWN_MIDDLE = 8 -- studs (horizontal) the SpawnLocation may be from the area centre
@@ -8793,21 +8959,96 @@ function Scenarios.spawn_area()
 		end
 	end
 	metrics.track_parts_checked = #trackParts
+	-- Broad phase (bug f8ac5104: ~142 x ~8562 exact tests in one go took ~11 s and hit Studio's script timeout).
+	-- spawnPolySeparation returns the LARGEST gap over a set of axes that includes every axis of the first footprint,
+	-- so the gap along any ONE of those axes, computed exactly as it computes it, is a lower bound of the pair's
+	-- separation. A pair skips the exact test only when that bound proves the exact test could neither count an
+	-- overlap (bound >= -SPAWN_OVERLAP_TOL) nor lower the closest gap seen so far (bound > worst), so every pair is
+	-- judged exactly as before and overlaps, closest_track_gap and worst_overlap are unchanged. The track parts'
+	-- intervals along an axis are computed once per distinct axis, and the scan yields every SPAWN_YIELD_SECONDS.
+	local lastYield = os.clock()
+	local function maybeYield()
+		if os.clock() - lastYield >= SPAWN_YIELD_SECONDS then
+			task.wait()
+			lastYield = os.clock()
+		end
+	end
+	local axisCache = {}
+	local function trackIntervals(ax)
+		local key = string.format("%.17g|%.17g", ax.X, ax.Y)
+		local cached = axisCache[key]
+		if cached == nil then
+			cached = { Min = table.create(#trackParts), Max = table.create(#trackParts) }
+			for i, t in trackParts do
+				local bMin, bMax = math.huge, -math.huge
+				for _, p in t.Poly.Points do
+					local v = p:Dot(ax)
+					bMin, bMax = math.min(bMin, v), math.max(bMax, v)
+				end
+				cached.Min[i], cached.Max[i] = bMin, bMax
+				if i % 1000 == 0 then
+					maybeYield()
+				end
+			end
+			axisCache[key] = cached
+		end
+		return cached
+	end
+	-- the footprint's own axes (the same ones, in the same order, spawnPolySeparation tests first) with its interval
+	-- along each and the cached track intervals
+	local function ownAxes(poly)
+		local axes = {}
+		for _, dir in poly.Dirs do
+			for _, ax in { dir, Vector2.new(-dir.Y, dir.X) } do
+				local aMin, aMax = math.huge, -math.huge
+				for _, p in poly.Points do
+					local v = p:Dot(ax)
+					aMin, aMax = math.min(aMin, v), math.max(aMax, v)
+				end
+				local iv = trackIntervals(ax)
+				table.insert(axes, { aMin, aMax, iv.Min, iv.Max })
+			end
+		end
+		return axes
+	end
+	-- true when one axis gap, a lower bound of spawnPolySeparation(poly, trackParts[i].Poly), is above `below`
+	-- (strictly) and >= -SPAWN_OVERLAP_TOL: the exact test would neither count an overlap nor go below `below`
+	local function provenClear(axes, i, below)
+		for _, a in axes do
+			local gap = math.max(a[3][i] - a[2], a[1] - a[4][i])
+			if gap > below and gap >= -SPAWN_OVERLAP_TOL then
+				return true
+			end
+		end
+		return false
+	end
 	local overlaps, worst, worstName = 0, math.huge, ""
+	local pairsChecked, pairsExact = 0, 0
 	for _, d in area:GetDescendants() do
 		if d:IsA("BasePart") then
 			local poly = spawnPartPoly(d)
-			for _, t in trackParts do
-				local sep = spawnPolySeparation(poly, t.Poly)
-				if sep < worst then
-					worst, worstName = sep, d.Name .. "/" .. t.Part:GetFullName()
+			local axes = ownAxes(poly)
+			for i, t in trackParts do
+				pairsChecked += 1
+				if not provenClear(axes, i, worst) then
+					pairsExact += 1
+					local sep = spawnPolySeparation(poly, t.Poly)
+					if sep < worst then
+						worst, worstName = sep, d.Name .. "/" .. t.Part:GetFullName()
+					end
+					if sep < -SPAWN_OVERLAP_TOL then
+						overlaps += 1
+					end
 				end
-				if sep < -SPAWN_OVERLAP_TOL then
-					overlaps += 1
+				if pairsChecked % 2000 == 0 then
+					maybeYield()
 				end
 			end
+			maybeYield()
 		end
 	end
+	metrics.spawn_pairs_checked = pairsChecked
+	metrics.spawn_pairs_exact = pairsExact
 	if overlaps > 0 then
 		metrics.worst_overlap = worstName
 	end
@@ -8822,9 +9063,14 @@ function Scenarios.spawn_area()
 			spawnRectPoly(base, SPAWN_PAD.MIN, SPAWN_PAD.MAX),
 		}
 	do
-		for _, t in trackParts do
-			if spawnPolySeparation(rect, t.Poly) < -SPAWN_OVERLAP_TOL then
+		local axes = ownAxes(rect)
+		for i, t in trackParts do
+			-- same broad phase (no closest-gap metric here, so only the overlap bound matters)
+			if not provenClear(axes, i, -math.huge) and spawnPolySeparation(rect, t.Poly) < -SPAWN_OVERLAP_TOL then
 				rectOverlaps += 1
+			end
+			if i % 2000 == 0 then
+				maybeYield()
 			end
 		end
 	end
@@ -13505,7 +13751,9 @@ Scenarios.vehicle_effects = require(script.Parent.VehicleEffectTests).make({
 	newFakeCharacter = newFakeCharacter,
 	clearSpawnOfRealPlayers = clearSpawnOfRealPlayers,
 })
-
-return Scenarios
 -- docs/CAR_REDESIGN_SPEC.md section 11: Singularity orb parts, OrbMotion, animated orb welds, bounds, race stability
 Scenarios.singularity_orb = require(script.Parent.SingularityOrbTests).singularity_orb
+-- docs/NITRO_SPEC.md: NitroConfig needle / grades / multis, run:Nitro on the rail, NitroService.Press grading
+Scenarios.nitro = require(script.Parent.NitroTests).nitro
+
+return Scenarios

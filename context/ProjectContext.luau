@@ -3,7 +3,26 @@
 PROJECT CONTEXT - Idle Vehicle Simulator (read me first)
 Shown in Studio at: ServerScriptService > ProjectContext   (source file: context/ProjectContext.luau)
 Do NOT edit this in Studio: edit the file on disk, Rojo syncs it. Claude updates it at the end of every loop.
-Last updated: 2026-10-27 (Claude: car redesign v3 toy racers, Singularity orb)
+Last updated: 2026-11-19 (Claude: early-track Speed curve, timed nitro, dev popup switch; vic's branch)
+
+VIC'S DEV BRANCH PROPOSALS - 2026-11-19 (Claude, branch feature/vic2cs/dev-changes; all need the owner's OK for main)
+- Early-track Speed curve: NpcConfig.EARLY_TRACKS 5, EARLY_FIRST_STAT 300 (placeholders); Tracks 1-5 need
+  300 / ~1.8K / ~10.6K / ~63K / ~375K Speed (x~5.9 each), landing on the formula's Track 6 (2.2M, unchanged).
+  NpcConfig.DefaultSpeed / EarlyGrowth. Design doc "Early-track Speed curve".
+- Timed nitro: Shared/NitroConfig, Server/NitroService (Remotes.Nitro, attributes NitroReadyAt / NitroUntil / ...),
+  Client/NitroInput (NitroBar ScreenGui above RacerHud.Speed), RaceService run:Nitro + driveSpeed. Spec
+  docs/NITRO_SPEC.md; exception to the 2026-10-20 one-steady-speed rule.
+- Faster movement: RaceConfig.SPEED_SCALE 1.4 (placeholder) multiplies BASE_SPEED / MAX_SPEED and NpcConfig.BASE_SPEED;
+  needed Speed per track and gate signs unchanged, Track 1 lap ~66 s. Design doc "Faster movement".
+- Nitro v2: zones centred on NitroTarget (new random spot per bar, NitroConfig.NewTarget), Bar/PressMark shows the
+  graded press (NitroPressPos), bar 340x34, FitScale UIScale shrinks it between RollToast.Toast and Speed on phones.
+- Saving works in the dev place since 2026-11-19 (Studio API access on; stop/replay kept rolls and cars).
+- Dev switch: ReplicatedStorage attribute DevNoRollPopup (Studio only, ignored during UiTestRun) stops emphasized
+  rolls opening the enlarged roll view (Client/RollToast).
+- Verified live (single player): Track 1 NPC 10.23 studs/s, lap ~92 s; Perfect press 10.06 -> 17.10 studs/s for 2 s;
+  Miss locks 2 s; spam ignored; with nitro Track 1 won 86.6 s vs NPC 91.5 s, $100 paid. Not run: CarTest / UI tests
+  (harness fails to load: stray `return Scenarios` in Scenarios.luau). The `npc` scenario still expects
+  BASE_SPEED x SPEED_GROWTH^(n-1) on every track and UiSpec does not list NitroBar: test-writer / ui-test-writer.
 
 CAR REDESIGN V3 (TOY RACER) + SINGULARITY ORB - 2026-10-27 (Claude, branch feature/alex/car-redesign-v3-toy-racer)
 - Owner: every car a stylised toy racer, 15,000-triangle cap, pilot (Rusty Hatchback / Street Racer / Singularity)

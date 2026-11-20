@@ -8,10 +8,19 @@
 --   Label  floating text above the NPC
 --   Model  name of a Model under ReplicatedStorage.NpcModels, or a car catalog id (skinned like the player's car)
 
+local RaceConfig = require(script.Parent.RaceConfig)
+
 local NpcConfig = {}
 
-NpcConfig.BASE_SPEED = 16 -- Track 1, studs/s: a stat-0 starter car (10) loses; slightly higher starter-track recommendation
+-- studs/s, the formula's Track 1 (owner 2026-10-21: 16), x the movement scale so a track needs the same Speed;
+-- tracks 1..EARLY_TRACKS use the curve below
+NpcConfig.BASE_SPEED = 16 * RaceConfig.SPEED_SCALE
 NpcConfig.SPEED_GROWTH = 1.75 -- every later track's NPC is this many times faster (owner 2026-10-21, was 1.37)
+-- Early-track Speed curve (proposed by Vic2CS, 2026-11-19; design doc "Early-track Speed curve", placeholders): the
+-- Speed a track needs (raw multi 1) is EARLY_FIRST_STAT on Track 1 and grows by one fixed factor per track, landing
+-- exactly on what the formula above needs on Track EARLY_TRACKS + 1, so that track and every later one are unchanged.
+NpcConfig.EARLY_TRACKS = 5
+NpcConfig.EARLY_FIRST_STAT = 300 -- Track 1: ~2.5 minutes of racing for a new player; a stat-0 car (RaceConfig.BASE_SPEED) loses without nitro
 NpcConfig.LABEL_DISTANCE = 200 -- studs: the label only shows when the player is this close (owner 2026-10-20, was 60)
 NpcConfig.LOSE_SCREEN_SECONDS = 3 -- loser screen time before the player is sent back to the spawn
 NpcConfig.LABEL_FORMAT = "track%02d_NPC"
@@ -42,6 +51,24 @@ NpcConfig.Tracks = {
 	[10] = { Model = "void_racer" },
 }
 
+local function formulaSpeed(number)
+	return NpcConfig.BASE_SPEED * NpcConfig.SPEED_GROWTH ^ (number - 1)
+end
+
+-- The factor each early track's needed Speed is multiplied by (about 6 with the placeholders).
+function NpcConfig.EarlyGrowth()
+	local joinStat = RaceConfig.StatFor(formulaSpeed(NpcConfig.EARLY_TRACKS + 1))
+	return (joinStat / NpcConfig.EARLY_FIRST_STAT) ^ (1 / NpcConfig.EARLY_TRACKS)
+end
+
+-- Track `number`'s NPC speed before any Tracks[n].Speed override: the early curve, then the formula.
+function NpcConfig.DefaultSpeed(number)
+	if number <= NpcConfig.EARLY_TRACKS then
+		return RaceConfig.SpeedFor(NpcConfig.EARLY_FIRST_STAT * NpcConfig.EarlyGrowth() ^ (number - 1))
+	end
+	return formulaSpeed(number)
+end
+
 -- Everything about track `number`'s NPC: { Number, Speed, Color, Label, Model }.
 function NpcConfig.For(number)
 	number = math.max(1, math.floor(tonumber(number) or 1))
@@ -49,7 +76,7 @@ function NpcConfig.For(number)
 	local palette = NpcConfig.PALETTE
 	return {
 		Number = number,
-		Speed = o.Speed or NpcConfig.BASE_SPEED * NpcConfig.SPEED_GROWTH ^ (number - 1),
+		Speed = o.Speed or NpcConfig.DefaultSpeed(number),
 		Color = o.Color or palette[(number - 1) % #palette + 1],
 		Label = o.Label or string.format(NpcConfig.LABEL_FORMAT, number),
 		Model = o.Model,

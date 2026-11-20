@@ -49,7 +49,9 @@ local SPEED_TOL = 0.02
 local SAMPLE_AFTER = 3
 local SAMPLE_AFTER_STUDS = 30
 local MASS_TOL = 1e-3
-local WELD_CHECK_AFTER = 3 -- seconds of RaceService driving before the first orb weld comparison
+local WELD_CHECK_AFTER = 3 -- seconds of RaceService driving before the first orb weld comparison (at most)
+local WELD_CHECK_FRACTION = 1 / 3 -- ...or this fraction of the expected run time, whichever is earlier, so a fast
+-- run (MAX_STAT finishes the chain in under 3 s) still gets its early sample; no sample at all still fails
 
 local Tests = {}
 
@@ -75,20 +77,30 @@ local function yaw(cf)
 	local look = cf.LookVector
 	return math.atan2(-look.X, -look.Z)
 end
+-- Distance from p to the polyline pts (segments lo..hi). The route ends at its last waypoint: when the nearest
+-- segment is the FINAL one and p projects past its end (at MAX_STAT the car rolls ~14 studs per frame, so the last
+-- frame before run.Finished can be past the finish waypoint), the distance is the lateral one to that final straight,
+-- not the distance to its end point; the third return value is then true. Everywhere else it is unchanged.
 local function nearestOnPolyline(pts, p, lo, hi)
-	local best, bestI = math.huge, lo
+	local best, bestI, bestRaw = math.huge, lo, 0
 	for i = math.max(lo, 1), math.min(hi, #pts - 1) do
 		local a, b = pts[i], pts[i + 1]
 		local ab = b - a
 		local len2 = ab:Dot(ab)
 		if len2 > 1e-6 then
-			local d = (p - (a + ab * math.clamp((p - a):Dot(ab) / len2, 0, 1))).Magnitude
+			local raw = (p - a):Dot(ab) / len2
+			local d = (p - (a + ab * math.clamp(raw, 0, 1))).Magnitude
 			if d < best then
-				best, bestI = d, i
+				best, bestI, bestRaw = d, i, raw
 			end
 		end
 	end
-	return best, bestI
+	local pastEnd = bestI == #pts - 1 and bestRaw > 1
+	if pastEnd then
+		local a, b = pts[bestI], pts[bestI + 1]
+		best = (p - (a + (b - a) * bestRaw)).Magnitude
+	end
+	return best, bestI, pastEnd
 end
 local function orbParts(root)
 	local out = {}
@@ -432,7 +444,7 @@ function Tests.singularity_orb()
 		end
 
 		local function drive(carId, stat)
-			local st = { flips = 0, minUp = 1, dev = 0, devN = 0, speedSum = 0, speedN = 0 }
+			local st = { flips = 0, minUp = 1, dev = 0, devN = 0, pastEndN = 0, speedSum = 0, speedN = 0 }
 			local car = factory.build(carConfig)
 			car.Name = "CarTestOrbCar"
 			appearance.Apply(car, carId, carConfig)
@@ -456,17 +468,20 @@ function Tests.singularity_orb()
 			st.target = run.TargetSpeed
 			local target = type(run.TargetSpeed) == "number" and run.TargetSpeed or 1
 			local timeout = totalLen / (0.5 * target) + 40
+			-- expected run time at cruise: route length / RaceService's own TargetSpeed
+			local weldAt = math.min(WELD_CHECK_AFTER, WELD_CHECK_FRACTION * totalLen / target)
+			st.weldAt = weldAt
 			local t, idx, dist, flippedFor, wasFlipped = 0, 1, 0, 0, false
 			while t < timeout and run.Finished ~= true do
 				local dt = RunService.Heartbeat:Wait()
 				t += dt
-				if st.earlyDrift == nil and t >= WELD_CHECK_AFTER then
+				if st.earlyDrift == nil and t >= weldAt then
 					st.earlyDrift = weldDrift(car, firstWelds)
 				end
 				local pos = chassis.Position
 				local speed = chassis.AssemblyLinearVelocity.Magnitude
 				dist += speed * dt
-				local d, seg = nearestOnPolyline(wps, pos, math.max(idx - 3, 1), math.min(idx + 25, #wps - 1))
+				local d, seg, pastEnd = nearestOnPolyline(wps, pos, math.max(idx - 3, 1), math.min(idx + 25, #wps - 1))
 				idx = seg
 				local upY = chassis.CFrame.UpVector.Y
 				if not (run.Physics and run.Physics.LoopAssist) then
@@ -475,6 +490,9 @@ function Tests.singularity_orb()
 				if t > SAMPLE_AFTER or dist >= SAMPLE_AFTER_STUDS then
 					st.dev = math.max(st.dev, d)
 					st.devN += 1
+					if pastEnd then
+						st.pastEndN += 1
+					end
 					st.speedSum += speed
 					st.speedN += 1
 				end
@@ -511,11 +529,14 @@ function Tests.singularity_orb()
 			flag(pre .. "_body_never_tilted", st.minUp >= strict, st.minUp, strict)
 			local rm = type(st.runMinUp) == "number" and st.runMinUp or -1
 			flag(pre .. "_never_tilted", rm >= strict, rm, strict)
-			flag(pre .. "_path_deviation", st.devN > 0 and st.dev <= maxDev, st.dev, maxDev)
+			-- every in-route sample counts; only a past-the-finish overshoot is measured laterally (nearestOnPolyline)
+			flag(pre .. "_path_deviation", st.devN > st.pastEndN and st.dev <= maxDev, st.dev, maxDev)
+			metrics[pre .. "_past_end_samples"] = st.pastEndN
 			local rd = type(st.runDev) == "number" and st.runDev or math.huge
 			flag(pre .. "_run_path_deviation", rd <= maxDev, rd, maxDev)
 			-- "the server never changes it" (section 11): same Weld, Part0 and C0 after a few seconds and at the end.
-			local early = st.earlyDrift or math.huge
+			local early = st.earlyDrift or math.huge -- never sampled before the finish = fail
+			metrics[pre .. "_weld_check_at"] = st.weldAt
 			flag(pre .. "_orb_weld_unchanged_early", early <= 1e-9, early, 0)
 			flag(pre .. "_orb_weld_unchanged_end", st.endDrift <= 1e-9, st.endDrift, 0)
 		end
