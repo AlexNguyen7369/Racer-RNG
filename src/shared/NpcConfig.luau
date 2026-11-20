@@ -22,7 +22,9 @@ NpcConfig.SPEED_GROWTH = 1.75 -- every later track's NPC is this many times fast
 NpcConfig.EARLY_TRACKS = 5
 NpcConfig.EARLY_FIRST_STAT = 300 -- Track 1: ~2.5 minutes of racing for a new player; a stat-0 car (RaceConfig.BASE_SPEED) loses without nitro
 NpcConfig.LABEL_DISTANCE = 200 -- studs: the label only shows when the player is this close (owner 2026-10-20, was 60)
-NpcConfig.LOSE_SCREEN_SECONDS = 3 -- loser screen time before the player is sent back to the spawn
+-- Loser screen time: a lost race ends when the NPC's time is up, the car stops, and after this long it goes back to
+-- the run's start track (Vic2CS proposal 2026-11-20, design doc "Playtest follow-ups", needs owner agreement)
+NpcConfig.LOSE_SCREEN_SECONDS = 3
 NpcConfig.LABEL_FORMAT = "track%02d_NPC"
 
 -- Default colours by track number, used when Tracks[n].Color is not set (wraps around after the last).
@@ -81,6 +83,13 @@ function NpcConfig.For(number)
 		Label = o.Label or string.format(NpcConfig.LABEL_FORMAT, number),
 		Model = o.Model,
 	}
+end
+
+-- The Speed track `number` needs, as the track gate's REC. SPEED sign shows it: the shown Speed at which a car with
+-- raw multi 1 cruises at the NPC's speed (design doc "Faster race Speed gain", gate signs). The loser screen's
+-- progress guide uses the same number.
+function NpcConfig.RecommendedSpeed(number)
+	return RaceConfig.StatFor(NpcConfig.For(number).Speed)
 end
 
 return NpcConfig

@@ -289,6 +289,13 @@ UiSpec.Guis = {
 		Buttons = {},
 		NonInteractive = true,
 	},
+	-- Vic2CS 2026-11-20: the ~2 s "TRACK n CLEARED" banner after a won track; display only, never takes input.
+	RaceBanner = {
+		Source = "Client/RaceBanner",
+		Overlay = true,
+		Buttons = {},
+		NonInteractive = true,
+	},
 	-- The world dim behind open panels (UiSpec.PanelDimmers); below the HUD, never takes a click.
 	PanelDim = {
 		Source = "Client/HudChrome",
@@ -360,7 +367,7 @@ UiSpec.Rebirth = {
 			Name = "WarningText",
 			Parent = "Warning",
 			Class = "TextLabel",
-			Contains = { "Rebirth resets your Money and Speed", "(Robux purchases stay)" },
+			Contains = { "Rebirth resets your Money, Speed, Level and XP", "(Robux purchases stay)" },
 		},
 		{ Name = "Rewards", Parent = "Panel", Class = "Frame" },
 		{
@@ -464,8 +471,9 @@ UiSpec.Hud = {
 	SpeedCentreTolerance = 2, -- px: the visible icon + number are centred on the screen (brief 2026-10-06: Speed centred; CLAUDE.md still says left)
 	Money = "RacerHud/Money",
 	MoneyValue = "RacerHud/Money/MoneyValue",
+	-- Retired (design doc: no banked pot; playtest 2026-11-20): the baked label must not be drawn
+	-- (ui_hud unbanked_label_hidden). RacerUiController keeps it hidden; RacerHud.ui.json marks it visible = false.
 	Unbanked = "RacerHud/Money/Unbanked",
-	UnbankedPrefix = "UNBANKED ",
 	Turbo = "RacerHud/Turbo",
 	TurboFill = "RacerHud/Turbo/Face/TurboFill",
 	TurboLabel = "RacerHud/Turbo/Face/TurboLabel",
@@ -709,6 +717,10 @@ UiSpec.RacerPanelBand = {
 -- When = "any": any PanelSwitch panel open; "other_than:<panel>": any panel but that one.
 UiSpec.HiddenWhilePanelOpen = {
 	["DailyBoosts/Status"] = "any",
+	-- The compact roll hides while any PanelSwitch panel is open (owner decision 2026-10-08, ROLL_ANIMATION_SPEC;
+	-- playtest 2026-11-20 found it drawn over Upgrades, Rebirth, Checkpoints and Workshop). ui_toast proves the roll
+	-- keeps playing underneath and is shown again once the panel closes.
+	["RollToast/Toast"] = "any",
 }
 -- ProgressionUi applies its visibility on a 0.25 s poll: the checks wait up to this long for it.
 UiSpec.HiddenWhilePanelOpenWait = 1
@@ -783,7 +795,7 @@ end
 -- it has no <Surface>) whose BackgroundTransparency is at most MaxSurfaceTransparency, with no CanvasGroup fading it.
 -- A read-out drawn above a panel button is never allowed.
 UiSpec.PanelCoversReadouts = {
-	-- Money (and MoneyValue / Unbanked inside it) is a display-only read-out like Speed (2026-10-08, gate run 5).
+	-- Money (and MoneyValue inside it) is a display-only read-out like Speed (2026-10-08, gate run 5).
 	Readouts = { "RacerHud/Speed", "RacerHud/Money" },
 	Surface = "Face",
 	MaxSurfaceTransparency = 0.05,
@@ -801,6 +813,9 @@ UiSpec.Showcase = {
 	HiddenGuis = { "RacerHud" },
 	Body = "Card/CardBody/Face", -- the animated card body (PopIn grows it, LAND_POP pops it)
 	CardCentreScale = 0.46, -- RollShowcase.ui.json positions the card centre at 46% of the viewport height
+	-- The settled card's width never exceeds the screen width minus CardSideMargin px on each side (Client/RollToast caps
+	-- the generated UIScale; HUD_LAYOUT_SPEC section 6 playtest follow-ups, 2026-11-20)
+	CardSideMargin = 16,
 	-- Every part the enlarged card must have (presence; Racer UI names)...
 	CardParts = {
 		"Glow",
@@ -879,6 +894,11 @@ UiSpec.Compact = {
 	ExtraHeight = 44, -- caption band (24) + odds band (20)
 	ModelShare = 90 / 110, -- 24 px caption + 66 px art in the 110 px compact toast
 	SplitTolerance = 0.02, -- proportional tolerance for Roblox's layout rounding
+	-- While AutoRacing (HUD_LAYOUT_SPEC section 6 playtest follow-ups, 2026-11-20): same size and AnchorPoint, top edge
+	-- = the Race Face's top, right edge RacingGap px left of the Race Face, but never closer than RacingEdge px to the
+	-- screen's left edge (so it covers neither the race map nor the gate signs at the top centre).
+	RacingGap = 8,
+	RacingEdge = 8,
 }
 
 -- The roll animation (docs/ROLL_ANIMATION_CONTRACT.md). Numbers are read from Shared/RollAnimConfig; Fallback is the
@@ -1171,7 +1191,7 @@ ClickAt: where to click when it is not the target's centre: "corner" (UiSpec.Sho
  UiSpec.EmptyClickStep px grid (scanned row by row from the top-left, below the top bar, CornerInset in from every
  edge) that lies outside the panel's UiSpec.PanelBody and where NOTHING takes a click (no GuiButton, TextBox or
  Active object). Nothing may be topmost there before the click, and the press must land on nothing.
-Key: instead of Gui/Path, a key press ("Escape"). The harness prints "[UITEST] KEY <id> key=<key> done=<done>" and
+Key: instead of Gui/Path, a key press ("ButtonB", "DPadUp"). The harness prints "[UITEST] KEY <id> key=<key> done=<done>" and
  publishes UiTestClickTarget = JSON { id, key, done }; ui-tester presses that key once in the game view (Roblox Studio
  MCP keyboard input; the Studio window must have focus), closes Roblox's own menu if the key opened it (the harness
  records GuiService.MenuIsOpen in the result's info), then sets UiTestClickDone = <done> as for a click.
@@ -1204,8 +1224,9 @@ local function only(open)
 	return { Open = { open }, Closed = closed, Showcase = false }
 end
 local CLOSE = "Panel/Face/Header/Face/Close/Face"
-local ESCAPE_MANUAL =
-	"VirtualInput::SendKey: Escape is permanently bound to a CoreGUI core action (MCP can not send it)"
+-- Panels close with their X or gamepad ButtonB (PanelSwitch); Escape is reserved by Roblox for its menu and closes
+-- nothing (design doc "Playtest follow-ups" 2026-11-20, HUD_LAYOUT_SPEC section 1). Gamepad presses are MANUAL.
+local GAMEPAD_B_MANUAL = "needs a gamepad button press (Studio Controller Emulator); MCP and scripts can not send one"
 
 UiSpec.Clicks = {
 	{
@@ -1523,37 +1544,28 @@ UiSpec.Clicks = {
 		Prepare = only("RacerRebirth/Panel"),
 		Expect = { Panels = { ["RacerIndex/Panel"] = true, ["RacerRebirth/Panel"] = false }, Remote = false },
 	},
-	-- Escape closes whichever panel is open (RacerUiController: InputBegan Escape -> PanelSwitch.Close for all four).
-	-- A script can not send a key, and the Studio MCP can not send Escape either, so these are MANUAL (owner decision
-	-- 2026-10-08): the owner presses Escape by hand with the Key protocol.
+	-- Gamepad B closes whichever panel is open (PanelSwitch binds ButtonB while a panel is open and the preferred
+	-- input is a gamepad). gamepad_b_closes_index is declared with the other gamepad checks below.
 	{
-		Id = "escape_closes_index",
-		Key = "Escape",
-		Manual = ESCAPE_MANUAL,
-		Prepare = only("RacerIndex/Panel"),
-		NeedSetup = { "spy" },
-		Expect = { Panels = { ["RacerIndex/Panel"] = false }, Remote = false },
-	},
-	{
-		Id = "escape_closes_stats",
-		Key = "Escape",
-		Manual = ESCAPE_MANUAL,
+		Id = "gamepad_b_closes_stats",
+		Key = "ButtonB",
+		Manual = GAMEPAD_B_MANUAL,
 		Prepare = only("RacerStats/Panel"),
 		NeedSetup = { "spy" },
 		Expect = { Panels = { ["RacerStats/Panel"] = false }, Remote = false },
 	},
 	{
-		Id = "escape_closes_settings",
-		Key = "Escape",
-		Manual = ESCAPE_MANUAL,
+		Id = "gamepad_b_closes_settings",
+		Key = "ButtonB",
+		Manual = GAMEPAD_B_MANUAL,
 		Prepare = only("RacerSettings/Panel"),
 		NeedSetup = { "spy" },
 		Expect = { Panels = { ["RacerSettings/Panel"] = false }, Remote = false },
 	},
 	{
-		Id = "escape_closes_rebirth",
-		Key = "Escape",
-		Manual = ESCAPE_MANUAL,
+		Id = "gamepad_b_closes_rebirth",
+		Key = "ButtonB",
+		Manual = GAMEPAD_B_MANUAL,
 		Prepare = only("RacerRebirth/Panel"),
 		NeedSetup = { "spy" },
 		Expect = { Panels = { ["RacerRebirth/Panel"] = false }, Remote = false },
@@ -1992,7 +2004,11 @@ UiSpec.Guis.RacerWorkshop = {
 UiSpec.Guis.RacerWelcome = {
 	Source = "Client/ProgressionUi",
 	Panels = { "Panel" },
-	Buttons = { { Path = "Panel/Close", Does = "close_panel", Panel = "RacerWelcome/Panel" } },
+	Buttons = {
+		{ Path = "Panel/Close", Does = "close_panel", Panel = "RacerWelcome/Panel" },
+		-- Playtest follow-up 2026-11-20: COLLECT closes the panel (the offline Speed is credited on load, not here)
+		{ Path = "Panel/Collect", Does = "close_panel", Panel = "RacerWelcome/Panel", Text = "COLLECT" },
+	},
 }
 UiSpec.Progression = {
 	-- Owner 2026-10-26 (UPGRADE_TREE_SPEC section 5): the click box is 100 x 106 (NODE_HEIGHT = STEP_Y), so
@@ -2060,6 +2076,16 @@ for _, name in { "Upgrades", "Workshop", "Welcome" } do
 		Expect = { Panels = { [path] = false }, Remote = false },
 	})
 end
+-- Welcome COLLECT (playtest follow-up 2026-11-20): closes the panel and asks the server nothing (the offline Speed
+-- was credited on load).
+table.insert(UiSpec.Clicks, {
+	Id = "collect_welcome",
+	Gui = "RacerWelcome",
+	Path = "Panel/Collect",
+	Prepare = only("RacerWelcome/Panel"),
+	NeedSetup = { "spy" },
+	Expect = { Panels = { ["RacerWelcome/Panel"] = false }, Remote = false },
+})
 table.insert(UiSpec.Clicks, {
 	Id = "exit_upgrades",
 	Gui = "RacerUpgrades",
@@ -2876,9 +2902,9 @@ duelClick({
 })
 for _, panel in { "PickPanel", "InvitePanel" } do
 	duelClick({
-		Id = "escape_closes_duel_" .. string.lower((string.gsub(panel, "Panel", ""))),
-		Key = "Escape",
-		Manual = ESCAPE_MANUAL,
+		Id = "gamepad_b_closes_duel_" .. string.lower((string.gsub(panel, "Panel", ""))),
+		Key = "ButtonB",
+		Manual = GAMEPAD_B_MANUAL,
 		Prepare = only("DuelUi/" .. panel),
 		NeedSetup = { "spy" },
 		Expect = { Panels = { ["DuelUi/" .. panel] = false }, Remote = false },
@@ -2999,9 +3025,9 @@ table.insert(UiSpec.Clicks, {
 	Expect = { Panels = { [UiSpec.Checkpoints.Panel] = false, ["RacerIndex/Panel"] = true }, Remote = false },
 })
 table.insert(UiSpec.Clicks, {
-	Id = "checkpoint_escape",
-	Key = "Escape",
-	Manual = ESCAPE_MANUAL,
+	Id = "checkpoint_gamepad_b",
+	Key = "ButtonB",
+	Manual = GAMEPAD_B_MANUAL,
 	Prepare = only(UiSpec.Checkpoints.Panel),
 	NeedSetup = { "spy" },
 	Expect = { Panels = { [UiSpec.Checkpoints.Panel] = false }, Remote = false },
@@ -3223,7 +3249,10 @@ UiSpec.Nitro = {
 		Good = "NITRO x%.1f",
 		Miss = "MISS",
 		Charging = "NITRO CHARGING",
+		-- Vic2CS 2026-11-20: shown when a boost ends; %.1f = the seconds it saved (NitroSaved)
+		Saved = "SAVED %.1f s",
 	},
+	SavedShow = 1.5, -- s the saved-time label stays up after a boost ends
 	ShowGrace = 0.5, -- s: the bar shows / hides this soon after the server's AutoRacing / NitroReadyAt change
 	GradeWait = 2, -- s for the server's graded press (NitroPresses + 1) to arrive after a press
 	IgnoreWatch = 0.75, -- s a press that must do nothing is watched for a NitroPresses change

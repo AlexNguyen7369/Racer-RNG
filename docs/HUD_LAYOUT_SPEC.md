@@ -12,7 +12,8 @@ Owner, 2026-10-15 (same day, replaces the first 2 x 3 grid):
 - Right edge, vertically centred: `HudChrome/ShopColumn` with the Shop tile.
 - Bottom centre: Items (`ItemsSlot`) left of the LEVEL / TURBO LUCK bars and Upgrade (`UpgradeSlot`) right of
   them, each icon centred on the gap between the two bars, at 75% of the edge tiles' size. Both remain visible as
-  dimmed background buttons while a panel is open. The panel's X or Escape closes it.
+  dimmed background buttons while a panel is open. The panel's X or gamepad B closes it. Escape is reserved by
+  Roblox (it opens the Roblox menu), so it does not close panels (design doc "Playtest follow-ups", 2026-11-20).
 - Each tile is a cartoon icon with a white label and a dark outline under it. There is no button box behind the
   icon (the Index tile has its rounded blue card, as in the reference).
 - Badges: Upgrade shows the number of buyable upgrades (`UpgradesBuyable`) and Stats shows the free stat points.
@@ -96,8 +97,9 @@ adds the shared white highlight and slight enlargement; its Claim button remains
   and `MarketConfig.Icon`. Details: `PANEL_ART_GIFTING_SPEC.md`.
 
 - Whenever a `PanelSwitch` panel is open, every persistent HUD entry remains drawn: the HudChrome
-  tiles/pills, Auto Race, the compact roll when it would otherwise be shown, the weather button and active potion
-  buttons. Owner 2026-10-20 (replaces the per-HUD veil): a panel never dims the whole screen. Only the world
+  tiles/pills, Auto Race, the weather button and active potion buttons. The compact roll is the exception: it hides
+  while any `PanelSwitch` panel is open (owner 2026-10-08, `docs/ROLL_ANIMATION_SPEC.md`), keeps playing underneath
+  and shows again when the panel closes, because the panels open directly below the Race button where it sits. Owner 2026-10-20 (replaces the per-HUD veil): a panel never dims the whole screen. Only the world
   behind the UI is dimmed, by one non-interactive layer (`HudChrome` creates ScreenGui `PanelDim`, DisplayOrder 0,
   below every HUD ScreenGui); the HUD stays at full brightness. Panels' own full-screen `Backdrop` frames are
   transparent. The full-screen roll showcase and the full-screen upgrade tree (owner 2026-10-26) are exempt because
@@ -108,6 +110,17 @@ adds the shared white highlight and slight enlargement; its Claim button remains
 - No two reachable buttons, panels or labels overlap at any tested viewport, phone landscape included
   (`UiSpec` / `UiResponsive`).
 - On phones (viewport height <= 500) the grid tiles and pills shrink.
+- Playtest follow-ups (proposed by Vic2CS 2026-11-20 with the design doc's "Playtest follow-ups"; not yet reviewed by
+  the owner):
+  - Money sits bottom-left with no UNBANKED line under it: there is no banked pot (the server keeps the `Unbanked`
+    attribute at 0), and the label collided with the Items tile.
+  - While auto racing, the compact roll sits beside the Race button (same top edge, its right edge 8 px left of the
+    button) instead of under it, so it covers neither the race map nor the gate signs ahead of the car. Its size,
+    clicks and panel rule are unchanged; off the race it returns under the Race button.
+  - The race map's header labels (`RaceMapTitle`, `RaceMapStatus`) never overlap the Race button: when the map
+    reaches under the button, a label whose row meets it starts 8 px right of the button and scales its text down.
+  - The enlarged roll card keeps at least 16 px from each side of the safe area (its scale is capped on narrow,
+    tall screens).
 
 ## 7. Motion, safe area and gamepad (owner 2026-10-26)
 

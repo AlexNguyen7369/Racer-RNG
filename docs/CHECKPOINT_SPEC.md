@@ -40,6 +40,7 @@ last track goes back to the checkpoint.
   `PanelBand`. The prompt toggles it; Escape / the X button closes it.
 - Owner 2026-10-20: it uses the Backpack look (`docs/HUD_LAYOUT_SPEC.md` section 3): `PanelFrame` header (purple
   gradient, finish-flag icon, red X), navy cards with a blue glow border, green border on the selected checkpoint.
-- One card per track in `Number` order: track number, track name, payout (`TrackBuilder.CashFor`). The current
+- One card per track in `Number` order: track number, track name, payout (`TrackBuilder.CashFor`; proposed by Vic2CS 2026-11-20, not yet reviewed by the owner: the card shows the
+  real payout the player would get, `MoneyService.Quote`, from the read-only `Remotes.CheckpointPayouts`). The current
   checkpoint shows "SELECTED"; an open card shows "SELECT". A locked card is dimmed (40% transparency) with a lock
   icon over it and "Beat Track n" text; clicking it does nothing.

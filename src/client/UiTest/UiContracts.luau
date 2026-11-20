@@ -64,6 +64,13 @@ function Contracts.Build(h)
 		local best = math.clamp(math.floor(h.player:GetAttribute("BestTrack") or 0), 1, #tracks)
 		local current = math.clamp(math.floor(h.player:GetAttribute("Checkpoint") or 1), 1, best)
 		local expected, shown = {}, 0
+		local payoutRemote = ReplicatedStorage:FindFirstChild("Remotes")
+		payoutRemote = payoutRemote and payoutRemote:FindFirstChild("CheckpointPayouts")
+		local okPayouts, payouts = pcall(function()
+			return payoutRemote:InvokeServer()
+		end)
+		check(res, "checkpoint_payouts_remote", okPayouts and type(payouts) == "table", true)
+		payouts = okPayouts and type(payouts) == "table" and payouts or {}
 		local previous
 		for _, track in tracks do
 			local n = track.Number
@@ -86,7 +93,16 @@ function Contracts.Build(h)
 			previous = card
 			check(res, prefix .. "_number", text(card:FindFirstChild("Number")), "TRACK " .. n)
 			check(res, prefix .. "_name", text(card:FindFirstChild("TrackName")), track.Name)
-			check(res, prefix .. "_cash", text(card:FindFirstChild("Cash")), Format.MoneyText(TrackBuilder.CashFor(n)))
+			-- The card shows what a win really pays: the server's quote (MoneyService.Quote = Cash x Money multi,
+			-- read-only Remotes.CheckpointPayouts), base Cash only if the server sent no quote.
+			local quote = payouts[tostring(n)]
+			local wantCash = Format.MoneyText(type(quote) == "number" and quote or TrackBuilder.CashFor(n))
+			local cashLabel = card:FindFirstChild("Cash")
+			local cashDeadline = os.clock() + 3
+			while text(cashLabel) ~= wantCash and os.clock() < cashDeadline do
+				h.frames(1)
+			end
+			check(res, prefix .. "_cash", text(cashLabel), wantCash)
 			local state = required(res, h.pathOf(card) .. "/State", "TextLabel")
 			local lock = required(res, h.pathOf(card) .. "/Lock", "Frame")
 			local unlocked, selected = n <= best, n == current

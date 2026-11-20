@@ -71,8 +71,10 @@
 68. 2026-11-10 — Vic2CS — Added a character-sized blue block beside the spawn pad, stopped the car handbrake from blocking Space on foot so players can jump (not yet tested in play), and pointed the Rojo dev setup at the Racer RNG Dev experience, on feature/vic2cs/dev-changes.
 69. 2026-11-10 — Vic2CS — Added an on-foot sprint (hold Shift for 1.5x WalkSpeed, set by the server, keyboard only) with its design doc entry and docs/SPRINT_SPEC.md, turned off Shift Lock, and confirmed sprint and the Space jump fix in a Studio playtest, on feature/vic2cs/dev-changes; the automated test harness could not run.
 70. 2026-11-10 — Vic2CS — Added a car mount (press C to ride the equipped car on foot, with better cars riding faster, keyboard only) with its design doc entry and docs/MOUNT_SPEC.md, confirmed in a single-player Studio playtest, on feature/vic2cs/dev-changes; the automated test harness could not run.
+71. 2026-11-20 — Vic2CS — Added the timed nitro boost (server-graded timing bar on Space / click / tap / gamepad, moving target, press marker), an exponential early-track Speed curve from 300 on Track 1, x1.4 car and NPC movement and a Studio-only roll-popup switch with the nitro tests, harness 54/54, and pushed feature/vic2cs/dev-changes (f555419; this log entry was missed in that commit and added afterwards).
+72. 2026-11-20 — Vic2CS — Implemented the playtest follow-up proposals (race Speed gain 4, lost race ends at the NPC's time with a loser-screen progress guide, win banner, rival gap in seconds, nitro miss = full recharge and saved-time readout, game audio, HUD and panel fixes, roll-timing fix), harness 52/2 with the nitro test updated and the race max-speed failure shown to predate the change (bug 8442ee9e), UI suite 22/14 matching f555419, on feature/vic2cs/dev-changes.
 
 ## What's next
-**Get the owner's review of the proposed on-foot sprint and car mount, including whether their speeds undercut the paid Walkspeed tiers and whether phones and gamepads need controls for them.**
+**Get the owner's review of the playtest follow-ups, nitro and the early-track curve, including the open decisions on workshop vs racing Speed gain, hiding the compact roll while a panel is open, and Speed gain during the loser screen.**
 
-**Why this is next:** the design doc marks both as proposals the owner has not reviewed, so merging them into main depends on that decision.
+**Why this is next:** every change on feature/vic2cs/dev-changes is a proposal the design doc says needs the owner's agreement before it can reach main.

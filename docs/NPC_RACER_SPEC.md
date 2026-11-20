@@ -12,10 +12,13 @@ User brief (2026-10-01):
 - NPC speeds rise per track, increasing on every later track. Owner 2026-10-21: every NPC is much harder,
   Track 1 included; a beginner (stat 0, starter car) loses Track 1 decisively and wins only after building Speed
   or rolling a faster car (was "very easy on Track 1").
-- A numbers game: if the NPC reaches the finish of the track before the player, the player LOSES. The race still
-  plays out (the player's car keeps driving to the finish), then the player sees a loser screen and is sent back
-  to the start of the run's start track (Track 1, or the player's checkpoint, owner 2026-10-16,
-  `docs/CHECKPOINT_SPEC.md`) where that track's race starts again.
+- A numbers game: if the NPC reaches the finish of the track before the player, the player LOSES. A lost race
+  ends as soon as the NPC's time is up (Vic2CS proposal 2026-11-20, design doc "Playtest follow-ups", needs owner
+  agreement; replaces "the race still plays out to the finish"): the loser screen shows at that moment, the car
+  brakes to a stop, and after `LOSE_SCREEN_SECONDS` the car is sent back to the start of the run's start track
+  (Track 1, or the player's checkpoint, owner 2026-10-16, `docs/CHECKPOINT_SPEC.md`) where that track's race starts
+  again. The result is the same as before (a car that would finish after the NPC loses); only the dead driving
+  time is gone.
 - Money: the current track's WinPad value (`MoneyService.Quote`) is paid immediately when the player WINS that
   track. Losing a track pays nothing for it. There is no banked pot or continue-risk state; earlier wins remain in
   `leaderstats.Money`.
@@ -31,12 +34,14 @@ User brief (2026-10-01):
 - `SPEED_GROWTH` (each track's NPC is this many times faster than the previous one): 1.75 (owner 2026-10-21,
   later the same day: was 2.5, then 1.37; with RaceConfig.MAX_SPEED 88 and Track 1 at 16, early recommendations are slightly higher)
 - `LABEL_DISTANCE` (studs, BillboardGui `MaxDistance`): 200 (owner 2026-10-20: wider, was 60)
-- `LOSE_SCREEN_SECONDS`: 3
+- `LOSE_SCREEN_SECONDS`: 3 (placeholder; the loser screen, with the car stopped, before the reset)
 - `LABEL_FORMAT`: `"track%02d_NPC"`
 - `Tracks = { [number] = { Color?, Speed?, Label?, Model? } }` per-track overrides. Track 1 `Color` is red.
   Owner 2026-10-20: tracks 1-10 drive imported car models (catalog ids, rising rarity): 1 rusty_hatchback,
   2 wooden_car, 3 go_kart, 4 rain_runner, 5 street_racer, 6 midnight_kart, 7 golden_racer, 8 rocket_car,
   9 hover_car, 10 void_racer.
+- `NpcConfig.RecommendedSpeed(number)` -> `RaceConfig.StatFor(For(number).Speed)`: the Speed the track needs, as
+  the gate's REC. SPEED sign shows it (raw multi 1). The loser screen's progress guide uses it.
 - `NpcConfig.For(number)` -> `{ Number, Speed, Color, Label, Model }`
   - `Speed` = override or `BASE_SPEED * SPEED_GROWTH ^ (number - 1)`; strictly increasing with the number.
   - `Color` = override or a palette entry; Track 1 is red (R high, G and B low); the colours of tracks 1..5 are all
@@ -82,14 +87,29 @@ Also returns `StartIndices[i]` and `FinishIndices[i]` (route waypoint index of e
 - Events:
   - `{ Type = "Start", Track = n, ServerStart = workspace:GetServerTimeNow(), Speed, Color, Label, Model }`, when the
     player starts track n (spawn on Track 1, after crossing track n-1's finish, after a reset).
-  - `{ Type = "Result", Track = n, Result = "Win" | "Lose", PlayerTime, NpcTime, Paid }` when the player's car
-    reaches track n's finish (`FinishIndex`). Win if the player's time on the track < the NPC's `TotalTime`.
-  - `{ Type = "Reset", Track = s, LostAt = n }` is emitted immediately after a loss: the server puts the car
-    back at the start of the run's start track s (Track 1 unless `options.StartTrack`, the checkpoint; upright,
-    facing along the path), then emits a new track s `Start`. The loser
-    screen duration is presentation-only and must not delay the authoritative reset.
+  - `{ Type = "Result", Track = n, Result = "Win", PlayerTime, NpcTime, Paid, BestTime, NewBest, PreviousBest }`
+    when the player's car reaches track n's finish (`FinishIndex`) with its time on the track < the NPC's
+    `TotalTime`. `PreviousBest` is the personal best before this race (nil on a first clear); the win banner
+    (`Client/RaceBanner`) shows "NEW BEST" only when `NewBest` and `PreviousBest` are set.
+  - `{ Type = "Result", Track = n, Result = "Lose", PlayerTime, NpcTime, Paid = 0, BestTime, NewBest = false, ... }`
+    in the frame the track's elapsed time reaches the NPC's `TotalTime` without the car at the finish (or when the
+    car reaches the finish at or after it); `PlayerTime` is the elapsed time then (>= `NpcTime`). It also carries
+    the loser screen's data, all decided by the server: `BackTo` (the start track s the car goes back to),
+    `NpcModel` (the NPC's catalog car id), `LoseScreen` (seconds until the reset), `NeedSpeed`
+    (`NpcConfig.RecommendedSpeed(n)`), `Speed` (the player's Speed), `GainRate` (Speed per second of racing:
+    `RaceConfig.GainPerSecond` x `GachaService.SpeedMulti`), `CanRebirth` (`RebirthConfig.CanRebirth`) and
+    `RebirthMulti` (`RebirthConfig.NextMultiplier`).
+  - From the Lose until the reset the run is on the loser screen: `run.Lost = true`, nitro ends
+    (`run.NitroLeft = 0`) and `run:Nitro` is refused, the rail brakes the car to a stop within
+    `RaceService.LOSE_STOP_SECONDS` (placeholder 0.5) and holds it there, and Speed gain keeps its flat rate.
+  - `{ Type = "Reset", Track = s, LostAt = n }` is emitted `LoseScreenSeconds` after the Lose
+    (`NpcConfig.LOSE_SCREEN_SECONDS`; test hook `options.LoseScreenSeconds`, 0 = in the frame of the loss): the
+    server puts the car back at the start of the run's start track s (Track 1 unless `options.StartTrack`, the
+    checkpoint; upright, facing along the path), clears `run.Lost`, then emits a new track s `Start`. Stop or death
+    during the loser screen destroys the run as usual (a `Stop` event, no Reset); an admin `/tp` jump ends the
+    loser screen and starts that track's race.
 - Run fields: `run.RaceTrack` (current track number), `run.Results` (list of Result events), `run.Wins`,
-  `run.Losses`, `run.Resets`, plus all existing fields (`PaidTotal`, `Payouts`, `MinUpY`, `MaxPathDeviation`, ...).
+  `run.Losses` (counted at the Lose), `run.Resets` (counted at the Reset), `run.Lost` (loser screen), plus all existing fields (`PaidTotal`, `Payouts`, `MinUpY`, `MaxPathDeviation`, ...).
 - Money in NPC mode: track n's pad quote is awarded exactly once, at its finish, only on a Win. A Lose pays
   nothing for that track. `Unbanked`, `Banked`, and `CashOut` are deprecated compatibility fields and stay zero.
 - After winning the LAST track the car loops back to the start track (Track 1 or the checkpoint) and its race starts.
@@ -98,7 +118,16 @@ Also returns `StartIndices[i]` and `FinishIndices[i]` (route waypoint index of e
 ### Client
 - `src/client/NpcRacerView.client.luau`: on `Start` builds the NPC with `NpcRacer.BuildModel` into the client's
   own Workspace (removing the previous one) and moves it each frame with `PoseAt(GetServerTimeNow() - ServerStart)`.
-  On `Result Lose` shows a ScreenGui `LoserScreen` for `LOSE_SCREEN_SECONDS`. On `Reset` removes the NPC.
+  On `Result Lose` shows the ScreenGui `LoserScreen` until the next `Reset`, `Start` or `Stop` (fallback: hidden
+  `LoseScreen` + 2 s later). It reads "YOU LOST!", "Lost Track n to the <NPC car's catalog name> (else "the NPC").
+  Back to Track s!", the progress guide "Track n needs <NeedSpeed> Speed: about <time> of racing" (time =
+  (NeedSpeed - Speed) / GainRate; "You have it: try a NITRO boost!" when Speed >= NeedSpeed) and, when
+  `CanRebirth`, "Rebirth now for x<RebirthMulti> Speed gain" (numbers via `Shared/HudFormat`; wording placeholder).
+  On `Reset` removes the NPC.
+- `src/client/RaceBanner.client.luau` (Vic2CS proposal 2026-11-20, display only): on `Result Win` a ~2 s banner
+  below the Race button, ScreenGui `RaceBanner` (non-interactive): "TRACK n CLEARED", "+$<Paid>" (when Paid > 0) and
+  "NEW BEST mm:ss.cc" (when `NewBest` and `PreviousBest`), with a pop-in, a shine and sparks; with reduced motion
+  (`Client/UiMotion`) it only appears and disappears.
 
 ### Multiplayer
 - The server Workspace never contains a model with `IsNpc` (so nothing replicates to other players).

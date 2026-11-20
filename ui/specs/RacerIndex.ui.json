@@ -187,6 +187,7 @@
               "id": "ConsumablesTab",
               "kind": "button",
               "text": "CONSUMABLES",
+              "visible": false,
               "textSize": 23,
               "color": "dark",
               "pos": [

@@ -6,7 +6,8 @@
 -- "+ Car" flies to the INDEX button).
 --   Compact view (default): RollToast/Toast at top centre directly under the Auto Race button: NO card, only the bare
 --   car and its "1 in N" under it (owner, 2026-10-02). Shown only while a roll plays (or while auto-roll is off),
---   hidden only while the enlarged view is open: panels and HUD clicks never touch it.
+--   hidden while the enlarged view or any PanelSwitch panel is open (owner 2026-10-08; the roll keeps playing).
+--   While auto racing it sits beside the Race button instead of under it, clear of the race map and gate signs.
 --   Enlarged view: the full card (name, rarity, Speed multi, odds, NEW / TURBO badges, rarity effects) in the
 --   RollShowcase overlay (dimmed + blurred), a big centre card, the AUTO toggle and "Tap anywhere
 --   to close". Clicking the compact card opens it; clicking anywhere off the card closes it. An emphasized roll
@@ -287,21 +288,30 @@ local function buildBody(_parent, z)
 	nameStroke.Color = BLACK
 	nameStroke.Thickness = 3
 	nameStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
+	-- The contract names (CarName, SpeedMulti, Rarity, Odds) are transparent twins of the generated labels. Each twin
+	-- lives INSIDE its label and fills it, so it follows every responsive fit and its outline lands exactly on the
+	-- label's own outline (a twin parented elsewhere drew a second, offset outline: the "ghosted" car name).
 	local function aliasText(name, primary)
 		local alias = make("TextLabel", {
 			Name = name,
-			AnchorPoint = primary.AnchorPoint,
-			Position = primary.Position,
-			Size = primary.Size,
+			AnchorPoint = Vector2.zero,
+			Position = UDim2.fromScale(0, 0),
+			Size = UDim2.fromScale(1, 1),
 			BackgroundTransparency = 1,
 			FontFace = primary.FontFace,
 			Text = primary.Text,
 			TextColor3 = primary.TextColor3,
 			TextScaled = primary.TextScaled,
+			TextXAlignment = primary.TextXAlignment,
+			TextYAlignment = primary.TextYAlignment,
 			TextTransparency = 1,
-			Visible = primary.Visible,
+			Visible = true,
 			ZIndex = primary.ZIndex,
-		}, body)
+		}, primary)
+		local limit = primary:FindFirstChildOfClass("UITextSizeConstraint")
+		if limit then
+			limit:Clone().Parent = alias
+		end
 		return alias
 	end
 	local aliasName = aliasText("CarName", carName)
@@ -699,11 +709,13 @@ local function isEnlarged()
 end
 
 -- The compact roll is the always-available top-centre entry point. Clicking it
--- opens the enlarged showcase, where the AUTO option lives. It remains visible
--- while a panel is open so HUD entry points never disappear on click.
+-- opens the enlarged showcase, where the AUTO option lives. It hides while any
+-- PanelSwitch panel is open (owner decision 2026-10-08, docs/ROLL_ANIMATION_SPEC.md;
+-- CLAUDE.md UI tests rule), so it never covers a panel; the roll keeps playing
+-- underneath and shows again when the panel closes.
 local function refreshToast()
 	local playing = phase ~= "Idle"
-	local show = not isEnlarged() and (playing or not autoRollOn())
+	local show = not isEnlarged() and not PanelSwitch.AnyOpen() and (playing or not autoRollOn())
 	local hud = playerGui:FindFirstChild("RacerHud")
 	if hud and not isEnlarged() then
 		hud.Enabled = true
@@ -893,11 +905,9 @@ local function closeEnlarged()
 	if hud then
 		hud.Enabled = true
 	end
-	-- The reverse: shrink back towards the compact card's place, then hide
-	local to = Vector2.new(
-		card.AbsolutePosition.X + card.AbsoluteSize.X / 2,
-		autoRaceBottom() + A.COMPACT_GAP + A.COMPACT_HEIGHT / 2
-	)
+	-- The reverse: shrink back towards the compact card's place (top centre, or beside the Race button while
+	-- auto racing), then hide
+	local to = toast.AbsolutePosition + GuiService:GetGuiInset() + toast.AbsoluteSize / 2
 	local info = TweenInfo.new(A.SWITCH, Enum.EasingStyle.Back, Enum.EasingDirection.In)
 	UiMotion.Create(card, info, {
 		Position = UDim2.fromOffset(to.X, to.Y),
@@ -1144,7 +1154,9 @@ local function play(roll)
 		b.Body.Size = UDim2.fromScale(landingSize, landingSize)
 		local settleTime = b.Full and math.min(A.Hold(spec.Rarity), 0.22) or 0.03
 		tween(b.Body, settleTime, { Size = UDim2.fromScale(1, 1) }, Enum.EasingStyle.Back)
-		if not b.Full then
+		if not b.Full and landingSize ~= 1 then
+			-- Let the compact pop settle to 1x before Hold. With reduced motion there is no pop (landingSize 1), so
+			-- there is nothing to wait for and the reveal keeps the normal time (HUD_LAYOUT_SPEC section 7).
 			task.wait(0.04)
 			b.Body.Size = UDim2.fromScale(1, 1)
 		end
@@ -1291,17 +1303,52 @@ local openRollView = make("BindableEvent", { Name = "OpenRollView" }, gui)
 openRollView.Event:Connect(function()
 	openEnlarged(false)
 end)
+local hud = playerGui:WaitForChild("RacerHud")
+local race = hud:WaitForChild("Race"):WaitForChild("Face")
+-- At rest the compact roll sits top centre, COMPACT_GAP under the Race button. While auto racing that spot covers
+-- the gate signs ahead of the car and the race map's left edge, so the roll moves beside the Race button: same top
+-- edge, its right edge RACING_GAP left of the button (playtest 2026-11-20). Size, anchor and clicks are unchanged.
+local RACING_GAP, RACING_EDGE = 8, 8
 local function fitCompact()
-	toast.Position = UDim2.new(0.5, 0, 0, autoRaceBottom() + A.COMPACT_GAP)
+	if player:GetAttribute("AutoRacing") == true and race.AbsoluteSize.X > 0 then
+		local half = toast.AbsoluteSize.X / 2
+		local centre = math.max(race.AbsolutePosition.X - RACING_GAP - half, RACING_EDGE + half)
+		toast.Position = UDim2.fromOffset(centre, race.AbsolutePosition.Y + GuiService:GetGuiInset().Y)
+	else
+		toast.Position = UDim2.new(0.5, 0, 0, autoRaceBottom() + A.COMPACT_GAP)
+	end
 end
 if workspace.CurrentCamera then
 	workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(fitCompact)
 end
-local hud = playerGui:WaitForChild("RacerHud")
-local race = hud:WaitForChild("Race"):WaitForChild("Face")
 race:GetPropertyChangedSignal("AbsolutePosition"):Connect(fitCompact)
 race:GetPropertyChangedSignal("AbsoluteSize"):Connect(fitCompact)
+toast:GetPropertyChangedSignal("AbsoluteSize"):Connect(fitCompact)
+player:GetAttributeChangedSignal("AutoRacing"):Connect(fitCompact)
 fitCompact()
+
+-- The enlarged card keeps a side margin: its generated UIScale (k up to 1.4 by viewport HEIGHT) made the 760 px card
+-- wider than tall, narrow screens (playtest 2026-11-20: edge to edge, car clipped at the left). The scale never
+-- exceeds (safe width - 2 x CARD_SIDE_MARGIN) / card width; the RollToast gui uses the device safe area.
+local CARD_SIDE_MARGIN = 16
+local cardScale = card:FindFirstChildOfClass("UIScale")
+local function clampCard()
+	local width = cardTargetSize().X.Offset
+	local safe = gui.AbsoluteSize.X
+	if not cardScale or width <= 0 or safe <= 1 then
+		return
+	end
+	local most = (safe - 2 * CARD_SIDE_MARGIN) / width
+	if cardScale.Scale > most then
+		cardScale.Scale = most
+	end
+end
+if cardScale then
+	cardScale:GetPropertyChangedSignal("Scale"):Connect(clampCard)
+end
+gui:GetPropertyChangedSignal("AbsoluteSize"):Connect(clampCard)
+showcase:GetPropertyChangedSignal("Enabled"):Connect(clampCard)
+clampCard()
 -- Synchronously, so the toast is never drawn for a frame after a panel opens.
 PanelSwitch.OnChange(refreshToast)
 -- Match the saved responsive card and the same large artwork on each device.

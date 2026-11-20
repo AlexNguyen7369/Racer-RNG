@@ -1605,6 +1605,36 @@
       "fixedAt": "2026-11-19T23:44:39-08:00",
       "fixedBy": "Vic2CS",
       "fixNote": "test-writer added an exact per-axis broad-phase skip and time-based yields; physics-tester full run 2026-11-19: spawn_area 139/139, 1,335,672 pairs checked, 39 exact, no timeout"
+    },
+    {
+      "id": "8442ee9e",
+      "name": "race max_speed path deviation over limit (pre-existing)",
+      "kind": "failure",
+      "status": "open",
+      "file": "src\\server\\CarTest\\Scenarios.luau",
+      "line": 1390,
+      "endLine": 1392,
+      "snippet": {
+        "from": 1386,
+        "lines": [
+          "\t-- every route check needs RACE_MIN_SAMPLES measured frames, so an unmeasured drive can never pass",
+          "\tlocal function devOk(dev, nSamples)",
+          "\t\treturn R.MaxPathDeviation ~= nil and dev <= maxDev and (nSamples or 0) >= RACE_MIN_SAMPLES",
+          "\tend",
+          "\tcheck(checks, pre .. \"sticks_to_path\", st.dev, maxDev, devOk(st.dev, st.devN))",
+          "\tcheck(checks, pre .. \"sticks_to_path_track1\", st.dev1, maxDev, devOk(st.dev1, st.dev1N))",
+          "\tcheck(checks, pre .. \"sticks_to_path_track2\", st.dev2, maxDev, devOk(st.dev2, st.dev2N))",
+          "\tcheck(",
+          "\t\tchecks,",
+          "\t\tpre .. \"always_faces_forward\",",
+          "\t\tst.minForwardAlignment,"
+        ]
+      },
+      "summary": "At MAX_STAT the race scenario's own lane-distance measurement on Track 2 reads 7-10 studs (limit PhysicsTargets.race.MaxPathDeviation 5) while the run's MaxPathDeviation reports ~2 studs. Reproduced 3 times on the playtest-follow-up code and once on f555419 without them (10.40), so it predates those changes; the car's own tracker says it stays on the rail. Either the test's polyline measurement or the max-speed rail at SPEED_SCALE 1.4 needs a look (physics-tester / test-writer).",
+      "error": "max_speed_sticks_to_path=10.398/5, max_speed_sticks_to_path_track2=10.398/5, max_speed_run_reports_path_deviation=2.258/11",
+      "foundBy": "claude (harness run)",
+      "foundAt": "2026-11-20T02:00:53-08:00",
+      "loggedBy": "Vic2CS"
     }
   ]
 }

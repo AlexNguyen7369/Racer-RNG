@@ -117,6 +117,25 @@ local function takeFocus(panel)
 	end)
 end
 
+-- Panels close with their X or gamepad ButtonB (design doc "Playtest follow-ups", 2026-11-20). Escape is reserved by
+-- Roblox (it opens the Roblox menu), so nothing binds it. A player who picks up a gamepad while a panel is already
+-- open gets the same focus and ButtonB close as one who opened it with the gamepad.
+local function focusOpenPanel()
+	if focused or not usesGamepad() then
+		return
+	end
+	for _, p in panels do
+		if p.Visible then
+			takeFocus(p)
+			return
+		end
+	end
+end
+UserInputService.LastInputTypeChanged:Connect(focusOpenPanel)
+pcall(function()
+	UserInputService:GetPropertyChangedSignal("PreferredInput"):Connect(focusOpenPanel)
+end)
+
 function PanelSwitch.Register(name, panel)
 	panels[name] = panel
 	wanted[name] = panel.Visible

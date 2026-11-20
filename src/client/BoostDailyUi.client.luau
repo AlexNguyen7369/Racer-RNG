@@ -7,6 +7,8 @@ local player = Players.LocalPlayer
 local gui = player:WaitForChild("PlayerGui")
 local dailyConfig = require(ReplicatedStorage.Shared.DailyLoginConfig)
 local questConfig = require(ReplicatedStorage.Shared.QuestConfig)
+local BoostConfig = require(ReplicatedStorage.Shared.BoostConfig)
+local UiMotion = require(script.Parent:WaitForChild("UiMotion"))
 local HttpService = game:GetService("HttpService")
 local PanelSwitch = require(script.Parent:WaitForChild("PanelSwitch"))
 local HudIcons = require(script.Parent.RollToast.Ui.HudIcons)
@@ -28,6 +30,8 @@ local TILE = Color3.fromRGB(14, 24, 52)
 local TILE_BLUE = Color3.fromRGB(47, 107, 255)
 local TAB = Color3.fromRGB(44, 52, 60)
 local GREEN = Color3.fromRGB(60, 200, 90)
+local GOLD = Color3.fromRGB(255, 214, 90)
+local CARD_INSET = 5 -- px between a daily card and its cell / the area edge (clears the 3 px border)
 
 local function make(class, name, parent, props)
 	local instance = Instance.new(class)
@@ -227,6 +231,62 @@ local status = make("TextLabel", "Status", screen, {
 	Text = "",
 })
 
+-- Claim feedback: a gold pop over the claimed row / button that rises and fades (display only; the server already
+-- granted the reward). Lives on the modal, so the list rebuild after a claim does not remove it.
+local function claimToast(anchor, message)
+	if not (anchor and anchor.Parent and modal.AbsoluteSize.X > 0) then
+		return
+	end
+	local width = math.min(340, modal.AbsoluteSize.X - 24)
+	local centre = anchor.AbsolutePosition + anchor.AbsoluteSize / 2 - modal.AbsolutePosition
+	local x = math.clamp(centre.X, width / 2 + 12, modal.AbsoluteSize.X - width / 2 - 12)
+	local toast = make("TextLabel", "ClaimToast", modal, {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromOffset(x, centre.Y),
+		Size = UDim2.fromOffset(width, 46),
+		BackgroundColor3 = Color3.fromRGB(28, 120, 58),
+		Text = message,
+		Font = Enum.Font.FredokaOne,
+		TextSize = 24,
+		TextScaled = false,
+		TextWrapped = true,
+		TextColor3 = GOLD,
+		TextStrokeColor3 = OUTLINE,
+		TextStrokeTransparency = 0,
+		ZIndex = 30,
+	})
+	rounded(toast, 12)
+	make("UIStroke", "Edge", toast, { Color = OUTLINE, Thickness = 3, ApplyStrokeMode = Enum.ApplyStrokeMode.Border })
+	local scale = make("UIScale", "Pop", toast, { Scale = 0.6 })
+	UiMotion.Create(scale, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+	task.delay(1.2, function()
+		if not toast.Parent then
+			return
+		end
+		local fade = TweenInfo.new(0.6)
+		UiMotion.Create(toast, fade, {
+			Position = UDim2.fromOffset(x, centre.Y - 36),
+			BackgroundTransparency = 1,
+			TextTransparency = 1,
+			TextStrokeTransparency = 1,
+		}):Play()
+		for _, edge in toast:GetChildren() do
+			if edge:IsA("UIStroke") then
+				UiMotion.Create(edge, fade, { Transparency = 1 }):Play()
+			end
+		end
+		task.delay(0.65, function()
+			toast:Destroy()
+		end)
+	end)
+end
+
+-- "1x Luck Potion I": the potion's display name (BoostConfig), never the raw id "LuckI".
+local function rewardText(id, count)
+	local item = BoostConfig.Get(id)
+	return string.format("%dx %s", count or 1, item and item.Name or tostring(id))
+end
+
 local view = nil -- "Daily" or "Quests": which content the shared modal shows
 local questCategory = "Daily"
 local questRows = {}
@@ -274,9 +334,12 @@ local function clearContent()
 	fresh.Parent = content
 end
 
+-- image, rect offset, rect size: the Rebirth icon is one cell of an atlas, so it needs its ImageRect (without it
+-- the Day 7 card showed the whole sheet of tiny icons).
 local function rewardArt(reward)
 	if reward.GuaranteedRare then
-		return HudIcons.Rebirth.Image
+		local art = HudIcons.Rebirth
+		return art.Image, art.Offset, art.Size
 	end
 	return PotionIcons[reward.Boost] or HudIcons.Daily.Image
 end
@@ -305,12 +368,15 @@ local function dailyCard(parent, day, reward, done, featured, position, size)
 		TextStrokeTransparency = 0,
 		TextStrokeColor3 = Color3.new(0, 0, 0),
 	})
+	local image, rectOffset, rectSize = rewardArt(reward)
 	make("ImageLabel", "RewardIcon", card, {
 		AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0.5, featured and 0.54 or 0.57),
 		Size = UDim2.fromScale(featured and 0.62 or 0.48, featured and 0.58 or 0.48),
 		BackgroundTransparency = 1,
-		Image = rewardArt(reward),
+		Image = image,
+		ImageRectOffset = rectOffset or Vector2.zero,
+		ImageRectSize = rectSize or Vector2.zero,
 		ScaleType = Enum.ScaleType.Fit,
 		ImageTransparency = done and 0.55 or 0,
 	})
@@ -364,6 +430,8 @@ local function showDaily()
 	})
 	for day, reward in ipairs(dailyConfig.Rewards) do
 		local done = day <= streak
+		-- Every card is inset CARD_INSET px from the area's edges and its cell, so its 3 px glow border never reaches
+		-- the scrolling frame's clipped edge (Day 1 / Day 4 were cut at the left).
 		if phone then
 			if day < 7 then
 				local column = (day - 1) % 2
@@ -374,11 +442,19 @@ local function showDaily()
 					reward,
 					done,
 					false,
-					UDim2.new(column * 0.5, column == 0 and 0 or 4, 0, row * 122),
-					UDim2.new(0.5, -8, 0, 114)
+					UDim2.new(column * 0.5, CARD_INSET, 0, CARD_INSET + row * 122),
+					UDim2.new(0.5, -2 * CARD_INSET, 0, 114)
 				)
 			else
-				dailyCard(area, day, reward, done, true, UDim2.fromOffset(0, 372), UDim2.new(1, -8, 0, 148))
+				dailyCard(
+					area,
+					day,
+					reward,
+					done,
+					true,
+					UDim2.fromOffset(CARD_INSET, CARD_INSET + 366),
+					UDim2.new(1, -2 * CARD_INSET, 0, 148)
+				)
 			end
 		elseif day < 7 then
 			local column = (day - 1) % 3
@@ -389,11 +465,19 @@ local function showDaily()
 				reward,
 				done,
 				false,
-				UDim2.new(column * 0.25, column == 0 and 0 or 4, 0, row * 150),
-				UDim2.new(0.25, -8, 0, 140)
+				UDim2.new(column * 0.25, CARD_INSET, 0, CARD_INSET + row * 148),
+				UDim2.new(0.25, -2 * CARD_INSET, 0, 140)
 			)
 		else
-			dailyCard(area, day, reward, done, true, UDim2.new(0.75, 8, 0, 0), UDim2.new(0.245, -8, 1, 0))
+			dailyCard(
+				area,
+				day,
+				reward,
+				done,
+				true,
+				UDim2.new(0.75, CARD_INSET, 0, CARD_INSET),
+				UDim2.new(0.25, -2 * CARD_INSET, 1, -2 * CARD_INSET)
+			)
 		end
 	end
 	make("TextLabel", "NextReward", content, {
@@ -426,6 +510,12 @@ local function showDaily()
 		if ok and success then
 			status.Text = "Claimed Day " .. tostring(reward.Day)
 			showDaily()
+			local gift = type(reward.Boost) == "string" and rewardText(reward.Boost, reward.BoostCount)
+				or "GUARANTEED RARE"
+			claimToast(
+				content:FindFirstChild("Claim"),
+				string.format("DAY %s CLAIMED!  %s", tostring(reward.Day), gift)
+			)
 		else
 			status.Text = ok and tostring(reward) or "Connection error"
 		end
@@ -457,7 +547,7 @@ local function selectQuest(quest, current, weekly)
 		quest.Target,
 		math.floor(current / math.max(1, quest.Target) * 100 + 0.5)
 	)
-	questReward.Text = string.format("REWARD  •  %dx %s", quest.RewardCount or 1, quest.Reward)
+	questReward.Text = "REWARD  •  " .. rewardText(quest.Reward, quest.RewardCount)
 end
 
 local function showQuests()
@@ -510,7 +600,12 @@ local function showQuests()
 			Position = UDim2.fromOffset(12, 38),
 			Size = UDim2.new(1, -124, 0, 20),
 			BackgroundTransparency = 1,
-			Text = string.format("%d / %d  •  %s", current, quest.Target, quest.Reward),
+			Text = string.format(
+				"%d / %d  •  %s",
+				current,
+				quest.Target,
+				rewardText(quest.Reward, quest.RewardCount)
+			),
 			Font = Enum.Font.FredokaOne,
 			TextSize = 15,
 			TextColor3 = Color3.fromRGB(210, 220, 240),
@@ -540,9 +635,19 @@ local function showQuests()
 			local ok, success, message = pcall(function()
 				return ReplicatedStorage.Remotes.QuestClaim:InvokeServer(weekly, quest.Id)
 			end)
-			status.Text = ok and (success and ("Claimed " .. tostring(message)) or tostring(message))
-				or "Connection error"
+			local reward = rewardText(ok and success and message or quest.Reward, quest.RewardCount)
+			status.Text = ok and (success and ("Claimed " .. reward) or tostring(message)) or "Connection error"
 			showQuests()
+			local claimedRow = content:FindFirstChild(quest.Id)
+			if ok and success then
+				local refs = questRows[quest.Id]
+				if refs then
+					refs.Edge.Color = GREEN
+				end
+				claimToast(claimedRow, "CLAIMED!  +" .. reward)
+			elseif ok and claimedRow then
+				claimToast(claimedRow, tostring(message))
+			end
 		end)
 	end
 	if selectedQuest then
@@ -583,6 +688,55 @@ task.spawn(function()
 		refreshChrome()
 		task.wait(0.05)
 	end
+end)
+
+-- Quests pill badge: the number of finished, unclaimed quests (daily + weekly) on the HudChrome Quests pill
+-- (HudChrome/TopRight/Quests), same red circle as the Daily pill's badge; hidden at 0. The pill is built by
+-- Client/HudChrome, so the badge is added to it at runtime.
+local function claimableQuests()
+	local count = 0
+	for _, weekly in { false, true } do
+		local progress = decode(weekly and "QuestWeeklyProgress" or "QuestDailyProgress")
+		local claimed = decode(weekly and "QuestWeeklyClaimed" or "QuestDailyClaimed")
+		for _, quest in weekly and questConfig.Weekly or questConfig.Daily do
+			if claimed[quest.Id] ~= 1 and (tonumber(progress[quest.Id]) or 0) >= quest.Target then
+				count += 1
+			end
+		end
+	end
+	return count
+end
+task.spawn(function()
+	local chrome = gui:WaitForChild("HudChrome")
+	local pill = chrome:WaitForChild("TopRight"):WaitForChild("Quests")
+	local badge = make("TextLabel", "QuestBadge", pill, {
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromOffset(38, 9), -- on the scroll icon's top-right corner, clear of the caption
+		Size = UDim2.fromOffset(18, 18),
+		BackgroundColor3 = Color3.fromRGB(232, 60, 76),
+		Font = Enum.Font.FredokaOne,
+		TextSize = 13,
+		TextColor3 = Color3.new(1, 1, 1),
+		Text = "",
+		Visible = false,
+		ZIndex = 4,
+	})
+	rounded(badge, 9)
+	make(
+		"UIStroke",
+		"Ring",
+		badge,
+		{ Color = Color3.new(1, 1, 1), Thickness = 2, ApplyStrokeMode = Enum.ApplyStrokeMode.Border }
+	)
+	local function refreshBadge()
+		local count = claimableQuests()
+		badge.Visible = count > 0
+		badge.Text = tostring(count)
+	end
+	for _, attr in { "QuestDailyProgress", "QuestDailyClaimed", "QuestWeeklyProgress", "QuestWeeklyClaimed" } do
+		player:GetAttributeChangedSignal(attr):Connect(refreshBadge)
+	end
+	refreshBadge()
 end)
 
 local autoShownDay = nil

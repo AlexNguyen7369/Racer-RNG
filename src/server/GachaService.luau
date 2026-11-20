@@ -531,10 +531,19 @@ function GachaService.RollInterval(player)
 end
 
 -- Seconds to wait after a roll before the next one: the player's roll interval, longer when that roll's animation is
--- longer (RollAnimConfig.ExtraPause), so the next roll never covers one still playing.
+-- longer, so the next roll never covers one still playing. RollAnimConfig.ExtraPause is measured against the BASE
+-- interval (3 s); with a Roll Speed upgrade (e.g. 2.6 s) a Legendary roll (2.75 s) was cut by the next one, so the
+-- wait is measured against the player's own interval, plus ANIM_SLACK for the client's frame overshoot (about 0.1 s
+-- per roll, UI suite 2026-11-20).
+local ANIM_SLACK = 0.25
 function GachaService.WaitAfter(id, emphasized, player)
 	local spec = CarCatalog.Get(id)
-	return GachaService.RollInterval(player) + RollAnimConfig.ExtraPause(spec and spec.Rarity, emphasized == true)
+	local interval = GachaService.RollInterval(player)
+	local duration = RollAnimConfig.Duration(spec and spec.Rarity, emphasized == true)
+	return math.max(
+		interval + RollAnimConfig.ExtraPause(spec and spec.Rarity, emphasized == true),
+		duration + ANIM_SLACK
+	)
 end
 
 -- Rolls every GachaService.WaitAfter(last roll) seconds while the player's AutoRoll is on, until handle:Stop() (or

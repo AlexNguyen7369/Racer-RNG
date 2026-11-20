@@ -3,7 +3,38 @@
 PROJECT CONTEXT - Idle Vehicle Simulator (read me first)
 Shown in Studio at: ServerScriptService > ProjectContext   (source file: context/ProjectContext.luau)
 Do NOT edit this in Studio: edit the file on disk, Rojo syncs it. Claude updates it at the end of every loop.
-Last updated: 2026-11-19 (Claude: early-track Speed curve, timed nitro, dev popup switch; vic's branch)
+Last updated: 2026-11-20 (Claude: playtest follow-ups on vic's branch)
+
+PLAYTEST FOLLOW-UPS - 2026-11-20 (Claude, branch feature/vic2cs/dev-changes; proposals, need the owner's OK for main)
+- Rules: design doc "Playtest follow-ups" + "Faster race Speed gain"; specs NPC_RACER, RACE_PROGRESS_MAP, NITRO,
+  HUD_LAYOUT (section 6), CHECKPOINT (card payout), REBIRTH (warning text), new AUDIO_SPEC.
+- RaceConfig.GAIN_PER_SECOND 4 (was 2). Lost race ends at the NPC's time (run.Lost, car brakes over
+  RaceService.LOSE_STOP_SECONDS, then the old reset after LOSE_SCREEN_SECONDS); Lose payload adds BackTo, NpcModel,
+  LoseScreen, NeedSpeed, Speed, GainRate, CanRebirth, RebirthMulti; Win adds PreviousBest. Loser screen names the
+  NPC car, the track you go back to, the Speed needed + time at your rate, and the rebirth multi when available.
+- Client/RaceBanner (TRACK n CLEARED, +$, NEW BEST). Race map status "AHEAD 1.2 s" (Shared/RaceProgressMap.Gap).
+- Nitro: MISS_COOLDOWN = RECHARGE (6 s), PERFECT_ZONE 0.11, NitroConfig.SavedSeconds, attributes NitroSaved /
+  NitroSavedAt ("SAVED x s" label), presses ignored while run.Lost / Finished, bar hidden on LoserScreen.
+- Audio: Shared/SoundConfig + Client/GameAudio (SoundService.GameAudio groups Music / Sfx / Engine; ids checked to
+  load; muted by the Settings toggle and player attribute SoundMuted).
+- HUD: roll toast hides while any PanelSwitch panel is open and sits beside the Race button while racing; race map
+  title/status kept clear of the Race button; UNBANKED hidden; Index Consumables tab hidden; Escape no longer
+  closes panels (gamepad B / X do); roll card side margins + single name outline.
+- Panels: Workshop panel restyled (PanelFrame, LevelCard, "SHOWCASE YOUR BEST 3"), Welcome Back sized + COLLECT,
+  quest reward names + claim toast + Quests badge, Daily cards inset, Checkpoint cards show the real payout
+  (Remotes.CheckpointPayouts), Market trail/aura preview car.
+- Roll timing fix: GachaService.WaitAfter = max(interval + ExtraPause, anim Duration + 0.25) so a Roll Speed
+  upgrade no longer lets the next roll cut a Legendary animation (pre-existing; found by the UI suite).
+- Tests 2026-11-20: full harness END pass=52 fail=2 -> nitro loss test updated for the early loss (nitro 75/75 after);
+  race max_speed_sticks_to_path (7-10 studs vs 5) also fails on f555419 without these changes (bug 8442ee9e).
+  gacha / index / roll_anim / upgrades pass after the roll timing fix. UI suite END pass=22 fail=14, the same as
+  f555419 (all 14 failing scenarios also fail there: layout, shop, market, weather phone, save-dependent checks).
+  Live check: NPC only on the client, Cars group passes through itself; win banner, AHEAD/BEHIND x s, SAVED 0.8 s,
+  Track 4 lost at the NPC's 15.5 s with the guide text, reset 3 s later. Not checked: audio by ear, phone layout
+  of the new panels, two real clients.
+- Open for the owner: workshop pays 5-10x less Speed than racing (doc calls it the main source); the roll-hide rule
+  (ROLL_ANIMATION_SPEC 2026-10-08) vs the HUD spec's older "stays drawn" wording; Speed gain keeps running on the
+  loser screen.
 
 VIC'S DEV BRANCH PROPOSALS - 2026-11-19 (Claude, branch feature/vic2cs/dev-changes; all need the owner's OK for main)
 - Early-track Speed curve: NpcConfig.EARLY_TRACKS 5, EARLY_FIRST_STAT 300 (placeholders); Tracks 1-5 need

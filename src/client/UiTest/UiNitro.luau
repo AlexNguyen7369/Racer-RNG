@@ -10,8 +10,11 @@
 --                  (NitroUntil in the future, the recharge after it, the label shows the grade, the bar drains); the
 --                  press marker shows at the server's NitroPressPos and takes no click; NitroTarget moves at least
 --                  TARGET_MIN_MOVE at once, but the zones stay on the graded bar's target while boosting / charging;
---                  a press while boosting does nothing; NITRO CHARGING, then READY with the zones on the new target and
---                  the marker gone; a press off the green is a Miss that locks the bar for MISS_COOLDOWN (label MISS,
+--                  a press while boosting does nothing; when the boost ends the label shows the server's NitroSaved
+--                  ("SAVED x s", Vic2CS 2026-11-20; at most NitroConfig.SavedSeconds(PERFECT_MULTI, DURATION)), then
+--                  NITRO CHARGING, then READY with the zones on the new target and
+--                  the marker gone; a press off the green is a Miss that locks the bar for MISS_COOLDOWN (= RECHARGE,
+--                  Vic2CS 2026-11-20; label MISS,
 --                  needle gone, marker shown, zones kept); a press while locked does nothing; when the lock ends the
 --                  zones move again and the marker goes.
 -- Presses the scenario can not make (a click / tap on the bar, Space, a click on the world, STOP AUTO / AUTO RACE) are
@@ -91,9 +94,14 @@ function Nitro.Build(h)
 	end
 	-- The longest the bar can be not ready from now: first start, a boost and its recharge, or a miss lock
 	local function readyWait(C)
+		-- (MISS_COOLDOWN = RECHARGE since 2026-11-20, so this is about 18 s with the placeholders)
 		return C.START_DELAY + C.DURATION + C.RECHARGE + C.MISS_COOLDOWN + 2
 	end
 	-- The label text a graded press must show (NITRO_SPEC "Feedback")
+	-- The label after a boost ends (NITRO_SPEC "Feedback", Vic2CS 2026-11-20): %.1f = the server's NitroSaved, shown
+	-- for SavedShow s. Client/NitroInput SAVED_TEXT / SAVED_SHOW; the fallbacks stand in until UiSpec.Nitro has them.
+	local savedFormat = cfg.Text.Saved or "SAVED %.1f s"
+	local savedShow = cfg.SavedShow or 1.5
 	local function gradeText(C, grade)
 		if grade == "Perfect" then
 			return string.format(cfg.Text.Perfect, C.MultiFor("Perfect"))
@@ -572,6 +580,7 @@ function Nitro.Build(h)
 					gradeText(C, "Good"),
 					cfg.Text.Miss,
 					cfg.Text.Charging,
+					savedFormat:format(C.SavedSeconds(C.PERFECT_MULTI, C.DURATION)),
 				}
 			do
 				local size = textSize(text)
@@ -713,11 +722,38 @@ function Nitro.Build(h)
 		markTakesNoClick(res, "nitro")
 		ignoredPress(res, "nitro_press_while_boosting_ignored")
 
-		-- 6. After the boost: NITRO CHARGING until ready (zones and marker kept), then READY again with the zones on
-		-- the new target and the marker gone
+		-- 6. After the boost: the label shows the time it saved (the server's NitroSaved, set when the boost ended:
+		-- above 0 and at most the nominal Perfect saving; less only when a reset cut the boost short), then NITRO
+		-- CHARGING until ready (zones and marker kept), then READY again with the zones on the new target and the
+		-- marker gone
+		local savedAtBefore = attr("NitroSavedAt")
 		waitUntil(function()
 			return now() >= boostUntil() + 0.3
 		end, C.DURATION + 2)
+		waitUntil(function()
+			return attr("NitroSavedAt") ~= savedAtBefore
+		end, cfg.GradeWait)
+		h.frames(2)
+		local saved, savedAt = attr("NitroSaved"), attr("NitroSavedAt")
+		local nominal = C.SavedSeconds(C.PERFECT_MULTI, C.DURATION)
+		h.check(
+			res,
+			"nitro_saved_set_when_boost_ends",
+			("NitroSaved %s at %s (boost until %.2f)"):format(tostring(saved), tostring(savedAt), boostUntil()),
+			("0 < saved <= %.2f, at the boost's end"):format(nominal),
+			type(saved) == "number"
+				and saved > 0
+				and saved <= nominal + 1e-6
+				and type(savedAt) == "number"
+				and savedAt ~= savedAtBefore
+				and math.abs(savedAt - boostUntil()) <= cfg.TimeTolerance + 0.1
+		)
+		local savedText = type(saved) == "number" and savedFormat:format(saved) or "none"
+		local shownText = labelText()
+		h.check(res, "nitro_label_shows_saved", shownText, savedText, shownText == savedText)
+		waitUntil(function()
+			return labelText() ~= savedText
+		end, savedShow + 0.5)
 		h.frames(2)
 		if not isReady() then
 			local text = labelText()

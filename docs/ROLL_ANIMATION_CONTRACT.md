@@ -21,6 +21,9 @@ the first build does. Built test-first (`ui-test-writer` + `test-writer`, red ru
 ## Phases of the build
 1. **Placement first.** The compact card moves from the bottom centre to top centre, directly UNDER the Auto Race
    button, and passes every overlap / hitbox check at every viewport (incl. phone landscape). Only then:
+   (Proposed by Vic2CS 2026-11-20, not yet reviewed by the owner: while auto racing it sits beside the Race button
+   instead, its right edge 8 px left of it, so it covers neither the race map nor the gate signs; see
+   `docs/HUD_LAYOUT_SPEC.md` section 6.)
 2. **Animation.** Pop in, spin reel, land, hold, exit; the enlarged view; rarity effects; turbo; emphasized rolls.
 
 ## Not in this build (recorded, later)

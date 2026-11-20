@@ -588,6 +588,7 @@
           "id": "Unbanked",
           "kind": "text",
           "text": "UNBANKED $0",
+          "visible": false,
           "pos": [
             [
               0,

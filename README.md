@@ -210,7 +210,7 @@ updates automatically whenever the board changes; do not edit this block by hand
 - **Car redesign v3 toy racer**: Owner 2026-10-27: all 111 cars as toy racers (15,000 tris), pilot approved; Singularity orb spins / bobs / glows. Built, uploaded, rbxmx + orb code done (CAR_REDESIGN_SPEC 10-11). Left: full suite with Studio free (car_redesign, singularity_orb, pass_cars, showcase), owner look in Studio, merge.
 - **Dev changes**: Personal development branch for the Racer RNG Dev experience.
 
-### Up next (9)
+### Up next (13)
 
 - **Daily Quest System**: Add a daily quest system with rotating objectives and rewards; define the design/spec before implementation.
 - **Redeem Codes section**: Add a Redeem Codes section projected for the Shop area where the gamepasses are located.
@@ -221,6 +221,10 @@ updates automatically whenever the board changes; do not edit this block by hand
 - **Reconcile UI tests with Isaac's inventory/upgrade-tree UI (ccea607)**: ui-test-writer updates UiSpec/UiScenarios for INVENTORY tabs, removed Bag, full-screen hex upgrade tree; then ui-tester and /compat-check. Blocks the green stamp for main.
 - **Checkpoint tests (harness + UiSpec)**: test-writer: checkpoint scenario (validation, start track, loss resets to checkpoint, loop). ui-test-writer: CheckpointUi in UiSpec (overlap, locked cards, phone landscape). docs/CHECKPOINT_SPEC.md.
 - **Shop/Market panels cover the compact roll toast**: ui_hitboxes button_topmost_at_centre_shop_open/market_open: RollToast/Toast under the panel. PanelBand top = below Race button; the compact roll also sits below Race. Owner: band below the compact roll, or panel over the dimmed toast?
+- **Owner review: playtest follow-ups**: Design doc 'Playtest follow-ups' + 'Faster race Speed gain' (Vic2CS 2026-11-20): Speed gain 4, lost race ends at the NPC time, loser-screen guide, win banner, rival gap, nitro tuning, audio, HUD/panel fixes. Needs the owner's OK before main.
+- **Owner decision: workshop vs racing Speed gain**: Playtest: workshop pays 0.8-1.6 Speed/s vs ~7.8/s racing (now ~15.6 at gain 4), but the design doc calls the workshop the main source of Speed.
+- **Owner decision: compact roll while a panel is open**: ROLL_ANIMATION_SPEC (2026-10-08) says the roll hides while a panel is open; HUD_LAYOUT_SPEC section 6 had older 'stays drawn' wording. The branch now hides it; confirm.
+- **Fix race max_speed path deviation check**: Bug 8442ee9e: pre-existing on f555419; the test measures 7-10 studs vs limit 5 while the run reports ~2.
 
 ### Backlog (future work) (11)
 

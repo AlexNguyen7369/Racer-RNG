@@ -291,42 +291,72 @@ local function preview(item, kind)
 		})
 		return
 	end
-	make("Part", "Body", world, {
-		Anchored = true,
-		Size = Vector3.new(4.8, 0.8, 2.5),
-		Position = Vector3.new(0, 1.2, 0),
+	-- A small car (body, cabin, wheels) facing -X, so the side view shows it and what trails behind it. The old
+	-- preview was a lone slab with four tiny sparks out of frame ("a flat blue slab", playtest 2026-11-20).
+	local function part(name, props)
+		props.Anchored = true
+		props.CanCollide = false
+		props.Material = props.Material or Enum.Material.SmoothPlastic
+		return make("Part", name, world, props)
+	end
+	part("Body", {
+		Size = Vector3.new(4.6, 0.9, 2.4),
+		Position = Vector3.new(0, 1.05, 0),
 		Color = Color3.fromRGB(77, 151, 205),
-		Material = Enum.Material.SmoothPlastic,
 	})
+	part("Cabin", {
+		Size = Vector3.new(2.2, 0.8, 2),
+		Position = Vector3.new(0.3, 1.9, 0),
+		Color = Color3.fromRGB(190, 225, 250),
+		Material = Enum.Material.Glass,
+		Transparency = 0.15,
+	})
+	for index, at in
+		{
+			Vector3.new(-1.5, 0.55, 1.25),
+			Vector3.new(1.5, 0.55, 1.25),
+			Vector3.new(-1.5, 0.55, -1.25),
+			Vector3.new(1.5, 0.55, -1.25),
+		}
+	do
+		part("Wheel" .. index, {
+			Shape = Enum.PartType.Cylinder,
+			Size = Vector3.new(0.5, 1.1, 1.1),
+			CFrame = CFrame.new(at) * CFrame.Angles(0, math.rad(90), 0),
+			Color = Color3.fromRGB(30, 30, 36),
+		})
+	end
 	if kind == "Aura" then
-		make("Part", "Orb", world, {
-			Anchored = true,
+		part("Orb", {
 			Shape = Enum.PartType.Ball,
-			Size = Vector3.new(4.8, 2.6, 3.4),
-			Position = Vector3.new(0, 1.8, 0),
+			Size = Vector3.new(5.6, 3.4, 4),
+			Position = Vector3.new(0, 1.5, 0),
 			Color = item.Color,
 			Material = Enum.Material.Neon,
-			Transparency = 0.42,
+			Transparency = 0.55,
 		})
-		make("Part", "Ring", world, {
-			Anchored = true,
+		part("Ring", {
 			Shape = Enum.PartType.Cylinder,
-			Size = Vector3.new(0.12, 5.2, 5.2),
-			CFrame = CFrame.new(0, 0.7, 0) * CFrame.Angles(0, 0, math.rad(90)),
+			Size = Vector3.new(0.12, 5.6, 5.6),
+			CFrame = CFrame.new(0, 0.25, 0) * CFrame.Angles(0, 0, math.rad(90)),
 			Color = item.Accent or item.Color,
 			Material = Enum.Material.Neon,
 		})
+		camera.CFrame = CFrame.lookAt(Vector3.new(5, 4, 6.5), Vector3.new(0, 1.2, 0))
 	else
-		for index = 1, 4 do
-			make("Part", "Spark" .. index, world, {
-				Anchored = true,
-				Shape = Enum.PartType.Ball,
-				Size = Vector3.new(0.35, 0.35, 0.35),
-				Position = Vector3.new(0, 0.75, index * 1.15),
+		-- Trail: a neon ribbon behind the car (+X), alternating the item's two colours and fading out.
+		local segments = 7
+		for index = 1, segments do
+			local t = (index - 1) / (segments - 1)
+			part("Trail" .. index, {
+				Size = Vector3.new(1.3, 0.9 - 0.5 * t, 1.9 - 1.1 * t),
+				Position = Vector3.new(2.9 + (index - 1) * 1.2, 1.1, 0),
 				Color = index % 2 == 0 and (item.Accent or item.Color) or item.Color,
 				Material = Enum.Material.Neon,
+				Transparency = 0.1 + 0.7 * t,
 			})
 		end
+		camera.CFrame = CFrame.lookAt(Vector3.new(4, 4.2, 10.5), Vector3.new(4, 1.1, 0))
 	end
 end
 

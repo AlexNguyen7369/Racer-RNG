@@ -51,13 +51,16 @@ hud.MoneyIcon.ImageRectSize = Vector2.new(256, 256)
 hud.SpeedIcon.ImageRectOffset = Vector2.new(256, 0)
 hud.SpeedIcon.ImageRectSize = Vector2.new(256, 256)
 hud.MoneyValue.TextXAlignment = Enum.TextXAlignment.Left
-hud.Unbanked.TextXAlignment = Enum.TextXAlignment.Left
 hud.SpeedValue.TextXAlignment = Enum.TextXAlignment.Left
 local index = require(Ui.RacerIndex).Bind(playerGui)
 local stats = require(Ui.RacerStats).Bind(playerGui)
 local settings = require(Ui.RacerSettings).Bind(playerGui)
 local rebirth = require(Ui.RacerRebirth).Bind(playerGui)
 local rebirthConfig = require(Shared.RebirthConfig)
+-- Vic2CS 2026-11-20 (playtest follow-ups): a rebirth also resets Level and XP (LevelService.Reset), so say so.
+if rebirth.WarningText then
+	rebirth.WarningText.Text = "Rebirth resets your Money, Speed, Level and XP\n(Robux purchases stay)"
+end
 -- Catalog additions extend the saved gallery without waiting forever for an old seven-car bake.
 local gallery = index.GridHost:FindFirstChild("Gallery")
 for _, spec in catalog.All() do
@@ -120,7 +123,17 @@ end
 -- Generated responsive fits reapply authored visibility on viewport changes.
 -- Keep the retired entry points hidden throughout those fits. INDEX / STATS / REBIRTH and the Settings gear
 -- moved to the HudChrome icon grid and top-right pills (docs/HUD_LAYOUT_SPEC.md).
-for _, retired in { hud.RollControls, hud.Gui:FindFirstChild("Navigation"), hud.Gui:FindFirstChild("Settings") } do
+-- UNBANKED is retired too: there is no banked pot (design doc; RaceService keeps the Unbanked attribute at 0), and
+-- the label collided with the Items tile (playtest 2026-11-20). ui/specs/RacerHud.ui.json marks it hidden for the
+-- next bake; until then the baked label is hidden here.
+for _, retired in
+	{
+		hud.RollControls,
+		hud.Gui:FindFirstChild("Navigation"),
+		hud.Gui:FindFirstChild("Settings"),
+		hud.Unbanked,
+	}
+do
 	retired.Visible = false
 	retired:GetPropertyChangedSignal("Visible"):Connect(function()
 		if retired.Visible then
@@ -523,13 +536,8 @@ end)
 hud.Rebirth.Activated:Connect(function()
 	PanelSwitch.Toggle("Rebirth")
 end)
-UserInputService.InputBegan:Connect(function(input, consumed)
-	if not consumed and input.KeyCode == Enum.KeyCode.Escape then
-		for _, name in ipairs({ "Index", "Stats", "Settings", "Rebirth" }) do
-			PanelSwitch.Close(name)
-		end
-	end
-end)
+-- Panels close with their X or gamepad B (PanelSwitch). Escape is reserved by Roblox (it opens the Roblox menu),
+-- so it is not bound here (design doc "Playtest follow-ups", 2026-11-20).
 
 local function refreshIndex()
 	local equipped = player:GetAttribute("EquippedCar")
@@ -716,7 +724,7 @@ for _, attr in { "Level", "XP", "XPToNext" } do
 end
 refreshLevel()
 
-local shownSpeed, shownMoney, shownBank = speed.Value, money.Value, player:GetAttribute("Unbanked") or 0
+local shownSpeed, shownMoney = speed.Value, money.Value
 local function readable(value, isMoney)
 	return isMoney and format.MoneyText(value) or format.SpeedText(value)
 end
@@ -776,21 +784,67 @@ local function clearSpeedOfToast(group)
 	group.Position = UDim2.new(position.X.Scale, position.X.Offset, position.Y.Scale, speedSetOffset)
 end
 
+-- The race map (top right, scaled by the generated k) reaches under the top-centre Race button on narrow or tall
+-- screens, and its left-aligned "TRACK n · NAME" title was drawn over STOP AUTO (playtest 2026-11-20). While the map
+-- is shown, a header label whose row meets the Race button starts RACE_MAP_GAP px right of the button instead (its
+-- right edge stays) and scales its text down to fit; the authored layout comes back when the map hides or the
+-- generated fit re-applies it.
+local RACE_MAP_GAP = 8
+local mapLabels = {}
+local function clearMapLabelOfRace(object)
+	if not object then
+		return
+	end
+	local entry = mapLabels[object]
+	if not entry then
+		local limit = Instance.new("UITextSizeConstraint")
+		limit.Name = "RaceClearLimit"
+		limit.MinTextSize = 8
+		limit.Parent = object
+		entry = { Limit = limit }
+		mapLabels[object] = entry
+	end
+	if object.Position ~= entry.SetPosition or object.Size ~= entry.SetSize then
+		-- First call, or the generated fit put the authored layout back: that is the new base
+		entry.Position, entry.Size, entry.Scaled = object.Position, object.Size, object.TextScaled
+	end
+	local position, size = entry.Position, entry.Size
+	local map, race = hud.RaceMap, hud.Race
+	local mapWidth = map.Size.X.Offset
+	if map.Visible and mapWidth > 0 and map.AbsoluteSize.X > 0 and race.AbsoluteSize.X > 0 then
+		local s = map.AbsoluteSize.X / mapWidth
+		local left = map.AbsolutePosition.X + position.X.Offset * s
+		local top = map.AbsolutePosition.Y + position.Y.Offset * s
+		local bottom = top + size.Y.Offset * s
+		local raceRight = race.AbsolutePosition.X + race.AbsoluteSize.X + RACE_MAP_GAP
+		local raceTop, raceBottom = race.AbsolutePosition.Y, race.AbsolutePosition.Y + race.AbsoluteSize.Y
+		if left < raceRight and top < raceBottom and bottom > raceTop then
+			local shift = math.min((raceRight - left) / s, size.X.Offset)
+			position = UDim2.new(position.X.Scale, position.X.Offset + shift, position.Y.Scale, position.Y.Offset)
+			size = UDim2.new(size.X.Scale, size.X.Offset - shift, size.Y.Scale, size.Y.Offset)
+		end
+	end
+	local moved = position ~= entry.Position
+	entry.Limit.MaxTextSize = math.max(8, object.TextSize)
+	object.TextScaled = moved or entry.Scaled
+	entry.SetPosition, entry.SetSize = position, size
+	object.Position, object.Size = position, size
+end
+
 local function refreshReadouts()
 	shownSpeed = speed.Value
 	shownMoney = money.Value
-	shownBank = player:GetAttribute("Unbanked") or 0
 	hud.SpeedValue.Text = readable(shownSpeed, false) .. " SPEED"
 	hud.MoneyValue.Text = readable(shownMoney, true)
-	hud.Unbanked.Text = "UNBANKED " .. readable(shownBank, true)
 end
 speed.Changed:Connect(refreshReadouts)
 money.Changed:Connect(refreshReadouts)
-player:GetAttributeChangedSignal("Unbanked"):Connect(refreshReadouts)
 
 RunService.Heartbeat:Connect(function(_dt)
 	fitPanels()
 	refreshReadouts()
+	clearMapLabelOfRace(hud.RaceMapTitle)
+	clearMapLabelOfRace(hud.RaceMapStatus)
 	-- Align to the visible icon + left-aligned text, not the label's unused width.
 	local icon = hud.SpeedIcon
 	local right = hud.SpeedValue.AbsolutePosition.X + hud.SpeedValue.TextBounds.X
@@ -817,8 +871,10 @@ local function applySound(sound)
 		sound.Volume = muted and 0 or volumes[sound]
 	end
 end
+player:SetAttribute("SoundMuted", muted) -- Client/GameAudio mutes SoundService.GameAudio from this attribute
 settings.SoundToggle.Activated:Connect(function()
 	muted = not muted
+	player:SetAttribute("SoundMuted", muted)
 	for _, descendant in ipairs(game:GetDescendants()) do
 		applySound(descendant)
 	end
@@ -838,7 +894,7 @@ switch(settings.EffectsToggle, player:GetAttribute("ReduceEffects") == true)
 switch(settings.SoundToggle, true)
 
 -- Non-interactive numeric labels must not overflow as saves grow.
-for _, object in ipairs({ hud.SpeedValue, hud.MoneyValue, hud.Unbanked, index.IndexProgress, stats.Points }) do
+for _, object in ipairs({ hud.SpeedValue, hud.MoneyValue, index.IndexProgress, stats.Points }) do
 	object.TextScaled = true
 	local limit = Instance.new("UITextSizeConstraint")
 	limit.MinTextSize = 14

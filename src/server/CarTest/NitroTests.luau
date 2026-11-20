@@ -2,21 +2,25 @@
 -- BRIEF (Vic2CS, 2026-11-19, approved on branch feature/vic2cs/dev-changes; design doc "Timed nitro boost",
 -- docs/NITRO_SPEC.md): "While auto racing against an NPC, a bar with a sweeping needle shows above the Speed readout.
 -- Pressing while the needle is in the green zone gives a boost: cruise speed x1.4 for 2 seconds, x1.7 in the gold
--- centre. A press outside the green locks the bar for 2 seconds; after a boost the bar recharges for 6 seconds. All
--- numbers are placeholders. A boost gets the car to the finish sooner, so a well-timed boost can win a race against an
--- NPC that is slightly faster. It never changes the Speed stat, its gain, Money or payouts. Not in duels. The server
--- grades every press from the needle position at the press time."
+-- centre. A press outside the green locks the bar for 6 seconds, as long as the recharge after a boost (Vic2CS
+-- 2026-11-20, was 2 seconds, so spamming no longer pays); after a boost the bar recharges for 6 seconds. The gold zone
+-- is a little wider (placeholder 0.11 of the half-bar, was 0.08), and after each boost the bar shows the time it saved.
+-- All numbers are placeholders. A boost gets the car to the finish sooner, so a well-timed boost can win a race
+-- against an NPC that is slightly faster. It never changes the Speed stat, its gain, Money or payouts. Not in duels.
+-- The server grades every press from the needle position at the press time."
 --
--- Every number is read live from Shared/NitroConfig (placeholders). Three parts:
+-- Every number is read live from Shared/NitroConfig (placeholders), except the brief's gold zone width (0.11). Parts:
 --   1. NitroConfig maths: NeedleAt is a constant-rate triangle wave that starts at the left edge (-1), Grade zones,
---      MultiFor.
+--      MultiFor, MISS_COOLDOWN = RECHARGE, SavedSeconds(multi, s) = (multi - 1) x s.
 --   2. RaceService run:Nitro(multi, seconds) on real runs (fake Folder players, synthetic straight routes on their own
 --      floors, like the npc / race_progress_map scenarios build them): the rail holds TargetSpeed x multi for `seconds`
 --      of run time, then cruise again; bad arguments, a run without an NPC, a duel and a finished / stopped run refuse
 --      it; a boosted car finishes sooner by DURATION x (multi - 1), and turns a loss against an NPC slightly faster
 --      than cruise speed (options.NpcSpeeds) into a win; Speed gain and the NPC are unchanged; a loss ends the boost.
 --   3. NitroService.Press grading: CarService.IsAutoRacing / GetRun are wrapped for ONE fake player only (every other
---      player still gets the real answer) and restored afterwards.
+--      player still gets the real answer) and restored afterwards. A decided run (Finished, or Lost while the loser
+--      screen shows) ignores presses. NitroSaved / NitroSavedAt: set when a boost ends, the nominal saving for a full
+--      boost, the smaller real one when a reset (JumpToTrack) cuts it short.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -36,6 +40,10 @@ local WINDOW_EDGE = 0.25 -- s left out at both ends of a speed-measuring window
 local SPEED_TOLERANCE = 0.05 -- relative: mean rail speed over a window vs the expected speed
 local LEFT_EDGE = 0.15 -- s before / after the boost's end at which NitroLeft is read
 local TIME_SAVED_TOLERANCE = 0.15 -- relative (at least 0.1 s): time saved by a boost vs DURATION x (multi - 1)
+local PERFECT_ZONE_BRIEF = 0.11 -- brief Vic2CS 2026-11-20: the gold zone's half-width (was 0.08)
+local CUT_AFTER = 0.5 -- s of a real boost driven before JumpToTrack cuts it short
+local SAVED_TOLERANCE = 0.1 -- s of boost time (one or two frames plus scheduling) for the cut boost's saving
+local LOSE_SCREEN = 1 -- s: LoseScreenSeconds of the loss run (RaceService test hook)
 local SLOW_NPC = 0.001 -- studs/s: an NPC every test racer beats
 local FAST_NPC = 1e12 -- studs/s: an NPC no test racer beats
 
@@ -96,6 +104,7 @@ local function configChecks(checks, NitroConfig, metrics)
 		and type(NitroConfig.Grade) == "function"
 		and type(NitroConfig.MultiFor) == "function"
 		and type(NitroConfig.NewTarget) == "function"
+		and type(NitroConfig.SavedSeconds) == "function"
 	check(checks, "nitro_config_api", api, 1, api)
 	if not (api and positive and zonesOk and multisOk) then
 		return false
@@ -274,6 +283,38 @@ local function configChecks(checks, NitroConfig, metrics)
 	local okNil, mNil = pcall(NitroConfig.MultiFor, nil)
 	junkOk = junkOk and okNil and mNil == 1
 	check(checks, "nitro_multi_for_unknown_is_1", junkOk, 1, junkOk)
+
+	-- Miss rule (Vic2CS 2026-11-20): a miss locks the bar exactly as long as the recharge after a boost
+	local missOk = NitroConfig.MISS_COOLDOWN == NitroConfig.RECHARGE
+	check(checks, "nitro_miss_cooldown_is_recharge", NitroConfig.MISS_COOLDOWN, NitroConfig.RECHARGE, missOk)
+	-- Gold zone (brief Vic2CS 2026-11-20): half-width 0.11 of the half-bar
+	check(checks, "nitro_perfect_zone_brief", PZ, PERFECT_ZONE_BRIEF, near(PZ, PERFECT_ZONE_BRIEF, 1e-9))
+
+	-- SavedSeconds(multi, seconds): a boost covers (multi - 1) x seconds of extra cruise distance, so it saves that
+	-- much track time at constant cruise speed; 0 for anything that is not a boost
+	local D = NitroConfig.DURATION
+	local savedGood, savedPerfect = NitroConfig.SavedSeconds(GM, D), NitroConfig.SavedSeconds(PM, D)
+	metrics.saved_good = round(savedGood)
+	metrics.saved_perfect = round(savedPerfect)
+	local savedOk = near(savedGood, (GM - 1) * D, 1e-9)
+		and near(savedPerfect, (PM - 1) * D, 1e-9)
+		and near(NitroConfig.SavedSeconds(PM, D / 4), (PM - 1) * D / 4, 1e-9)
+		and near(NitroConfig.SavedSeconds(2.5, 3), 4.5, 1e-9)
+	check(checks, "nitro_saved_seconds_maths", savedPerfect, (PM - 1) * D, savedOk)
+	local savedJunkBad = 0
+	for _, args in
+		{ { 1, D }, { 0.5, D }, { PM, 0 }, { PM, -1 }, { 0 / 0, D }, { PM, 0 / 0 }, { math.huge, D }, { "1.7", D } }
+	do
+		local ok, v = pcall(NitroConfig.SavedSeconds, args[1], args[2])
+		if not (ok and v == 0) then
+			savedJunkBad += 1
+		end
+	end
+	local okNilS, vNilS = pcall(NitroConfig.SavedSeconds, nil, nil)
+	if not (okNilS and vNilS == 0) then
+		savedJunkBad += 1
+	end
+	check(checks, "nitro_saved_seconds_no_boost_is_0", savedJunkBad, 0, savedJunkBad == 0)
 	return true
 end
 
@@ -596,12 +637,22 @@ local function runChecks(ctx, checks, metrics)
 	done(duel)
 
 	-- (d) A loss (back to the start) ends any boost, and the car is back at cruise speed
-	local loss = newRacer(ctx, nextRoute(), "Loss", { Npc = true, NpcSpeeds = { [1] = FAST_NPC } })
+	-- (the loser screen may hold the reset back for LoseScreenSeconds; the boost is over once the car is reset)
+	local lossSpeeds = { [1] = FAST_NPC }
+	local loss =
+		newRacer(ctx, nextRoute(), "Loss", { Npc = true, NpcSpeeds = lossSpeeds, LoseScreenSeconds = LOSE_SCREEN })
 	local lossBoost = loss.Run:Nitro(GOOD, DUR)
 	RunService.PostSimulation:Wait()
 	loss.Run.Driver.Index = loss.Route.Tracks[1].FinishIndex
 	local waited = 0
-	while not firstResult(loss) and waited < 2 do
+	while not (firstResult(loss) and loss.Run.Resets >= 1) and waited < LOSE_SCREEN + 2 do
+		-- Since 2026-11-20 a race is lost the moment the NPC's time is up, so the restarted Track 1 race would be lost
+		-- again in its first frame against FAST_NPC and the car would brake on a new loser screen. Once the loss is
+		-- decided, the restarted race gets an NPC the car beats (RaceService reads NpcSpeeds at every race start), so
+		-- the window below measures the cruise after the reset, as before.
+		if firstResult(loss) then
+			lossSpeeds[1] = SLOW_NPC
+		end
 		waited += RunService.PostSimulation:Wait()
 	end
 	local lr = firstResult(loss)
@@ -800,7 +851,7 @@ local function pressChecks(ctx, checks, metrics)
 			and presses() == n1 + 1
 		check(checks, "nitro_press_miss_locks_bar", missOk, 1, missOk)
 
-		-- A good press the run refuses (a duel, past the last finish) counts as a Miss and locks the bar.
+		-- A good press the run refuses (a duel, a stopped run) counts as a Miss and locks the bar (MISS_COOLDOWN).
 		accept = false
 		local c2 = #calls
 		local gRefused, r0, r1 = press(function(t)
@@ -939,6 +990,20 @@ local function pressChecks(ctx, checks, metrics)
 		prime(0, now())
 		local gNoNitro = keep(pressNow)
 		state.run = fakeRun
+		-- A decided race ignores presses (no grade, no lock, no boost): a finished run, and a lost race waiting for
+		-- its reset (run.Lost, from the NPC's finish until the reset, while the loser screen shows)
+		local decidedBad = 0
+		for _, field in { "Finished", "Lost" } do
+			fakeRun[field] = true
+			prime(0, now())
+			local readyDecided = fake:GetAttribute("NitroReadyAt")
+			local g = keep(pressNow)
+			if g ~= nil or fake:GetAttribute("NitroReadyAt") ~= readyDecided then
+				decidedBad += 1
+			end
+			fakeRun[field] = nil
+		end
+		check(checks, "nitro_press_ignored_when_race_decided", decidedBad, 0, decidedBad == 0)
 		local ignoredOk = gNotRacing == nil
 			and gNoBar == nil
 			and gNoRun == nil
@@ -970,6 +1035,81 @@ local function pressChecks(ctx, checks, metrics)
 		local duelOk = gDuel == "Miss" and duel.Run.NitroLeft == 0
 		check(checks, "nitro_press_duel_is_miss", duelOk, 1, duelOk)
 		done(duel)
+
+		-- Saved time (Vic2CS 2026-11-20, NITRO_SPEC "Saved time"): when a boost ends the server sets NitroSaved =
+		-- SavedSeconds(multi, run time really boosted) and NitroSavedAt = the end. A full boost saves the nominal
+		-- (multi - 1) x DURATION; a reset (JumpToTrack) cuts it short and the saving is that of the part driven.
+		local PM = NitroConfig.PERFECT_MULTI
+		local nominal = NitroConfig.SavedSeconds(PM, DUR)
+		local cruise0 = ctx.RaceConfig.SpeedFor(STAT)
+		local longLength = cruise0 * (DUR * PM + 4) + 10
+		local function savedAt()
+			return fake:GetAttribute("NitroSavedAt")
+		end
+		local function waitSaved(since, seconds)
+			local waited = 0
+			while savedAt() == since and waited < seconds do
+				waited += RunService.Heartbeat:Wait()
+			end
+			return savedAt() ~= since
+		end
+		local full = newRacer(
+			ctx,
+			makeRoute(ctx, ORIGIN + Vector3.new(-2 * LANE_GAP, 0, 0), longLength),
+			"SavedFull",
+			{ Npc = true, NpcSpeeds = { [1] = SLOW_NPC } }
+		)
+		state.run = full.Run
+		local savedBefore = savedAt()
+		local gFull = press(function(t)
+			prime(0, t)
+			return t
+		end)
+		local untilFull = fake:GetAttribute("NitroUntil")
+		local endedFull = gFull == "Perfect" and waitSaved(savedBefore, DUR + 1.5)
+		local savedFull, atFull = fake:GetAttribute("NitroSaved"), savedAt()
+		metrics.saved_full = round(savedFull)
+		local fullOk = endedFull
+			and near(savedFull, nominal, 1e-6)
+			and finite(untilFull)
+			and finite(atFull)
+			and atFull >= untilFull - SAVED_TOLERANCE
+			and atFull <= untilFull + 1
+			and fake:GetAttribute("NitroUntil") == untilFull
+		check(checks, "nitro_saved_full_boost_nominal", savedFull or -1, nominal, fullOk)
+		done(full)
+
+		local cut = newRacer(
+			ctx,
+			makeRoute(ctx, ORIGIN + Vector3.new(-3 * LANE_GAP, 0, 0), longLength),
+			"SavedCut",
+			{ Npc = true, NpcSpeeds = { [1] = SLOW_NPC } }
+		)
+		state.run = cut.Run
+		savedBefore = savedAt()
+		local gCut = press(function(t)
+			prime(0, t)
+			return t
+		end)
+		local untilCut = fake:GetAttribute("NitroUntil")
+		step(CUT_AFTER, function() end)
+		local leftAtCut = cut.Run.NitroLeft
+		local jumped = cut.Run:JumpToTrack(1)
+		local endedCut = gCut == "Perfect" and jumped == true and waitSaved(savedBefore, 1)
+		local savedCut = fake:GetAttribute("NitroSaved")
+		local wantCut = finite(leftAtCut) and NitroConfig.SavedSeconds(PM, DUR - leftAtCut) or -1
+		metrics.saved_cut = round(savedCut)
+		metrics.saved_cut_want = round(wantCut)
+		local cutOk = endedCut
+			and cut.Run.NitroLeft == 0
+			and finite(savedCut)
+			and math.abs(savedCut - wantCut) <= (PM - 1) * SAVED_TOLERANCE
+			and savedCut < nominal
+			and finite(untilCut)
+			and fake:GetAttribute("NitroUntil") < untilCut -- the drawn boost ends at the cut
+			and fake:GetAttribute("NitroUntil") <= now()
+		check(checks, "nitro_saved_cut_boost_is_real_part", savedCut or -1, wantCut, cutOk)
+		done(cut)
 		state.run = fakeRun
 	end, debug.traceback)
 	CarService.IsAutoRacing, CarService.GetRun = origRacing, origGetRun

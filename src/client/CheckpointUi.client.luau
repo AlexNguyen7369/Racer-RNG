@@ -116,7 +116,8 @@ for _, spec in chain do
 		card,
 		{ Position = UDim2.fromScale(0.05, 0.38), Size = UDim2.fromScale(0.9, 0.18), Text = spec.Name }
 	)
-	caption("Cash", card, {
+	-- Base pay until the server's quote (Cash x Money multi, what a win really pays) arrives.
+	local cash = caption("Cash", card, {
 		Position = UDim2.fromScale(0.05, 0.57),
 		Size = UDim2.fromScale(0.9, 0.15),
 		Text = HudFormat.MoneyText(TrackBuilder.CashFor(n)),
@@ -151,7 +152,7 @@ for _, spec in chain do
 			hint.Text = tostring(reason or "Try again")
 		end
 	end)
-	cards[n] = { Card = card, Edge = edge, State = state, Lock = lock }
+	cards[n] = { Card = card, Edge = edge, State = state, Lock = lock, Cash = cash }
 end
 
 local function render()
@@ -169,12 +170,44 @@ local function render()
 	end
 end
 
+-- Real payouts come from the server (Remotes.CheckpointPayouts -> MoneyService.Quote per track); potions and weather
+-- change the Money multi, so they refresh while the panel is open.
+local fetching = false
+local function refreshPayouts()
+	if fetching then
+		return
+	end
+	fetching = true
+	local ok, quotes = pcall(function()
+		return remotes:WaitForChild("CheckpointPayouts", 5):InvokeServer()
+	end)
+	fetching = false
+	if not ok or type(quotes) ~= "table" then
+		return
+	end
+	for n, refs in cards do
+		local quote = quotes[tostring(n)]
+		if type(quote) == "number" then
+			refs.Cash.Text = HudFormat.MoneyText(quote)
+		end
+	end
+end
+
 close.Activated:Connect(function()
 	PanelSwitch.Close("Checkpoints")
 end)
 panel:GetPropertyChangedSignal("Visible"):Connect(function()
 	if panel.Visible then
 		render()
+		task.spawn(refreshPayouts)
+	end
+end)
+task.spawn(function()
+	while root.Parent do
+		task.wait(2)
+		if panel.Visible then
+			refreshPayouts()
+		end
 	end
 end)
 player.AttributeChanged:Connect(function(attr)

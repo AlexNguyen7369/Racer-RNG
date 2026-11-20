@@ -4,8 +4,8 @@
 
 During an NPC auto-race, the HUD shows a non-interactive, current-track-only
 transparent route icon in the top-right. It contains a stylized top-down route, a `YOU` dot using the player's
-avatar headshot (with a colored fallback), an `NPC` dot, an `AHEAD`, `BEHIND`, or
-`EVEN` status, the current track title, `TIME mm:ss.cc`, and `PB mm:ss.cc` (or
+avatar headshot (with a colored fallback), an `NPC` dot, an `AHEAD 1.2 s`, `BEHIND 3.4 s`, or
+`EVEN` status (rival gap, below), the current track title, `TIME mm:ss.cc`, and `PB mm:ss.cc` (or
 `PB --`). The icon is hidden when no NPC track is active, on reset, stop, result
 completion, and while the roll showcase is visible. It does not apply to duels.
 
@@ -20,6 +20,18 @@ The displayed route is a heading-up tactical view that follows the player's car,
 keeps `YOU` at the centre, and zooms to a bounded local world span. Route segments
 outside the viewport are clipped. An NPC outside the view remains visible as an
 edge-clamped marker along the direction it lies from the player.
+
+## Rival gap
+
+Proposed by Vic2CS 2026-11-20 (design doc "Playtest follow-ups"; needs owner agreement), display only. The status
+word stays positional (`RaceProgressMap.Status`, `EVEN` below 1% of the track) and, when it is `AHEAD` or `BEHIND`,
+is followed by the gap in seconds with one decimal (`RaceProgressMap.StatusText`). The gap is
+`RaceProgressMap.Gap = NpcTimeAt(YOU progress) - elapsed`: `NpcTimeAt` reads the NPC's deterministic profile
+(`NpcRacer.Profile` Times along its lane, the same maths the server uses to decide the race) at the player's
+progress. Positive: the NPC reaches the player's spot that much later (AHEAD); negative: it passed there that long
+ago (BEHIND). Its sign always matches the positional word, and at the finish it equals the server's race margin
+(`NpcTime - PlayerTime`). It needs no client guess of the player's cruise speed or multis, and the client never
+sends it anywhere.
 
 ## Timing and authority
 

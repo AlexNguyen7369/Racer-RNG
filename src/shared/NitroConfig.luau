@@ -8,12 +8,14 @@ local NitroConfig = {}
 
 NitroConfig.PERIOD = 1.6 -- seconds for the needle to sweep left -> right -> left once
 NitroConfig.GOOD_ZONE = 0.3 -- needle within this of the centre (bar half-width = 1) is a Good press
-NitroConfig.PERFECT_ZONE = 0.08 -- ...within this, Perfect
+NitroConfig.PERFECT_ZONE = 0.11 -- ...within this, Perfect (Vic2CS 2026-11-20: a little wider, was 0.08)
 NitroConfig.GOOD_MULTI = 1.4 -- cruise speed x this while a Good boost lasts
 NitroConfig.PERFECT_MULTI = 1.7
 NitroConfig.DURATION = 2 -- seconds a boost lasts
 NitroConfig.RECHARGE = 6 -- seconds after a boost ends before the bar is ready again
-NitroConfig.MISS_COOLDOWN = 2 -- seconds the bar is locked after a press outside the green zone
+-- Seconds the bar is locked after a press outside the green zone: as long as the recharge after a boost
+-- (Vic2CS 2026-11-20: spam no longer pays; was 2 s)
+NitroConfig.MISS_COOLDOWN = NitroConfig.RECHARGE
 NitroConfig.START_DELAY = 2 -- seconds after auto racing starts before the bar is first ready
 NitroConfig.LATENCY_WINDOW = 0.35 -- s: the server accepts the client's press time this far in the past (ping)
 -- The target (centre of the green and gold zones) is a new random spot for every bar (Vic2CS 2026-11-19): the server
@@ -59,6 +61,19 @@ function NitroConfig.Grade(position, target)
 		return "Good"
 	end
 	return "Miss"
+end
+
+-- Seconds of track time a boost of `multi` for `seconds` (run time actually boosted) saves at a constant cruise
+-- speed: it covers (multi - 1) x seconds of extra cruise distance (Good 0.8 s, Perfect 1.4 s with the placeholders).
+-- 0 for anything that is not a boost.
+function NitroConfig.SavedSeconds(multi, seconds)
+	if type(multi) ~= "number" or type(seconds) ~= "number" or multi ~= multi or seconds ~= seconds then
+		return 0
+	end
+	if multi <= 1 or seconds <= 0 or multi == math.huge or seconds == math.huge then
+		return 0
+	end
+	return (multi - 1) * seconds
 end
 
 -- Cruise speed multiplier for a grade (1 for a miss).

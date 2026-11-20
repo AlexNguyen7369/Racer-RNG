@@ -51,7 +51,18 @@ function Tabs.Attach(refs, player, refreshCars)
 		ScrollBarImageColor3 = Color3.fromRGB(30, 216, 255),
 	}, refs.ConsumablesHost)
 	-- Holdables are opened from the standalone Bag HUD button; Index is car discovery only.
-	refs.ConsumablesTab.Visible = false
+	-- refs.ConsumablesTab is the tab's Face; its wrapper also holds the Shadow, which stayed drawn as an empty blue
+	-- slab (playtest 2026-11-20). Hide the whole tab and keep it hidden: the generated fit re-applies the authored
+	-- Visible = true to the wrapper on every viewport change (ui/specs/RacerIndex.ui.json marks it hidden for the
+	-- next bake).
+	for _, part in { refs.ConsumablesTab, refs.ConsumablesTab.Parent } do
+		part.Visible = false
+		part:GetPropertyChangedSignal("Visible"):Connect(function()
+			if part.Visible then
+				part.Visible = false
+			end
+		end)
+	end
 	refs.ConsumablesHost.Visible = false
 	make("UIListLayout", "Layout", { Padding = UDim.new(0, 12), SortOrder = Enum.SortOrder.LayoutOrder }, list)
 	make("UIPadding", "Padding", {

@@ -1149,6 +1149,62 @@
       "ownerGithub": "",
       "updated": "2026-11-10T21:59:34-08:00",
       "updatedBy": "Vic2CS"
+    },
+    {
+      "id": "2db28a32",
+      "title": "Owner review: playtest follow-ups",
+      "detail": "Design doc 'Playtest follow-ups' + 'Faster race Speed gain' (Vic2CS 2026-11-20): Speed gain 4, lost race ends at the NPC time, loser-screen guide, win banner, rival gap, nitro tuning, audio, HUD/panel fixes. Needs the owner's OK before main.",
+      "status": "next",
+      "source": "playtest 2026-11-20",
+      "by": "Vic2CS",
+      "added": "2026-11-20T12:00:00-08:00",
+      "branch": "feature/vic2cs/dev-changes",
+      "owner": "Vic2CS",
+      "ownerGithub": "",
+      "updated": "2026-11-20T12:00:00-08:00",
+      "updatedBy": "Vic2CS"
+    },
+    {
+      "id": "b9fe6563",
+      "title": "Owner decision: workshop vs racing Speed gain",
+      "detail": "Playtest: workshop pays 0.8-1.6 Speed/s vs ~7.8/s racing (now ~15.6 at gain 4), but the design doc calls the workshop the main source of Speed.",
+      "status": "next",
+      "source": "playtest 2026-11-20",
+      "by": "Vic2CS",
+      "added": "2026-11-20T12:00:00-08:00",
+      "branch": "feature/vic2cs/dev-changes",
+      "owner": "Vic2CS",
+      "ownerGithub": "",
+      "updated": "2026-11-20T12:00:00-08:00",
+      "updatedBy": "Vic2CS"
+    },
+    {
+      "id": "60f03763",
+      "title": "Owner decision: compact roll while a panel is open",
+      "detail": "ROLL_ANIMATION_SPEC (2026-10-08) says the roll hides while a panel is open; HUD_LAYOUT_SPEC section 6 had older 'stays drawn' wording. The branch now hides it; confirm.",
+      "status": "next",
+      "source": "playtest 2026-11-20",
+      "by": "Vic2CS",
+      "added": "2026-11-20T12:00:00-08:00",
+      "branch": "feature/vic2cs/dev-changes",
+      "owner": "Vic2CS",
+      "ownerGithub": "",
+      "updated": "2026-11-20T12:00:00-08:00",
+      "updatedBy": "Vic2CS"
+    },
+    {
+      "id": "cb20904c",
+      "title": "Fix race max_speed path deviation check",
+      "detail": "Bug 8442ee9e: pre-existing on f555419; the test measures 7-10 studs vs limit 5 while the run reports ~2.",
+      "status": "next",
+      "source": "playtest 2026-11-20",
+      "by": "Vic2CS",
+      "added": "2026-11-20T12:00:00-08:00",
+      "branch": "feature/vic2cs/dev-changes",
+      "owner": "Vic2CS",
+      "ownerGithub": "",
+      "updated": "2026-11-20T12:00:00-08:00",
+      "updatedBy": "Vic2CS"
     }
   ]
 }

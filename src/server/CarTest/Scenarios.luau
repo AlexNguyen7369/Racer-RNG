@@ -3564,7 +3564,8 @@ function Scenarios.economy()
 		MAX_SPEED = UNSCALED_MAX * scale, -- owner 2026-10-26: 88, +39 studs/s per high-speed doubling, x SPEED_SCALE
 		HALF_STAT = 100000, -- owner 2026-10-22: friendly linear start, diminishing tail after 100K
 		MAX_CRUISE_CAR_MULTI = 1.5,
-		GAIN_PER_SECOND = 2, -- owner 2026-10-22: friendlier early Speed progression
+		-- Vic2CS 2026-11-20 proposal (design doc "Faster race Speed gain", placeholder): 4, was 2 (owner 2026-10-22)
+		GAIN_PER_SECOND = 4,
 		MAX_STAT = 1e9,
 	}
 	for name, want in consts do
@@ -7032,6 +7033,12 @@ end
 -- OWNER CHANGE 2026-10-20 (docs/NPC_RACER_SPEC.md): every NPC is much harder, Track 1 included: Track 1's NPC is
 -- faster than RaceConfig.BASE_SPEED (a stat-0 starter car loses). NPCs are skinned as catalog cars
 -- (NpcConfig.Tracks[n].Model -> EquippedVisual with CarId) and the label has a "NPC RIVAL" Title above the name.
+-- CHANGE 2026-11-20 (Vic2CS proposal, design doc "Playtest follow-ups", needs owner agreement; replaces "the race
+-- still plays out"): a lost race ends as soon as the NPC's time is up. The Lose Result comes then (the car has not
+-- reached the finish), the car brakes to a stop while the loser screen shows (run.Lost, no nitro), and after
+-- LoseScreenSeconds it is reset to the start track (Reset + Start). The Lose Result carries the loser screen's data:
+-- BackTo, NpcModel, LoseScreen, NeedSpeed (the gate's REC. SPEED), Speed, GainRate, CanRebirth, RebirthMulti.
+-- A Win Result carries PreviousBest (the PB before the race).
 local NPC_ORIGIN = Vector3.new(40000, 0, 0)
 local MULTI_ORIGIN = Vector3.new(-40000, 0, 0)
 local NPC_LOSE_SCREEN = 1 -- s: LoseScreenSeconds used by the test runs
@@ -7047,6 +7054,9 @@ local NPC_FINISH_RADIUS = 25 -- studs (horizontal) from the track's finish pose 
 local NPC_TIME_SLACK = 1 -- s between the run's own times and the test's clock
 local NPC_POSE_TOLERANCE = 2 -- studs (horizontal) PoseAt may be from the lane waypoint
 local NPC_SCAN_INTERVAL = 1 -- s between scans of the server Workspace for NPC models
+-- s after a Lose before the car must stand still: RaceService.LOSE_STOP_SECONDS (0.5, placeholder) + 0.2 s margin
+local NPC_STOP_SETTLE = 0.7
+local NPC_STOPPED_SPEED = 2 -- studs/s: "standing still" on the loser screen (a stat-0 car cruises at 14)
 
 local function colorClose(a, b)
 	return typeof(a) == "Color3"
@@ -7227,6 +7237,24 @@ local function stepNpcRacer(r, dt, wps)
 	if reset and not r.resetPose and now - reset.T >= 0.2 then
 		r.resetPose = chassis.CFrame
 	end
+	-- the loser screen: from NPC_STOP_SETTLE after the first Lose until its Reset, the car stands still with run.Lost
+	-- set and no nitro left
+	for _, rec in r.Events do
+		local ev = rec.Event
+		if ev.Type == "Result" and ev.Result == "Lose" then
+			local after = npcFind(r, "Reset", nil, rec.T)
+			if not after and now - rec.T >= NPC_STOP_SETTLE then
+				r.loseSamples = (r.loseSamples or 0) + 1
+				r.loseMaxSpeed = math.max(r.loseMaxSpeed or 0, chassis.AssemblyLinearVelocity.Magnitude)
+				r.loseLostFlag = (r.loseLostFlag ~= false) and run.Lost == true
+				r.loseNitroLeft = math.max(r.loseNitroLeft or 0, run.NitroLeft or 0)
+			end
+			break
+		end
+	end
+	if reset and r.lostAfterReset == nil and now - reset.T >= 0.2 then
+		r.lostAfterReset = run.Lost
+	end
 end
 
 local function endNpcRacer(r)
@@ -7272,8 +7300,9 @@ local function checkNpcStability(checks, pre, r)
 	check(checks, pre .. "_no_flips", r.flips, 0, r.flips == 0 and rec == 0)
 end
 
--- Lost track `lost` (by racer r): nothing paid for it, an immediate Reset to Track 1 naming the lost checkpoint,
--- the car back at Track 1's start upright and facing along the path, and a new Track 1 Start.
+-- Lost track `lost` (by racer r): nothing paid for it, a Reset to Track 1 naming the lost track LoseScreenSeconds
+-- after the Lose (the loser screen, Vic2CS proposal 2026-11-20), the car standing still with run.Lost and no nitro
+-- until then, back at Track 1's start upright and facing along the path, and a new Track 1 Start.
 local function checkNpcLoseReset(checks, pre, r, lost, wps)
 	local res = npcFind(r, "Result", lost)
 	local reset = res and npcFind(r, "Reset", nil, res.T)
@@ -7285,7 +7314,47 @@ local function checkNpcLoseReset(checks, pre, r, lost, wps)
 		reset ~= nil and reset.Event.Track == 1 and reset.Event.LostAt == lost
 	)
 	local delay = (reset and res) and reset.T - res.T or -1
-	check(checks, pre .. "_reset_immediate", delay, 0, reset ~= nil and delay >= -0.1 and delay <= 0.25)
+	check(
+		checks,
+		pre .. "_reset_after_lose_screen",
+		delay,
+		NPC_LOSE_SCREEN,
+		reset ~= nil and delay >= NPC_LOSE_SCREEN - 0.1 and delay <= NPC_LOSE_SCREEN + 0.25
+	)
+	local samples = r.loseSamples or 0
+	local vmax = r.loseMaxSpeed or -1
+	check(
+		checks,
+		pre .. "_car_stops_on_lose_screen",
+		vmax,
+		NPC_STOPPED_SPEED,
+		samples > 0 and vmax >= 0 and vmax <= NPC_STOPPED_SPEED
+	)
+	local lostOk = samples > 0 and r.loseLostFlag == true and r.lostAfterReset == false
+	check(checks, pre .. "_run_lost_until_reset", lostOk and 1 or 0, 1, lostOk)
+	check(checks, pre .. "_no_nitro_on_lose_screen", r.loseNitroLeft or -1, 0, samples > 0 and r.loseNitroLeft == 0)
+	-- the loser screen's data, all from the server
+	local NpcConfig = sharedModule("NpcConfig")
+	local RaceConfig = sharedModule("RaceConfig")
+	local RebirthConfig = sharedModule("RebirthConfig")
+	local ev = res and res.Event or {}
+	local npcCfg = NpcConfig and NpcConfig.For(lost) or {}
+	local gainWant = RaceConfig and isFiniteNumber(r.gainMulti) and RaceConfig.GAIN_PER_SECOND * r.gainMulti or nil
+	local payloadOk = RaceConfig ~= nil
+		and RebirthConfig ~= nil
+		and ev.BackTo == 1
+		and ev.NpcModel == npcCfg.Model
+		and ev.LoseScreen == NPC_LOSE_SCREEN
+		and isFiniteNumber(ev.NeedSpeed)
+		and math.abs(ev.NeedSpeed - RaceConfig.StatFor(npcCfg.Speed)) <= 1e-6 * math.max(1, ev.NeedSpeed)
+		and isFiniteNumber(ev.Speed)
+		and ev.Speed >= 0
+		and gainWant ~= nil
+		and isFiniteNumber(ev.GainRate)
+		and math.abs(ev.GainRate - gainWant) <= 1e-9 * math.max(1, gainWant)
+		and type(ev.CanRebirth) == "boolean"
+		and ev.RebirthMulti == RebirthConfig.NextMultiplier(0)
+	check(checks, pre .. "_lose_payload", payloadOk and 1 or 0, 1, payloadOk)
 	local pose = r.resetPose
 	local d = pose and hdist(pose.Position, wps[1]) or -1
 	check(checks, pre .. "_reset_to_track1_start", d, NPC_RESET_RADIUS, pose ~= nil and d <= NPC_RESET_RADIUS)
@@ -7988,6 +8057,11 @@ function Scenarios.npc()
 				npcSeen = npcSeen or npcModelInWorkspace()
 			end
 			r.npcSeen = npcSeen
+			local gacha = serverModule("GachaService")
+			if gacha and type(gacha.SpeedMulti) == "function" then
+				local okM, m = pcall(gacha.SpeedMulti, r.Player)
+				r.gainMulti = okM and m or nil -- the Lose payload's GainRate = GAIN_PER_SECOND x this
+			end
 			endNpcRacer(r)
 			return r
 		end
@@ -8047,6 +8121,9 @@ function Scenarios.npc()
 				and isFiniteNumber(r2.Event.NpcTime)
 				and r2.Event.PlayerTime < r2.Event.NpcTime
 			check(checks, "npc_win_track1", win1 and 1 or 0, 1, win1)
+			-- the win banner's NEW BEST needs the PB before the race: a fresh player has none on its first clear
+			local firstClear = r1 ~= nil and r1.Event.PreviousBest == nil and r1.Event.NewBest == true
+			check(checks, "npc_win_first_clear_previous_best_nil", firstClear and 1 or 0, 1, firstClear)
 			check(checks, "npc_win_track2", win2 and 1 or 0, 1, win2)
 			check(
 				checks,
@@ -8096,7 +8173,8 @@ function Scenarios.npc()
 			check(checks, "npc_win_not_in_server_workspace", a.npcSeen and 1 or 0, 0, not a.npcSeen)
 		end
 
-		-- (b) LOSE: stat 0 player against a fast NPC on Track 1: race plays out, nothing paid, back to Track 1
+		-- (b) LOSE: stat 0 player against a fast NPC on Track 1: the race ends at the NPC's time, nothing paid, loser
+		-- screen with the car stopped, then back to Track 1
 		local b = race(
 			"Lose",
 			0,
@@ -8112,7 +8190,7 @@ function Scenarios.npc()
 			check(checks, "npc_lose_result_lose", lose and 1 or 0, 1, lose)
 			local pT = r1 and r1.Event.PlayerTime
 			local nT = r1 and r1.Event.NpcTime
-			local slower = isFiniteNumber(pT) and isFiniteNumber(nT) and pT > nT
+			local slower = isFiniteNumber(pT) and isFiniteNumber(nT) and pT >= nT -- a loss is PlayerTime >= NpcTime
 			check(
 				checks,
 				"npc_lose_player_slower",
@@ -8134,22 +8212,27 @@ function Scenarios.npc()
 				NPC_FAST,
 				s1 ~= nil and s1.Event.Speed == NPC_FAST
 			)
-			-- the race plays out: the Result only arrives when the player's car reaches Track 1's finish
+			-- the race ends when the NPC's time is up (Vic2CS proposal 2026-11-20): the Result arrives then, while the
+			-- player's car (6x slower) is still far from Track 1's finish
 			local arrival = (r1 and s1) and r1.T - s1.T or -1
 			check(
 				checks,
-				"npc_lose_result_after_npc_finish",
+				"npc_lose_ends_at_npc_time",
 				arrival,
 				isFiniteNumber(nT) and nT or -1,
-				r1 ~= nil and s1 ~= nil and isFiniteNumber(nT) and arrival >= nT - 0.25
+				r1 ~= nil
+					and s1 ~= nil
+					and isFiniteNumber(nT)
+					and arrival >= nT - 0.25
+					and arrival <= nT + NPC_TIME_SLACK
 			)
 			local dFinish = r1 and hdist(r1.Pos, joint) or -1
 			check(
 				checks,
-				"npc_lose_result_at_finish",
+				"npc_lose_result_before_player_finish",
 				dFinish,
 				NPC_FINISH_RADIUS,
-				r1 ~= nil and dFinish <= NPC_FINISH_RADIUS
+				r1 ~= nil and dFinish > NPC_FINISH_RADIUS
 			)
 			check(checks, "npc_lose_player_time_measured", num(pT), arrival, timeMatches(r1, s1))
 			local paidNothing = r1 ~= nil
@@ -8202,7 +8285,7 @@ function Scenarios.npc()
 			)
 			local pT = r2 and r2.Event.PlayerTime
 			local nT = r2 and r2.Event.NpcTime
-			local slower = isFiniteNumber(pT) and isFiniteNumber(nT) and pT > nT
+			local slower = isFiniteNumber(pT) and isFiniteNumber(nT) and pT >= nT -- a loss is PlayerTime >= NpcTime
 			check(
 				checks,
 				"npc_win_lose_player_slower_track2",
@@ -8340,9 +8423,9 @@ function Scenarios.multiplayer()
 					scanT = 0
 					npcSeen = npcSeen or npcModelInWorkspace()
 				end
-				-- the winner's state just before and 1 s after the loser's reset. The reset is immediate (NPC_RACER_SPEC:
-				-- emitted in the frame of the loss), and both cars reach the finish in the same frame or one apart, so
-				-- "just before" may still be Track 1 with no Result; the winner's own progress is checked instead.
+				-- the winner's state just before and 1 s after the loser's reset. Since 2026-11-20 (Vic2CS proposal) B's
+				-- race ends at its fast NPC's time and B is reset LoseScreenSeconds later, while A is still racing
+				-- Track 1 (or, on a short track, already on Track 2); the winner's own progress is checked instead.
 				local resetB = npcFind(B, "Reset")
 				local now = os.clock() - B.clock0
 				if resetB and not beforeA then
@@ -8428,13 +8511,16 @@ function Scenarios.multiplayer()
 		end
 		check(checks, "mp_events_separate_per_player", (aOwn and 1 or 0) + (bOwn and 1 or 0), 2, aOwn and bOwn)
 
-		-- the loser's reset does not touch the winner: 1 s later it is on Track 2 with its one Win, was never reset,
-		-- and is further along the path than just before the reset (which was its own Track 1 or Track 2 state)
+		-- the loser's reset does not touch the winner: 1 s later it is still on its own race (Track 1 with no Result
+		-- yet, or Track 2 with its one Win), was never reset, and is further along the path than just before the reset
+		local function ownState(st)
+			return (st.RaceTrack == 2 and st.Results == 1) or (st.RaceTrack == 1 and st.Results == 0)
+		end
 		local unaffected = beforeA ~= nil
 			and afterA ~= nil
-			and ((beforeA.RaceTrack == 2 and beforeA.Results == 1) or (beforeA.RaceTrack == 1 and beforeA.Results == 0))
-			and afterA.RaceTrack == 2
-			and afterA.Results == 1
+			and ownState(beforeA)
+			and ownState(afterA)
+			and afterA.Results >= beforeA.Results
 			and beforeA.Resets == 0
 			and afterA.Resets == 0
 			and type(beforeA.Index) == "number"

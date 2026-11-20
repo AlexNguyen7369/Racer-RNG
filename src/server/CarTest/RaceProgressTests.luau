@@ -250,6 +250,30 @@ function Tests.Geometry(map)
 	do
 		flag("status_1_percent_" .. index, map.Status(case[1], case[2]) == case[3])
 	end
+	-- Rival gap in seconds (design doc "Playtest follow-ups", Vic2CS 2026-11-20; RACE_PROGRESS_MAP_SPEC "Rival gap"):
+	-- the NPC's time at the player's progress (its profile) minus the elapsed time; text "AHEAD 1.2 s" / "BEHIND 3.4 s",
+	-- "EVEN" inside the 1% band. A 100-stud straight driven at 10 studs/s: the NPC passes progress p at 10 p seconds.
+	for _, name in { "NpcTimeAt", "Gap", "StatusText" } do
+		flag("api_" .. name, type(map[name]) == "function")
+	end
+	if type(map.NpcTimeAt) == "function" and type(map.Gap) == "function" and type(map.StatusText) == "function" then
+		local points, times = {}, {}
+		for i = 0, 10 do
+			table.insert(points, Vector3.new(i * 10, 0, 0))
+			table.insert(times, i)
+		end
+		local lane, profile = route(points), { Times = times, TotalTime = 10 }
+		flag("gap_npc_time_at_start", near(map.NpcTimeAt(lane, profile, 0), 0))
+		flag("gap_npc_time_between_waypoints", near(map.NpcTimeAt(lane, profile, 0.45), 4.5))
+		flag("gap_npc_time_at_finish_is_total", near(map.NpcTimeAt(lane, profile, 1), 10))
+		flag("gap_ahead_positive", near(map.Gap(lane, profile, 0.5, 3), 2))
+		flag("gap_behind_negative", near(map.Gap(lane, profile, 0.2, 5), -3))
+		flag("gap_at_finish_is_race_margin", near(map.Gap(lane, profile, 1, 9.25), 0.75))
+		flag("gap_text_ahead", map.StatusText(0.5, 0.3, 2) == "AHEAD 2.0 s", map.StatusText(0.5, 0.3, 2))
+		flag("gap_text_behind", map.StatusText(0.2, 0.5, -3.04) == "BEHIND 3.0 s", map.StatusText(0.2, 0.5, -3.04))
+		flag("gap_text_even_band", map.StatusText(0.5, 0.505, -0.04) == "EVEN")
+		flag("gap_text_bad_gap_plain_status", map.StatusText(0.8, 0.2, 0 / 0) == "AHEAD")
+	end
 	for index, case in
 		{
 			{ 0, "00:00.00" },
@@ -563,7 +587,11 @@ function Tests.race_progress_map()
 		)
 		slower:Destroy()
 		for index, records in { {}, { ["1"] = 25, ["2"] = 50 } } do
-			local loss, loser, lostEvents = fixture({ Npc = true, NpcSpeeds = { [1] = 1e12 } }, records)
+			-- LoseScreenSeconds = 0: the reset follows in the frame of the loss (a lost race now ends when the NPC's
+			-- time is up and the car is reset after the loser screen; Vic2CS proposal 2026-11-20). The fixture stops
+			-- the run after the Result, so the PB rule is checked through the same-frame Reset and Start.
+			local loss, loser, lostEvents =
+				fixture({ Npc = true, NpcSpeeds = { [1] = 1e12 }, LoseScreenSeconds = 0 }, records)
 			finish(loss, 1)
 			local lost = loss.Results[1]
 			flag(

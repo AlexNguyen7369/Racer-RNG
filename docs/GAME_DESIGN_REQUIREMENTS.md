@@ -241,6 +241,10 @@ Idle Vehicle Simulator — Game Design Requirements
        about 66 s instead of 92 s). Speed gain per second is unchanged, so the time to reach each
        track is unchanged too. CarConfig.TopSpeed (the manual-drive fallback, never used by
        auto racing) is not scaled, so auto-race cruise speed may exceed it.
+       Faster race Speed gain. Proposed by Vic2CS, 2026-11-20 (same branch, same review status),
+       after a playtest found a long wall at Track 4: GAIN_PER_SECOND is 4 (placeholder, was 2), so
+       a new player reaches Track 2 in about 7.5 minutes and Track 3 in about 44 minutes of racing
+       (was 15 and 88). It still does not depend on the stat, the car or the drive speed.
        Track gates show a recommended Speed: the shown Speed at which the car's cruise speed
        matches that track's NPC. Players compare their own shown Speed with it, whatever car
        they drive (see Track environments).
@@ -946,8 +950,10 @@ Idle Vehicle Simulator — Game Design Requirements
        While auto racing against an NPC, a bar with a sweeping needle shows above the Speed
        readout. Pressing Space, clicking the world, tapping the bar or pressing gamepad X / R1
        while the needle is in the green zone gives a boost: cruise speed x1.4 for 2 seconds,
-       x1.7 in the gold centre. A press outside the green locks the bar for 2 seconds; after a
-       boost the bar recharges for 6 seconds. Every new bar puts the green / gold zones at a new
+       x1.7 in the gold centre. A press outside the green locks the bar for 6 seconds, as long as
+       the recharge after a boost (Vic2CS 2026-11-20, was 2 seconds, so spamming no longer pays);
+       after a boost the bar recharges for 6 seconds. The gold zone is a little wider (placeholder
+       0.11 of the half-bar, was 0.08), and after each boost the bar shows the time it saved. Every new bar puts the green / gold zones at a new
        random spot, and a marker shows exactly where the last press landed until the next bar
        is ready. All numbers are placeholders.
        A boost gets the car to the finish sooner, so a well-timed boost can win a race against an
@@ -955,6 +961,35 @@ Idle Vehicle Simulator — Game Design Requirements
        Not in duels. The server grades every press from the needle position at the press time.
        Open questions: whether a skill element fits an idle game, and how big the boost may be
        before it makes the early tracks trivial. Spec: docs/NITRO_SPEC.md.
+
+  Playtest follow-ups
+  Proposed by Vic2CS, 2026-11-20, on branch feature/vic2cs/dev-changes, after a 14-minute
+  playtest. Not yet reviewed by the owner; they need the owner's agreement before they reach
+  main. All numbers and wording are placeholders.
+
+       A lost race ends when the NPC finishes. This replaces "a loss plays out to the finish"
+       (docs/NPC_RACER_SPEC.md): as soon as the NPC's time is up the loser screen shows and,
+       after LOSE_SCREEN_SECONDS, the car goes back to the start track. The result is the same
+       as before; only the dead driving time is gone. The loser screen names the NPC's car (not
+       the internal track01_NPC label) and the track the player goes back to.
+       Win moment: a won track shows a short banner ("TRACK 3 CLEARED", the payout, and "NEW
+       BEST" when the time beat the personal best) with a small effect. Display only.
+       Progress guide: the loser screen also says how much Speed the lost track needs, about how
+       long that takes at the player's current race gain, and, when Rebirth is available, that
+       a rebirth multiplies Speed gain. The Rebirth panel says that Level and XP reset too.
+       Rival gap: the race map shows the gap to the NPC in seconds (ahead or behind), from the
+       same deterministic maths the server uses to decide the race. Display only.
+       Sound: the game gets audio: an engine loop whose pitch follows the car's speed, a nitro
+       whoosh, a Perfect chime, win and lose stingers, a roll reveal sound for good rolls, and
+       background music. The Settings Sound toggle mutes all of it. Only Roblox-provided or
+       licence-cleared audio is used.
+       Panels close with their X button or gamepad B. Escape is reserved by Roblox (it opens
+       the Roblox menu), so it no longer counts as a way to close panels.
+       The Workshop panel uses the shared panel look (header, red X, rounded frame) and points
+       the player to the Showcase when its slots are empty.
+       Open question for the owner: idling in the workshop currently pays 5-10x less Speed than
+       racing, while this doc calls the workshop "their main source of Speed". These follow-ups
+       do not change workshop numbers.
 
   Technical and data requirements
   The server decides every number (Speed, Money, rolls, race results) and the client only

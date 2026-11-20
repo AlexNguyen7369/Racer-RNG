@@ -211,9 +211,12 @@ function Access.Build(h)
 			)
 		end
 		probe:Destroy()
-		-- 4. The roll reel while reduced
+		-- 4. The roll reel while reduced. The compact roll hides while any panel is open (UiSpec.HiddenWhilePanelOpen,
+		-- e.g. the Welcome panel shown on join), so the landed roll is judged with no panel open.
 		player:SetAttribute(cfg.ReduceAttr, true)
+		local restorePanels = h.setPanels({})
 		local ok, err = pcall(reducedReelChecks, res)
+		restorePanels()
 		player:SetAttribute(cfg.ReduceAttr, saved)
 		if not ok then
 			error(err)

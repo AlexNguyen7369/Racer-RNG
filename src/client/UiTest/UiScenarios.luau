@@ -131,7 +131,7 @@ UiScenarios.Names = {
 	-- ui_offline_welcome needs its offline_welcome server fixture, so it runs only through
 	-- UiSpec.Progression.FixtureChecks (UiTestScenario), like ui_offline_zero.
 	"ui_weather",
-	-- Timed nitro bar (docs/NITRO_SPEC.md; UiNitro): needs auto_racing, about 15 s (a boost, its recharge, a miss)
+	-- Timed nitro bar (docs/NITRO_SPEC.md; UiNitro): needs auto_racing, about 20 s (a boost, its recharge, a miss and its 6 s lock)
 	"ui_nitro_bar",
 	-- Last: its server setup (emphasized_next) takes the cars away until the emphasized roll happened
 	"ui_roll_emphasized",
@@ -928,9 +928,21 @@ end
 
 -- Compact: AnchorPoint (0.5, 0), centred, top edge COMPACT_GAP under the Auto Race button, width
 -- clamp(COMPACT_WIDTH x parent width, COMPACT_MIN, COMPACT_MAX), height COMPACT_HEIGHT.
+-- While the player auto races (HUD_LAYOUT_SPEC section 6 playtest follow-ups, 2026-11-20; UiSpec.Compact.RacingGap):
+-- the same size, its top edge on the Race Face's top and its right edge RacingGap px left of the Race Face, its left
+-- edge at least RacingEdge px from the screen's left edge.
+local function compactRacing()
+	return Players.LocalPlayer:GetAttribute("AutoRacing") == true
+end
+local function compactRacingCentreX(raceRect, w)
+	return math.max(raceRect.x - UiSpec.Compact.RacingGap - w / 2, UiSpec.Compact.RacingEdge + w / 2)
+end
 local function compactNominal(base, toggleRect)
 	local w = math.clamp(base.w * animNum("COMPACT_WIDTH"), animNum("COMPACT_MIN"), animNum("COMPACT_MAX"))
 	local h = animNum("COMPACT_HEIGHT") + UiSpec.Compact.ExtraHeight
+	if toggleRect and compactRacing() then
+		return R(compactRacingCentreX(toggleRect, w) - w / 2, toggleRect.y, w, h)
+	end
 	local top = toggleRect and (toggleRect.y + toggleRect.h + animNum("COMPACT_GAP")) or base.y
 	return R(base.x + base.w / 2 - w / 2, top, w, h)
 end
@@ -939,8 +951,16 @@ end
 -- Position (0.5, 0.46)) scaled by its generated UIScale k about its centre (UiResponsive.CardRect). The
 -- docs/ROLL_ANIMATION_CONTRACT.md size formula (ENLARGED_WIDTH x screen width) is superseded by the owner-approved
 -- ui.json, with no ENLARGED_MAX cap (owner decision 2026-10-08).
+-- Its width is capped at the screen width minus UiSpec.Showcase.CardSideMargin on each side (Client/RollToast caps
+-- the generated UIScale on narrow, tall screens; playtest 2026-11-20), scaled about the card's centre.
 local function enlargedNominal(base, vp)
 	local r = UiResponsive.CardRect(vp, base)
+	local most = vp.X - 2 * UiSpec.Showcase.CardSideMargin
+	if r.w > most and r.w > 0 then
+		local f = most / r.w
+		local cx, cy = r.x + r.w / 2, r.y + r.h / 2
+		return R(cx - r.w * f / 2, cy - r.h * f / 2, r.w * f, r.h * f)
+	end
 	return R(r.x, r.y, r.w, r.h)
 end
 
@@ -1112,12 +1132,21 @@ simRect = function(obj, ctx)
 			-- The compact roll's live Y offset is fitCompact's for the live screen: at a simulated viewport it is
 			-- Race Face bottom + COMPACT_GAP there (UiResponsive.BelowRace)
 			local below = UiResponsive.BelowRace[path]
+			local w, h = sizeIn(obj, size, base, ctx, c)
 			if below and not liveVp and findPath(below) then
 				local race = simRect(findPath(below), ctx)
-				position =
-					UDim2.new(position.X.Scale, position.X.Offset, 0, race.y + race.h + animNum("COMPACT_GAP") - base.y)
+				if compactRacing() then
+					-- Beside the Race Face while auto racing (compactNominal): fitCompact's offsets for that screen
+					position = UDim2.fromOffset(compactRacingCentreX(race, w) - base.x, race.y - base.y)
+				else
+					position = UDim2.new(
+						position.X.Scale,
+						position.X.Offset,
+						0,
+						race.y + race.h + animNum("COMPACT_GAP") - base.y
+					)
+				end
 			end
-			local w, h = sizeIn(obj, size, base, ctx, c)
 			local x = base.x + base.w * position.X.Scale + c * position.X.Offset - anchor.X * w
 			local y = base.y + base.h * position.Y.Scale + c * position.Y.Offset - anchor.Y * h
 			r = R(x, y, w, h)
@@ -3606,21 +3635,14 @@ function S.ui_hud(res)
 	local value, moneyValue = findPath(UiSpec.Hud.SpeedValue), findPath(UiSpec.Hud.MoneyValue)
 	check(res, "leaderstats_present", speed ~= nil and money ~= nil, true, speed ~= nil and money ~= nil)
 	check(res, "hud_labels_present", value ~= nil and moneyValue ~= nil, true, value ~= nil and moneyValue ~= nil)
-	-- Unbanked row (spec section 5): title "UNBANKED" and the smoothed player attribute Unbanked, under Money
+	-- The retired UNBANKED label (design doc: no banked pot; HUD_LAYOUT_SPEC section 6 playtest follow-ups,
+	-- 2026-11-20) is not drawn, also after a viewport change re-applies the generated layout
 	local unbankedValue = findPath(UiSpec.Hud.Unbanked)
-	check(
-		res,
-		"unbanked_value_present",
-		unbankedValue ~= nil,
-		true,
-		unbankedValue ~= nil and unbankedValue:IsA("TextLabel")
-	)
-	check(res, "unbanked_attribute_present", typeof(attr("Unbanked")), "number", type(attr("Unbanked")) == "number")
+	local unbankedShown = unbankedValue ~= nil and unbankedValue:IsA("GuiObject") and effectivelyVisible(unbankedValue)
+	check(res, "unbanked_label_hidden", unbankedShown, false, not unbankedShown)
 	local hudPanel = findPath(UiSpec.Hud.Money)
-	if hudPanel and moneyValue and unbankedValue then
+	if hudPanel and moneyValue then
 		renderFrame()
-		local mv, uv = realRect(moneyValue), realRect(unbankedValue)
-		check(res, "unbanked_under_money", uv.y, ">= " .. (mv.y + mv.h), uv.y >= mv.y + mv.h - TOL)
 		local pr = realRect(hudPanel)
 		local outside = {}
 		for _, l in hudPanel:GetDescendants() do
@@ -3637,21 +3659,6 @@ function S.ui_hud(res)
 	task.wait(UiSpec.Waits.HudSettle)
 	renderFrame()
 	local s1, m1 = speed.Value, money.Value
-	if unbankedValue then
-		local u1 = attr("Unbanked")
-		local shownUnbanked = digits(unbankedValue.Text)
-		local ok = type(u1) == "number"
-			and string.sub(unbankedValue.Text, 1, #UiSpec.Hud.UnbankedPrefix) == UiSpec.Hud.UnbankedPrefix
-			and shownUnbanked ~= nil
-			and math.abs(shownUnbanked - math.floor(u1)) <= 1
-		check(
-			res,
-			"hud_unbanked_matches_server",
-			unbankedValue.Text,
-			type(u1) == "number" and HudFormat.MoneyText(u1) or "attribute Unbanked missing",
-			ok
-		)
-	end
 	local growth = math.max(0, (s1 - s0) / math.max(os.clock() - t0, 0.01))
 	local shown = digits(value.Text)
 	-- within one formatting step (floor) plus the smoothing lag of ~0.5 s of growth; never above the server
@@ -4121,8 +4128,8 @@ function S.ui_toast(res)
 		return
 	end
 
-	-- The compact roll remains visible while a panel is open: HUD buttons and the roll
-	-- stay available as background UI. The roll keeps playing and is not restarted.
+	-- The compact roll HIDES while any panel is open (owner decision 2026-10-08, UiSpec.HiddenWhilePanelOpen;
+	-- playtest 2026-11-20). The roll keeps playing underneath, is not restarted, and shows again once the panel closes.
 	local switchModule = script.Parent.Parent:FindFirstChild(UiSpec.PanelSwitch.Module)
 	local Switch = nil
 	if switchModule and switchModule:IsA("ModuleScript") then
@@ -4153,7 +4160,7 @@ function S.ui_toast(res)
 			setPanel(p, true)
 			local panelObj = findPath(p)
 			local opened = panelObj ~= nil and panelObj.Visible
-			-- PanelSwitch.Changed -> refreshToast runs as the panel's Visible changes: hidden in the same frame
+			-- PanelSwitch.OnChange -> refreshToast runs as the panel's Visible changes: hidden in the same frame
 			local shownFrames, samples = effectivelyVisible(toast) and 1 or 0, 1
 			local untilT = os.clock() + animNum("SPIN") + animNum("LAND")
 			repeat
@@ -4165,15 +4172,15 @@ function S.ui_toast(res)
 			until os.clock() > untilT or toast:GetAttribute("Phase") == "Hold"
 			check(
 				res,
-				"toast_visible_while_" .. p .. "_open",
+				"toast_hidden_while_" .. p .. "_open",
 				("panel opened=%s, shown before=%s, %d of %d frames shown"):format(
 					tostring(opened),
 					tostring(shownBefore),
 					shownFrames,
 					samples
 				),
-				"panel opened=true, shown before=true, all sampled frames shown",
-				opened and shownBefore and shownFrames == samples
+				"panel opened=true, shown before=true, no sampled frame shown",
+				opened and shownBefore and shownFrames == 0
 			)
 			setPanel(p, false)
 			frames(2)
@@ -4207,7 +4214,7 @@ function S.ui_toast(res)
 				type(serial0) == "number" and serial1 == serial0 and hold.rollId == ev0.id
 			)
 		else
-			stateMissing(res, "toast_visible_while_" .. p .. "_open", "auto_racing", "no Remotes.RollResult")
+			stateMissing(res, "toast_hidden_while_" .. p .. "_open", "auto_racing", "no Remotes.RollResult")
 		end
 		setPanel(p, true)
 		if waitNewRoll(UiSpec.Waits.RollToast) then
@@ -4217,13 +4224,13 @@ function S.ui_toast(res)
 			local shown = effectivelyVisible(toast)
 			check(
 				res,
-				"toast_visible_on_roll_while_" .. p .. "_open",
+				"toast_hidden_on_roll_while_" .. p .. "_open",
 				("Phase %s, shown=%s"):format(tostring(phaseNow), tostring(shown)),
-				"roll playing (not Idle), shown=true",
-				phaseNow ~= nil and phaseNow ~= "Idle" and shown
+				"roll playing (not Idle), shown=false",
+				phaseNow ~= nil and phaseNow ~= "Idle" and not shown
 			)
 		else
-			stateMissing(res, "toast_visible_on_roll_while_" .. p .. "_open", "auto_racing", "no Remotes.RollResult")
+			stateMissing(res, "toast_hidden_on_roll_while_" .. p .. "_open", "auto_racing", "no Remotes.RollResult")
 		end
 		setPanel(p, false)
 		restorePanel()
@@ -5387,7 +5394,7 @@ function S.ui_panels(res)
 	-- UiSpec.HiddenWhilePanelOpen: each declared element really is hidden while a panel that hides it is open (the
 	-- overlap lists leave it out then), and shown again once no panel is open. ProgressionUi polls every 0.25 s, so
 	-- each state is waited for (UiSpec.HiddenWhilePanelOpenWait). The compact roll is also checked during a playing
-	-- roll by ui_toast, since the compact roll stays visible while panels are open.
+	-- roll by ui_toast (hidden while a panel is open, the roll keeps playing).
 	local function waitFor(cond)
 		local deadline = os.clock() + UiSpec.HiddenWhilePanelOpenWait
 		repeat

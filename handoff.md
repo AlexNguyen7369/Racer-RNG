@@ -3,6 +3,20 @@
 Only the current state and open work. Older entries (2026-10-02 .. 2026-10-26) were trimmed on 2026-10-27; they are
 in git history (`git log -p -- handoff.md`, last full version at 2d99d78) and in `context/ProjectContext.luau`.
 
+## State — 2026-11-20 (vic's branch, playtest follow-ups)
+
+- f555419 (nitro, early-track curve, x1.4 movement, dev popup switch) is pushed on `feature/vic2cs/dev-changes`.
+- A 14-minute agent playtest of f555419 led to the "Playtest follow-ups" proposals (design doc, 2026-11-20): Speed
+  gain 4, lost race ends at the NPC's time, loser-screen progress guide, win banner, rival gap in seconds, nitro
+  tuning (miss = full recharge, wider gold, saved time), game audio, HUD and panel fixes. Summary and file list in
+  `context/ProjectContext.luau` ("PLAYTEST FOLLOW-UPS"). Built by five parallel agents with static checks; the main
+  session then runs the harness, the UI suite and the multiplayer check.
+- Open for the owner: workshop vs racing gain (workshop pays 5-10x less), the compact-roll panel rule conflict between
+  ROLL_ANIMATION_SPEC (hide, 2026-10-08) and HUD_LAYOUT_SPEC section 6 (older "stays drawn" wording), and whether Speed
+  gain should keep running on the loser screen.
+- Known, not fixed: `rbxassetid://203785492` "Asset type does not match" on join comes from content saved in the place;
+  EditableMesh is off in the dev experience.
+
 ## State — 2026-11-10 (vic's dev place)
 
 - vic develops in a copied experience, "Racer RNG Dev" (Place ID 79371032891073). `dev.project.json` (`rojo serve dev.project.json`,

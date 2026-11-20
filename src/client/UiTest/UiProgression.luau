@@ -263,14 +263,28 @@ function Progression.Build(h)
 					)
 				elseif panel and race and roll and turbo then
 					local p, a, r, t = rect(panel), rect(race), rect(roll), rect(turbo)
-					local minimum = math.max(a.y + a.h, r.y + r.h) + Spec.PanelTopMargin
+					-- CLAUDE.md UI rule (HUD agent 2026-11-20): the compact roll toast hides while any PanelSwitch
+					-- panel is open. While this panel is shown, the toast must be hidden, which replaces the
+					-- below-roll / no-overlap geometry (a hidden toast can neither cover the panel nor be covered).
+					local panelShown = h.visible(panel)
+					local rollHidden = panelShown and not h.visible(roll)
+					if panelShown then
+						h.check(
+							res,
+							"roll_hidden_while_open_" .. string.lower(name) .. "_" .. vpSpec.Name,
+							h.visible(roll),
+							false,
+							not h.visible(roll)
+						)
+					end
+					local minimum = math.max(a.y + a.h, rollHidden and 0 or r.y + r.h) + Spec.PanelTopMargin
 					local beside = p.x >= r.x + r.w - Spec.Tolerance or p.x + p.w <= r.x + Spec.Tolerance
 					h.check(
 						res,
 						"panel_below_roll_" .. string.lower(name) .. "_" .. vpSpec.Name,
 						p.y,
-						minimum,
-						beside or p.y >= minimum - Spec.Tolerance
+						rollHidden and "roll toast hidden while the panel is open" or minimum,
+						rollHidden or beside or p.y >= minimum - Spec.Tolerance
 					)
 					h.check(
 						res,
@@ -282,9 +296,9 @@ function Progression.Build(h)
 					h.check(
 						res,
 						"panel_compact_no_overlap_" .. string.lower(name) .. "_" .. vpSpec.Name,
-						h.intersects(p, r),
+						rollHidden and "roll toast hidden" or h.intersects(p, r),
 						false,
-						not h.intersects(p, r)
+						rollHidden or not h.intersects(p, r)
 					)
 					h.check(
 						res,

@@ -130,7 +130,7 @@ function Tests.Run()
 		end
 		youCentered("you_centered_while_advancing")
 		flag("update_redraws_route_while_moving", firstSegment.Position ~= routeBeforeMovement)
-		flag("ahead_status", hud.RaceMapStatus.Text == "AHEAD")
+		flag("ahead_status", string.match(hud.RaceMapStatus.Text, "^AHEAD %d+%.%d s$") ~= nil, hud.RaceMapStatus.Text)
 		controller.Update(0, map.Point(playerRoute, 0.02) + up)
 		youCentered("you_centered_when_position_moves_backwards")
 		controller.Update(61.239, nil)
@@ -174,7 +174,7 @@ function Tests.Run()
 		local npcPath = npc.LanePath(first)
 		local profile = npc.Profile(npcPath, start.Speed)
 		controller.Update(profile.TotalTime / 2, map.Point(playerRoute, 0) + up)
-		flag("behind_status", hud.RaceMapStatus.Text == "BEHIND")
+		flag("behind_status", string.match(hud.RaceMapStatus.Text, "^BEHIND %d+%.%d s$") ~= nil, hud.RaceMapStatus.Text)
 		youCentered("you_centered_while_npc_advances")
 
 		-- A resized tactical view keeps the player centered and one route alive.

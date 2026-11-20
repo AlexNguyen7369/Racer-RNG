@@ -2,6 +2,8 @@
 -- Timed nitro bar while auto racing (docs/NITRO_SPEC.md, proposal). Draws the needle from the server's
 -- NitroReadyAt and sends only the press time; Server/NitroService grades it and starts the boost.
 -- Press: Space, a left click on the world (not on a button), tapping the bar, or gamepad X / R1.
+-- After each boost the label shows the time it saved (server attributes NitroSaved / NitroSavedAt). The bar hides
+-- while a panel, the roll showcase or the loser screen (Client/NpcRacerView's LoserScreen) covers the screen.
 
 local ContextActionService = game:GetService("ContextActionService")
 local GuiService = game:GetService("GuiService")
@@ -24,6 +26,9 @@ local FALLBACK_Y = 0.7 -- bar bottom (scale) when the HUD Speed readout is not f
 local FOV_KICK = 8 -- degrees added to the camera's field of view while boosting
 local GAP_BELOW_ROLL = 6 -- px kept free under the compact roll (RollToast.Toast) on short screens
 local MIN_SCALE = 0.55 -- the bar shrinks (UIScale) down to this to fit between the compact roll and Speed
+local SAVED_SHOW = 1.5 -- s the label shows "SAVED x s" after a boost ends
+local SAVED_FRESH = 1 -- s: a NitroSavedAt older than this (e.g. seen on a late join) is not shown
+local SAVED_TEXT = "SAVED %.1f s" -- NITRO_SPEC "Feedback"
 
 local COLOR_BG = Color3.fromRGB(20, 22, 32)
 local COLOR_GOOD = Color3.fromRGB(60, 210, 90)
@@ -31,6 +36,7 @@ local COLOR_PERFECT = Color3.fromRGB(255, 200, 40)
 local COLOR_NEEDLE = Color3.fromRGB(255, 255, 255)
 local COLOR_CHARGE = Color3.fromRGB(80, 140, 255)
 local COLOR_MARK = Color3.fromRGB(255, 70, 200) -- where the last press landed
+local COLOR_SAVED = Color3.fromRGB(150, 255, 170)
 
 local function make(className, props, parent)
 	local obj = Instance.new(className)
@@ -222,6 +228,21 @@ player:GetAttributeChangedSignal("NitroPresses"):Connect(function()
 	end
 end)
 
+-- The time the last boost saved, shown once when it ends. NitroSaved and NitroSavedAt are set together; either may
+-- arrive first, so both re-show the text while the end is fresh.
+local function showSaved()
+	local at, saved = player:GetAttribute("NitroSavedAt"), player:GetAttribute("NitroSaved")
+	if type(at) ~= "number" or type(saved) ~= "number" or saved ~= saved or saved <= 0 then
+		return
+	end
+	if now() - at > SAVED_FRESH then
+		return
+	end
+	flash(SAVED_TEXT:format(saved), COLOR_SAVED, SAVED_SHOW)
+end
+player:GetAttributeChangedSignal("NitroSavedAt"):Connect(showSaved)
+player:GetAttributeChangedSignal("NitroSaved"):Connect(showSaved)
+
 -- Sit just above the HUD's Speed readout (RacerHud), so the bar never covers it
 local speedReadout = nil
 local function findSpeedReadout()
@@ -252,13 +273,14 @@ local function setFovKick(on)
 	}):Play()
 end
 
--- Like the rest of the HUD, the bar hides while a panel (PanelSwitch) or the roll showcase covers the screen
+-- Like the rest of the HUD, the bar hides while a panel (PanelSwitch) or the roll showcase covers the screen, and
+-- while the loser screen shows (the race is decided; the server ignores presses then too)
+local function shown(name)
+	local g = playerGui:FindFirstChild(name)
+	return g ~= nil and g:IsA("ScreenGui") and g.Enabled
+end
 local function covered()
-	if PanelSwitch.AnyOpen() then
-		return true
-	end
-	local showcase = playerGui:FindFirstChild("RollShowcase")
-	return showcase ~= nil and showcase:IsA("ScreenGui") and showcase.Enabled
+	return PanelSwitch.AnyOpen() or shown("RollShowcase") or shown("LoserScreen")
 end
 
 RunService.RenderStepped:Connect(function()

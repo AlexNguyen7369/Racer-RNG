@@ -23,7 +23,8 @@ Owner request 2026-10-15. Must not contradict `docs/GAME_DESIGN_REQUIREMENTS.md`
 
 Layout follows the owner's reference image: title band "REBIRTH" with close X, then
 
-1. WARNING (red heading): "Rebirth resets your Money and Speed" / "(Robux purchases stay)".
+1. WARNING (red heading): "Rebirth resets your Money, Speed, Level and XP" / "(Robux purchases stay)" (Level and XP
+   added by Vic2CS 2026-11-20: `LevelService.Reset` already resets them; the text was incomplete).
 2. REWARDS UNLOCKED (yellow heading): three tiles for the NEXT rebirth, each with an icon and a caption:
    the next factor's `xN Luck`, `xN Speed Gain`, and `+1 Stat Point` (numbers from `RebirthConfig`, never hard-coded in the UI).
 3. REQUIREMENTS (purple heading): a progress bar filled `Level / required`, text `"<Level> / <required> Level"`.

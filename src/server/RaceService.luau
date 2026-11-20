@@ -8,8 +8,10 @@
 -- the last finish the car is put back at the start of Track 1 and keeps racing.
 --
 -- NPC races (options.Npc, on for players): every track is a race against that track's NPC (Shared/NpcConfig,
--- Shared/NpcRacer). If the NPC reaches a checkpoint first, the player loses at that checkpoint and is immediately
--- teleported back to the start of Track 1; the client is told which checkpoint was lost.
+-- Shared/NpcRacer). The player wins a track by reaching its finish before the NPC's time. A lost race ends as soon
+-- as the NPC's time is up (Vic2CS proposal 2026-11-20, design doc "Playtest follow-ups", needs owner agreement): the
+-- Lose Result is sent at once (the client shows the loser screen), the car brakes to a stop on the rail (run.Lost,
+-- no nitro), and after LOSE_SCREEN_SECONDS it goes back to the start of the run's start track (Reset + Start).
 -- NPC winnings use the current/last-track payout model: a won track pays immediately and a loss pays nothing for
 -- that track. There is no growing bank or continue-risk contract; Unbanked remains a zero compatibility attribute.
 -- Race events go to the owning player only (Remotes.NpcRace:FireClient), whose client draws the NPC.
@@ -27,6 +29,7 @@ local RaceConfig = require(Shared.RaceConfig)
 local NpcConfig = require(Shared.NpcConfig)
 local NpcRacer = require(Shared.NpcRacer)
 local CheckpointConfig = require(Shared.CheckpointConfig)
+local RebirthConfig = require(Shared.RebirthConfig)
 local MoneyService = require(script.Parent.MoneyService)
 local PlayerData = require(script.Parent.PlayerData)
 local GachaService = require(script.Parent.GachaService)
@@ -49,6 +52,7 @@ RaceService.RAIL_SNAP_DISTANCE = 3 -- studs off the rail before it falls back to
 RaceService.RAIL_FALL_HEIGHT = 8 -- studs above the road before the car is put back on it (fast cars can crest
 -- hills and leave the rail; the low side uses the ride-height margin below)
 RaceService.RAIL_LOW_MARGIN = 0.45 -- the chassis may settle below ride height by this much before a safe resnap
+RaceService.LOSE_STOP_SECONDS = 0.5 -- placeholder: after a lost race the rail brakes the car to a stop in this long
 local DEVIATION_GRACE = 3 -- seconds after the start before path deviation is measured (the car starts on the centre line)
 local DEVIATION_GRACE_STUDS = 30 -- ...or this far along it: a MAX_STAT car finishes the route in under 3 s
 
@@ -151,11 +155,24 @@ function RaceService.NewRun(car, raceRoute, player, options)
 		Resets = 0,
 		NitroMulti = 1, -- timed nitro (docs/NITRO_SPEC.md): cruise speed x this while NitroLeft > 0
 		NitroLeft = 0, -- seconds of nitro left, counted in run time
+		-- true from the moment a race is lost (the NPC's time is up) until the car is reset: the loser screen.
+		-- NitroService refuses presses while it is set.
+		Lost = false,
 	}
+	-- The loser screen's length (test hook options.LoseScreenSeconds; 0 resets the car in the frame of the loss)
+	local loseSeconds = NpcConfig.LOSE_SCREEN_SECONDS
+	local loseOption = options.LoseScreenSeconds
+	if type(loseOption) == "number" and loseOption == loseOption and loseOption >= 0 then
+		loseSeconds = math.min(loseOption, 60)
+	end
+	local losing = nil -- { Until, Speed, Brake, LostAt } while the loser screen shows (run.Lost)
 
 	-- The speed the rail holds: the cruise speed, raised while a nitro boost lasts (the only exception to the one
-	-- steady speed; proposed by Vic2CS 2026-11-19, design doc "Timed nitro boost")
+	-- steady speed; proposed by Vic2CS 2026-11-19, design doc "Timed nitro boost"). After a loss the car brakes to a stop.
 	local function driveSpeed()
+		if losing then
+			return losing.Speed
+		end
 		return run.NitroLeft > 0 and run.TargetSpeed * run.NitroMulti or run.TargetSpeed
 	end
 
@@ -249,33 +266,104 @@ function RaceService.NewRun(car, raceRoute, player, options)
 		end
 	end
 
+	-- The loser screen is over: the car goes back to the start of the run's start track (Reset names the lost track),
+	-- and that track's race starts again.
+	local function endLoss()
+		local lostAt = losing and losing.LostAt
+		losing = nil
+		run.Lost = false
+		backToStart()
+		run.Resets += 1
+		emit({ Type = "Reset", Track = raceRoute.Tracks[startIndex].Number, LostAt = lostAt })
+		startAgain()
+	end
+
+	-- The progress guide on the loser screen (design doc "Playtest follow-ups"): the Speed the lost track needs (the
+	-- gate's REC. SPEED), the player's Speed, their race gain per second (flat rate x permanent Speed Gain multi) and
+	-- whether a rebirth is available, with the gain factor it gives.
+	local function progressGuide(trackNumber)
+		local level = RebirthConfig.CleanLevel(player:GetAttribute("RebirthLevel"))
+		local playerLevel = math.max(1, math.floor(tonumber(player:GetAttribute("Level")) or 1))
+		local gain = RaceConfig.GainPerSecond(stat, math.max(run.TargetSpeed, 1)) * GachaService.SpeedMulti(player)
+		return {
+			NeedSpeed = NpcConfig.RecommendedSpeed(trackNumber),
+			Speed = PlayerData.SpeedStat(player) + pending,
+			GainRate = gain,
+			CanRebirth = RebirthConfig.CanRebirth(level, playerLevel),
+			RebirthMulti = RebirthConfig.NextMultiplier(level),
+		}
+	end
+
+	-- The race on the current track is lost (the NPC's time is up, or the car reached the finish too late): nothing
+	-- is paid, the Lose Result goes out at once, the car brakes to a stop for the loser screen, then endLoss.
+	local function loseRace(playerTime)
+		local track = raceRoute.Tracks[race.Index]
+		local guide = progressGuide(track.Number)
+		setUnbanked(0)
+		local event = {
+			Type = "Result",
+			Track = track.Number,
+			Result = "Lose",
+			PlayerTime = playerTime,
+			NpcTime = race.NpcTime,
+			Paid = 0,
+			Banked = 0,
+			Unbanked = 0,
+			BestTime = RaceTimeService.Best(player, track.Number),
+			NewBest = false,
+			-- loser screen (display only)
+			BackTo = raceRoute.Tracks[startIndex].Number,
+			NpcModel = track.Npc.Config.Model,
+			LoseScreen = loseSeconds,
+			NeedSpeed = guide.NeedSpeed,
+			Speed = guide.Speed,
+			GainRate = guide.GainRate,
+			CanRebirth = guide.CanRebirth,
+			RebirthMulti = guide.RebirthMulti,
+		}
+		table.insert(run.Results, event)
+		race = nil
+		run.Losses += 1
+		local speed = driveSpeed()
+		run.NitroLeft = 0 -- a loss ends any boost
+		run.Lost = true
+		losing = {
+			Until = runTime + loseSeconds,
+			Speed = speed,
+			Brake = speed / math.max(RaceService.LOSE_STOP_SECONDS, 1e-3),
+			LostAt = track.Number,
+		}
+		emit(event)
+		if loseSeconds <= 0 then
+			endLoss()
+		end
+	end
+
 	-- The player's car reached the finish of the track it is racing on: decide, pay a win, move on.
 	local function finishRace()
 		local track = raceRoute.Tracks[race.Index]
 		local playerTime = runTime - race.Started
-		local win = playerTime < race.NpcTime
-		local amount = 0
-		local bestTime, newBest = RaceTimeService.Best(player, track.Number), false
-		if win then
-			bestTime, newBest = RaceTimeService.Record(player, track.Number, playerTime)
-			QuestService.Progress(player, "Races")
-			local quote = track.Pad and MoneyService.Quote(player, track.Pad) or 0
-			amount = 0
-			if quote > 0 and MoneyService.Award(player, quote) ~= nil then
-				amount = quote
-				run.Payouts += 1
-				run.PaidTotal += amount
-			end
-			setUnbanked(0)
-			reachTrack(player, track.Number)
-			rewardTrackWin(track.Number)
-		else
-			setUnbanked(0)
+		if playerTime >= race.NpcTime then
+			loseRace(playerTime) -- the NPC's time ran out in this same frame
+			return
 		end
+		local previousBest = RaceTimeService.Best(player, track.Number)
+		local bestTime, newBest = RaceTimeService.Record(player, track.Number, playerTime)
+		QuestService.Progress(player, "Races")
+		local quote = track.Pad and MoneyService.Quote(player, track.Pad) or 0
+		local amount = 0
+		if quote > 0 and MoneyService.Award(player, quote) ~= nil then
+			amount = quote
+			run.Payouts += 1
+			run.PaidTotal += amount
+		end
+		setUnbanked(0)
+		reachTrack(player, track.Number)
+		rewardTrackWin(track.Number)
 		local event = {
 			Type = "Result",
 			Track = track.Number,
-			Result = win and "Win" or "Lose",
+			Result = "Win",
 			PlayerTime = playerTime,
 			NpcTime = race.NpcTime,
 			Paid = amount,
@@ -283,31 +371,22 @@ function RaceService.NewRun(car, raceRoute, player, options)
 			Unbanked = 0,
 			BestTime = bestTime,
 			NewBest = newBest,
+			PreviousBest = previousBest, -- the PB before this race (nil on a first clear); win banner "NEW BEST"
 		}
 		table.insert(run.Results, event)
 		emit(event)
 		local index = race.Index
 		race = nil
-		if win then
-			run.Wins += 1
-			if index < #raceRoute.Tracks then
-				startRace(index + 1)
-			elseif options.Loop then
-				run.Laps += 1
-				backToStart()
-				startAgain()
-			else
-				run.Laps += 1
-				run.Finished = true
-			end
-		else
-			run.Losses += 1
-			-- The loser screen is presentation-only; the authoritative car reset is
-			-- immediate and names the checkpoint that was lost.
+		run.Wins += 1
+		if index < #raceRoute.Tracks then
+			startRace(index + 1)
+		elseif options.Loop then
+			run.Laps += 1
 			backToStart()
-			run.Resets += 1
-			emit({ Type = "Reset", Track = raceRoute.Tracks[startIndex].Number, LostAt = track.Number })
 			startAgain()
+		else
+			run.Laps += 1
+			run.Finished = true
 		end
 	end
 
@@ -517,6 +596,7 @@ function RaceService.NewRun(car, raceRoute, player, options)
 		end
 		flippedFor = 0
 		run.Finished = false
+		losing, run.Lost = nil, false -- a jump also ends a loser screen (no Reset: the jump's Start replaces it)
 		if npcMode then
 			race = nil
 			startRace(index)
@@ -545,7 +625,10 @@ function RaceService.NewRun(car, raceRoute, player, options)
 		if run.NitroLeft > 0 then
 			run.NitroLeft = math.max(0, run.NitroLeft - dt)
 		end
-		if not run.Finished then
+		if losing then
+			-- loser screen: brake to a stop (TargetSpeed 0 with throttle would divide by zero in CarPhysics)
+			control.Throttle, control.Brake, control.TargetSpeed = 0, 1, nil
+		elseif not run.Finished then
 			-- the rail sets the speed; the driver's corner braking would only fight it inside the step
 			control.Throttle, control.Brake, control.TargetSpeed = 1, 0, driveSpeed()
 		end
@@ -558,6 +641,13 @@ function RaceService.NewRun(car, raceRoute, player, options)
 				local last = race.Index == #raceRoute.Tracks
 				if driver.Index >= track.FinishIndex or (last and driver.Done) then
 					finishRace()
+				elseif runTime - race.Started >= race.NpcTime then
+					loseRace(runTime - race.Started) -- the NPC finished first: the race ends now
+				end
+			elseif losing then
+				losing.Speed = math.max(0, losing.Speed - losing.Brake * dt)
+				if runTime >= losing.Until then
+					endLoss()
 				end
 			end
 		elseif duel then
@@ -581,10 +671,10 @@ function RaceService.NewRun(car, raceRoute, player, options)
 		end
 
 		-- Passive gain is a flat rate x permanent Speed-gain upgrades and rebirths; neither the car,
-		-- cruise speed, Speed stat, nor temporary boosts changes it.
-		pending += RaceConfig.GainPerSecond(stat, chassis.AssemblyLinearVelocity.Magnitude) * GachaService.SpeedMulti(
-			player
-		) * dt
+		-- cruise speed, Speed stat, nor temporary boosts changes it. It keeps running through the loser screen while
+		-- the car stands still (the run is still racing), so a lost race costs no Speed gain.
+		local gainSpeed = losing and math.max(run.TargetSpeed, 1) or chassis.AssemblyLinearVelocity.Magnitude
+		pending += RaceConfig.GainPerSecond(stat, gainSpeed) * GachaService.SpeedMulti(player) * dt
 		LevelService.Tick(player, dt)
 		sinceCommit += dt
 		if sinceCommit >= RaceService.COMMIT_INTERVAL then
@@ -615,7 +705,7 @@ function RaceService.NewRun(car, raceRoute, player, options)
 	-- Timed nitro (Server/NitroService decides the grade): the rail holds cruise speed x `multi` for `seconds`.
 	-- NPC races only (not duels, not test runs without an NPC). Returns true if the boost started.
 	function run:Nitro(multi, seconds)
-		if not alive or not npcMode or run.Finished then
+		if not alive or not npcMode or run.Finished or run.Lost then
 			return false
 		end
 		if type(multi) ~= "number" or multi ~= multi or multi <= 1 or multi > 10 then
@@ -639,6 +729,7 @@ function RaceService.NewRun(car, raceRoute, player, options)
 	function run:Destroy()
 		if alive then
 			alive = false
+			losing, run.Lost = nil, false -- Stop / death during the loser screen: no Reset follows, the Stop clears it
 			setUnbanked(0)
 			if npcMode then
 				emit({ Type = "Stop" })

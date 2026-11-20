@@ -133,6 +133,46 @@ function RaceProgressMap.Status(you, npc)
 	return math.abs(difference) < 0.01 and "EVEN" or (difference > 0 and "AHEAD" or "BEHIND")
 end
 
+-- When the NPC passes `progress` (0..1 of its lane), from its deterministic profile (Shared/NpcRacer.Profile):
+-- `npcRoute` is RaceProgressMap.Build(npcPath), whose points are the lane waypoints the profile's Times belong to.
+function RaceProgressMap.NpcTimeAt(npcRoute, profile, progress)
+	local times = profile and profile.Times
+	local n = npcRoute and #npcRoute.Points or 0
+	if type(times) ~= "table" or n < 2 or #times ~= n or npcRoute.Total <= 1e-9 then
+		return 0
+	end
+	local target = math.clamp(progress or 0, 0, 1) * npcRoute.Total
+	local lo, hi = 1, n
+	while hi - lo > 1 do
+		local mid = (lo + hi) // 2
+		if npcRoute.Lengths[mid] <= target then
+			lo = mid
+		else
+			hi = mid
+		end
+	end
+	local span = npcRoute.Lengths[hi] - npcRoute.Lengths[lo]
+	local alpha = span > 1e-9 and math.clamp((target - npcRoute.Lengths[lo]) / span, 0, 1) or 0
+	return times[lo] + (times[hi] - times[lo]) * alpha
+end
+
+-- Rival gap in seconds (design doc "Playtest follow-ups", "Rival gap"): the time between the NPC and the player at
+-- the player's current progress. Positive = the player is ahead (the NPC reaches this point that much later),
+-- negative = behind (the NPC passed it that long ago). At the finish it equals the server's race margin
+-- (NpcTime - PlayerTime).
+function RaceProgressMap.Gap(npcRoute, profile, youProgress, elapsed)
+	return RaceProgressMap.NpcTimeAt(npcRoute, profile, youProgress) - math.max(0, elapsed or 0)
+end
+
+-- "EVEN" inside the 1% band of Status, else "AHEAD 1.2 s" / "BEHIND 3.4 s" (one decimal).
+function RaceProgressMap.StatusText(you, npc, gap)
+	local status = RaceProgressMap.Status(you, npc)
+	if status == "EVEN" or type(gap) ~= "number" or gap ~= gap or math.abs(gap) == math.huge then
+		return status
+	end
+	return string.format("%s %.1f s", status, math.abs(gap))
+end
+
 function RaceProgressMap.FormatTime(seconds)
 	local centiseconds = math.floor(math.max(0, seconds or 0) * 100 + 1e-6)
 	return string.format("%02d:%02d.%02d", centiseconds // 6000, (centiseconds // 100) % 60, centiseconds % 100)

@@ -14,7 +14,9 @@ RaceConfig.BASE_SPEED = 10 * RaceConfig.SPEED_SCALE -- cruise speed at Speed sta
 RaceConfig.MAX_SPEED = 88 * RaceConfig.SPEED_SCALE -- cruise at HALF_STAT, where diminishing returns begin (owner 2026-10-22: 88)
 RaceConfig.HALF_STAT = 100000 -- owner 2026-10-22: first 100K Speed is easier; diminishing returns begin after this threshold
 RaceConfig.MAX_CRUISE_CAR_MULTI = 1.5 -- high car/market multipliers cannot exceed this effective cruise contribution
-RaceConfig.GAIN_PER_SECOND = 2 -- (owner 2026-10-22, placeholder) friendlier early Speed progression
+-- Placeholder. Vic2CS 2026-11-20 proposal (design doc "Faster race Speed gain", needs owner agreement): 4, was 2
+-- (owner 2026-10-22), after a playtest found a long wall at Track 4. Still flat: no stat, car or drive speed term.
+RaceConfig.GAIN_PER_SECOND = 4
 RaceConfig.MAX_STAT = 1e9 -- stability-test reference stat only, NOT a cap: the Speed stat has no cap (owner 2026-10-20)
 
 local function cleanStat(stat)
